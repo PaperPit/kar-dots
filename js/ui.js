@@ -89,7 +89,58 @@
     return many;
   }
 
+  // Разрешённые теги/атрибуты для текста карточек (жирный + ссылки).
+  const RICH_TAGS = { B: true, STRONG: true, I: true, EM: true, BR: true, A: true, DIV: true };
+  function safeHref(href) {
+    href = String(href || '').trim();
+    if (/^(https?:|mailto:)/i.test(href)) return href;
+    if (/^[^:]*$/.test(href)) return null; // относительные ссылки без протокола — не доверяем
+    return null;
+  }
+
+  // Превращает HTML из contenteditable в безопасный HTML с белым списком тегов.
+  function sanitizeRich(html) {
+    const doc = new DOMParser().parseFromString('<div>' + String(html || '') + '</div>', 'text/html');
+    function clean(node) {
+      const out = [];
+      node.childNodes.forEach(ch => {
+        if (ch.nodeType === Node.TEXT_NODE) {
+          out.push(escapeHtml(ch.textContent));
+        } else if (ch.nodeType === Node.ELEMENT_NODE) {
+          const tag = ch.tagName;
+          if (tag === 'DIV' || tag === 'P') {
+            // contenteditable часто оборачивает строки в div/p — превращаем в перенос строки
+            out.push(clean(ch));
+            out.push('<br>');
+          } else if (tag === 'BR') {
+            out.push('<br>');
+          } else if (tag === 'B' || tag === 'STRONG') {
+            out.push('<b>' + clean(ch) + '</b>');
+          } else if (tag === 'I' || tag === 'EM') {
+            out.push('<i>' + clean(ch) + '</i>');
+          } else if (tag === 'A') {
+            const href = safeHref(ch.getAttribute('href'));
+            if (href) out.push('<a href="' + escapeHtml(href) + '" target="_blank" rel="noopener noreferrer">' + clean(ch) + '</a>');
+            else out.push(clean(ch));
+          } else {
+            out.push(clean(ch));
+          }
+        }
+      });
+      return out.join('');
+    }
+    let result = clean(doc.body.firstChild);
+    result = result.replace(/(<br>)+$/g, ''); // хвостовые пустые строки
+    return result;
+  }
+
+  // Убирает всю разметку — для превью в списках карточек.
+  function stripHtml(html) {
+    const doc = new DOMParser().parseFromString(String(html || ''), 'text/html');
+    return (doc.body.textContent || '').replace(/\s+/g, ' ').trim();
+  }
+
   const CROW_SVG = '<svg viewBox="0 0 256 256" aria-hidden="true"><g fill="currentColor"><circle cx="112" cy="102" r="54"/><path d="M 152 84 Q 196 88 220 101 Q 196 114 152 120 Q 162 101 152 84 Z"/><circle cx="124" cy="88" r="10" fill="var(--bg)"/><circle cx="127" cy="86" r="4.5"/><circle cx="76" cy="196" r="13"/><circle cx="120" cy="196" r="13" opacity="0.62"/><circle cx="164" cy="196" r="13" opacity="0.3"/></g></svg>';
 
-  window.UI = { el, toast, modal, confirmDialog, spinner, escapeHtml, plural, CROW_SVG };
+  window.UI = { el, toast, modal, confirmDialog, spinner, escapeHtml, plural, sanitizeRich, stripHtml, CROW_SVG };
 })();

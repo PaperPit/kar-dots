@@ -4,7 +4,7 @@
 (function () {
   'use strict';
 
-  const { el, toast, modal, confirmDialog, spinner, plural, CROW_SVG } = UI;
+  const { el, toast, modal, confirmDialog, spinner, plural, escapeHtml, sanitizeRich, stripHtml, CROW_SVG } = UI;
   const { LocalStore, CloudStore, DEFAULT_SETTINGS } = KarStore;
 
   const FOLDER_COLORS = ['#C4772C', '#7C8DB5', '#4A8F5D', '#B5651D', '#8E6FAE', '#C4453C', '#3E8E9C', '#A98A3B', '#5C5E66'];
@@ -19,6 +19,8 @@
     back: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>',
     dots: '<svg viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></svg>',
     play: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M7 4.5v15a1 1 0 0 0 1.53.85l12-7.5a1 1 0 0 0 0-1.7l-12-7.5A1 1 0 0 0 7 4.5Z"/></svg>',
+    bold: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 4h7a3.5 3.5 0 0 1 0 7H6z"/><path d="M6 11h8a3.5 3.5 0 0 1 0 7H6z"/></svg>',
+    link: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 17H7A5 5 0 0 1 7 7h2"/><path d="M15 7h2a5 5 0 1 1 0 10h-2"/><line x1="8" y1="12" x2="16" y2="12"/></svg>',
   };
 
   // ---------- состояние ------------------------------------
@@ -403,8 +405,8 @@
       }, [
         img ? el('img', { class: 'thumb', src: img, alt: '' }) : null,
         el('div', { class: 'texts' }, [
-          el('div', { class: 'front' }, c.front || '(картинка)'),
-          el('div', { class: 'back' }, c.back || ''),
+          el('div', { class: 'front' }, stripHtml(c.front) || '(картинка)'),
+          el('div', { class: 'back' }, stripHtml(c.back) || ''),
         ]),
         chip,
         el('button', {
@@ -427,8 +429,81 @@
   }
 
   function textPreview(c) {
-    const t = (c.front || '') + (c.back ? ' — ' + c.back : '');
+    const front = stripHtml(c.front);
+    const back = stripHtml(c.back);
+    const t = front + (back ? ' — ' + back : '');
     return t.length > 80 ? t.slice(0, 80) + '…' : t;
+  }
+
+  // ==========================================================
+  // Редактор с форматированием (жирный + ссылки), contenteditable
+  // ==========================================================
+  function richEditor(opts) {
+    opts = opts || {};
+    const editable = el('div', {
+      class: 'input rich-input', contenteditable: 'true',
+      'data-placeholder': opts.placeholder || '',
+    });
+    editable.innerHTML = sanitizeRich(opts.value || '');
+
+    let savedRange = null;
+    function saveSelection() {
+      const sel = window.getSelection();
+      if (sel && sel.rangeCount && editable.contains(sel.anchorNode)) {
+        savedRange = sel.getRangeAt(0).cloneRange();
+      }
+    }
+    function restoreSelection() {
+      if (!savedRange) return;
+      const sel = window.getSelection();
+      sel.removeAllRanges();
+      sel.addRange(savedRange);
+    }
+    function updateToolbarState() {
+      try { boldBtn.classList.toggle('active', document.queryCommandState('bold')); } catch (e) {}
+    }
+    editable.addEventListener('keyup', () => { saveSelection(); updateToolbarState(); });
+    editable.addEventListener('mouseup', () => { saveSelection(); updateToolbarState(); });
+    editable.addEventListener('blur', saveSelection);
+
+    const boldBtn = el('button', {
+      type: 'button', class: 'rich-btn', title: 'Жирный',
+      onclick: e => {
+        e.preventDefault();
+        editable.focus();
+        restoreSelection();
+        document.execCommand('bold');
+        saveSelection();
+        updateToolbarState();
+      },
+    }, svgNode(ICONS.bold));
+
+    const linkBtn = el('button', {
+      type: 'button', class: 'rich-btn', title: 'Ссылка',
+      onclick: e => {
+        e.preventDefault();
+        editable.focus();
+        restoreSelection();
+        const sel = window.getSelection();
+        if (!sel || sel.isCollapsed) { toast('Сначала выделите текст для ссылки', 'error'); return; }
+        const url = window.prompt('Адрес ссылки (https://...)', 'https://');
+        if (!url) return;
+        editable.focus();
+        restoreSelection();
+        document.execCommand('createLink', false, url.trim());
+        saveSelection();
+      },
+    }, svgNode(ICONS.link));
+
+    const toolbar = el('div', { class: 'rich-toolbar' }, [boldBtn, linkBtn]);
+    const wrap = el('div', { class: 'rich-editor' }, [toolbar, editable]);
+
+    return {
+      node: wrap,
+      getHTML: () => sanitizeRich(editable.innerHTML),
+      isEmpty: () => !editable.textContent.trim(),
+      focus: () => editable.focus(),
+    };
   }
 
   // ==========================================================
@@ -436,14 +511,12 @@
   // ==========================================================
   function cardDialog(folderId, card) {
     const state = {
-      front: card ? card.front : '',
-      back: card ? card.back : '',
       front_img: card ? card.front_img : null,
       back_img: card ? card.back_img : null,
     };
 
-    const frontTa = el('textarea', { class: 'input', placeholder: 'Слово, термин или начало цитаты', rows: 2 }, state.front);
-    const backTa = el('textarea', { class: 'input', placeholder: 'Перевод, определение или продолжение', rows: 2 }, state.back);
+    const frontRich = richEditor({ placeholder: 'Слово, термин или начало цитаты', value: card ? card.front : '' });
+    const backRich = richEditor({ placeholder: 'Перевод, определение или продолжение', value: card ? card.back : '' });
 
     function imgDrop(side) {
       const box = el('div', { class: 'img-drop' });
@@ -490,9 +563,9 @@
     const save = el('button', {
       class: 'btn primary',
       onclick: async () => {
-        const front = frontTa.value.trim();
-        const back = backTa.value.trim();
-        if (!front && !state.front_img) { toast('Заполните лицевую сторону', 'error'); return; }
+        const front = frontRich.getHTML();
+        const back = backRich.getHTML();
+        if (frontRich.isEmpty() && !state.front_img) { toast('Заполните лицевую сторону', 'error'); return; }
         save.disabled = true;
         try {
           const patch = { front, back, front_img: state.front_img, back_img: state.back_img };
@@ -514,16 +587,16 @@
       el('div', { class: 'editor-sides' }, [
         el('div', { class: 'side-box' }, [
           el('div', { class: 'side-title' }, 'Лицо'),
-          frontTa, imgDrop('front_img'),
+          frontRich.node, imgDrop('front_img'),
         ]),
         el('div', { class: 'side-box' }, [
           el('div', { class: 'side-title' }, 'Оборот'),
-          backTa, imgDrop('back_img'),
+          backRich.node, imgDrop('back_img'),
         ]),
       ]),
       el('div', { class: 'modal-actions' }, actions),
     ]), { wide: true });
-    if (!card) setTimeout(() => frontTa.focus(), 260);
+    if (!card) setTimeout(() => frontRich.focus(), 260);
   }
 
   // ==========================================================
@@ -585,6 +658,21 @@
       return 'front';
     }
 
+    // Подбирает высоту карточки под содержимое (фото + текст),
+    // но не больше 72vh — дальше появляется прокрутка внутри карточки.
+    function sizeFlipCard(flipEl) {
+      const faces = flipEl.querySelectorAll('.flip-face');
+      let maxNeeded = 320;
+      faces.forEach(face => {
+        const scrollBox = face.querySelector('.flip-face-scroll');
+        if (!scrollBox) return;
+        const needed = scrollBox.scrollHeight + 28 * 2 + 26; // + паддинги .flip-face + метка стороны
+        maxNeeded = Math.max(maxNeeded, needed);
+      });
+      const viewportMax = Math.max(320, Math.round(window.innerHeight * 0.72));
+      flipEl.style.height = Math.min(maxNeeded, viewportMax) + 'px';
+    }
+
     function showNext(first) {
       updateBar();
       if (!queue.length) { finish(); return; }
@@ -604,10 +692,20 @@
       const face = (side, isBack) => {
         const text = card[side === 'front' ? 'front' : 'back'];
         const img = card[side === 'front' ? 'front_img' : 'back_img'];
+        const plain = stripHtml(text);
+        let wordNode = null;
+        if (plain) {
+          const sizeCls = plain.length > 160 ? ' long' : plain.length > 60 ? ' small' : '';
+          wordNode = el('div', { class: 'word' + sizeCls });
+          wordNode.innerHTML = sanitizeRich(text);
+        }
+        const scroll = el('div', { class: 'flip-face-scroll' }, [
+          img ? el('img', { src: img, alt: '' }) : null,
+          wordNode,
+        ]);
         return el('div', { class: 'flip-face' + (isBack ? ' backside' : '') }, [
           el('div', { class: 'side-label' }, side === 'front' ? 'лицо' : 'оборот'),
-          img ? el('img', { src: img, alt: '' }) : null,
-          text ? el('div', { class: 'word' + (text.length > 60 ? ' small' : '') }, text) : null,
+          scroll,
         ]);
       };
 
@@ -615,6 +713,7 @@
       const hint = el('div', { class: 'flip-hint' }, 'Нажмите на карточку, чтобы перевернуть');
       const grades = el('div', { class: 'grade-row' });
       const box = el('div', { class: 'flip-scene' }, [flip, hint, grades]);
+      requestAnimationFrame(() => sizeFlipCard(flip));
 
       function doFlip() {
         if (flipped) return;

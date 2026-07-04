@@ -2,7 +2,7 @@ import { store } from '../../core/state.js';
 import * as SRS from '../../lib/srs.js';
 import { el, toast, confirmDialog, stripHtml } from '../../ui/ui.js';
 import { ICONS } from '../../ui/constants.js';
-import { crowBox, initials, newBudget, svgNode, textPreview } from '../../ui/helpers.js';
+import { crowTombIcon, featherIcon, initials, newBudget, scarecrowBox, svgNode, textPreview } from '../../ui/helpers.js';
 import { shell, nav, offlineBanner } from '../../ui/shell.js';
 import { folderDialog } from '../home/folder-dialog.js';
 import { cardDialog } from '../card-editor/index.js';
@@ -20,12 +20,13 @@ export async function renderFolder(folderId) {
     el('button', { class: 'icon-btn', onclick: () => nav('#home') }, svgNode(ICONS.back)),
     el('div', { class: 'swatch', style: { background: folder.color, width: '30px', height: '30px', borderRadius: '8px', display: 'grid', placeItems: 'center', color: '#fff', fontWeight: '800', fontSize: '13px' } }, initials(folder.name)),
     el('h2', { class: 'page-title grow' }, folder.name),
-    el('button', { class: 'icon-btn', title: 'Переименовать', onclick: () => folderDialog(folder) }, svgNode(ICONS.pencil)),
+    el('button', { class: 'icon-btn', title: 'Переименовать', onclick: () => folderDialog(folder) }, featherIcon()),
     el('button', {
       class: 'icon-btn', title: 'Удалить папку',
       onclick: async () => {
         const yes = await confirmDialog('Удалить папку?',
-          `«${folder.name}» и все её карточки (${cards.length}) будут удалены навсегда.`, 'Удалить', true);
+          `«${folder.name}» и все её карточки (${cards.length}) будут удалены навсегда.`, 'Удалить', true,
+          crowTombIcon());
         if (!yes) return;
         await store.deleteFolder(folderId);
         toast('Папка удалена');
@@ -42,13 +43,16 @@ export async function renderFolder(folderId) {
   const list = el('div', { class: 'card-list' });
   cards.forEach((c, i) => list.append(cardRow(c, i, algo)));
 
-  const content = [offlineBanner(), head, actions, list];
+  const content = [offlineBanner(), head, actions];
   if (!cards.length) {
-    content.push(el('div', { class: 'empty' }, [
-      crowBox('crow'),
-      el('h3', null, 'В папке пусто'),
-      el('p', null, 'Добавьте первое слово, термин или цитату.'),
+    content.push(el('div', { class: 'review-hero' }, [
+      scarecrowBox(),
+      el('div', { class: 'grow' }, [
+        el('h2', null, ['Добавь ещё пару ', el('span', { class: 'kar' }, 'КАР'), 'точек — чтобы мне было что поклевать.']),
+      ]),
     ]));
+  } else {
+    content.push(list);
   }
   shell('home', el('div', null, content));
 
@@ -75,7 +79,7 @@ export async function renderFolder(folderId) {
         class: 'icon-btn', title: 'Удалить',
         onclick: async e => {
           e.stopPropagation();
-          const yes = await confirmDialog('Удалить карточку?', textPreview(c), 'Удалить', true);
+          const yes = await confirmDialog('Удалить карточку?', textPreview(c), 'Удалить', true, crowTombIcon());
           if (!yes) return;
           row.classList.add('removing');
           setTimeout(async () => {

@@ -60,4 +60,41 @@ describe('fmtDays', () => {
     expect(fmtDays(3)).toBe('3 дня');
     expect(fmtDays(5)).toBe('5 дней');
   });
+
+  it('менее суток и месяцы', () => {
+    expect(fmtDays(0.5)).toBe('< 1 дня');
+    expect(fmtDays(30)).toBe('1 мес');
+    expect(fmtDays(60)).toBe('2 мес');
+  });
+});
+
+describe('SM-2 — граничные случаи', () => {
+  it('«снова» снижает лёгкость (ef) и назначает повтор через 10 минут', () => {
+    const now = 1_000_000;
+    const r = sm2Next({ sm2_ef: 2.5, sm2_reps: 3, sm2_ivl: 20 }, 0, now);
+    expect(r.sm2_ef).toBeCloseTo(2.3, 5);
+    expect(r.sm2_due).toBe(now + 10 * MIN);
+  });
+
+  it('«трудно» даёт интервал короче, чем «хорошо»', () => {
+    const card = { sm2_ef: 2.5, sm2_reps: 2, sm2_ivl: 6 };
+    expect(sm2Next(card, 3).sm2_ivl).toBeLessThan(sm2Next(card, 4).sm2_ivl);
+  });
+
+  it('интервал не превышает 365 дней', () => {
+    const r = sm2Next({ sm2_ef: 2.5, sm2_reps: 10, sm2_ivl: 300 }, 5);
+    expect(r.sm2_ivl).toBe(365);
+  });
+});
+
+describe('Лейтнер — граничные случаи', () => {
+  it('коробка не превышает 5', () => {
+    expect(leitnerNext({ box: 5 }, true, [1, 2, 4, 8, 16]).box).toBe(5);
+  });
+});
+
+describe('isDue', () => {
+  it('карточка со сроком в будущем ещё не «пора»', () => {
+    expect(isDue({ sm2_reps: 1, sm2_due: 1000 }, 'sm2', 500)).toBe(false);
+  });
 });

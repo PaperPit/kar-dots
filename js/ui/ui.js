@@ -37,25 +37,50 @@ export function toast(msg, type) {
 export function modal(content, opts) {
   opts = opts || {};
   const root = document.getElementById('modalRoot');
-  const box = el('div', { class: 'modal-box' + (opts.wide ? ' wide' : '') }, content);
+  const prevFocus = document.activeElement;
+  const box = el('div', {
+    class: 'modal-box' + (opts.wide ? ' wide' : ''),
+    role: 'dialog', 'aria-modal': 'true', tabindex: '-1',
+  }, content);
   const overlay = el('div', { class: 'modal-overlay' }, box);
+
+  const focusableSel = 'button, [href], input, textarea, select, [contenteditable="true"], [tabindex]:not([tabindex="-1"])';
+  const focusables = () => Array.from(box.querySelectorAll(focusableSel))
+    .filter(n => !n.disabled && n.offsetParent !== null);
+
   function close() {
     overlay.classList.remove('open');
     document.removeEventListener('keydown', onKey);
     setTimeout(() => overlay.remove(), 260);
+    if (prevFocus && prevFocus.focus) { try { prevFocus.focus({ preventScroll: true }); } catch (e) {} }
   }
-  function onKey(e) { if (e.key === 'Escape') close(); }
+  function onKey(e) {
+    if (e.key === 'Escape') { close(); return; }
+    if (e.key === 'Tab') {
+      const f = focusables();
+      if (!f.length) { e.preventDefault(); box.focus(); return; }
+      const first = f[0], last = f[f.length - 1];
+      if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+      else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+      else if (!box.contains(document.activeElement)) { e.preventDefault(); first.focus(); }
+    }
+  }
   overlay.addEventListener('click', e => { if (e.target === overlay && !opts.sticky) close(); });
   document.addEventListener('keydown', onKey);
   root.appendChild(overlay);
-  requestAnimationFrame(() => requestAnimationFrame(() => overlay.classList.add('open')));
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    overlay.classList.add('open');
+    const f = focusables();
+    (f[0] || box).focus({ preventScroll: true });
+  }));
   return { close, box };
 }
 
-export function confirmDialog(title, text, okLabel, danger) {
+export function confirmDialog(title, text, okLabel, danger, icon) {
   return new Promise(resolve => {
     let m;
     const content = el('div', null, [
+      icon ? el('div', { class: 'modal-illus' }, icon) : null,
       el('h3', { class: 'modal-title' }, title),
       text ? el('p', { class: 'modal-text' }, text) : null,
       el('div', { class: 'modal-actions' }, [

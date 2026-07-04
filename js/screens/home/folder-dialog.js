@@ -1,6 +1,7 @@
 import { store } from '../../core/state.js';
 import { el, toast, modal } from '../../ui/ui.js';
 import { FOLDER_COLORS } from '../../ui/constants.js';
+import { featherIcon, modalHead } from '../../ui/helpers.js';
 import { route } from '../../core/router.js';
 
 export function folderDialog(folder) {
@@ -33,7 +34,7 @@ export function folderDialog(folder) {
   }, folder ? 'Сохранить' : 'Создать');
 
   m = modal(el('div', null, [
-    el('h3', { class: 'modal-title' }, folder ? 'Папка' : 'Новая папка'),
+    folder ? modalHead('Папка', featherIcon('modal-head-icon')) : el('h3', { class: 'modal-title' }, 'Новая папка'),
     el('div', { class: 'field' }, [el('label', null, 'Название'), name]),
     el('div', { class: 'field' }, [el('label', null, 'Цвет'), dots]),
     el('div', { class: 'modal-actions' }, [

@@ -3,6 +3,7 @@ export const DEFAULT_SETTINGS = {
   direction: 'ftb',
   newPerDay: 20,
   leitnerIntervals: [1, 2, 4, 8, 16],
+  calendarPlace: 'left',
 };
 
 export function uuid() {

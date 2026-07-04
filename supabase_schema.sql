@@ -19,8 +19,8 @@ create table if not exists public.cards (
   user_id uuid not null references auth.users (id) on delete cascade,
   folder_id uuid not null references public.folders (id) on delete cascade,
   front text default '',
-  back text default '',
-  description text default '',
+  back text default '',        -- Определение (оборот, жирным по центру)
+  description text default '', -- Описание (оборот, необязательно, мельче)
   front_img text,
   back_img text,
   created_at bigint not null,
@@ -33,6 +33,11 @@ create table if not exists public.cards (
   box integer default 0,
   box_due bigint
 );
+
+-- Если таблица cards уже существовала до появления поля «Описание» —
+-- эта строка безопасно добавит его (create table if not exists не трогает
+-- уже существующие таблицы). Достаточно выполнить один раз.
+alter table public.cards add column if not exists description text default '';
 
 -- Настройки пользователя
 create table if not exists public.settings (
@@ -51,15 +56,12 @@ alter table public.folders enable row level security;
 alter table public.cards enable row level security;
 alter table public.settings enable row level security;
 
-drop policy if exists "own folders" on public.folders;
 create policy "own folders" on public.folders
   for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 
-drop policy if exists "own cards" on public.cards;
 create policy "own cards" on public.cards
   for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 
-drop policy if exists "own settings" on public.settings;
 create policy "own settings" on public.settings
   for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 
@@ -71,25 +73,17 @@ insert into storage.buckets (id, name, public)
 values ('card-images', 'card-images', true)
 on conflict (id) do nothing;
 
-drop policy if exists "upload own images" on storage.objects;
 create policy "upload own images" on storage.objects
   for insert with check (
     bucket_id = 'card-images'
     and auth.uid()::text = (storage.foldername(name))[1]
   );
 
-drop policy if exists "delete own images" on storage.objects;
 create policy "delete own images" on storage.objects
   for delete using (
     bucket_id = 'card-images'
     and auth.uid()::text = (storage.foldername(name))[1]
   );
 
-drop policy if exists "read images" on storage.objects;
 create policy "read images" on storage.objects
   for select using (bucket_id = 'card-images');
-
--- ------------------------------------------------------------
--- Миграции для уже созданных баз (безопасно запускать повторно)
--- ------------------------------------------------------------
-alter table public.cards add column if not exists description text default '';

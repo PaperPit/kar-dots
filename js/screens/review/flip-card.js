@@ -1,5 +1,6 @@
 import { el } from '../../ui/ui.js';
 import { buildFlipFace } from '../../ui/card-face.js';
+import { haptic } from '../../ui/helpers.js';
 
 /**
  * Интерактивная карточка повторения: бесконечное переворачивание по клику/тапу.
@@ -9,7 +10,10 @@ export function createFlipCard(card, firstSide, opts) {
   const backSide = firstSide === 'front' ? 'back' : 'front';
   let gradesShown = false;
 
-  const flip = el('div', { class: 'flip-card' }, [
+  const flip = el('div', {
+    class: 'flip-card', role: 'button', tabindex: '0',
+    'aria-label': 'Карточка — нажмите, чтобы перевернуть',
+  }, [
     buildFlipFace(firstSide, card, false),
     buildFlipFace(backSide, card, true),
   ]);
@@ -18,10 +22,14 @@ export function createFlipCard(card, firstSide, opts) {
   const grades = el('div', { class: 'grade-row' });
   const box = el('div', { class: 'flip-scene' }, [flip, hint, grades]);
 
-  requestAnimationFrame(() => sizeFlipCard(flip));
+  requestAnimationFrame(() => {
+    sizeFlipCard(flip);
+    flip.focus({ preventScroll: true });
+  });
 
   function toggleFlip() {
     flip.classList.toggle('flipped');
+    haptic(6);
     if (!gradesShown) {
       gradesShown = true;
       hint.style.opacity = '0';

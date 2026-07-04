@@ -1,7 +1,7 @@
 import { store, app } from '../core/state.js';
-import { el, CROW_SVG } from './ui.js';
+import { el } from './ui.js';
 import { ICONS } from './constants.js';
-import { svgNode } from './helpers.js';
+import { brandMark, svgNode } from './helpers.js';
 
 let dueBadge = 0;
 
@@ -13,7 +13,7 @@ export async function refreshDueBadge() {
   return dueBadge;
 }
 
-export function shell(viewName, content) {
+export function shell(viewName, content, floating) {
   app.innerHTML = '';
   const badge = dueBadge > 0 ? String(dueBadge) : null;
   const tabs = [
@@ -24,10 +24,7 @@ export function shell(viewName, content) {
 
   const header = el('header', { class: 'header' },
     el('div', { class: 'header-in' }, [
-      el('button', { class: 'brand', onclick: () => nav('#home') }, [
-        svgNode(CROW_SVG),
-        el('span', null, [el('span', { class: 'kar' }, 'КАР'), '-точки']),
-      ]),
+      brandMark({ onclick: () => nav('#home') }),
       el('nav', { class: 'nav-desktop' }, tabs.map(t =>
         el('button', {
           class: 'nav-btn' + (viewName === t.id ? ' active' : ''),
@@ -46,7 +43,8 @@ export function shell(viewName, content) {
 
   const main = el('main', { class: 'main' }, el('div', { class: 'view' }, content));
   app.append(header, main, tabbar);
-  window.scrollTo(0, 0);
+  if (floating) app.insertBefore(floating, tabbar);
+  main.scrollTop = 0;
 }
 
 export function nav(hash) { location.hash = hash; }

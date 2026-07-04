@@ -2,7 +2,7 @@ import { store, sb, cloudConfigured, app, setStore } from '../../core/state.js';
 import { el, toast, spinner } from '../../ui/ui.js';
 import { LocalStore, CloudStore } from '../../data/index.js';
 import { FOLDER_COLORS } from '../../ui/constants.js';
-import { crowBox } from '../../ui/helpers.js';
+import { brandMark, ghostBox } from '../../ui/helpers.js';
 import { nav } from '../../ui/shell.js';
 import { route } from '../../core/router.js';
 
@@ -10,8 +10,8 @@ export function renderAuth(busyMsg) {
   app.innerHTML = '';
   const content = el('div', { class: 'auth-wrap' });
   content.append(
-    crowBox('auth-logo'),
-    el('h1', { class: 'auth-title' }, [el('span', { class: 'kar' }, 'КАР'), '-точки']),
+    ghostBox(),
+    brandMark({ heading: true }),
     el('p', { class: 'auth-sub' }, 'Карточки для запоминания слов, терминов и цитат — с умным интервальным повторением.')
   );
 

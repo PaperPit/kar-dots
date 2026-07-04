@@ -1,4 +1,5 @@
 import { store } from './state.js';
+import { recordVisit } from '../lib/activity.js';
 
 export async function route() {
   try {
@@ -12,6 +13,8 @@ export async function route() {
 
     const bootSplash = document.getElementById('bootSplash');
     if (bootSplash) bootSplash.remove();
+
+    recordVisit();
 
     if (name === 'folder' && arg) {
       const { renderFolder } = await import('../screens/folder/index.js');

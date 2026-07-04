@@ -1,7 +1,7 @@
 import { store } from '../../core/state.js';
 import { el, plural } from '../../ui/ui.js';
 import { ICONS } from '../../ui/constants.js';
-import { crowBox, initials, newBudget, svgNode } from '../../ui/helpers.js';
+import { crowBox, emptyFoldersBox, initials, newBudget, scarecrowBox, svgNode, countUp } from '../../ui/helpers.js';
 import { shell, nav, offlineBanner, refreshDueBadge } from '../../ui/shell.js';
 import { folderDialog } from './folder-dialog.js';
 
@@ -10,20 +10,42 @@ export async function renderHome() {
   const dueAll = await store.countDue(null);
   const newAll = Math.min(await store.countNew(null), newBudget());
   const totalToStudy = dueAll + newAll;
+  const totalCards = await store.countCards(null);
+  const isWelcome = !store.folders.length && totalCards === 0;
+  const hasFoldersNoCards = store.folders.length > 0 && totalCards === 0;
+
+  let heroIcon, heroTitle, heroSub, heroBtn;
+  let heroCountNode = null;
+  if (totalToStudy > 0) {
+    heroIcon = crowBox('crow');
+    heroCountNode = el('span', { class: 'tnum' }, '0');
+    heroTitle = ['К повторению: ', heroCountNode, ` ${plural(totalToStudy, 'карточка', 'карточки', 'карточек')}`];
+    heroSub = 'Ворона ждёт — пара минут, и память скажет спасибо.';
+    heroBtn = el('button', { class: 'btn accent big', onclick: () => nav('#review') }, [svgNode(ICONS.play), 'Повторить']);
+  } else if (isWelcome) {
+    heroIcon = crowBox('crow');
+    heroTitle = 'Кар! Рада знакомству';
+    heroSub = 'Я — ворона вашей памяти. Создайте папку, добавьте первые слова — и мы начнём повторять их вместе, по чуть-чуть, но надолго.';
+    heroBtn = el('button', { class: 'btn accent big', onclick: () => folderDialog(null) }, 'Создать первую папку');
+  } else if (hasFoldersNoCards) {
+    heroIcon = scarecrowBox();
+    heroTitle = 'Поля ждут семена';
+    heroSub = 'Папки уже есть, а слов пока нет. Откройте любую папку и посадите первые карточки — пугало прогонит лень.';
+    heroBtn = null;
+  } else {
+    heroIcon = crowBox('crow');
+    heroTitle = 'КАР-р-р! Сегодня ты был великолепен!!!';
+    heroSub = 'Добавьте новые слова или загляните позже.';
+    heroBtn = null;
+  }
 
   const hero = el('div', { class: 'review-hero' }, [
-    crowBox('crow'),
+    heroIcon,
     el('div', { class: 'grow' }, [
-      el('h2', null, totalToStudy > 0
-        ? `К повторению: ${totalToStudy} ${plural(totalToStudy, 'карточка', 'карточки', 'карточек')}`
-        : 'Всё повторено. Кар!'),
-      el('p', null, totalToStudy > 0
-        ? 'Ворона ждёт — пара минут, и память скажет спасибо.'
-        : 'Добавьте новые слова или загляните позже.'),
+      el('h2', null, heroTitle),
+      el('p', null, heroSub),
     ]),
-    totalToStudy > 0
-      ? el('button', { class: 'btn accent big', onclick: () => nav('#review') }, [svgNode(ICONS.play), 'Повторить'])
-      : null,
+    heroBtn,
   ]);
 
   const grid = el('div', { class: 'folder-grid' });
@@ -46,13 +68,38 @@ export async function renderHome() {
     onclick: () => folderDialog(null),
   }, '+ Новая папка'));
 
-  const content = [offlineBanner(), hero, el('div', { class: 'page-head' }, el('h2', { class: 'page-title' }, 'Папки')), grid];
+  const mainCol = el('div', { class: 'home-main' }, [
+    hero,
+    el('div', { class: 'page-head' }, el('h2', { class: 'page-title' }, 'Папки')),
+    grid,
+  ]);
+
   if (!store.folders.length) {
-    content.push(el('div', { class: 'empty' }, [
-      crowBox('crow'),
+    mainCol.append(el('div', { class: 'empty' }, [
+      emptyFoldersBox(),
       el('h3', null, 'Пока пусто'),
       el('p', null, 'Создайте папку — например, «Английский» или «Философия».'),
     ]));
   }
-  shell('home', el('div', null, content));
+
+  const calendarPlace = store.settings.calendarPlace
+    ?? (store.settings.showCalendar === false ? 'hidden' : 'left');
+
+  let calendarAside = null;
+  if (calendarPlace !== 'hidden') {
+    calendarAside = el('aside', { class: 'home-sidebar home-sidebar-' + calendarPlace });
+  }
+
+  shell('home', el('div', null, [
+    offlineBanner(),
+    el('div', { class: 'home-page' }, [mainCol]),
+  ]), calendarAside);
+
+  if (heroCountNode) countUp(heroCountNode, totalToStudy);
+
+  if (calendarAside) {
+    import('../../ui/activity-calendar.js')
+      .then(m => calendarAside.append(m.activityPanel({ sidebar: true })))
+      .catch(() => calendarAside.remove());
+  }
 }

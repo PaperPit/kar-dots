@@ -2,7 +2,7 @@ import { store } from '../../core/state.js';
 import { el, toast, modal, spinner } from '../../ui/ui.js';
 import { richEditor } from '../../ui/rich-editor.js';
 import { descriptionPlain } from '../../ui/card-face.js';
-import { svgNode } from '../../ui/helpers.js';
+import { featherIcon, modalHead } from '../../ui/helpers.js';
 import { route } from '../../core/router.js';
 
 function imgDrop(side, state) {
@@ -102,7 +102,7 @@ export function cardDialog(folderId, card) {
   }, card ? 'Сохранить' : 'Добавить');
 
   m = modal(el('div', null, [
-    el('h3', { class: 'modal-title' }, card ? 'Карточка' : 'Новая карточка'),
+    card ? modalHead('Карточка', featherIcon('modal-head-icon')) : el('h3', { class: 'modal-title' }, 'Новая карточка'),
     el('div', { class: 'editor-sides' }, [
       el('div', { class: 'side-box' }, [
         el('div', { class: 'side-title' }, 'Лицо'),

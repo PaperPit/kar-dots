@@ -8,9 +8,23 @@
   "display": "standalone",
   "background_color": "#FBFAF7",
   "theme_color": "#FBFAF7",
+  "categories": ["education", "productivity"],
   "icons": [
     { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
     { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png" },
     { "src": "icons/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
+  ],
+  "shortcuts": [
+    {
+      "name": "Начать повторение",
+      "short_name": "Повторить",
+      "description": "Сразу перейти к повторению карточек",
+      "url": "./#review"
+    },
+    {
+      "name": "Мои папки",
+      "short_name": "Папки",
+      "url": "./#home"
+    }
   ]
 }

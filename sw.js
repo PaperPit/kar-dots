@@ -1,13 +1,13 @@
-const VERSION = 'kar-v3.4';
+const VERSION = 'kar-v5.11';
 const APP_FILES = [
   './', 'index.html', 'manifest.webmanifest', 'css/style.css',
   'js/app.js', 'js/config.example.js',
   'js/core/state.js', 'js/core/router.js',
   'js/data/index.js', 'js/data/store-common.js', 'js/data/store-local.js',
   'js/data/store-cloud.js', 'js/data/sync-queue.js', 'js/data/supabase.js',
-  'js/lib/srs.js',
+  'js/lib/srs.js', 'js/lib/activity.js',
   'js/ui/ui.js', 'js/ui/shell.js', 'js/ui/helpers.js', 'js/ui/constants.js',
-  'js/ui/rich-editor.js', 'js/ui/card-face.js',
+  'js/ui/rich-editor.js', 'js/ui/card-face.js', 'js/ui/activity-calendar.js', 'js/ui/raven-brand.js',
   'js/screens/auth/index.js',
   'js/screens/home/index.js', 'js/screens/home/folder-dialog.js',
   'js/screens/folder/index.js',
@@ -15,6 +15,8 @@ const APP_FILES = [
   'js/screens/settings/index.js',
   'js/screens/card-editor/index.js',
   'icons/icon.svg', 'icons/logo.svg', 'icons/icon-192.png', 'icons/icon-512.png',
+  'icons/The%20crow%20with%20the%20tombstone.svg', 'icons/Scarecrow.svg', 'icons/feather.svg',
+  'icons/cup.svg', 'icons/ghost.svg', 'icons/empty%20cage.svg', 'icons/Bird%20cage.svg',
 ];
 
 self.addEventListener('install', e => {

@@ -26,6 +26,25 @@ export function renderSettings() {
     return seg;
   }
 
+  const calendarPlace = s.calendarPlace ?? (s.showCalendar === false ? 'hidden' : 'left');
+  const calendarGroup = el('div', { class: 'settings-group' }, [
+    el('h4', null, 'Календарь'),
+    el('div', { class: 'setting-row' }, [
+      el('div', { class: 'lab' }, [
+        el('b', null, 'Показывать на главной'),
+        el('span', null, 'Где отображать календарь на экране «Папки». Не сдвигает основной контент.'),
+      ]),
+      segControl(calendarPlace, [
+        { v: 'left', label: 'Слева' },
+        { v: 'right', label: 'Справа' },
+        { v: 'hidden', label: 'Скрыть' },
+      ], v => {
+        s.calendarPlace = v;
+        save();
+      }),
+    ]),
+  ]);
+
   const algoGroup = el('div', { class: 'settings-group' }, [
     el('h4', null, 'Интервальное повторение'),
     el('div', { class: 'setting-row' }, [
@@ -166,7 +185,7 @@ export function renderSettings() {
   shell('settings', el('div', null, [
     offlineBanner(),
     el('div', { class: 'page-head' }, el('h2', { class: 'page-title' }, 'Настройки')),
-    algoGroup, dataGroup, accGroup,
+    calendarGroup, algoGroup, dataGroup, accGroup,
     el('p', { class: 'muted', style: { textAlign: 'center', margin: '26px 0 8px' } }, 'КАР-точки · ворона помнит всё'),
   ]));
 }

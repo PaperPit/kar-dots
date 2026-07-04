@@ -142,10 +142,10 @@ export class CloudStore {
   async _loadFromMirror() {
     this.folders = await getAll(this.mirror, 'folders');
     this.folders.sort((a, b) => (a.created_at || 0) - (b.created_at || 0));
-    const kv = await mirrorGetKV(this.mirror, 'settings');
-    if (kv && kv.value) this.settings = Object.assign({}, DEFAULT_SETTINGS, kv.value);
-    const metaKv = await mirrorGetKV(this.mirror, 'srs_meta');
-    this._srsMeta = metaKv && metaKv.value ? metaKv.value : [];
+    const settings = await mirrorGetKV(this.mirror, 'settings');
+    if (settings) this.settings = Object.assign({}, DEFAULT_SETTINGS, settings);
+    const meta = await mirrorGetKV(this.mirror, 'srs_meta');
+    this._srsMeta = meta || [];
     this._folderCache.clear();
     this._cardCounts.clear();
     for (const f of this.folders) {

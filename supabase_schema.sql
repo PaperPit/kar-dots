@@ -51,12 +51,15 @@ alter table public.folders enable row level security;
 alter table public.cards enable row level security;
 alter table public.settings enable row level security;
 
+drop policy if exists "own folders" on public.folders;
 create policy "own folders" on public.folders
   for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 
+drop policy if exists "own cards" on public.cards;
 create policy "own cards" on public.cards
   for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 
+drop policy if exists "own settings" on public.settings;
 create policy "own settings" on public.settings
   for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 
@@ -68,22 +71,25 @@ insert into storage.buckets (id, name, public)
 values ('card-images', 'card-images', true)
 on conflict (id) do nothing;
 
+drop policy if exists "upload own images" on storage.objects;
 create policy "upload own images" on storage.objects
   for insert with check (
     bucket_id = 'card-images'
     and auth.uid()::text = (storage.foldername(name))[1]
   );
 
+drop policy if exists "delete own images" on storage.objects;
 create policy "delete own images" on storage.objects
   for delete using (
     bucket_id = 'card-images'
     and auth.uid()::text = (storage.foldername(name))[1]
   );
 
+drop policy if exists "read images" on storage.objects;
 create policy "read images" on storage.objects
   for select using (bucket_id = 'card-images');
 
 -- ------------------------------------------------------------
--- Миграция для уже созданных баз: новое поле «Описание»
--- Выполните отдельно, если таблица cards уже существует:
--- alter table public.cards add column if not exists description text default '';
+-- Миграции для уже созданных баз (безопасно запускать повторно)
+-- ------------------------------------------------------------
+alter table public.cards add column if not exists description text default '';

@@ -122,7 +122,7 @@ export async function mirrorGetKV(db, key) {
 }
 
 export async function mirrorSetKV(db, key, value) {
-  await txAll(db, 'kv', 'readwrite', s => s.put({ key, value }));
+  await txAll(db, 'kv', 'readwrite', s => s.put(value, key));
 }
 
 export function indexGetAll(db, storeName, indexName, key) {

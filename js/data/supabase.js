@@ -1,13 +1,11 @@
 // ============================================================
 // КАР-точки — минимальный клиент Supabase (без внешних библиотек)
-// Использует REST API: GoTrue (auth), PostgREST (база), Storage.
 // ============================================================
-(function () {
-  'use strict';
 
-  const LS_KEY = 'kar_session';
+const LS_KEY = 'kar_session';
 
-  function MiniSupabase(url, anonKey) {
+export class MiniSupabase {
+  constructor(url, anonKey) {
     this.url = url.replace(/\/+$/, '');
     this.key = anonKey;
     this.session = null;
@@ -17,20 +15,19 @@
     } catch (e) { /* ignore */ }
   }
 
-  MiniSupabase.prototype._saveSession = function (s) {
+  _saveSession(s) {
     this.session = s;
     if (s) localStorage.setItem(LS_KEY, JSON.stringify(s));
     else localStorage.removeItem(LS_KEY);
-  };
+  }
 
-  MiniSupabase.prototype._authHeaders = function () {
+  _authHeaders() {
     const h = { apikey: this.key };
     h['Authorization'] = 'Bearer ' + (this.session ? this.session.access_token : this.key);
     return h;
-  };
+  }
 
-  // --- Auth -------------------------------------------------
-  MiniSupabase.prototype.signUp = async function (email, password) {
+  async signUp(email, password) {
     const r = await fetch(this.url + '/auth/v1/signup', {
       method: 'POST',
       headers: Object.assign({ 'Content-Type': 'application/json' }, { apikey: this.key }),
@@ -38,12 +35,11 @@
     });
     const data = await r.json();
     if (!r.ok) throw authError(data);
-    // если подтверждение почты отключено, сессия приходит сразу
     if (data.access_token) { this._saveSession(withExpiry(data)); return { session: this.session, needConfirm: false }; }
     return { session: null, needConfirm: true };
-  };
+  }
 
-  MiniSupabase.prototype.signIn = async function (email, password) {
+  async signIn(email, password) {
     const r = await fetch(this.url + '/auth/v1/token?grant_type=password', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', apikey: this.key },
@@ -53,16 +49,16 @@
     if (!r.ok) throw authError(data);
     this._saveSession(withExpiry(data));
     return this.session;
-  };
+  }
 
-  MiniSupabase.prototype.signOut = async function () {
+  async signOut() {
     try {
       await fetch(this.url + '/auth/v1/logout', { method: 'POST', headers: this._authHeaders() });
-    } catch (e) { /* offline — всё равно выходим */ }
+    } catch (e) { /* offline */ }
     this._saveSession(null);
-  };
+  }
 
-  MiniSupabase.prototype.refresh = async function () {
+  async refresh() {
     if (!this.session || !this.session.refresh_token) throw new Error('Нет сессии');
     const r = await fetch(this.url + '/auth/v1/token?grant_type=refresh_token', {
       method: 'POST',
@@ -73,32 +69,41 @@
     if (!r.ok) { this._saveSession(null); throw authError(data); }
     this._saveSession(withExpiry(data));
     return this.session;
-  };
+  }
 
-  MiniSupabase.prototype.ensureFresh = async function () {
+  async ensureFresh() {
     if (!this.session) return null;
-    // обновляем за 2 минуты до истечения
     if (this.session.expires_at_ms && Date.now() > this.session.expires_at_ms - 2 * 60 * 1000) {
       try { await this.refresh(); } catch (e) { return null; }
     }
     return this.session;
-  };
+  }
 
-  MiniSupabase.prototype.userId = function () {
+  userId() {
     return this.session && this.session.user ? this.session.user.id : null;
-  };
+  }
 
-  // --- База (PostgREST) ------------------------------------
-  // select('cards', 'folder_id=eq.xxx&order=created_at')
-  MiniSupabase.prototype.select = async function (table, query) {
+  async select(table, query) {
     await this.ensureFresh();
     const r = await fetch(this.url + '/rest/v1/' + table + (query ? '?' + query : ''), {
       headers: this._authHeaders(),
     });
     return handle(r);
-  };
+  }
 
-  MiniSupabase.prototype.insert = async function (table, row) {
+  async count(table, query) {
+    await this.ensureFresh();
+    const r = await fetch(this.url + '/rest/v1/' + table + '?' + query, {
+      method: 'HEAD',
+      headers: Object.assign({ Prefer: 'count=exact' }, this._authHeaders()),
+    });
+    if (!r.ok) return handle(r);
+    const range = r.headers.get('content-range') || '';
+    const m = range.match(/\/(\d+)$/);
+    return m ? parseInt(m[1], 10) : 0;
+  }
+
+  async insert(table, row) {
     await this.ensureFresh();
     const r = await fetch(this.url + '/rest/v1/' + table, {
       method: 'POST',
@@ -107,9 +112,9 @@
     });
     const rows = await handle(r);
     return Array.isArray(rows) ? rows[0] : rows;
-  };
+  }
 
-  MiniSupabase.prototype.upsert = async function (table, row) {
+  async upsert(table, row) {
     await this.ensureFresh();
     const r = await fetch(this.url + '/rest/v1/' + table, {
       method: 'POST',
@@ -121,9 +126,9 @@
     });
     const rows = await handle(r);
     return Array.isArray(rows) ? rows[0] : rows;
-  };
+  }
 
-  MiniSupabase.prototype.update = async function (table, filter, patch) {
+  async update(table, filter, patch) {
     await this.ensureFresh();
     const r = await fetch(this.url + '/rest/v1/' + table + '?' + filter, {
       method: 'PATCH',
@@ -131,9 +136,9 @@
       body: JSON.stringify(patch),
     });
     return handle(r);
-  };
+  }
 
-  MiniSupabase.prototype.remove = async function (table, filter) {
+  async remove(table, filter) {
     await this.ensureFresh();
     const r = await fetch(this.url + '/rest/v1/' + table + '?' + filter, {
       method: 'DELETE',
@@ -141,10 +146,9 @@
     });
     if (!r.ok) return handle(r);
     return true;
-  };
+  }
 
-  // --- Storage ----------------------------------------------
-  MiniSupabase.prototype.uploadFile = async function (bucket, path, blob, contentType) {
+  async uploadFile(bucket, path, blob, contentType) {
     await this.ensureFresh();
     const r = await fetch(this.url + '/storage/v1/object/' + bucket + '/' + path, {
       method: 'POST',
@@ -156,9 +160,9 @@
       throw new Error(data.message || data.error || 'Не удалось загрузить файл (' + r.status + ')');
     }
     return this.url + '/storage/v1/object/public/' + bucket + '/' + path;
-  };
+  }
 
-  MiniSupabase.prototype.deleteFile = async function (bucket, path) {
+  async deleteFile(bucket, path) {
     await this.ensureFresh();
     try {
       await fetch(this.url + '/storage/v1/object/' + bucket + '/' + path, {
@@ -166,38 +170,43 @@
         headers: this._authHeaders(),
       });
     } catch (e) { /* некритично */ }
+  }
+}
+
+async function handle(r) {
+  if (r.ok) {
+    if (r.status === 204) return true;
+    const text = await r.text();
+    return text ? JSON.parse(text) : true;
+  }
+  const data = await r.json().catch(() => ({}));
+  const msg = data.message || data.error_description || data.error || ('Ошибка запроса (' + r.status + ')');
+  const err = new Error(msg);
+  err.status = r.status;
+  throw err;
+}
+
+function withExpiry(data) {
+  data.expires_at_ms = Date.now() + (data.expires_in ? data.expires_in * 1000 : 3600 * 1000);
+  return data;
+}
+
+function authError(data) {
+  let msg = data.msg || data.error_description || data.message || data.error || 'Ошибка авторизации';
+  const map = {
+    'Invalid login credentials': 'Неверная почта или пароль',
+    'User already registered': 'Такой пользователь уже зарегистрирован',
+    'Email not confirmed': 'Почта не подтверждена — проверьте ящик',
+    'Password should be at least 6 characters': 'Пароль должен быть не короче 6 символов',
+    'Signup requires a valid password': 'Введите корректный пароль',
+    'Unable to validate email address: invalid format': 'Некорректный адрес почты',
   };
+  return new Error(map[msg] || msg);
+}
 
-  // --- helpers ----------------------------------------------
-  async function handle(r) {
-    if (r.ok) {
-      if (r.status === 204) return true;
-      return r.json();
-    }
-    const data = await r.json().catch(() => ({}));
-    const msg = data.message || data.error_description || data.error || ('Ошибка запроса (' + r.status + ')');
-    const err = new Error(msg);
-    err.status = r.status;
-    throw err;
-  }
-
-  function withExpiry(data) {
-    data.expires_at_ms = Date.now() + (data.expires_in ? data.expires_in * 1000 : 3600 * 1000);
-    return data;
-  }
-
-  function authError(data) {
-    let msg = data.msg || data.error_description || data.message || data.error || 'Ошибка авторизации';
-    const map = {
-      'Invalid login credentials': 'Неверная почта или пароль',
-      'User already registered': 'Такой пользователь уже зарегистрирован',
-      'Email not confirmed': 'Почта не подтверждена — проверьте ящик',
-      'Password should be at least 6 characters': 'Пароль должен быть не короче 6 символов',
-      'Signup requires a valid password': 'Введите корректный пароль',
-      'Unable to validate email address: invalid format': 'Некорректный адрес почты',
-    };
-    return new Error(map[msg] || msg);
-  }
-
-  window.MiniSupabase = MiniSupabase;
-})();
+export function isNetworkError(err) {
+  if (!navigator.onLine) return true;
+  if (err && err.name === 'TypeError') return true;
+  const msg = String(err && err.message || '');
+  return /failed to fetch|network|load failed/i.test(msg);
+}

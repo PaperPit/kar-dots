@@ -51,14 +51,14 @@
    - **Project URL** (вида `https://xxxx.supabase.co`),
    - ключ **anon / public**.
 
-4. **Впишите их в приложение**: откройте `js/config.js` и заполните:
+4. **Впишите их в приложение**: скопируйте `js/config.example.js` → `js/config.js` и заполните:
    ```js
-   window.KAR_CONFIG = {
+   export default {
      SUPABASE_URL: 'https://xxxx.supabase.co',
      SUPABASE_ANON_KEY: 'eyJ...ваш ключ...',
    };
    ```
-   Ключ anon безопасно хранить в коде страницы — доступ к данным ограничивают правила на сервере.
+   Файл `js/config.js` не попадает в git — см. `РАЗРАБОТКА.md`.
 
 5. **(Рекомендую для прототипа)** Отключите подтверждение почты, чтобы друзья входили сразу: **Authentication → Sign In / Providers → Email → выключите Confirm email**. Иначе после регистрации нужно кликнуть по ссылке из письма.
 
@@ -78,24 +78,25 @@
 
 ## Управление с клавиатуры (на компьютере)
 
-Во время повторения: **пробел / Enter** — перевернуть карточку, **1–4** — оценить.
+Во время повторения: **пробел / Enter** — перевернуть карточку (можно многократно), **1–4** — оценить.
 
 ## Структура проекта
 
 ```
-index.html            — оболочка приложения
-css/style.css         — все стили и анимации
-js/config.js          — ключи Supabase (единственный файл, который нужно менять)
-js/app.js             — экраны: папки, карточки, повторение, настройки
-js/store.js           — хранилища: IndexedDB (демо) и Supabase (облако)
-js/supabase.js        — мини-клиент Supabase REST (без библиотек)
-js/srs.js             — алгоритмы SM-2 и Лейтнера
-js/ui.js              — модальные окна, тосты, помощники
-sw.js                 — service worker (офлайн и установка)
-manifest.webmanifest  — манифест PWA
-icons/                — ворона и точки
-supabase_schema.sql   — схема базы для Supabase
+js/app.js              — точка входа
+js/core/               — state.js, router.js
+js/data/               — хранилища (демо + облако)
+js/lib/srs.js          — интервальное повторение
+js/ui/                 — UI-компоненты, card-face.js, rich-editor.js
+js/screens/            — экраны: auth, home, folder, review, settings, card-editor
+tests/srs.test.js
+РАЗРАБОТКА.md          — git, тесты, карта модулей
+supabase_schema.sql    — схема базы (+ поле description)
 ```
+
+**Поля карточки:** `front` (лицо), `back` (определение), `description` (описание, необязательно). Старые карточки не меняются.
+
+Подробнее — **РАЗРАБОТКА.md**.
 
 ## Частые вопросы
 

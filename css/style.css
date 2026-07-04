@@ -353,6 +353,43 @@ textarea.input { resize: vertical; min-height: 72px; }
 .flip-face .word.long { font-size: 16px; font-weight: 500; text-align: left; }
 .flip-face .word b, .flip-face .word strong { font-weight: 800; }
 .flip-face .word a { color: var(--accent); text-decoration: underline; word-break: break-all; }
+
+.card-definition {
+  font-size: 22px;
+  font-weight: 800;
+  text-align: center;
+  line-height: 1.35;
+  white-space: pre-wrap;
+  word-break: break-word;
+  width: 100%;
+}
+.card-definition.long { font-size: 17px; }
+.card-definition a { color: var(--accent); text-decoration: underline; }
+
+.card-description {
+  font-size: 15px;
+  font-weight: 400;
+  text-align: justify;
+  line-height: 1.5;
+  margin-top: 14px;
+  width: 100%;
+  white-space: pre-wrap;
+  word-break: break-word;
+  color: var(--ink-soft);
+}
+
+.field-hint {
+  font-size: 12px;
+  color: var(--ink-faint);
+  margin: -4px 0 8px;
+}
+
+.desc-input {
+  min-height: 88px;
+  resize: vertical;
+  line-height: 1.45;
+  text-align: left;
+}
 .flip-face img { max-width: 100%; max-height: 180px; border-radius: 12px; object-fit: contain; flex: none; }
 .flip-hint { text-align: center; color: var(--ink-faint); font-size: 13px; margin-top: 14px; }
 
@@ -527,6 +564,17 @@ textarea.input { resize: vertical; min-height: 72px; }
 .muted { color: var(--ink-faint); font-size: 13px; }
 .mt { margin-top: 16px; }
 .hidden { display: none !important; }
+
+.offline-banner {
+  background: var(--accent-soft);
+  color: var(--ink);
+  font-size: 13px;
+  text-align: center;
+  padding: 10px 14px;
+  border-radius: var(--radius-sm);
+  margin-bottom: 14px;
+  border: 1px solid var(--line);
+}
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; }

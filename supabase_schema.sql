@@ -20,6 +20,7 @@ create table if not exists public.cards (
   folder_id uuid not null references public.folders (id) on delete cascade,
   front text default '',
   back text default '',
+  description text default '',
   front_img text,
   back_img text,
   created_at bigint not null,
@@ -81,3 +82,8 @@ create policy "delete own images" on storage.objects
 
 create policy "read images" on storage.objects
   for select using (bucket_id = 'card-images');
+
+-- ------------------------------------------------------------
+-- Миграция для уже созданных баз: новое поле «Описание»
+-- Выполните отдельно, если таблица cards уже существует:
+-- alter table public.cards add column if not exists description text default '';

@@ -1,0 +1,15 @@
+# Локальные ключи Supabase (скопируйте config.example.js → config.js)
+js/config.js
+
+# Зависимости и сборка
+node_modules/
+
+# ОС и редактор
+.DS_Store
+Thumbs.db
+*.swp
+.idea/
+.vscode/
+
+# Graphify
+graphify-out/

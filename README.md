@@ -51,14 +51,9 @@
    - **Project URL** (вида `https://xxxx.supabase.co`),
    - ключ **anon / public**.
 
-4. **Впишите их в приложение**: скопируйте `js/config.example.js` → `js/config.js` и заполните:
-   ```js
-   export default {
-     SUPABASE_URL: 'https://xxxx.supabase.co',
-     SUPABASE_ANON_KEY: 'eyJ...ваш ключ...',
-   };
-   ```
-   Файл `js/config.js` не попадает в git — см. `РАЗРАБОТКА.md`.
+4. **Впишите ключи** (локально): скопируйте `js/config.example.js` → `js/config.js`.
+
+   **Netlify:** Site settings → Environment variables → добавьте `SUPABASE_URL` и `SUPABASE_ANON_KEY`. При деплое `netlify.toml` создаст `config.js` автоматически (без ключей — только демо-режим).
 
 5. **(Рекомендую для прототипа)** Отключите подтверждение почты, чтобы друзья входили сразу: **Authentication → Sign In / Providers → Email → выключите Confirm email**. Иначе после регистрации нужно кликнуть по ссылке из письма.
 

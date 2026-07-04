@@ -1,4 +1,4 @@
-import { cloudConfigured, setSb, setStore, sb, cfg } from './core/state.js';
+import { initConfig, cloudConfigured, setSb, setStore, sb, cfg } from './core/state.js';
 import { toast } from './ui/ui.js';
 import { MiniSupabase } from './data/supabase.js';
 import { CloudStore } from './data/index.js';
@@ -10,6 +10,8 @@ function dismissBootSplash() {
 }
 
 async function boot() {
+  await initConfig();
+
   if (cloudConfigured) {
     setSb(new MiniSupabase(cfg.SUPABASE_URL, cfg.SUPABASE_ANON_KEY));
   }

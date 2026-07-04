@@ -1,4 +1,3 @@
-import * as SRS from '../lib/srs.js';
 import { el } from '../../ui/ui.js';
 import { buildFlipFace } from '../../ui/card-face.js';
 

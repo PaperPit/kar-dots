@@ -1,5 +1,6 @@
 import { store } from './state.js';
 import { recordVisit } from '../lib/activity.js';
+import { parseReviewRoute, isStudyMode } from '../lib/study-modes.js';
 
 export async function route() {
   try {
@@ -7,7 +8,7 @@ export async function route() {
     const parts = h.split('/').filter(Boolean);
     const name = parts[0];
     const arg = parts[1];
-    const cram = parts[2] === 'cram';
+    const reviewOpts = name === 'review' ? parseReviewRoute(parts) : null;
     if (!store) {
       const { renderAuth } = await import('../screens/auth/index.js');
       renderAuth();
@@ -23,8 +24,12 @@ export async function route() {
       const { renderFolder } = await import('../screens/folder/index.js');
       await renderFolder(arg);
     } else if (name === 'review') {
+      const { folderId, cram, mode } = reviewOpts;
       const { renderReview } = await import('../screens/review/index.js');
-      await renderReview(arg || null, { cram: cram && !!arg });
+      await renderReview(folderId, {
+        cram: cram && !!folderId,
+        mode: isStudyMode(mode) ? mode : 'flip',
+      });
     } else if (name === 'settings') {
       const { renderSettings } = await import('../screens/settings/index.js');
       await renderSettings();

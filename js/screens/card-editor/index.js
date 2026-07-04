@@ -3,6 +3,8 @@ import { el, toast, modal, spinner, stripHtml } from '../../ui/ui.js';
 import { richEditor } from '../../ui/rich-editor.js';
 import { featherIcon, modalHead } from '../../ui/helpers.js';
 import { route } from '../../core/router.js';
+import { getTranslateDir, translateText } from '../../lib/translate.js';
+import { createTranslateDirToggle } from '../../ui/translate-dir-toggle.js';
 
 function imgDrop(side, state) {
   const box = el('div', { class: 'img-drop' });
@@ -70,6 +72,30 @@ export function cardDialog(folderId, card) {
   let m;
   let saveBtn;
   let saveMoreBtn;
+  const { btn: dirToggleBtn, getDir: getTranslateDirLocal } = createTranslateDirToggle(getTranslateDir());
+
+  const translateBtn = el('button', { type: 'button', class: 'btn translate-btn' }, 'Перевести');
+
+  translateBtn.addEventListener('click', async () => {
+    const src = frontRich.getPlain();
+    if (!src) { toast('Сначала введите слово на лицевой стороне', 'error'); return; }
+    if (card && !defRich.isEmpty()) {
+      if (!window.confirm('Заменить текущее определение переводом?')) return;
+    }
+    translateBtn.disabled = true;
+    const prev = translateBtn.textContent;
+    translateBtn.textContent = '…';
+    try {
+      const out = await translateText(src, getTranslateDirLocal());
+      defRich.setPlain(out);
+      toast('Перевод подставлен', 'ok');
+    } catch (e) {
+      toast(e.message, 'error');
+    } finally {
+      translateBtn.disabled = false;
+      translateBtn.textContent = prev;
+    }
+  });
 
   async function submit(andContinue) {
     const front = stripHtml(frontRich.getHTML()).trim();
@@ -121,6 +147,11 @@ export function cardDialog(folderId, card) {
     el('span', { class: 'btn-save-more-full' }, 'Сохр. + добавить ещё'),
   ]);
 
+  const translateRow = el('div', { class: 'translate-row' }, [
+    dirToggleBtn,
+    translateBtn,
+  ]);
+
   m = modal(el('div', null, [
     card ? modalHead('Карточка', featherIcon('modal-head-icon')) : el('h3', { class: 'modal-title' }, 'Новая карточка'),
     el('div', { class: 'editor-sides' }, [
@@ -134,6 +165,7 @@ export function cardDialog(folderId, card) {
         el('div', { class: 'side-title' }, 'Оборот'),
         el('div', { class: 'field' }, [
           el('label', null, 'Определение'),
+          translateRow,
           defRich.node,
         ]),
         el('div', { class: 'field' }, [

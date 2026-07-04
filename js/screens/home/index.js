@@ -5,6 +5,8 @@ import { crowBox, emptyFoldersBox, initials, newBudget, scarecrowBox, svgNode, c
 import { shell, nav, offlineBanner, refreshDueBadge } from '../../ui/shell.js';
 import { homeCalendarWidget } from '../../ui/activity-calendar.js';
 import { folderDialog } from './folder-dialog.js';
+import { studyModePicker } from '../review/mode-picker.js';
+import { vocabPacksDialog } from '../../ui/vocab-packs-dialog.js';
 
 export async function renderHome() {
   await refreshDueBadge();
@@ -22,12 +24,15 @@ export async function renderHome() {
     heroCountNode = el('span', { class: 'tnum' }, '0');
     heroTitle = ['К повторению: ', heroCountNode, ` ${plural(totalToStudy, 'карточка', 'карточки', 'карточек')}`];
     heroSub = 'Ворона ждёт — пара минут, и память скажет спасибо.';
-    heroBtn = el('button', { class: 'btn accent big', onclick: () => nav('#review') }, [svgNode(ICONS.play), 'Повторить']);
+    heroBtn = el('button', { class: 'btn accent big', onclick: () => studyModePicker({}) }, [svgNode(ICONS.play), 'Повторить']);
   } else if (isWelcome) {
     heroIcon = crowBox('crow');
     heroTitle = 'Кар! Рада знакомству';
-    heroSub = 'Я — ворона вашей памяти. Создайте папку, добавьте первые слова — и мы начнём повторять их вместе, по чуть-чуть, но надолго.';
-    heroBtn = el('button', { class: 'btn accent big', onclick: () => folderDialog(null) }, 'Создать первую папку');
+    heroSub = 'Я — ворона вашей памяти. Создайте папку, добавьте первые слова — или установите готовый пак English A0–A2.';
+    heroBtn = el('div', { class: 'hero-btns' }, [
+      el('button', { class: 'btn accent big', onclick: () => folderDialog(null) }, 'Создать первую папку'),
+      el('button', { class: 'btn big', onclick: () => vocabPacksDialog() }, 'Лексические паки'),
+    ]);
   } else if (hasFoldersNoCards) {
     heroIcon = scarecrowBox();
     heroTitle = 'Поля ждут семена';
@@ -61,6 +66,7 @@ export async function renderHome() {
       el('div', { class: 'swatch', style: { background: f.color } }, initials(f.name)),
       el('h3', null, f.name),
       el('div', { class: 'meta' }, n + ' ' + plural(n, 'карточка', 'карточки', 'карточек')),
+      f.pack_id ? el('div', { class: 'pack-chip' }, 'Лексический пак') : null,
       due > 0 ? el('div', { class: 'due-chip' }, due + ' к повторению') : null,
     ]));
   }

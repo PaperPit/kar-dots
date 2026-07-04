@@ -2,6 +2,7 @@ import { store, app } from '../core/state.js';
 import { el } from './ui.js';
 import { ICONS } from './constants.js';
 import { brandMark, svgNode } from './helpers.js';
+import { studyModePicker } from '../screens/review/mode-picker.js';
 
 let dueBadge = 0;
 
@@ -18,7 +19,12 @@ export function shell(viewName, content, prependToMain) {
   const badge = dueBadge > 0 ? String(dueBadge) : null;
   const tabs = [
     { id: 'home', label: 'Папки', icon: ICONS.home, hash: '#home' },
-    { id: 'review', label: 'Повторение', icon: ICONS.cards, hash: '#review', badge },
+    {
+      id: 'review', label: 'Повторение', icon: ICONS.cards,
+      onclick: () => studyModePicker({}),
+      hash: '#review',
+      badge,
+    },
     { id: 'settings', label: 'Настройки', icon: ICONS.gear, hash: '#settings' },
   ];
 
@@ -28,7 +34,7 @@ export function shell(viewName, content, prependToMain) {
       el('nav', { class: 'nav-desktop' }, tabs.map(t =>
         el('button', {
           class: 'nav-btn' + (viewName === t.id ? ' active' : ''),
-          onclick: () => nav(t.hash),
+          onclick: () => (t.onclick ? t.onclick() : nav(t.hash)),
         }, [t.label, t.badge ? el('span', { class: 'badge' }, t.badge) : null])
       )),
     ])
@@ -37,7 +43,7 @@ export function shell(viewName, content, prependToMain) {
   const tabbar = el('div', { class: 'tabbar' }, tabs.map(t =>
     el('button', {
       class: 'tab-btn' + (viewName === t.id ? ' active' : ''),
-      onclick: () => nav(t.hash),
+      onclick: () => (t.onclick ? t.onclick() : nav(t.hash)),
     }, [svgNode(t.icon), el('span', null, t.label), t.badge ? el('span', { class: 'badge' }, t.badge) : null])
   ));
 

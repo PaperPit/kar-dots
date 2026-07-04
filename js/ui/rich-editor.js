@@ -60,6 +60,8 @@ export function richEditor(opts) {
   return {
     node: wrap,
     getHTML: () => sanitizeRich(editable.innerHTML),
+    getPlain: () => editable.textContent.trim(),
+    setPlain: text => { editable.textContent = String(text || ''); },
     isEmpty: () => !editable.textContent.trim(),
     focus: () => editable.focus(),
   };

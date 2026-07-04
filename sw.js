@@ -1,4 +1,4 @@
-const VERSION = 'kar-v7.15';
+const VERSION = 'kar-v7.46';
 const APP_FILES = [
   './', 'index.html', 'manifest.webmanifest', 'css/style.css',
   'css/fonts/fonts.css',
@@ -12,21 +12,31 @@ const APP_FILES = [
   'js/data/index.js', 'js/data/store-common.js', 'js/data/store-local.js',
   'js/data/store-cloud.js', 'js/data/sync-queue.js', 'js/data/supabase.js',
   'js/lib/srs.js', 'js/lib/activity.js', 'js/lib/stats.js',
+  'js/lib/card-import.js', 'js/lib/translate.js',
+  'js/lib/answer-check.js', 'js/lib/speech-input.js', 'js/lib/study-modes.js', 'js/lib/sounds.js', 'js/lib/vocab-packs.js',
   'js/ui/ui.js', 'js/ui/shell.js', 'js/ui/helpers.js', 'js/ui/constants.js',
   'js/ui/rich-editor.js', 'js/ui/card-face.js', 'js/ui/activity-calendar.js', 'js/ui/raven-brand.js',
+  'js/ui/translate-dir-toggle.js', 'js/ui/melody-picker.js', 'js/ui/answer-feedback.js', 'js/ui/vocab-packs-dialog.js',
   'js/ui/swipe-grades.js',
   'js/screens/auth/index.js',
   'js/screens/home/index.js', 'js/screens/home/folder-dialog.js',
   'js/screens/folder/index.js',
   'js/screens/review/index.js', 'js/screens/review/flip-card.js',
+  'js/screens/review/mode-picker.js',
+  'js/screens/review/modes/flip.js', 'js/screens/review/modes/type.js',
+  'js/screens/review/modes/voice.js', 'js/screens/review/modes/match.js',
   'js/screens/settings/index.js',
-  'js/screens/card-editor/index.js',
+  'js/screens/card-editor/index.js', 'js/screens/card-editor/bulk-dialog.js',
   'icons/icon.svg', 'icons/logo.svg', 'icons/raven.svg',
   'icons/icon-192.png', 'icons/icon-512.png', 'icons/apple-touch-icon.png',
   'icons/The%20crow%20with%20the%20tombstone.svg', 'icons/Scarecrow.svg', 'icons/feather.svg',
   'icons/cup.svg', 'icons/ghost.svg', 'icons/empty%20cage.svg', 'icons/Bird%20cage.svg',
   'icons/ghost.png', 'icons/feather.png', 'icons/raven.png',
   'icons/Scarecrow.png', 'icons/Bird%20cage.png',
+  'packs/manifest.json',
+  'packs/en-a0-starters.json',
+  'packs/en-a1-oxford.json',
+  'packs/en-a2-oxford.json',
 ];
 
 self.addEventListener('install', e => {

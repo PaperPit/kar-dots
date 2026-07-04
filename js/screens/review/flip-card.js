@@ -50,6 +50,9 @@ export function createFlipCard(card, firstSide, opts) {
       hint.style.opacity = '0';
       if (opts.onFirstFlip) opts.onFirstFlip();
     }
+    if (opts.onFlip) {
+      opts.onFlip(flip.classList.contains('flipped') ? backSide : firstSide);
+    }
   }
 
   flip.addEventListener('click', () => {

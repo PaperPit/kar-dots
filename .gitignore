@@ -13,3 +13,6 @@ Thumbs.db
 
 # Graphify
 graphify-out/
+
+# Исходники для scripts/build-vocab-packs.py (скачиваются отдельно)
+scripts/data/

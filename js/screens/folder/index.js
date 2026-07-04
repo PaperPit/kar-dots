@@ -1,11 +1,14 @@
 import { store } from '../../core/state.js';
 import * as SRS from '../../lib/srs.js';
-import { el, toast, confirmDialog, stripHtml } from '../../ui/ui.js';
+import { el, toast, confirmDialog, stripHtml, plural } from '../../ui/ui.js';
 import { ICONS } from '../../ui/constants.js';
 import { crowTombIcon, featherIcon, initials, newBudget, svgNode, textPreview } from '../../ui/helpers.js';
 import { shell, nav, offlineBanner } from '../../ui/shell.js';
 import { folderDialog } from '../home/folder-dialog.js';
 import { cardDialog } from '../card-editor/index.js';
+import { bulkCardDialog } from '../card-editor/bulk-dialog.js';
+import { studyModePicker } from '../review/mode-picker.js';
+import { isVocabPackFolder } from '../../lib/vocab-packs.js';
 import { route } from '../../core/router.js';
 
 function matchesSearch(card, query) {
@@ -27,20 +30,26 @@ export async function renderFolder(folderId) {
   const now = Date.now();
   const due = (await store.countDue(folderId)) + Math.min(await store.countNew(folderId), newBudget());
 
+  const isPack = isVocabPackFolder(folder);
+
   const head = el('div', { class: 'page-head' }, [
     el('button', { class: 'icon-btn', onclick: () => nav('#home') }, svgNode(ICONS.back)),
     el('div', { class: 'swatch', style: { background: folder.color, width: '30px', height: '30px', borderRadius: '8px', display: 'grid', placeItems: 'center', color: '#fff', fontWeight: '800', fontSize: '13px' } }, initials(folder.name)),
     el('h2', { class: 'page-title grow' }, folder.name),
-    el('button', { class: 'icon-btn', title: 'Переименовать', onclick: () => folderDialog(folder) }, featherIcon()),
+    isPack ? null : el('button', { class: 'icon-btn', title: 'Переименовать', onclick: () => folderDialog(folder) }, featherIcon()),
     el('button', {
-      class: 'icon-btn', title: 'Удалить папку',
+      class: 'icon-btn', title: isPack ? 'Удалить пак' : 'Удалить папку',
       onclick: async () => {
-        const yes = await confirmDialog('Удалить папку?',
-          `«${folder.name}» и все её карточки (${cards.length}) будут удалены навсегда.`, 'Удалить', true,
+        const yes = await confirmDialog(isPack ? 'Удалить лексический пак?' : 'Удалить папку?',
+          isPack
+            ? `«${folder.name}» и все ${cards.length} ${plural(cards.length, 'карточка', 'карточки', 'карточек')} будут удалены.`
+            : `«${folder.name}» и все её карточки (${cards.length}) будут удалены навсегда.`,
+          isPack ? 'Удалить пак' : 'Удалить', true,
           crowTombIcon());
         if (!yes) return;
-        await store.deleteFolder(folderId);
-        toast('Папка удалена');
+        if (isPack && folder.pack_id) await store.deleteVocabPack(folder.pack_id);
+        else await store.deleteFolder(folderId);
+        toast(isPack ? 'Пак удалён' : 'Папка удалена');
         nav('#home');
       },
     }, svgNode(ICONS.trash)),
@@ -49,13 +58,14 @@ export async function renderFolder(folderId) {
   const actions = el('div', { class: 'row folder-actions', style: { marginBottom: '18px', flexWrap: 'wrap' } }, [
     due > 0 ? el('button', {
       class: 'btn accent',
-      onclick: () => nav('#review/' + folderId),
+      onclick: () => studyModePicker({ folderId }),
     }, [svgNode(ICONS.play), `Повторить (${due})`]) : null,
     cards.length ? el('button', {
       class: 'btn' + (due > 0 ? '' : ' accent'),
-      onclick: () => nav('#review/' + folderId + '/cram'),
+      onclick: () => studyModePicker({ folderId, cram: true }),
     }, [svgNode(ICONS.play), 'Закрепить папку']) : null,
     el('button', { class: 'btn primary', onclick: () => cardDialog(folderId) }, [svgNode(ICONS.plus), 'Добавить карточку']),
+    el('button', { class: 'btn', onclick: () => bulkCardDialog(folderId) }, 'Добавить списком'),
   ]);
 
   let filterMode = 'all';
@@ -109,7 +119,11 @@ export async function renderFolder(folderId) {
   }
 
   const wrap = el('div', { class: 'folder-page' + (!cards.length ? ' is-empty' : '') });
-  const content = [offlineBanner(), head, actions];
+  const content = [offlineBanner(), head];
+  if (isPack) {
+    content.push(el('p', { class: 'pack-folder-note muted' }, 'Лексический пак — удаляется целиком через 🗑 или в Настройки → Каталог паков.'));
+  }
+  content.push(actions);
   if (cards.length) {
     content.push(toolbar, list, emptyFilter);
   }

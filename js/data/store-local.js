@@ -209,7 +209,14 @@ export class LocalStore {
   }
 
   async createFolder(data) {
-    const f = { id: uuid(), name: data.name, color: data.color || '#7C8DB5', created_at: Date.now() };
+    const f = {
+      id: uuid(),
+      name: data.name,
+      color: data.color || '#7C8DB5',
+      created_at: Date.now(),
+      pack_id: data.pack_id || null,
+      pack_version: data.pack_version ?? null,
+    };
     await tx(this.db, 'folders', 'readwrite', s => s.put(f));
     this.folders.push(f);
     this.folders.sort((a, b) => (a.created_at || 0) - (b.created_at || 0));
@@ -232,6 +239,39 @@ export class LocalStore {
     this.folders = this.folders.filter(f => f.id !== id);
     this._folderCache.delete(id);
     this._cardCounts.delete(id);
+  }
+
+  findFolderByPackId(packId) {
+    return this.folders.find(f => f.pack_id === packId) || null;
+  }
+
+  async importVocabPack(pack, onProgress) {
+    if (!pack?.id || !Array.isArray(pack.cards)) throw new Error('Неверный формат пака');
+    if (this.findFolderByPackId(pack.id)) throw new Error('Этот пак уже установлен');
+    const cards = pack.cards.filter(c => c.front?.trim());
+    const folder = await this.createFolder({
+      name: pack.title,
+      color: pack.color || '#7C8DB5',
+      pack_id: pack.id,
+      pack_version: pack.version ?? 1,
+    });
+    for (let i = 0; i < cards.length; i++) {
+      const card = cards[i];
+      await this.createCard({
+        folder_id: folder.id,
+        front: card.front,
+        back: card.back || '',
+        description: card.description || '',
+      });
+      if (onProgress) onProgress({ phase: 'import', done: i + 1, total: cards.length });
+    }
+    return folder;
+  }
+
+  async deleteVocabPack(packId) {
+    const folder = this.findFolderByPackId(packId);
+    if (!folder) throw new Error('Пак не установлен');
+    await this.deleteFolder(folder.id);
   }
 
   async createCard(data) {

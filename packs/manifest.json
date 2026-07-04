@@ -1,0 +1,41 @@
+{
+  "version": 9,
+  "packs": [
+    {
+      "id": "en-a0-starters",
+      "title": "English · A0",
+      "subtitle": "Pre-A1 · базовая лексика (~450 слов)",
+      "level": "A0",
+      "version": 9,
+      "color": "#6B9E78",
+      "cardCount": 450,
+      "file": "en-a0-starters.json",
+      "multiVariantCards": 363,
+      "untranslatedCards": 0
+    },
+    {
+      "id": "en-a1-oxford",
+      "title": "English · A1",
+      "subtitle": "Oxford 3000 · элементарный уровень",
+      "level": "A1",
+      "version": 9,
+      "color": "#4A7FC1",
+      "cardCount": 1039,
+      "file": "en-a1-oxford.json",
+      "multiVariantCards": 810,
+      "untranslatedCards": 0
+    },
+    {
+      "id": "en-a2-oxford",
+      "title": "English · A2",
+      "subtitle": "Oxford 3000 · ниже среднего",
+      "level": "A2",
+      "version": 9,
+      "color": "#C45528",
+      "cardCount": 969,
+      "file": "en-a2-oxford.json",
+      "multiVariantCards": 849,
+      "untranslatedCards": 0
+    }
+  ]
+}

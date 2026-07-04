@@ -4,14 +4,22 @@ import { shell, nav, offlineBanner } from '../../ui/shell.js';
 import { renderAuth } from '../auth/index.js';
 import { route } from '../../core/router.js';
 import { DEFAULT_SETTINGS } from '../../data/store-common.js';
-import { initActivity, loadActivity, calcVisitStreak, dayKey } from '../../lib/activity.js';
-import * as SRS from '../../lib/srs.js';
+import { initActivity } from '../../lib/activity.js';
+import { loadStudyStats } from '../../lib/stats.js';
+import {
+  SUCCESS_MELODIES, FAIL_MELODIES,
+  playSuccessSound, playFailSound,
+  normalizeSuccessSoundId, normalizeFailSoundId, normalizeAnswerSoundMode,
+} from '../../lib/sounds.js';
+import { melodyPickerField } from '../../ui/melody-picker.js';
+import { vocabPacksDialog } from '../../ui/vocab-packs-dialog.js';
 
 export async function renderSettings() {
   await initActivity();
   const s = store.settings;
 
   async function save() {
+    if (s.tts === false) s.ttsAuto = false;
     try { await store.saveSettings(s); }
     catch (e) { toast('Не сохранилось: ' + e.message, 'error'); }
   }
@@ -67,6 +75,29 @@ export async function renderSettings() {
     ]),
   ]);
 
+  let ttsAutoInput;
+  const ttsEnabled = s.tts !== false;
+
+  ttsAutoInput = el('input', { type: 'checkbox', class: 'chk' });
+  ttsAutoInput.checked = ttsEnabled && !!s.ttsAuto;
+  ttsAutoInput.disabled = !ttsEnabled;
+  ttsAutoInput.addEventListener('change', () => {
+    s.ttsAuto = ttsAutoInput.checked;
+    save();
+  });
+
+  const ttsInput = el('input', { type: 'checkbox', class: 'chk' });
+  ttsInput.checked = ttsEnabled;
+  ttsInput.addEventListener('change', () => {
+    s.tts = ttsInput.checked;
+    ttsAutoInput.disabled = !ttsInput.checked;
+    if (!ttsInput.checked) {
+      s.ttsAuto = false;
+      ttsAutoInput.checked = false;
+    }
+    save();
+  });
+
   const algoGroup = el('div', { class: 'settings-group' }, [
     el('h4', null, 'Интервальное повторение'),
     el('div', { class: 'setting-row' }, [
@@ -99,13 +130,18 @@ export async function renderSettings() {
     el('div', { class: 'setting-row' }, [
       el('div', { class: 'lab' }, [
         el('b', null, 'Озвучка на повторении'),
-        el('span', null, 'Кнопка озвучки текущей стороны карточки.'),
+        el('span', null, 'На экране повторения появляется кнопка 🔊. Нажмите — прочитает то, что сейчас на карточке: лицо или оборот (определение и описание). Язык выбирается по тексту: кириллица — русский, латиница — английский. Скорость — ползунком ниже.'),
       ]),
-      (() => {
-        const chk = el('input', { type: 'checkbox', checked: s.tts !== false });
-        chk.addEventListener('change', () => { s.tts = chk.checked; save(); });
-        return chk;
-      })(),
+      el('label', { class: 'chk-wrap' }, ttsInput),
+    ]),
+    el('div', { class: 'setting-row' }, [
+      el('div', { class: 'lab' }, [
+        el('b', null, 'Озвучивать при перевороте'),
+        el('span', null, ttsEnabled
+          ? 'Без нажатия на 🔊: после каждого переворота карточки (тап, пробел или Enter) сразу читается видимая сторона. Не срабатывает при оценке «Знаю» / «Не знаю» и не читает карточку до первого переворота.'
+          : 'Сначала включите «Озвучку на повторении» — тогда можно включить автоматическое чтение при перевороте.'),
+      ]),
+      el('label', { class: 'chk-wrap' }, ttsAutoInput),
     ]),
     el('div', { class: 'setting-row' }, [
       el('div', { class: 'lab' }, [
@@ -153,6 +189,55 @@ export async function renderSettings() {
       row,
     ]));
   }
+
+  const soundGroup = el('div', { class: 'settings-group' }, [
+    el('h4', null, 'Звуки ответа'),
+    el('div', { class: 'setting-row setting-row-stack sound-settings-compact' }, [
+      el('div', { class: 'lab' }, [
+        el('b', null, 'Мелодии'),
+        el('span', null, 'Короткие отбивки в режимах «Ввод», «Голос» и «Пары». Нажмите ▶ в меню, чтобы прослушать.'),
+      ]),
+      el('div', { class: 'sound-pickers' }, [
+        melodyPickerField({
+          label: 'Верно',
+          value: normalizeSuccessSoundId(s.successSound),
+          melodies: SUCCESS_MELODIES,
+          play: id => playSuccessSound(id, { preview: true }),
+          onChange: id => { s.successSound = id; save(); },
+        }),
+        melodyPickerField({
+          label: 'Неверно',
+          value: normalizeFailSoundId(s.failSound),
+          melodies: FAIL_MELODIES,
+          play: id => playFailSound(id, { preview: true }),
+          onChange: id => { s.failSound = id; save(); },
+        }),
+      ]),
+      el('div', { class: 'setting-row sound-mode-row' }, [
+        el('div', { class: 'lab' }, [
+          el('b', null, 'Озвучивать'),
+          el('span', null, 'Когда проигрывать выбранные мелодии.'),
+        ]),
+        segControl(normalizeAnswerSoundMode(s.answerSoundMode), [
+          { v: 'both', label: 'Оба' },
+          { v: 'correct', label: 'Верный' },
+          { v: 'wrong', label: 'Неверный' },
+          { v: 'none', label: 'Выкл' },
+        ], v => { s.answerSoundMode = v; save(); }),
+      ]),
+    ]),
+  ]);
+
+  const packsGroup = el('div', { class: 'settings-group' }, [
+    el('h4', null, 'Лексические паки'),
+    el('div', { class: 'setting-row' }, [
+      el('div', { class: 'lab' }, [
+        el('b', null, 'Уровни CEFR'),
+        el('span', null, 'English A0, A1, A2 — готовые карточки из Oxford 3000 с переводом. Устанавливаются как папка, удаляются целиком.'),
+      ]),
+      el('button', { type: 'button', class: 'btn accent', onclick: () => vocabPacksDialog() }, 'Каталог паков'),
+    ]),
+  ]);
 
   const importInput = el('input', { type: 'file', accept: '.json,application/json', class: 'hidden' });
   importInput.addEventListener('change', async () => {
@@ -257,7 +342,7 @@ export async function renderSettings() {
   shell('settings', el('div', null, [
     offlineBanner(),
     el('div', { class: 'page-head' }, el('h2', { class: 'page-title' }, 'Настройки')),
-    statsGroup, calendarGroup, algoGroup, dataGroup, accGroup,
+    statsGroup, calendarGroup, algoGroup, soundGroup, packsGroup, dataGroup, accGroup,
     el('p', { class: 'muted', style: { textAlign: 'center', margin: '26px 0 8px' } }, 'КАР-точки · ворона помнит всё'),
   ]));
 }
@@ -267,28 +352,4 @@ function statTile(label, value) {
     el('div', { class: 'stat-tile-val tnum' }, String(value)),
     el('div', { class: 'stat-tile-lab' }, label),
   ]);
-}
-
-async function loadStudyStats(activeStore) {
-  const algo = activeStore.settings.algo;
-  const tomorrow = new Date();
-  tomorrow.setDate(tomorrow.getDate() + 1);
-  const { start: tStart, end: tEnd } = SRS.dayBounds(tomorrow);
-
-  let dueToday = 0;
-  let dueTomorrow = 0;
-  try { dueToday = await activeStore.countDue(null, algo); } catch (e) { console.warn(e); }
-  try {
-    if (typeof activeStore.countDueBetween === 'function') {
-      dueTomorrow = await activeStore.countDueBetween(null, algo, tStart, tEnd);
-    }
-  } catch (e) { console.warn(e); }
-
-  const activity = loadActivity();
-  return {
-    reviewsToday: activity.days[dayKey()]?.reviews || 0,
-    dueToday,
-    dueTomorrow,
-    streak: calcVisitStreak(activity),
-  };
 }

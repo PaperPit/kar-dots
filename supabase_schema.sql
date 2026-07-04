@@ -10,7 +10,9 @@ create table if not exists public.folders (
   user_id uuid not null references auth.users (id) on delete cascade,
   name text not null,
   color text default '#7C8DB5',
-  created_at bigint not null
+  created_at bigint not null,
+  pack_id text,
+  pack_version integer
 );
 
 -- Карточки
@@ -38,6 +40,9 @@ create table if not exists public.cards (
 -- эта строка безопасно добавит его (create table if not exists не трогает
 -- уже существующие таблицы). Достаточно выполнить один раз.
 alter table public.cards add column if not exists description text default '';
+
+alter table public.folders add column if not exists pack_id text;
+alter table public.folders add column if not exists pack_version integer;
 
 -- Настройки пользователя
 create table if not exists public.settings (

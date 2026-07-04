@@ -7,6 +7,10 @@ export const DEFAULT_SETTINGS = {
   streakRingDays: 21,
   tts: true,
   ttsRate: 1,
+  ttsAuto: false,
+  successSound: 'chime',
+  failSound: 'drop',
+  answerSoundMode: 'both',
 };
 
 export function uuid() {

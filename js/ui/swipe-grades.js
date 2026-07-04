@@ -3,9 +3,8 @@ import { haptic } from './helpers.js';
 const THRESH = 52;
 
 /**
- * Свайпы для оценки на touch-устройствах (после первого переворота).
- * leitner: ← не помню, → помню
- * sm2: ← снова, ↓ трудно, → хорошо, ↑ легко
+ * Горизонтальные свайпы для оценки на touch-устройствах (после первого переворота).
+ * ← не знаю, → знаю
  */
 export function attachSwipeGrades(box, opts) {
   let startX = 0;
@@ -27,15 +26,12 @@ export function attachSwipeGrades(box, opts) {
     const dx = t.clientX - startX;
     const dy = t.clientY - startY;
     if (Math.abs(dx) < THRESH && Math.abs(dy) < THRESH) return;
+    if (Math.abs(dx) <= Math.abs(dy)) return;
 
-    let dir;
-    if (Math.abs(dx) > Math.abs(dy)) dir = dx > 0 ? 'right' : 'left';
-    else dir = dy > 0 ? 'down' : 'up';
-
-    if (opts.leitner && (dir === 'up' || dir === 'down')) return;
+    const dir = dx > 0 ? 'right' : 'left';
 
     box.dataset.swipeHandled = '1';
-    box.classList.remove('swipe-flash-left', 'swipe-flash-right', 'swipe-flash-up', 'swipe-flash-down');
+    box.classList.remove('swipe-flash-left', 'swipe-flash-right');
     box.classList.add('swipe-flash-' + dir);
     haptic(8);
     opts.onSwipe(dir);

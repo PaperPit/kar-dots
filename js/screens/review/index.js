@@ -129,9 +129,7 @@ export async function renderReview(folderId, opts = {}) {
       },
       onGradeDir: (dir, gradeRow) => {
         const btns = gradeRow.querySelectorAll('.grade-btn');
-        const idx = algo === 'leitner'
-          ? { left: 0, right: 1 }[dir]
-          : { left: 0, right: 2 }[dir];
+        const idx = { left: 0, right: 1 }[dir];
         if (idx != null && btns[idx]) btns[idx].click();
       },
     });
@@ -145,39 +143,29 @@ export async function renderReview(folderId, opts = {}) {
     const mk = (label, sub, cls, fn) =>
       el('button', { class: 'grade-btn ' + cls, onclick: fn }, [label, el('small', null, sub)]);
 
-    if (algo === 'leitner') {
-      grades.append(
-        mk('Не помню', SRS.leitnerPreview(card, false, store.settings.leitnerIntervals), 'again', () => grade(card, { leitner: false })),
-        mk('Помню', SRS.leitnerPreview(card, true, store.settings.leitnerIntervals), 'good', () => grade(card, { leitner: true })),
-      );
-    } else {
-      grades.append(
-        mk('Снова', SRS.sm2Preview(card, 0), 'again', () => grade(card, { q: 0 })),
-        mk('Трудно', SRS.sm2Preview(card, 3), 'hard', () => grade(card, { q: 3 })),
-        mk('Хорошо', SRS.sm2Preview(card, 4), 'good', () => grade(card, { q: 4 })),
-        mk('Легко', SRS.sm2Preview(card, 5), 'easy', () => grade(card, { q: 5 })),
-      );
-    }
+    const preview = algo === 'leitner'
+      ? (ok => SRS.leitnerPreview(card, ok, store.settings.leitnerIntervals))
+      : (q => SRS.sm2Preview(card, q));
+    grades.append(
+      mk('Не знаю', preview(algo === 'leitner' ? false : 0), 'again', () =>
+        grade(card, algo === 'leitner' ? { leitner: false } : { q: 0 })),
+      mk('Знаю', preview(algo === 'leitner' ? true : 4), 'good', () =>
+        grade(card, algo === 'leitner' ? { leitner: true } : { q: 4 })),
+    );
 
     if (!swipeAttached) {
       swipeAttached = true;
-      const swipeHint = el('div', { class: 'swipe-hint' },
-        algo === 'leitner' ? '← не помню · → помню' : '← снова · ↓ трудно · → хорошо · ↑ легко');
+      const swipeHint = el('div', { class: 'swipe-hint' }, '← не знаю · → знаю');
       const keyboardHint = el('div', { class: 'keyboard-hint' },
-        algo === 'leitner'
-          ? '← не помню · → помню · пробел — перевернуть'
-          : '← снова · → хорошо · пробел — перевернуть · 1–4 — все оценки');
+        '← не знаю · → знаю · пробел — перевернуть · 1–2 — оценки');
       box.append(swipeHint, keyboardHint);
       requestAnimationFrame(() => swipeHint.classList.add('visible'));
 
       attachSwipeGrades(box, {
-        leitner: algo === 'leitner',
         enabled: () => gradesVisible && stage.contains(box),
         onSwipe: dir => {
           const btns = grades.querySelectorAll('.grade-btn');
-          const idx = algo === 'leitner'
-            ? { left: 0, right: 1 }[dir]
-            : { left: 0, down: 1, right: 2, up: 3 }[dir];
+          const idx = { left: 0, right: 1 }[dir];
           if (idx != null && btns[idx]) btns[idx].click();
         },
       });

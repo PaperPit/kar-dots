@@ -28,8 +28,8 @@
   --header-h: 67px;
   --sidebar-gutter: 5px;
   --sidebar-scale: 0.9;
-  --font-display: 'Baloo 2', cursive;
-  --font-body: 'Nunito', -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-display: 'Baloo 2', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-body: 'Nunito', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   --ease: cubic-bezier(.22,.9,.3,1);
   --dur: .28s;
 }
@@ -62,12 +62,18 @@
 }
 
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-html { height: 100%; overflow: hidden; }
+html {
+  height: 100%; overflow: hidden;
+  font-synthesis: none;
+  -webkit-font-smoothing: antialiased;
+}
 body {
   margin: 0; height: 100%; overflow: hidden;
   background: var(--bg); color: var(--ink);
   font-family: var(--font-body);
   font-size: 16px; line-height: 1.55;
+  font-style: normal;
+  font-synthesis: none;
   -webkit-font-smoothing: antialiased;
 }
 
@@ -78,6 +84,8 @@ h1, h2, h3, h4,
 .grade-btn, .btn, .nav-btn, .tab-btn,
 .modal-title, .folder-card h3 {
   font-family: var(--font-display);
+  font-style: normal;
+  font-synthesis: none;
   letter-spacing: -.01em;
 }
 
@@ -413,6 +421,7 @@ textarea.input { resize: vertical; min-height: 72px; }
 .review-count {
   font-size: 13px; font-weight: 800; color: var(--ink-soft);
   font-family: var(--font-display); font-variant-numeric: tabular-nums;
+  font-style: normal; font-synthesis: none;
 }
 
 .flip-scene { perspective: 1400px; }
@@ -505,12 +514,8 @@ textarea.input { resize: vertical; min-height: 72px; }
 }
 .flip-scene.swipe-flash-left { animation: swipeFlashLeft .22s var(--ease); }
 .flip-scene.swipe-flash-right { animation: swipeFlashRight .22s var(--ease); }
-.flip-scene.swipe-flash-up { animation: swipeFlashUp .22s var(--ease); }
-.flip-scene.swipe-flash-down { animation: swipeFlashDown .22s var(--ease); }
 @keyframes swipeFlashLeft { 50% { transform: translateX(-10px); } }
 @keyframes swipeFlashRight { 50% { transform: translateX(10px); } }
-@keyframes swipeFlashUp { 50% { transform: translateY(-8px); } }
-@keyframes swipeFlashDown { 50% { transform: translateY(8px); } }
 
 .stats-grid {
   display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px;
@@ -574,6 +579,7 @@ textarea.input { resize: vertical; min-height: 72px; }
 }
 .side-box .side-title {
   font-family: var(--font-display);
+  font-style: normal; font-synthesis: none;
   font-size: 11px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase;
   color: var(--ink-faint); margin-bottom: 10px;
 }

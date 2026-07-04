@@ -65,7 +65,7 @@ export function createFlipCard(card, firstSide, opts) {
       e.preventDefault();
       toggleFlip();
     }
-    if (gradesShown && opts.onGradeKey && ['1', '2', '3', '4'].includes(e.key)) {
+    if (gradesShown && opts.onGradeKey && ['1', '2'].includes(e.key)) {
       opts.onGradeKey(e.key, grades);
     }
     if (gradesShown && opts.onGradeDir) {

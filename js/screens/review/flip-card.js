@@ -29,7 +29,8 @@ export function createFlipCard(card, firstSide, opts) {
 
   const hint = el('div', { class: 'flip-hint' }, 'Нажмите на карточку, чтобы перевернуть');
   const grades = el('div', { class: 'grade-row' });
-  const box = el('div', { class: 'flip-scene' }, [flip, hint, grades]);
+  const swipeWrap = el('div', { class: 'flip-swipe-wrap' }, [flip]);
+  const box = el('div', { class: 'flip-scene' }, [swipeWrap, hint, grades]);
 
   requestAnimationFrame(() => {
     sizeFlipCard(flip);
@@ -80,7 +81,7 @@ export function createFlipCard(card, firstSide, opts) {
   };
   document.addEventListener('keydown', onKey);
 
-  return { box, flip, grades, hint, getVisibleSide: () => (flip.classList.contains('flipped') ? backSide : firstSide) };
+  return { box, flip, swipeWrap, grades, hint, getVisibleSide: () => (flip.classList.contains('flipped') ? backSide : firstSide) };
 }
 
 export function sizeFlipCard(flipEl) {

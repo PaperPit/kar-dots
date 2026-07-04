@@ -3,14 +3,91 @@ import { haptic } from './helpers.js';
 const THRESH = 52;
 const LOCK_THRESH = 10;
 const AXIS_RATIO = 1.15;
+const reduceMotion = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+function maxDrag() {
+  return Math.min(window.innerWidth * 0.42, 220);
+}
+
+function withResistance(dx) {
+  const cap = maxDrag();
+  const abs = Math.abs(dx);
+  if (abs <= cap) return dx;
+  const sign = Math.sign(dx);
+  return sign * (cap + (abs - cap) * 0.22);
+}
+
+function dragTransform(tx) {
+  const tilt = Math.max(-10, Math.min(10, tx * 0.045));
+  return `translateX(${tx}px) rotate(${tilt}deg)`;
+}
+
+function clearDrag(el, box) {
+  if (!el) return;
+  el.classList.remove('swipe-dragging', 'swipe-animating');
+  el.style.transform = '';
+  el.style.opacity = '';
+  if (box) box.dataset.swipeDir = '';
+}
+
+function setDragHint(box, dx) {
+  if (!box) return;
+  if (dx <= -20) box.dataset.swipeDir = 'left';
+  else if (dx >= 20) box.dataset.swipeDir = 'right';
+  else box.dataset.swipeDir = '';
+}
+
+function animateTo(el, box, tx, opacity, duration, onDone) {
+  el.classList.remove('swipe-dragging');
+  el.classList.add('swipe-animating');
+  el.style.transform = dragTransform(tx);
+  el.style.opacity = String(opacity);
+
+  let done = false;
+  const finish = () => {
+    if (done) return;
+    done = true;
+    el.removeEventListener('transitionend', onEnd);
+    onDone();
+  };
+  const onEnd = e => {
+    if (e.target !== el || e.propertyName !== 'transform') return;
+    finish();
+  };
+  el.addEventListener('transitionend', onEnd);
+  setTimeout(finish, duration + 50);
+}
+
+/** Плавный уход карточки влево/вправо (кнопки и свайпы). */
+export function animateCardExit(el, dir, onDone, box) {
+  if (!el) { onDone(); return; }
+  const off = (dir === 'right' ? 1 : -1) * (window.innerWidth * 0.55 + 48);
+  if (reduceMotion()) {
+    clearDrag(el, box);
+    onDone();
+    return;
+  }
+  haptic(8);
+  animateTo(el, box, off, 0, 320, () => {
+    clearDrag(el, box);
+    onDone();
+  });
+}
+
+function springBack(el, box) {
+  if (reduceMotion()) {
+    clearDrag(el, box);
+    return;
+  }
+  animateTo(el, box, 0, 1, 400, () => clearDrag(el, box));
+}
 
 /**
- * Горизонтальные свайпы для оценки на touch-устройствах (после первого переворота).
+ * Горизонтальные свайпы для оценки на touch (после переворота).
  * ← не знаю, → знаю
  */
 export function attachSwipeGrades(box, opts) {
-  const card = () => opts.cardEl || box.querySelector('.flip-card');
-  const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const layer = () => opts.cardEl || box.querySelector('.flip-swipe-wrap');
 
   let startX = 0;
   let startY = 0;
@@ -18,96 +95,30 @@ export function attachSwipeGrades(box, opts) {
   let axis = null;
   let dragX = 0;
 
-  function cardTransform(el, tx) {
-    if (el.classList.contains('flipped')) return `rotateY(180deg) translateX(${tx}px)`;
-    return `translateX(${tx}px)`;
-  }
-
-  function maxDrag() {
-    return Math.min(window.innerWidth * 0.42, 220);
-  }
-
-  function withResistance(dx) {
-    const cap = maxDrag();
-    const abs = Math.abs(dx);
-    if (abs <= cap) return dx;
-    const sign = Math.sign(dx);
-    return sign * (cap + (abs - cap) * 0.22);
-  }
-
   function setDrag(dx, el) {
     dragX = dx;
     const tx = withResistance(dx);
-    const fade = Math.min(Math.abs(tx) / (maxDrag() * 1.6), 0.14);
-    el.style.transform = cardTransform(el, tx);
+    el.style.transform = dragTransform(tx);
+    const fade = Math.min(Math.abs(tx) / (maxDrag() * 1.6), 0.12);
     el.style.opacity = String(1 - fade);
-  }
-
-  function clearDrag(el) {
-    dragX = 0;
-    el.classList.remove('swipe-dragging', 'swipe-animating');
-    el.style.transform = '';
-    el.style.opacity = '';
+    setDragHint(box, tx);
   }
 
   function markHandled() {
     box.dataset.swipeHandled = '1';
   }
 
-  function animateTo(el, tx, opacity, duration, onDone) {
-    el.classList.remove('swipe-dragging');
-    el.classList.add('swipe-animating');
-    el.style.transform = cardTransform(el, tx);
-    el.style.opacity = String(opacity);
-
-    let done = false;
-    const finish = () => {
-      if (done) return;
-      done = true;
-      el.removeEventListener('transitionend', onEnd);
-      onDone();
-    };
-    const onEnd = e => {
-      if (e.target !== el || e.propertyName !== 'transform') return;
-      finish();
-    };
-    el.addEventListener('transitionend', onEnd);
-    setTimeout(finish, duration + 40);
-  }
-
-  function springBack(el) {
-    if (reduceMotion || !dragX) {
-      clearDrag(el);
-      return;
-    }
-    animateTo(el, 0, 1, 380, () => clearDrag(el));
-  }
-
-  function exitSwipe(el, dir, onDone) {
-    const off = (dir === 'right' ? 1 : -1) * (window.innerWidth * 0.55 + 40);
-    if (reduceMotion) {
-      clearDrag(el);
-      onDone();
-      return;
-    }
-    animateTo(el, off, 0, 300, () => {
-      clearDrag(el);
-      onDone();
-    });
-  }
-
   function commitSwipe(dir) {
-    const el = card();
+    const el = layer();
     if (!el) return;
     markHandled();
-    haptic(8);
-    exitSwipe(el, dir, () => opts.onSwipe(dir));
+    animateCardExit(el, dir, () => opts.onSwipe(dir), box);
   }
 
   box.addEventListener('touchstart', e => {
     if (!opts.enabled()) return;
     if (e.touches.length !== 1) return;
-    const el = card();
+    const el = layer();
     if (!el) return;
     startX = e.touches[0].clientX;
     startY = e.touches[0].clientY;
@@ -120,13 +131,11 @@ export function attachSwipeGrades(box, opts) {
   box.addEventListener('touchmove', e => {
     if (!tracking || !opts.enabled()) return;
     if (e.touches.length !== 1) return;
-    const el = card();
+    const el = layer();
     if (!el) return;
 
-    const x = e.touches[0].clientX;
-    const y = e.touches[0].clientY;
-    const dx = x - startX;
-    const dy = y - startY;
+    const dx = e.touches[0].clientX - startX;
+    const dy = e.touches[0].clientY - startY;
 
     if (!axis) {
       const adx = Math.abs(dx);
@@ -149,7 +158,7 @@ export function attachSwipeGrades(box, opts) {
   function onTouchEnd(e) {
     if (!tracking || !opts.enabled()) return;
     tracking = false;
-    const el = card();
+    const el = layer();
     if (!el) return;
 
     if (axis !== 'horizontal') {
@@ -157,8 +166,7 @@ export function attachSwipeGrades(box, opts) {
       return;
     }
 
-    const t = e.changedTouches[0];
-    const dx = t.clientX - startX;
+    const dx = e.changedTouches[0].clientX - startX;
     axis = null;
 
     if (Math.abs(dx) > 8) markHandled();
@@ -167,7 +175,7 @@ export function attachSwipeGrades(box, opts) {
       commitSwipe(dx > 0 ? 'right' : 'left');
       return;
     }
-    springBack(el);
+    springBack(el, box);
   }
 
   box.addEventListener('touchend', onTouchEnd, { passive: true });
@@ -176,9 +184,9 @@ export function attachSwipeGrades(box, opts) {
     const wasHorizontal = axis === 'horizontal';
     tracking = false;
     axis = null;
-    const el = card();
+    const el = layer();
     if (!el) return;
-    if (wasHorizontal) springBack(el);
-    else clearDrag(el);
+    if (wasHorizontal) springBack(el, box);
+    else clearDrag(el, box);
   }, { passive: true });
 }

@@ -427,20 +427,41 @@ textarea.input { resize: vertical; min-height: 72px; }
 .flip-scene {
   perspective: 1400px;
   touch-action: pan-y;
+  position: relative;
+}
+.flip-scene[data-swipe-dir="left"]::before,
+.flip-scene[data-swipe-dir="right"]::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 24px;
+  pointer-events: none;
+  z-index: 2;
+  opacity: 0.55;
+  transition: opacity .12s var(--ease);
+}
+.flip-scene[data-swipe-dir="left"]::before {
+  background: linear-gradient(90deg, rgba(196, 72, 58, 0.22), transparent 55%);
+}
+.flip-scene[data-swipe-dir="right"]::before {
+  background: linear-gradient(270deg, rgba(46, 125, 78, 0.22), transparent 55%);
+}
+.flip-swipe-wrap {
+  width: 100%;
+  will-change: transform;
+  transition: transform .55s var(--ease), opacity .28s var(--ease);
+}
+.flip-swipe-wrap.swipe-dragging {
+  transition: none;
+}
+.flip-swipe-wrap.swipe-animating {
+  transition: transform .32s cubic-bezier(0.22, 1, 0.36, 1), opacity .28s var(--ease);
 }
 .flip-card {
   position: relative; width: 100%; min-height: 320px; max-height: 72vh;
   transform-style: preserve-3d;
-  transition: transform .55s var(--ease), height .3s var(--ease), opacity .28s var(--ease);
+  transition: transform .55s var(--ease), height .3s var(--ease);
   cursor: pointer;
-}
-.flip-card.swipe-dragging {
-  transition-property: height;
-  transition-duration: .3s;
-  transition-timing-function: var(--ease);
-}
-.flip-card.swipe-animating {
-  transition: transform .38s var(--ease), opacity .32s var(--ease);
 }
 .flip-card.flipped { transform: rotateY(180deg); }
 .flip-face {

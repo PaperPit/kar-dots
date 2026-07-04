@@ -7,7 +7,7 @@ import { shell, nav, offlineBanner, refreshDueBadge } from '../../ui/shell.js';
 import { cardDialog } from '../card-editor/index.js';
 import { createFlipCard } from './flip-card.js';
 import { recordReview, undoReview } from '../../lib/activity.js';
-import { attachSwipeGrades } from '../../ui/swipe-grades.js';
+import { attachSwipeGrades, animateCardExit } from '../../ui/swipe-grades.js';
 
 export async function renderReview(folderId, opts = {}) {
   const cram = !!opts.cram && !!folderId;
@@ -73,10 +73,12 @@ export async function renderReview(folderId, opts = {}) {
   let done = 0;
   let currentIsNew = false;
   let gradesVisible = false;
-  let swipeAttached = false;
   let pendingUndo = null;
   let undoToastDismiss = null;
   let showNextTimer = null;
+  let grading = false;
+  let currentSwipeWrap = null;
+  let currentBox = null;
   const wrap = el('div', { class: 'review-wrap' });
   const bar = el('div', null);
   const counter = el('span', { class: 'review-count' }, '');
@@ -112,79 +114,90 @@ export async function renderReview(folderId, opts = {}) {
     return 'front';
   }
 
+  function gradePayload(know) {
+    return algo === 'leitner' ? { leitner: know } : { q: know ? 4 : 0 };
+  }
+
+  function submitGrade(card, g, dir) {
+    if (grading) return;
+    const run = () => {
+      grading = true;
+      grade(card, g, { animated: !!dir }).finally(() => { grading = false; });
+    };
+    if (dir && currentSwipeWrap && currentBox) {
+      animateCardExit(currentSwipeWrap, dir, run, currentBox);
+    } else run();
+  }
+
   function showNext(first) {
     updateBar();
     if (!queue.length) { finish(); return; }
     gradesVisible = false;
-    swipeAttached = false;
     const card = queue[0];
     editBtn.style.visibility = '';
     editBtn.onclick = () => cardDialog(card.folder_id, card);
     speakBtn.style.display = store.settings.tts !== false ? '' : 'none';
-    speakBtn.onclick = () => {
-      if (!speakCardSide(card, getVisibleSide())) {
-        toast('Нет текста для озвучки', 'error');
-      }
-    };
     currentIsNew = SRS.isNew(card, algo);
-    const { box, flip, grades, getVisibleSide } = createFlipCard(card, pickSide(), {
+    const { box, swipeWrap, grades, getVisibleSide } = createFlipCard(card, pickSide(), {
       stageContains: node => stage.contains(node),
       onFirstFlip: () => {
         gradesVisible = true;
-        renderGrades(card, grades, box);
+        renderGrades(card, grades);
       },
       onGradeKey: (key, gradeRow) => {
         const btns = gradeRow.querySelectorAll('.grade-btn');
         const i = Number(key) - 1;
         if (btns[i]) btns[i].click();
       },
-      onGradeDir: (dir, gradeRow) => {
-        const btns = gradeRow.querySelectorAll('.grade-btn');
-        const idx = { left: 0, right: 1 }[dir];
-        if (idx != null && btns[idx]) btns[idx].click();
+      onGradeDir: (dir) => {
+        submitGrade(card, gradePayload(dir === 'right'), dir);
       },
+    });
+    currentSwipeWrap = swipeWrap;
+    currentBox = box;
+    speakBtn.onclick = () => {
+      if (!speakCardSide(card, getVisibleSide())) {
+        toast('Нет текста для озвучки', 'error');
+      }
+    };
+    attachSwipeGrades(box, {
+      cardEl: swipeWrap,
+      enabled: () => gradesVisible && stage.contains(box) && !grading,
+      onSwipe: dir => submitGrade(card, gradePayload(dir === 'right'), dir),
     });
     if (!first) box.classList.add('card-swap-in');
     stage.innerHTML = '';
     stage.append(box);
   }
 
-  function renderGrades(card, grades, box) {
+  function renderGrades(card, grades) {
     grades.innerHTML = '';
-    const mk = (label, sub, cls, fn) =>
-      el('button', { class: 'grade-btn ' + cls, onclick: fn }, [label, el('small', null, sub)]);
+    const mk = (label, sub, cls, dir, g) =>
+      el('button', {
+        class: 'grade-btn ' + cls,
+        onclick: () => submitGrade(card, g, dir),
+      }, [label, el('small', null, sub)]);
 
     const preview = algo === 'leitner'
       ? (ok => SRS.leitnerPreview(card, ok, store.settings.leitnerIntervals))
       : (q => SRS.sm2Preview(card, q));
     grades.append(
-      mk('Не знаю', preview(algo === 'leitner' ? false : 0), 'again', () =>
-        grade(card, algo === 'leitner' ? { leitner: false } : { q: 0 })),
-      mk('Знаю', preview(algo === 'leitner' ? true : 4), 'good', () =>
-        grade(card, algo === 'leitner' ? { leitner: true } : { q: 4 })),
+      mk('Не знаю', preview(algo === 'leitner' ? false : 0), 'again', 'left',
+        gradePayload(false)),
+      mk('Знаю', preview(algo === 'leitner' ? true : 4), 'good', 'right',
+        gradePayload(true)),
     );
 
-    if (!swipeAttached) {
-      swipeAttached = true;
+    if (!grades.parentElement.querySelector('.swipe-hint')) {
       const swipeHint = el('div', { class: 'swipe-hint' }, '← не знаю · → знаю');
       const keyboardHint = el('div', { class: 'keyboard-hint' },
         '← не знаю · → знаю · пробел — перевернуть · 1–2 — оценки');
-      box.append(swipeHint, keyboardHint);
+      grades.parentElement.append(swipeHint, keyboardHint);
       requestAnimationFrame(() => swipeHint.classList.add('visible'));
-
-      attachSwipeGrades(box, {
-        cardEl: flip,
-        enabled: () => gradesVisible && stage.contains(box),
-        onSwipe: dir => {
-          const btns = grades.querySelectorAll('.grade-btn');
-          const idx = { left: 0, right: 1 }[dir];
-          if (idx != null && btns[idx]) btns[idx].click();
-        },
-      });
     }
   }
 
-  async function grade(card, g) {
+  async function grade(card, g, opts = {}) {
     if (undoToastDismiss) { undoToastDismiss(); undoToastDismiss = null; }
     pendingUndo = null;
 
@@ -207,7 +220,7 @@ export async function renderReview(folderId, opts = {}) {
       done++;
     }
     const cur = stage.firstChild;
-    if (cur) cur.classList.add('card-swap-out');
+    if (cur && !opts.animated) cur.classList.add('card-swap-out');
     try { await store.updateCard(card.id, patch); }
     catch (e) { toast('Не сохранилось: ' + e.message, 'error'); }
     await recordReview();
@@ -228,11 +241,12 @@ export async function renderReview(folderId, opts = {}) {
       pendingUndo = null;
     };
 
+    const delay = opts.animated ? 80 : 240;
     if (showNextTimer) clearTimeout(showNextTimer);
     showNextTimer = setTimeout(() => {
       showNextTimer = null;
       showNext(false);
-    }, 240);
+    }, delay);
   }
 
   async function undoLastGrade() {

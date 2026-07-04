@@ -1,14 +1,17 @@
-import KAR_CONFIG from '../config.js';
-import { cloudConfigured, setSb, setStore, sb } from './core/state.js';
+import { cloudConfigured, setSb, setStore, sb, cfg } from './core/state.js';
 import { toast } from './ui/ui.js';
 import { MiniSupabase } from './data/supabase.js';
 import { CloudStore } from './data/index.js';
 import { renderAuth, enterLocal } from './screens/auth/index.js';
 import { initRouter, route } from './core/router.js';
 
+function dismissBootSplash() {
+  document.getElementById('bootSplash')?.remove();
+}
+
 async function boot() {
   if (cloudConfigured) {
-    setSb(new MiniSupabase(KAR_CONFIG.SUPABASE_URL, KAR_CONFIG.SUPABASE_ANON_KEY));
+    setSb(new MiniSupabase(cfg.SUPABASE_URL, cfg.SUPABASE_ANON_KEY));
   }
 
   initRouter();
@@ -27,12 +30,18 @@ async function boot() {
     }
   } catch (e) {
     console.error(e);
+    dismissBootSplash();
     toast('Ошибка запуска: ' + e.message, 'error');
     renderAuth();
   }
 }
 
-boot();
+boot().catch(e => {
+  console.error('Boot failed:', e);
+  dismissBootSplash();
+  document.getElementById('app').innerHTML =
+    '<main class="main"><div class="auth-wrap"><p class="auth-note">Не удалось запустить приложение. Откройте консоль браузера (F12) для деталей.</p></div></main>';
+});
 
 if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) {
   navigator.serviceWorker.register('sw.js').catch(() => {});

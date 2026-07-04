@@ -1,12 +1,12 @@
 import { store } from '../../core/state.js';
 import * as SRS from '../../lib/srs.js';
-import { el, toast, spinner, plural } from '../../ui/ui.js';
+import { el, toast, toastAction, spinner, plural } from '../../ui/ui.js';
 import { ICONS } from '../../ui/constants.js';
-import { crowBox, featherIcon, newBudget, spendNewBudget, svgNode, trophyBox, shuffle } from '../../ui/helpers.js';
+import { crowBox, featherIcon, newBudget, spendNewBudget, refundNewBudget, speakCardSide, svgNode, trophyBox, shuffle } from '../../ui/helpers.js';
 import { shell, nav, offlineBanner, refreshDueBadge } from '../../ui/shell.js';
 import { cardDialog } from '../card-editor/index.js';
 import { createFlipCard } from './flip-card.js';
-import { recordReview } from '../../lib/activity.js';
+import { recordReview, undoReview } from '../../lib/activity.js';
 import { attachSwipeGrades } from '../../ui/swipe-grades.js';
 
 export async function renderReview(folderId, opts = {}) {
@@ -74,14 +74,19 @@ export async function renderReview(folderId, opts = {}) {
   let currentIsNew = false;
   let gradesVisible = false;
   let swipeAttached = false;
+  let pendingUndo = null;
+  let undoToastDismiss = null;
+  let showNextTimer = null;
   const wrap = el('div', { class: 'review-wrap' });
   const bar = el('div', null);
   const counter = el('span', { class: 'review-count' }, '');
+  const speakBtn = el('button', { class: 'icon-btn', title: 'Озвучить текущую сторону' }, svgNode(ICONS.speaker));
   const editBtn = el('button', { class: 'icon-btn', title: 'Редактировать карточку' }, featherIcon());
   const top = el('div', { class: 'review-top' }, [
     el('button', { class: 'icon-btn', onclick: () => nav(folderId ? '#folder/' + folderId : '#home') }, svgNode(ICONS.back)),
     el('div', { class: 'progress deck-progress' }, bar),
     counter,
+    speakBtn,
     editBtn,
   ]);
   const stage = el('div', null);
@@ -115,8 +120,14 @@ export async function renderReview(folderId, opts = {}) {
     const card = queue[0];
     editBtn.style.visibility = '';
     editBtn.onclick = () => cardDialog(card.folder_id, card);
+    speakBtn.style.display = store.settings.tts !== false ? '' : 'none';
+    speakBtn.onclick = () => {
+      if (!speakCardSide(card, getVisibleSide())) {
+        toast('Нет текста для озвучки', 'error');
+      }
+    };
     currentIsNew = SRS.isNew(card, algo);
-    const { box, grades } = createFlipCard(card, pickSide(), {
+    const { box, flip, grades, getVisibleSide } = createFlipCard(card, pickSide(), {
       stageContains: node => stage.contains(node),
       onFirstFlip: () => {
         gradesVisible = true;
@@ -162,6 +173,7 @@ export async function renderReview(folderId, opts = {}) {
       requestAnimationFrame(() => swipeHint.classList.add('visible'));
 
       attachSwipeGrades(box, {
+        cardEl: flip,
         enabled: () => gradesVisible && stage.contains(box),
         onSwipe: dir => {
           const btns = grades.querySelectorAll('.grade-btn');
@@ -173,6 +185,11 @@ export async function renderReview(folderId, opts = {}) {
   }
 
   async function grade(card, g) {
+    if (undoToastDismiss) { undoToastDismiss(); undoToastDismiss = null; }
+    pendingUndo = null;
+
+    const prevSnap = SRS.srsSnapshot(card, algo);
+    const spentNewBudget = currentIsNew && !cram;
     let patch, failed;
     if (algo === 'leitner') {
       patch = SRS.leitnerNext(card, g.leitner, store.settings.leitnerIntervals);
@@ -181,10 +198,11 @@ export async function renderReview(folderId, opts = {}) {
       patch = SRS.sm2Next(card, g.q);
       failed = g.q < 3;
     }
-    if (currentIsNew && !cram) spendNewBudget();
+    const reinsertAt = failed ? Math.min(3, queue.length) : null;
+    if (spentNewBudget) spendNewBudget();
     queue.shift();
     if (failed) {
-      queue.splice(Math.min(3, queue.length), 0, Object.assign({}, card, patch));
+      queue.splice(reinsertAt, 0, Object.assign({}, card, patch));
     } else {
       done++;
     }
@@ -193,7 +211,52 @@ export async function renderReview(folderId, opts = {}) {
     try { await store.updateCard(card.id, patch); }
     catch (e) { toast('Не сохранилось: ' + e.message, 'error'); }
     await recordReview();
-    setTimeout(() => showNext(false), 240);
+
+    pendingUndo = {
+      card: Object.assign({}, card),
+      prevSnap,
+      failed,
+      reinsertAt,
+      countedSuccess: !failed,
+      spentNewBudget,
+    };
+    const undoToast = toastAction('Оценка сохранена', 'Отменить', () => undoLastGrade(), 4500, () => {
+      pendingUndo = null;
+    });
+    undoToastDismiss = () => {
+      undoToast.dismiss();
+      pendingUndo = null;
+    };
+
+    if (showNextTimer) clearTimeout(showNextTimer);
+    showNextTimer = setTimeout(() => {
+      showNextTimer = null;
+      showNext(false);
+    }, 240);
+  }
+
+  async function undoLastGrade() {
+    const u = pendingUndo;
+    if (!u) return;
+    pendingUndo = null;
+    undoToastDismiss = null;
+
+    if (u.failed) {
+      const idx = queue.findIndex(c => c.id === u.card.id);
+      if (idx !== -1) queue.splice(idx, 1);
+    }
+    queue.unshift(u.card);
+
+    if (u.countedSuccess) done--;
+    if (u.spentNewBudget) refundNewBudget();
+
+    try { await store.updateCard(u.card.id, u.prevSnap); }
+    catch (e) { toast('Не удалось отменить: ' + e.message, 'error'); return; }
+    await undoReview();
+    updateBar();
+    if (showNextTimer) { clearTimeout(showNextTimer); showNextTimer = null; }
+    showNext(true);
+    toast('Оценка отменена', 'ok');
   }
 
   function finish() {

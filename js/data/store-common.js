@@ -5,6 +5,8 @@ export const DEFAULT_SETTINGS = {
   leitnerIntervals: [1, 2, 4, 8, 16],
   calendarPlace: 'left',
   streakRingDays: 21,
+  tts: true,
+  ttsRate: 1,
 };
 
 export function uuid() {

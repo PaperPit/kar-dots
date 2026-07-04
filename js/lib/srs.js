@@ -91,6 +91,19 @@ export function leitnerPreview(card, remembered, intervals) {
   return fmtDays(ivs[r.box - 1]);
 }
 
+/** Поля SRS для отката оценки. */
+export function srsSnapshot(card, algo) {
+  if (algo === 'leitner') {
+    return { box: card.box ?? 0, box_due: card.box_due ?? null };
+  }
+  return {
+    sm2_ef: card.sm2_ef ?? 2.5,
+    sm2_reps: card.sm2_reps ?? 0,
+    sm2_ivl: card.sm2_ivl ?? 0,
+    sm2_due: card.sm2_due ?? null,
+  };
+}
+
 export function fmtDays(d) {
   if (d < 1) return '< 1 дня';
   if (d === 1) return '1 день';

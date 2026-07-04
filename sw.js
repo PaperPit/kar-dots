@@ -1,6 +1,12 @@
-const VERSION = 'kar-v7.9';
+const VERSION = 'kar-v7.13';
 const APP_FILES = [
   './', 'index.html', 'manifest.webmanifest', 'css/style.css',
+  'css/fonts/fonts.css',
+  'css/fonts/baloo2-deva.woff2', 'css/fonts/baloo2-viet.woff2',
+  'css/fonts/baloo2-ext.woff2', 'css/fonts/baloo2-latin.woff2',
+  'css/fonts/nunito-cyr-ext.woff2', 'css/fonts/nunito-cyr.woff2',
+  'css/fonts/nunito-viet.woff2', 'css/fonts/nunito-latin-ext.woff2',
+  'css/fonts/nunito-latin.woff2',
   'js/app.js', 'js/config.example.js',
   'js/core/state.js', 'js/core/router.js',
   'js/data/index.js', 'js/data/store-common.js', 'js/data/store-local.js',
@@ -15,9 +21,12 @@ const APP_FILES = [
   'js/screens/review/index.js', 'js/screens/review/flip-card.js',
   'js/screens/settings/index.js',
   'js/screens/card-editor/index.js',
-  'icons/icon.svg', 'icons/logo.svg', 'icons/icon-192.png', 'icons/icon-512.png',
+  'icons/icon.svg', 'icons/logo.svg', 'icons/raven.svg',
+  'icons/icon-192.png', 'icons/icon-512.png', 'icons/apple-touch-icon.png',
   'icons/The%20crow%20with%20the%20tombstone.svg', 'icons/Scarecrow.svg', 'icons/feather.svg',
   'icons/cup.svg', 'icons/ghost.svg', 'icons/empty%20cage.svg', 'icons/Bird%20cage.svg',
+  'icons/ghost.png', 'icons/feather.png', 'icons/raven.png',
+  'icons/Scarecrow.png', 'icons/Bird%20cage.png',
 ];
 
 self.addEventListener('install', e => {

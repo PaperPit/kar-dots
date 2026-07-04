@@ -39,6 +39,29 @@ export function toast(msg, type) {
   }, 2600);
 }
 
+/** Тост с кнопкой действия (например, отмена оценки). */
+export function toastAction(msg, actionLabel, onAction, duration = 4500, onExpire) {
+  const root = document.getElementById('toasts');
+  let hideTimer;
+  const dismiss = () => {
+    clearTimeout(hideTimer);
+    t.classList.remove('show');
+    setTimeout(() => t.remove(), 350);
+  };
+  const btn = el('button', {
+    class: 'toast-action',
+    onclick: () => { onAction(); dismiss(); },
+  }, actionLabel);
+  const t = el('div', { class: 'toast toast-actionable' }, [
+    el('span', { class: 'toast-msg' }, msg),
+    btn,
+  ]);
+  root.appendChild(t);
+  requestAnimationFrame(() => t.classList.add('show'));
+  hideTimer = setTimeout(() => { if (onExpire) onExpire(); dismiss(); }, duration);
+  return { dismiss };
+}
+
 export function modal(content, opts) {
   opts = opts || {};
   const root = document.getElementById('modalRoot');

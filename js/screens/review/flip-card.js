@@ -80,7 +80,7 @@ export function createFlipCard(card, firstSide, opts) {
   };
   document.addEventListener('keydown', onKey);
 
-  return { box, flip, grades, hint };
+  return { box, flip, grades, hint, getVisibleSide: () => (flip.classList.contains('flipped') ? backSide : firstSide) };
 }
 
 export function sizeFlipCard(flipEl) {

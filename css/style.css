@@ -424,12 +424,23 @@ textarea.input { resize: vertical; min-height: 72px; }
   font-style: normal; font-synthesis: none;
 }
 
-.flip-scene { perspective: 1400px; }
+.flip-scene {
+  perspective: 1400px;
+  touch-action: pan-y;
+}
 .flip-card {
   position: relative; width: 100%; min-height: 320px; max-height: 72vh;
   transform-style: preserve-3d;
-  transition: transform .55s var(--ease), height .3s var(--ease);
+  transition: transform .55s var(--ease), height .3s var(--ease), opacity .28s var(--ease);
   cursor: pointer;
+}
+.flip-card.swipe-dragging {
+  transition-property: height;
+  transition-duration: .3s;
+  transition-timing-function: var(--ease);
+}
+.flip-card.swipe-animating {
+  transition: transform .38s var(--ease), opacity .32s var(--ease);
 }
 .flip-card.flipped { transform: rotateY(180deg); }
 .flip-face {
@@ -512,11 +523,6 @@ textarea.input { resize: vertical; min-height: 72px; }
   .keyboard-hint { display: block; }
   .swipe-hint { display: none !important; }
 }
-.flip-scene.swipe-flash-left { animation: swipeFlashLeft .22s var(--ease); }
-.flip-scene.swipe-flash-right { animation: swipeFlashRight .22s var(--ease); }
-@keyframes swipeFlashLeft { 50% { transform: translateX(-10px); } }
-@keyframes swipeFlashRight { 50% { transform: translateX(10px); } }
-
 .stats-grid {
   display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px;
   padding: 4px 0 8px;
@@ -701,6 +707,9 @@ textarea.input { resize: vertical; min-height: 72px; }
   padding: 8px 10px; outline: none; max-width: 200px;
 }
 .setting-row input[type="number"] { width: 84px; text-align: center; }
+.tts-rate-wrap { display: flex; flex-direction: column; gap: 6px; min-width: 148px; max-width: 200px; flex: 1; }
+.tts-rate-val { font-size: 13px; font-weight: 650; color: var(--ink-soft); text-align: right; }
+input[type="range"].tts-rate { width: 100%; margin: 0; accent-color: var(--accent); cursor: pointer; }
 
 .seg { display: inline-flex; background: var(--bg-sunken); border-radius: 12px; padding: 3px; gap: 2px; }
 .seg button {
@@ -988,6 +997,20 @@ textarea.input { resize: vertical; min-height: 72px; }
 .toast.show { opacity: 1; transform: none; }
 .toast.error { background: var(--danger); color: #fff; }
 .toast.ok { background: var(--ok); color: #fff; }
+.toast-actionable {
+  pointer-events: auto;
+  display: flex; align-items: center; gap: 14px;
+  max-width: min(420px, calc(100vw - 32px));
+}
+.toast-msg { flex: 1; min-width: 0; }
+.toast-action {
+  flex: none; border: 0; border-radius: 8px; cursor: pointer;
+  padding: 6px 12px; font-weight: 700; font-size: 13px;
+  background: rgba(255,255,255,.18); color: inherit;
+}
+.toast-action:hover { background: rgba(255,255,255,.28); }
+.toast.ok .toast-action { background: rgba(0,0,0,.12); }
+.toast.ok .toast-action:hover { background: rgba(0,0,0,.18); }
 
 /* --- спиннер ------------------------------------------------ */
 .spinner {

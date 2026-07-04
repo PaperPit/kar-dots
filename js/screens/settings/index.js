@@ -96,6 +96,39 @@ export async function renderSettings() {
         return inp;
       })(),
     ]),
+    el('div', { class: 'setting-row' }, [
+      el('div', { class: 'lab' }, [
+        el('b', null, 'Озвучка на повторении'),
+        el('span', null, 'Кнопка озвучки текущей стороны карточки.'),
+      ]),
+      (() => {
+        const chk = el('input', { type: 'checkbox', checked: s.tts !== false });
+        chk.addEventListener('change', () => { s.tts = chk.checked; save(); });
+        return chk;
+      })(),
+    ]),
+    el('div', { class: 'setting-row' }, [
+      el('div', { class: 'lab' }, [
+        el('b', null, 'Скорость озвучки'),
+        el('span', null, 'От 0,5× (медленнее) до 2× (быстрее).'),
+      ]),
+      (() => {
+        const rate = Math.min(2, Math.max(0.5, Number(s.ttsRate ?? 1) || 1));
+        const val = el('span', { class: 'tts-rate-val tnum' }, rate.toFixed(1) + '×');
+        const range = el('input', {
+          type: 'range', class: 'tts-rate', min: 0.5, max: 2, step: 0.1, value: rate,
+        });
+        const sync = () => {
+          const v = Math.min(2, Math.max(0.5, Number(range.value) || 1));
+          s.ttsRate = Math.round(v * 10) / 10;
+          val.textContent = s.ttsRate.toFixed(1) + '×';
+          range.value = String(s.ttsRate);
+        };
+        range.addEventListener('input', sync);
+        range.addEventListener('change', () => { sync(); save(); });
+        return el('div', { class: 'tts-rate-wrap' }, [val, range]);
+      })(),
+    ]),
   ]);
 
   if (s.algo === 'leitner') {

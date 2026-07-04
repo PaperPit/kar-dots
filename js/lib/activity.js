@@ -149,6 +149,16 @@ export async function recordReview(count = 1) {
   return data;
 }
 
+export async function undoReview(count = 1) {
+  const data = loadActivity();
+  const k = dayKey();
+  if (data.days[k]) {
+    data.days[k].reviews = Math.max(0, (data.days[k].reviews || 0) - count);
+  }
+  await saveActivity(data);
+  return data;
+}
+
 export function calcVisitStreak(data) {
   const d = new Date();
   if (!dayHasActivity(data, dayKey(d))) d.setDate(d.getDate() - 1);

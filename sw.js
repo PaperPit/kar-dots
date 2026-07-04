@@ -1,4 +1,4 @@
-const VERSION = 'kar-v3.3';
+const VERSION = 'kar-v3.4';
 const APP_FILES = [
   './', 'index.html', 'manifest.webmanifest', 'css/style.css',
   'js/app.js', 'js/config.example.js',

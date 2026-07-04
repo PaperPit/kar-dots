@@ -4,7 +4,7 @@ import { el, toast, confirmDialog, stripHtml } from '../../ui/ui.js';
 import { ICONS } from '../../ui/constants.js';
 import { crowBox, initials, newBudget, svgNode, textPreview } from '../../ui/helpers.js';
 import { shell, nav, offlineBanner } from '../../ui/shell.js';
-import { folderDialog } from './folder-dialog.js';
+import { folderDialog } from '../home/folder-dialog.js';
 import { cardDialog } from '../card-editor/index.js';
 import { route } from '../../core/router.js';
 

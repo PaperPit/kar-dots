@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>КАР-точки — запоминай слова</title>
+  <meta name="description" content="КАР-точки: карточки для запоминания слов, терминов и цитат с интервальным повторением.">
+  <meta name="theme-color" content="#FBFAF7" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#151619" media="(prefers-color-scheme: dark)">
+  <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <link rel="manifest" href="manifest.webmanifest">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="КАР-точки">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <div id="app" class="app">
+    <div class="boot-splash" id="bootSplash">
+      <svg class="boot-crow" viewBox="0 0 256 256" width="72" height="72" aria-hidden="true">
+        <g fill="currentColor">
+          <circle cx="112" cy="102" r="54"/>
+          <path d="M 152 84 Q 196 88 220 101 Q 196 114 152 120 Q 162 101 152 84 Z"/>
+          <circle class="boot-eye" cx="124" cy="88" r="10"/>
+          <circle cx="76" cy="196" r="13" class="boot-dot d1"/>
+          <circle cx="120" cy="196" r="13" class="boot-dot d2"/>
+          <circle cx="164" cy="196" r="13" class="boot-dot d3"/>
+        </g>
+      </svg>
+    </div>
+  </div>
+  <div id="toasts" class="toasts" aria-live="polite"></div>
+  <div id="modalRoot"></div>
+
+  <script src="js/config.js"></script>
+  <script src="js/ui.js"></script>
+  <script src="js/srs.js"></script>
+  <script src="js/supabase.js"></script>
+  <script src="js/store.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>

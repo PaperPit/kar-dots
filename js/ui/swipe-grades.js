@@ -27,14 +27,24 @@ function clearDrag(el, box) {
   el.classList.remove('swipe-dragging', 'swipe-animating');
   el.style.transform = '';
   el.style.opacity = '';
-  if (box) box.dataset.swipeDir = '';
+  if (box) {
+    box.dataset.swipeDir = '';
+    box.style.removeProperty('--swipe-glow');
+  }
 }
 
 function setDragHint(box, dx) {
   if (!box) return;
-  if (dx <= -20) box.dataset.swipeDir = 'left';
-  else if (dx >= 20) box.dataset.swipeDir = 'right';
-  else box.dataset.swipeDir = '';
+  const abs = Math.abs(dx);
+  const intensity = Math.min(abs / maxDrag(), 1);
+  if (abs >= 12) {
+    box.style.setProperty('--swipe-glow', String(0.3 + intensity * 0.7));
+    if (dx < 0) box.dataset.swipeDir = 'left';
+    else box.dataset.swipeDir = 'right';
+  } else {
+    box.dataset.swipeDir = '';
+    box.style.removeProperty('--swipe-glow');
+  }
 }
 
 function animateTo(el, box, tx, opacity, duration, onDone) {

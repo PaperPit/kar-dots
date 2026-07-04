@@ -1,4 +1,4 @@
-const VERSION = 'kar-v7.14';
+const VERSION = 'kar-v7.15';
 const APP_FILES = [
   './', 'index.html', 'manifest.webmanifest', 'css/style.css',
   'css/fonts/fonts.css',

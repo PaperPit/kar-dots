@@ -429,24 +429,42 @@ textarea.input { resize: vertical; min-height: 72px; }
   touch-action: pan-y;
   position: relative;
 }
-.flip-scene[data-swipe-dir="left"]::before,
-.flip-scene[data-swipe-dir="right"]::before {
-  content: '';
+.flip-swipe-area {
+  position: relative;
+  width: 100%;
+  overflow: hidden;
+  border-radius: 24px;
+}
+.swipe-glow {
   position: absolute;
   inset: 0;
-  border-radius: 24px;
+  border-radius: inherit;
   pointer-events: none;
-  z-index: 2;
-  opacity: 0.55;
-  transition: opacity .12s var(--ease);
+  z-index: 6;
+  opacity: 0;
+  transition: opacity .08s linear;
+  -webkit-transform: translateZ(0);
+  transform: translateZ(0);
 }
-.flip-scene[data-swipe-dir="left"]::before {
-  background: linear-gradient(90deg, rgba(196, 72, 58, 0.22), transparent 55%);
+.flip-scene[data-swipe-dir="left"] .swipe-glow-left {
+  opacity: var(--swipe-glow, 0.75);
+  background: linear-gradient(90deg,
+    rgba(196, 72, 58, 0.55) 0%,
+    rgba(196, 72, 58, 0.28) 38%,
+    transparent 72%);
+  box-shadow: inset 4px 0 0 rgba(196, 72, 58, 0.85);
 }
-.flip-scene[data-swipe-dir="right"]::before {
-  background: linear-gradient(270deg, rgba(46, 125, 78, 0.22), transparent 55%);
+.flip-scene[data-swipe-dir="right"] .swipe-glow-right {
+  opacity: var(--swipe-glow, 0.75);
+  background: linear-gradient(270deg,
+    rgba(46, 125, 78, 0.55) 0%,
+    rgba(46, 125, 78, 0.28) 38%,
+    transparent 72%);
+  box-shadow: inset -4px 0 0 rgba(46, 125, 78, 0.85);
 }
 .flip-swipe-wrap {
+  position: relative;
+  z-index: 1;
   width: 100%;
   will-change: transform;
   transition: transform .55s var(--ease), opacity .28s var(--ease);

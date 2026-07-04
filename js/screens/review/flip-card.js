@@ -2,6 +2,15 @@ import { el } from '../../ui/ui.js';
 import { buildFlipFace } from '../../ui/card-face.js';
 import { haptic } from '../../ui/helpers.js';
 
+function isTextEntryTarget(node) {
+  if (!node || !(node instanceof Element)) return false;
+  if (node.closest('.modal-overlay')) return true;
+  const tag = node.tagName;
+  if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return true;
+  if (node.isContentEditable) return true;
+  return !!node.closest('[contenteditable="true"]');
+}
+
 /**
  * Интерактивная карточка повторения: бесконечное переворачивание по клику/тапу.
  */
@@ -37,7 +46,13 @@ export function createFlipCard(card, firstSide, opts) {
     }
   }
 
-  flip.addEventListener('click', toggleFlip);
+  flip.addEventListener('click', () => {
+    if (box.dataset.swipeHandled) {
+      box.dataset.swipeHandled = '';
+      return;
+    }
+    toggleFlip();
+  });
 
   box.tabIndex = -1;
   const onKey = e => {
@@ -45,12 +60,22 @@ export function createFlipCard(card, firstSide, opts) {
       document.removeEventListener('keydown', onKey);
       return;
     }
+    if (isTextEntryTarget(e.target)) return;
     if (e.key === ' ' || e.key === 'Enter') {
       e.preventDefault();
       toggleFlip();
     }
-    if (gradesShown && ['1', '2', '3', '4'].includes(e.key) && opts.onGradeKey) {
+    if (gradesShown && opts.onGradeKey && ['1', '2', '3', '4'].includes(e.key)) {
       opts.onGradeKey(e.key, grades);
+    }
+    if (gradesShown && opts.onGradeDir) {
+      if (e.key === 'ArrowLeft') {
+        e.preventDefault();
+        opts.onGradeDir('left', grades);
+      } else if (e.key === 'ArrowRight') {
+        e.preventDefault();
+        opts.onGradeDir('right', grades);
+      }
     }
   };
   document.addEventListener('keydown', onKey);

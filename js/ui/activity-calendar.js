@@ -1,10 +1,16 @@
 import { el, plural } from './ui.js';
+import { store } from '../core/state.js';
 import {
   loadActivity, calcVisitStreak, getMonthGrid, dayKey, MONTH_NAMES, WEEKDAY_NAMES,
 } from '../lib/activity.js';
 
-function streakCup() {
-  return el('img', { class: 'streak-cup', src: 'icons/cup.svg', alt: '', draggable: 'false' });
+function streakRing(streak, sm) {
+  const ringDays = Math.max(1, Number(store?.settings?.streakRingDays) || 21);
+  const deg = streak <= 0 ? 0 : Math.min(360, (streak / ringDays) * 360);
+  return el('div', {
+    class: 'streak-ring' + (sm ? ' streak-ring-sm' : ''),
+    style: { '--ring-deg': deg + 'deg' },
+  }, el('img', { class: 'streak-cup', src: 'icons/cup.svg', alt: '', draggable: 'false' }));
 }
 
 export function activityPanel(opts = {}) {
@@ -21,7 +27,7 @@ export function activityPanel(opts = {}) {
     wrap.innerHTML = '';
 
     const streakRow = el('div', { class: 'streak-row' }, [
-      streakCup(),
+      streakRing(streak),
       el('div', { class: 'streak-text' }, [
         el('div', { class: 'streak-num' }, String(streak)),
         el('div', { class: 'streak-label' }, plural(streak, 'день подряд', 'дня подряд', 'дней подряд')),
@@ -79,4 +85,49 @@ export function activityPanel(opts = {}) {
 
   render();
   return wrap;
+}
+
+/** Календарь на главной: на мобиле — компактная полоска с раскрытием, на десктопе — боковая панель. */
+export function homeCalendarWidget(place) {
+  const aside = el('aside', {
+    class: 'home-sidebar home-sidebar-' + place + ' home-sidebar-collapsible',
+  });
+
+  let open = false;
+  const panel = activityPanel({ sidebar: true });
+  const expand = el('div', { class: 'home-sidebar-expand' }, panel);
+
+  const toggle = el('button', {
+    type: 'button',
+    class: 'home-sidebar-toggle',
+    'aria-expanded': 'false',
+    'aria-label': 'Открыть календарь активности',
+  });
+
+  function refreshStrip() {
+    const data = loadActivity();
+    const streak = calcVisitStreak(data);
+    const now = new Date();
+    const monthLabel = `${MONTH_NAMES[now.getMonth()]} ${now.getFullYear()}`;
+    toggle.replaceChildren(
+      streakRing(streak, true),
+      el('div', { class: 'home-sidebar-strip-text' }, [
+        el('span', { class: 'home-sidebar-strip-streak' },
+          `${streak} ${plural(streak, 'день', 'дня', 'дней')} подряд`),
+        el('span', { class: 'home-sidebar-strip-month' }, monthLabel),
+      ]),
+      el('span', { class: 'home-sidebar-chevron', 'aria-hidden': 'true' }),
+    );
+  }
+
+  toggle.addEventListener('click', () => {
+    open = !open;
+    aside.classList.toggle('is-open', open);
+    toggle.setAttribute('aria-expanded', String(open));
+    toggle.setAttribute('aria-label', open ? 'Свернуть календарь' : 'Открыть календарь активности');
+  });
+
+  aside.append(toggle, expand);
+  refreshStrip();
+  return aside;
 }

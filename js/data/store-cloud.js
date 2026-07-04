@@ -274,6 +274,33 @@ export class CloudStore {
     return meta.filter(c => SRS.isDue(c, algo, now)).length;
   }
 
+  async countDueBetween(folderId, algo, from, to) {
+    algo = algo || this.settings.algo;
+    if (navigator.onLine && !this._offline) {
+      try { return await this._countDueBetweenCloud(folderId, algo, from, to); }
+      catch (e) {
+        if (isNetworkError(e)) this._offline = true;
+      }
+    }
+    return this._countDueBetweenLocal(folderId, algo, from, to);
+  }
+
+  async _countDueBetweenCloud(folderId, algo, from, to) {
+    const uid = this.sb.userId();
+    if (!uid) return this._countDueBetweenLocal(folderId, algo, from, to);
+    let base = 'user_id=eq.' + uid;
+    if (folderId) base += '&folder_id=eq.' + folderId;
+    if (algo === 'leitner') {
+      return this.sb.count('cards', base + '&box=gt.0&box_due=gte.' + from + '&box_due=lte.' + to);
+    }
+    return this.sb.count('cards', base + '&sm2_due=not.is.null&sm2_due=gte.' + from + '&sm2_due=lte.' + to);
+  }
+
+  _countDueBetweenLocal(folderId, algo, from, to) {
+    const meta = (this._srsMeta || []).filter(c => !folderId || c.folder_id === folderId);
+    return meta.filter(c => SRS.isDueBetween(c, algo, from, to)).length;
+  }
+
   async countNew(folderId, algo) {
     algo = algo || this.settings.algo;
     if (navigator.onLine && !this._offline) {

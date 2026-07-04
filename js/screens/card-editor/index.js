@@ -1,7 +1,6 @@
 import { store } from '../../core/state.js';
-import { el, toast, modal, spinner } from '../../ui/ui.js';
+import { el, toast, modal, spinner, stripHtml } from '../../ui/ui.js';
 import { richEditor } from '../../ui/rich-editor.js';
-import { descriptionPlain } from '../../ui/card-face.js';
 import { featherIcon, modalHead } from '../../ui/helpers.js';
 import { route } from '../../core/router.js';
 
@@ -54,52 +53,73 @@ export function cardDialog(folderId, card) {
   const frontRich = richEditor({
     placeholder: 'Слово или термин',
     value: card ? card.front : '',
+    toolbar: false,
   });
 
   const defRich = richEditor({
     placeholder: 'Краткое определение',
     value: card ? card.back : '',
+    toolbar: false,
   });
 
-  const descInput = el('textarea', {
-    class: 'input desc-input',
-    rows: 4,
+  const descRich = richEditor({
     placeholder: 'Подробное описание (необязательно) — показывается на обороте под определением',
+    value: card ? card.description : '',
   });
-  descInput.value = card ? descriptionPlain(card) : '';
 
   let m;
-  const save = el('button', {
+  let saveBtn;
+  let saveMoreBtn;
+
+  async function submit(andContinue) {
+    const front = stripHtml(frontRich.getHTML()).trim();
+    const back = stripHtml(defRich.getHTML()).trim();
+    const description = descRich.isEmpty() ? '' : descRich.getHTML();
+    if (frontRich.isEmpty() && !state.front_img) {
+      toast('Заполните лицевую сторону', 'error');
+      return;
+    }
+    if (defRich.isEmpty() && descRich.isEmpty() && !state.back_img) {
+      toast('Заполните определение или описание на обороте', 'error');
+      return;
+    }
+    saveBtn.disabled = true;
+    if (saveMoreBtn) saveMoreBtn.disabled = true;
+    try {
+      const patch = {
+        front, back, description,
+        front_img: state.front_img, back_img: state.back_img,
+      };
+      if (card) await store.updateCard(card.id, patch);
+      else await store.createCard(Object.assign({ folder_id: folderId }, patch));
+      m.close();
+      await route();
+      if (andContinue) {
+        cardDialog(folderId);
+        toast('Карточка добавлена', 'ok');
+      } else if (!card) {
+        toast('Карточка добавлена', 'ok');
+      }
+    } catch (e) {
+      toast(e.message, 'error');
+      saveBtn.disabled = false;
+      if (saveMoreBtn) saveMoreBtn.disabled = false;
+    }
+  }
+
+  saveBtn = el('button', {
     class: 'btn primary',
-    onclick: async () => {
-      const front = frontRich.getHTML();
-      const back = defRich.getHTML();
-      const description = descInput.value.trim();
-      if (frontRich.isEmpty() && !state.front_img) {
-        toast('Заполните лицевую сторону', 'error');
-        return;
-      }
-      if (defRich.isEmpty() && !description && !state.back_img) {
-        toast('Заполните определение или описание на обороте', 'error');
-        return;
-      }
-      save.disabled = true;
-      try {
-        const patch = {
-          front, back, description,
-          front_img: state.front_img, back_img: state.back_img,
-        };
-        if (card) await store.updateCard(card.id, patch);
-        else await store.createCard(Object.assign({ folder_id: folderId }, patch));
-        m.close();
-        await route();
-        if (!card) toast('Карточка добавлена', 'ok');
-      } catch (e) {
-        toast(e.message, 'error');
-        save.disabled = false;
-      }
-    },
+    onclick: () => submit(false),
   }, card ? 'Сохранить' : 'Добавить');
+
+  saveMoreBtn = el('button', {
+    class: 'btn btn-save-more',
+    title: 'Сохранить и добавить ещё одну карточку',
+    onclick: () => submit(true),
+  }, [
+    el('span', { class: 'btn-save-more-short' }, 'Сохр. + ещё'),
+    el('span', { class: 'btn-save-more-full' }, 'Сохр. + добавить ещё'),
+  ]);
 
   m = modal(el('div', null, [
     card ? modalHead('Карточка', featherIcon('modal-head-icon')) : el('h3', { class: 'modal-title' }, 'Новая карточка'),
@@ -118,14 +138,15 @@ export function cardDialog(folderId, card) {
         ]),
         el('div', { class: 'field' }, [
           el('label', null, 'Описание'),
-          descInput,
+          descRich.node,
         ]),
         imgDrop('back_img', state),
       ]),
     ]),
     el('div', { class: 'modal-actions' }, [
       el('button', { class: 'btn ghost', onclick: () => m.close() }, 'Отмена'),
-      save,
+      saveMoreBtn,
+      saveBtn,
     ]),
   ]), { wide: true });
 

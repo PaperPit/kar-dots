@@ -3,6 +3,7 @@ import { el, plural } from '../../ui/ui.js';
 import { ICONS } from '../../ui/constants.js';
 import { crowBox, emptyFoldersBox, initials, newBudget, scarecrowBox, svgNode, countUp } from '../../ui/helpers.js';
 import { shell, nav, offlineBanner, refreshDueBadge } from '../../ui/shell.js';
+import { homeCalendarWidget } from '../../ui/activity-calendar.js';
 import { folderDialog } from './folder-dialog.js';
 
 export async function renderHome() {
@@ -85,10 +86,9 @@ export async function renderHome() {
   const calendarPlace = store.settings.calendarPlace
     ?? (store.settings.showCalendar === false ? 'hidden' : 'left');
 
-  let calendarAside = null;
-  if (calendarPlace !== 'hidden') {
-    calendarAside = el('aside', { class: 'home-sidebar home-sidebar-' + calendarPlace });
-  }
+  const calendarAside = calendarPlace !== 'hidden'
+    ? homeCalendarWidget(calendarPlace)
+    : null;
 
   shell('home', el('div', null, [
     offlineBanner(),
@@ -96,10 +96,4 @@ export async function renderHome() {
   ]), calendarAside);
 
   if (heroCountNode) countUp(heroCountNode, totalToStudy);
-
-  if (calendarAside) {
-    import('../../ui/activity-calendar.js')
-      .then(m => calendarAside.append(m.activityPanel({ sidebar: true })))
-      .catch(() => calendarAside.remove());
-  }
 }

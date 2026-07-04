@@ -178,6 +178,15 @@ export class LocalStore {
     return n;
   }
 
+  async countDueBetween(folderId, algo, from, to) {
+    algo = algo || this.settings.algo;
+    let n = 0;
+    await forEachCard(this.db, folderId || null, c => {
+      if (SRS.isDueBetween(c, algo, from, to)) n++;
+    });
+    return n;
+  }
+
   async countNew(folderId, algo) {
     algo = algo || this.settings.algo;
     let n = 0;

@@ -58,6 +58,27 @@ export function isDue(card, algo, now) {
   return d !== null && d !== undefined && d <= now;
 }
 
+/** Границы календарного дня (локальное время). */
+export function dayBounds(date = new Date()) {
+  const start = new Date(date);
+  start.setHours(0, 0, 0, 0);
+  const end = new Date(date);
+  end.setHours(23, 59, 59, 999);
+  return { start: start.getTime(), end: end.getTime() };
+}
+
+/** Карточка запланирована на повтор в интервале [from, to]. */
+export function isDueBetween(card, algo, from, to) {
+  const d = dueOf(card, algo);
+  if (d == null) return false;
+  return d >= from && d <= to;
+}
+
+/** Пора повторять или ещё не изучалась. */
+export function isReviewable(card, algo, now) {
+  return isDue(card, algo, now) || isNew(card, algo);
+}
+
 export function sm2Preview(card, quality, now) {
   const r = sm2Next(Object.assign({}, card), quality, now);
   if (quality < 3) return '10 мин';

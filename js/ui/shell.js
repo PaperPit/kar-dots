@@ -13,7 +13,7 @@ export async function refreshDueBadge() {
   return dueBadge;
 }
 
-export function shell(viewName, content, floating) {
+export function shell(viewName, content, prependToMain) {
   app.innerHTML = '';
   const badge = dueBadge > 0 ? String(dueBadge) : null;
   const tabs = [
@@ -41,9 +41,10 @@ export function shell(viewName, content, floating) {
     }, [svgNode(t.icon), el('span', null, t.label), t.badge ? el('span', { class: 'badge' }, t.badge) : null])
   ));
 
-  const main = el('main', { class: 'main' }, el('div', { class: 'view' }, content));
+  const view = el('div', { class: 'view' }, content);
+  const mainKids = prependToMain ? [prependToMain, view] : [view];
+  const main = el('main', { class: 'main' }, mainKids);
   app.append(header, main, tabbar);
-  if (floating) app.insertBefore(floating, tabbar);
   main.scrollTop = 0;
 }
 

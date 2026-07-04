@@ -23,14 +23,14 @@ export function buildBackContent(card) {
   if (defPlain) {
     const longCls = defPlain.length > 120 ? ' long' : '';
     const defNode = el('div', { class: 'card-definition' + longCls });
-    defNode.innerHTML = sanitizeRich(card.back);
+    defNode.textContent = defPlain;
     parts.push(defNode);
   }
 
   const desc = (card.description || '').trim();
   if (desc) {
     const descNode = el('div', { class: 'card-description' });
-    descNode.textContent = desc;
+    descNode.innerHTML = sanitizeRich(desc);
     parts.push(descNode);
   }
 

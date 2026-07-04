@@ -10,7 +10,12 @@ export function el(tag, attrs, children) {
       if (v === null || v === undefined || v === false) continue;
       if (k.startsWith('on') && typeof v === 'function') node.addEventListener(k.slice(2), v);
       else if (k === 'html') node.innerHTML = v;
-      else if (k === 'style' && typeof v === 'object') Object.assign(node.style, v);
+      else if (k === 'style' && typeof v === 'object') {
+        for (const sk in v) {
+          if (sk.startsWith('--')) node.style.setProperty(sk, v[sk]);
+          else node.style[sk] = v[sk];
+        }
+      }
       else node.setAttribute(k, v === true ? '' : v);
     }
   }
@@ -56,6 +61,7 @@ export function modal(content, opts) {
   }
   function onKey(e) {
     if (e.key === 'Escape') { close(); return; }
+    if (e.key === ' ' && e.target === box) { e.preventDefault(); return; }
     if (e.key === 'Tab') {
       const f = focusables();
       if (!f.length) { e.preventDefault(); box.focus(); return; }

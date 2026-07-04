@@ -1,18 +1,117 @@
 const LS_KEY = 'kar_activity';
+const IDB_NAME = 'kartochki_activity';
+const IDB_KEY = 'data';
 
-export function loadActivity() {
+let cache = null;
+let idbReady = null;
+
+function readWebStore(store) {
   try {
-    const raw = localStorage.getItem(LS_KEY);
-    if (raw) {
-      const data = JSON.parse(raw);
-      if (data && typeof data.days === 'object') return data;
-    }
+    const raw = store.getItem(LS_KEY);
+    if (!raw) return null;
+    const data = JSON.parse(raw);
+    if (data && typeof data.days === 'object') return data;
   } catch (e) {}
-  return { days: {} };
+  return null;
 }
 
-export function saveActivity(data) {
-  localStorage.setItem(LS_KEY, JSON.stringify(data));
+function readLegacyStores() {
+  return readWebStore(localStorage) || readWebStore(sessionStorage);
+}
+
+function mergeDay(a, b) {
+  return {
+    visit: !!(a?.visit || b?.visit),
+    reviews: Math.max(a?.reviews || 0, b?.reviews || 0),
+  };
+}
+
+function mergeActivity(a, b) {
+  if (!a) return b ? { days: { ...b.days } } : { days: {} };
+  if (!b) return { days: { ...a.days } };
+  const days = { ...a.days };
+  for (const k of Object.keys(b.days || {})) {
+    days[k] = mergeDay(days[k], b.days[k]);
+  }
+  return { days };
+}
+
+function openActivityDB() {
+  if (!idbReady) {
+    idbReady = new Promise((resolve, reject) => {
+      if (typeof indexedDB === 'undefined') {
+        resolve(null);
+        return;
+      }
+      const req = indexedDB.open(IDB_NAME, 1);
+      req.onupgradeneeded = () => {
+        const db = req.result;
+        if (!db.objectStoreNames.contains('kv')) db.createObjectStore('kv');
+      };
+      req.onsuccess = () => resolve(req.result);
+      req.onerror = () => reject(req.error);
+    }).catch(() => null);
+  }
+  return idbReady;
+}
+
+async function idbLoad() {
+  const db = await openActivityDB();
+  if (!db) return null;
+  return new Promise(resolve => {
+    const req = db.transaction('kv', 'readonly').objectStore('kv').get(IDB_KEY);
+    req.onsuccess = () => {
+      if (!req.result) { resolve(null); return; }
+      try {
+        const data = JSON.parse(req.result);
+        resolve(data && typeof data.days === 'object' ? data : null);
+      } catch (e) { resolve(null); }
+    };
+    req.onerror = () => resolve(null);
+  });
+}
+
+async function idbSave(data) {
+  const db = await openActivityDB();
+  if (!db) return;
+  return new Promise((resolve, reject) => {
+    const t = db.transaction('kv', 'readwrite');
+    t.objectStore('kv').put(JSON.stringify(data), IDB_KEY);
+    t.oncomplete = () => resolve();
+    t.onerror = () => reject(t.error);
+  }).catch(e => console.warn('activity idb save', e));
+}
+
+function ensureCacheFromLegacy() {
+  if (!cache) cache = readLegacyStores() || { days: {} };
+}
+
+/** Загрузить и слить активность из IndexedDB и localStorage. Вызывается при старте. */
+export async function initActivity() {
+  const [idb, legacy] = await Promise.all([
+    idbLoad(),
+    Promise.resolve(readLegacyStores()),
+  ]);
+  cache = mergeActivity(idb, legacy);
+  await persistActivity(cache);
+  return cache;
+}
+
+async function persistActivity(data) {
+  cache = data;
+  const json = JSON.stringify(data);
+  try { localStorage.setItem(LS_KEY, json); } catch (e) { console.warn('activity localStorage', e); }
+  try { sessionStorage.setItem(LS_KEY, json); } catch (e) {}
+  await idbSave(data);
+}
+
+export function loadActivity() {
+  ensureCacheFromLegacy();
+  return JSON.parse(JSON.stringify(cache));
+}
+
+export async function saveActivity(data) {
+  await persistActivity(data);
 }
 
 export function dayKey(date = new Date()) {
@@ -27,29 +126,35 @@ function touchDay(data, key) {
   data.days[key].visit = true;
 }
 
-export function recordVisit() {
+/** День засчитывается в серию: был заход или хотя бы одно повторение. */
+export function dayHasActivity(data, key) {
+  const day = data.days[key];
+  if (!day) return false;
+  return !!day.visit || (day.reviews || 0) > 0;
+}
+
+export async function recordVisit() {
   const data = loadActivity();
   touchDay(data, dayKey());
-  saveActivity(data);
+  await saveActivity(data);
   return data;
 }
 
-export function recordReview(count = 1) {
+export async function recordReview(count = 1) {
   const data = loadActivity();
   const k = dayKey();
   touchDay(data, k);
   data.days[k].reviews = (data.days[k].reviews || 0) + count;
-  saveActivity(data);
+  await saveActivity(data);
   return data;
 }
 
 export function calcVisitStreak(data) {
   const d = new Date();
-  const todayK = dayKey(d);
-  if (!data.days[todayK]?.visit) d.setDate(d.getDate() - 1);
+  if (!dayHasActivity(data, dayKey(d))) d.setDate(d.getDate() - 1);
 
   let streak = 0;
-  while (data.days[dayKey(d)]?.visit) {
+  while (dayHasActivity(data, dayKey(d))) {
     streak++;
     d.setDate(d.getDate() - 1);
   }

@@ -3,6 +3,7 @@ import { toast } from './ui/ui.js';
 import { MiniSupabase } from './data/supabase.js';
 import { CloudStore } from './data/index.js';
 import { renderAuth, enterLocal } from './screens/auth/index.js';
+import { initActivity } from './lib/activity.js';
 import { initRouter, route } from './core/router.js';
 
 function dismissBootSplash() {
@@ -11,6 +12,7 @@ function dismissBootSplash() {
 
 async function boot() {
   await initConfig();
+  await initActivity();
 
   if (cloudConfigured) {
     setSb(new MiniSupabase(cfg.SUPABASE_URL, cfg.SUPABASE_ANON_KEY));

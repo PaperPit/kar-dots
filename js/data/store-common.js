@@ -4,6 +4,7 @@ export const DEFAULT_SETTINGS = {
   newPerDay: 20,
   leitnerIntervals: [1, 2, 4, 8, 16],
   calendarPlace: 'left',
+  streakRingDays: 21,
 };
 
 export function uuid() {

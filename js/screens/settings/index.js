@@ -1,10 +1,14 @@
 import { store, sb, setStore } from '../../core/state.js';
-import { el, toast, confirmDialog } from '../../ui/ui.js';
+import { el, toast, confirmDialog, plural } from '../../ui/ui.js';
 import { shell, nav, offlineBanner } from '../../ui/shell.js';
 import { renderAuth } from '../auth/index.js';
 import { route } from '../../core/router.js';
+import { DEFAULT_SETTINGS } from '../../data/store-common.js';
+import { initActivity, loadActivity, calcVisitStreak, dayKey } from '../../lib/activity.js';
+import * as SRS from '../../lib/srs.js';
 
-export function renderSettings() {
+export async function renderSettings() {
+  await initActivity();
   const s = store.settings;
 
   async function save() {
@@ -32,7 +36,7 @@ export function renderSettings() {
     el('div', { class: 'setting-row' }, [
       el('div', { class: 'lab' }, [
         el('b', null, 'Показывать на главной'),
-        el('span', null, 'Где отображать календарь на экране «Папки». Не сдвигает основной контент.'),
+        el('span', null, 'Где отображать календарь на экране «Папки». На телефоне — компактная полоска, по нажатию раскрывается.'),
       ]),
       segControl(calendarPlace, [
         { v: 'left', label: 'Слева' },
@@ -43,6 +47,24 @@ export function renderSettings() {
         save();
       }),
     ]),
+    el('div', { class: 'setting-row' }, [
+      el('div', { class: 'lab' }, [
+        el('b', null, 'Полное кольцо серии'),
+        el('span', null, 'За сколько дней подряд заполняется круг вокруг кубка в календаре.'),
+      ]),
+      (() => {
+        const inp = el('input', {
+          type: 'number', min: 1, max: 999,
+          value: s.streakRingDays ?? 21,
+        });
+        inp.addEventListener('change', () => {
+          s.streakRingDays = Math.max(1, Number(inp.value) || 21);
+          inp.value = String(s.streakRingDays);
+          save();
+        });
+        return inp;
+      })(),
+    ]),
   ]);
 
   const algoGroup = el('div', { class: 'settings-group' }, [
@@ -52,7 +74,7 @@ export function renderSettings() {
         el('b', null, 'Алгоритм'),
         el('span', null, 'SM-2 — гибкий, как в Anki. Лейтнер — простые «коробки». Прогресс каждого хранится отдельно.'),
       ]),
-      segControl(s.algo, [{ v: 'sm2', label: 'SM-2' }, { v: 'leitner', label: 'Лейтнер' }], v => { s.algo = v; save(); renderSettings(); }),
+      segControl(s.algo, [{ v: 'sm2', label: 'SM-2' }, { v: 'leitner', label: 'Лейтнер' }], v => { s.algo = v; save(); route(); }),
     ]),
     el('div', { class: 'setting-row' }, [
       el('div', { class: 'lab' }, [
@@ -78,7 +100,8 @@ export function renderSettings() {
 
   if (s.algo === 'leitner') {
     const row = el('div', { class: 'row', style: { flexWrap: 'wrap' } });
-    s.leitnerIntervals.forEach((d, i) => {
+    const intervals = s.leitnerIntervals || DEFAULT_SETTINGS.leitnerIntervals;
+    intervals.forEach((d, i) => {
       const inp = el('input', { type: 'number', min: 1, max: 365, value: d, style: { width: '64px', textAlign: 'center' }, class: 'input' });
       inp.addEventListener('change', () => {
         s.leitnerIntervals[i] = Math.max(1, Number(inp.value) || 1);
@@ -182,10 +205,57 @@ export function renderSettings() {
     ]));
   }
 
+  let stats = { reviewsToday: 0, dueToday: 0, dueTomorrow: 0, streak: 0 };
+  try {
+    stats = await loadStudyStats(store);
+  } catch (e) {
+    console.error('loadStudyStats', e);
+  }
+  const statsGroup = el('div', { class: 'settings-group stats-group' }, [
+    el('h4', null, 'Статистика'),
+    el('div', { class: 'stats-grid' }, [
+      statTile('Повторений сегодня', stats.reviewsToday),
+      statTile('К повторению сегодня', stats.dueToday),
+      statTile('Завтра', stats.dueTomorrow),
+      statTile('Серия дней', `${stats.streak} ${plural(stats.streak, 'день', 'дня', 'дней')}`),
+    ]),
+  ]);
+
   shell('settings', el('div', null, [
     offlineBanner(),
     el('div', { class: 'page-head' }, el('h2', { class: 'page-title' }, 'Настройки')),
-    calendarGroup, algoGroup, dataGroup, accGroup,
+    statsGroup, calendarGroup, algoGroup, dataGroup, accGroup,
     el('p', { class: 'muted', style: { textAlign: 'center', margin: '26px 0 8px' } }, 'КАР-точки · ворона помнит всё'),
   ]));
+}
+
+function statTile(label, value) {
+  return el('div', { class: 'stat-tile' }, [
+    el('div', { class: 'stat-tile-val tnum' }, String(value)),
+    el('div', { class: 'stat-tile-lab' }, label),
+  ]);
+}
+
+async function loadStudyStats(activeStore) {
+  const algo = activeStore.settings.algo;
+  const tomorrow = new Date();
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  const { start: tStart, end: tEnd } = SRS.dayBounds(tomorrow);
+
+  let dueToday = 0;
+  let dueTomorrow = 0;
+  try { dueToday = await activeStore.countDue(null, algo); } catch (e) { console.warn(e); }
+  try {
+    if (typeof activeStore.countDueBetween === 'function') {
+      dueTomorrow = await activeStore.countDueBetween(null, algo, tStart, tEnd);
+    }
+  } catch (e) { console.warn(e); }
+
+  const activity = loadActivity();
+  return {
+    reviewsToday: activity.days[dayKey()]?.reviews || 0,
+    dueToday,
+    dueTomorrow,
+    streak: calcVisitStreak(activity),
+  };
 }

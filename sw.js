@@ -1,13 +1,14 @@
-const VERSION = 'kar-v5.11';
+const VERSION = 'kar-v7.8';
 const APP_FILES = [
   './', 'index.html', 'manifest.webmanifest', 'css/style.css',
   'js/app.js', 'js/config.example.js',
   'js/core/state.js', 'js/core/router.js',
   'js/data/index.js', 'js/data/store-common.js', 'js/data/store-local.js',
   'js/data/store-cloud.js', 'js/data/sync-queue.js', 'js/data/supabase.js',
-  'js/lib/srs.js', 'js/lib/activity.js',
+  'js/lib/srs.js', 'js/lib/activity.js', 'js/lib/stats.js',
   'js/ui/ui.js', 'js/ui/shell.js', 'js/ui/helpers.js', 'js/ui/constants.js',
   'js/ui/rich-editor.js', 'js/ui/card-face.js', 'js/ui/activity-calendar.js', 'js/ui/raven-brand.js',
+  'js/ui/swipe-grades.js',
   'js/screens/auth/index.js',
   'js/screens/home/index.js', 'js/screens/home/folder-dialog.js',
   'js/screens/folder/index.js',

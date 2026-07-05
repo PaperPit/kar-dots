@@ -47,7 +47,6 @@ export function buildFaceScroll(side, card) {
 
 export function buildFlipFace(side, card, isBackFace) {
   return el('div', { class: 'flip-face' + (isBackFace ? ' backside' : '') }, [
-    el('div', { class: 'side-label' }, side === 'front' ? 'лицо' : 'оборот'),
     buildFaceScroll(side, card),
   ]);
 }

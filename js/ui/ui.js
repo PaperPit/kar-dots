@@ -39,12 +39,17 @@ export function toast(msg, type) {
   }, 2600);
 }
 
-/** Тост с кнопкой действия (например, отмена оценки). */
+/** Тост с кнопкой действия (например, отмена оценки). Одновременно только один. */
+let activeActionToast = null;
+
 export function toastAction(msg, actionLabel, onAction, duration = 4500, onExpire) {
+  if (activeActionToast) activeActionToast.dismiss();
+
   const root = document.getElementById('toasts');
   let hideTimer;
   const dismiss = () => {
     clearTimeout(hideTimer);
+    if (activeActionToast?.el === t) activeActionToast = null;
     t.classList.remove('show');
     setTimeout(() => t.remove(), 350);
   };
@@ -59,7 +64,8 @@ export function toastAction(msg, actionLabel, onAction, duration = 4500, onExpir
   root.appendChild(t);
   requestAnimationFrame(() => t.classList.add('show'));
   hideTimer = setTimeout(() => { if (onExpire) onExpire(); dismiss(); }, duration);
-  return { dismiss };
+  activeActionToast = { el: t, dismiss };
+  return activeActionToast;
 }
 
 export function modal(content, opts) {
@@ -94,7 +100,12 @@ export function modal(content, opts) {
       else if (!box.contains(document.activeElement)) { e.preventDefault(); first.focus(); }
     }
   }
-  overlay.addEventListener('click', e => { if (e.target === overlay && !opts.sticky) close(); });
+  let downOnOverlay = false;
+  overlay.addEventListener('mousedown', e => { downOnOverlay = e.target === overlay; });
+  overlay.addEventListener('click', e => {
+    if (e.target === overlay && !opts.sticky && downOnOverlay) close();
+    downOnOverlay = false;
+  });
   document.addEventListener('keydown', onKey);
   root.appendChild(overlay);
   requestAnimationFrame(() => requestAnimationFrame(() => {

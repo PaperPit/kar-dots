@@ -3,6 +3,7 @@ import { el } from './ui.js';
 import { ICONS } from './constants.js';
 import { brandMark, svgNode } from './helpers.js';
 import { studyModePicker } from '../screens/review/mode-picker.js';
+import { syncRavenEggScreen, tryRavenEggClick } from '../lib/raven-easter-egg.js';
 
 let dueBadge = 0;
 
@@ -15,6 +16,7 @@ export async function refreshDueBadge() {
 }
 
 export function shell(viewName, content, prependToMain) {
+  syncRavenEggScreen(viewName);
   app.innerHTML = '';
   const badge = dueBadge > 0 ? String(dueBadge) : null;
   const tabs = [
@@ -30,7 +32,12 @@ export function shell(viewName, content, prependToMain) {
 
   const header = el('header', { class: 'header' },
     el('div', { class: 'header-in' }, [
-      brandMark({ onclick: () => nav('#home') }),
+      brandMark({
+        onclick: () => {
+          if (viewName === 'home' && tryRavenEggClick()) return;
+          nav('#home');
+        },
+      }),
       el('nav', { class: 'nav-desktop' }, tabs.map(t =>
         el('button', {
           class: 'nav-btn' + (viewName === t.id ? ' active' : ''),

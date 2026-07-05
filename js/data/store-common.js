@@ -8,9 +8,11 @@ export const DEFAULT_SETTINGS = {
   tts: true,
   ttsRate: 1,
   ttsAuto: false,
-  successSound: 'chime',
-  failSound: 'drop',
+  successSound: 'confirm-tap',
+  failSound: 'load-fail',
   answerSoundMode: 'both',
+  cupMelody: 'show-alert',
+  uiClickSound: 'none',
 };
 
 export function uuid() {

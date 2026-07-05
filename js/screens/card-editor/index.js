@@ -1,7 +1,7 @@
 import { store } from '../../core/state.js';
-import { el, toast, modal, spinner, stripHtml } from '../../ui/ui.js';
+import { el, toast, modal, spinner, stripHtml, confirmDialog } from '../../ui/ui.js';
 import { richEditor } from '../../ui/rich-editor.js';
-import { featherIcon, modalHead } from '../../ui/helpers.js';
+import { featherIcon, modalHead, crowTombIcon, textPreview } from '../../ui/helpers.js';
 import { route } from '../../core/router.js';
 import { getTranslateDir, translateText } from '../../lib/translate.js';
 import { createTranslateDirToggle } from '../../ui/translate-dir-toggle.js';
@@ -46,7 +46,9 @@ function imgDrop(side, state) {
   return box;
 }
 
-export function cardDialog(folderId, card) {
+export function cardDialog(folderId, card, opts = {}) {
+  const isEditing = !!card;
+  const fromLesson = !!(opts.review || opts.fromLesson || opts.onSaved || opts.onDeleted);
   const state = {
     front_img: card ? card.front_img : null,
     back_img: card ? card.back_img : null,
@@ -71,7 +73,7 @@ export function cardDialog(folderId, card) {
 
   let m;
   let saveBtn;
-  let saveMoreBtn;
+  let saveMoreBtn = null;
   const { btn: dirToggleBtn, getDir: getTranslateDirLocal } = createTranslateDirToggle(getTranslateDir());
 
   const translateBtn = el('button', { type: 'button', class: 'btn translate-btn' }, 'Перевести');
@@ -119,6 +121,10 @@ export function cardDialog(folderId, card) {
       if (card) await store.updateCard(card.id, patch);
       else await store.createCard(Object.assign({ folder_id: folderId }, patch));
       m.close();
+      if (fromLesson) {
+        opts.onSaved?.(patch);
+        return;
+      }
       await route();
       if (andContinue) {
         cardDialog(folderId);
@@ -136,16 +142,63 @@ export function cardDialog(folderId, card) {
   saveBtn = el('button', {
     class: 'btn primary',
     onclick: () => submit(false),
-  }, card ? 'Сохранить' : 'Добавить');
+  }, isEditing ? 'Сохранить' : 'Добавить');
 
-  saveMoreBtn = el('button', {
-    class: 'btn btn-save-more',
-    title: 'Сохранить и добавить ещё одну карточку',
-    onclick: () => submit(true),
-  }, [
-    el('span', { class: 'btn-save-more-short' }, 'Сохр. + ещё'),
-    el('span', { class: 'btn-save-more-full' }, 'Сохр. + добавить ещё'),
-  ]);
+  if (!isEditing && !fromLesson) {
+    saveMoreBtn = el('button', {
+      class: 'btn btn-save-more',
+      title: 'Сохранить и добавить ещё одну карточку',
+      onclick: () => submit(true),
+    }, [
+      el('span', { class: 'btn-save-more-short' }, 'Сохр. + ещё'),
+      el('span', { class: 'btn-save-more-full' }, 'Сохр. + добавить ещё'),
+    ]);
+  }
+
+  async function deleteCard() {
+    if (!card) return;
+    const yes = await confirmDialog(
+      'Удалить карточку?',
+      textPreview(card),
+      'Удалить',
+      true,
+      crowTombIcon(),
+    );
+    if (!yes) return;
+    try {
+      await store.deleteCard(card.id);
+      m.close();
+      if (opts.onDeleted) {
+        opts.onDeleted();
+        return;
+      }
+      await route();
+      toast('Карточка удалена', 'ok');
+    } catch (e) {
+      toast(e.message, 'error');
+    }
+  }
+
+  const deleteBtn = isEditing && fromLesson
+    ? el('button', {
+      type: 'button',
+      class: 'btn danger modal-delete-btn',
+      onclick: () => deleteCard(),
+    }, 'Удалить')
+    : null;
+
+  const actionBtns = [
+    el('button', { class: 'btn ghost', onclick: () => m.close() }, 'Отмена'),
+  ];
+  if (saveMoreBtn) actionBtns.push(saveMoreBtn);
+  actionBtns.push(saveBtn);
+
+  const actionsRow = deleteBtn
+    ? el('div', { class: 'modal-actions modal-actions-split' }, [
+      deleteBtn,
+      el('div', { class: 'modal-actions-end' }, actionBtns),
+    ])
+    : el('div', { class: 'modal-actions' }, actionBtns);
 
   const translateRow = el('div', { class: 'translate-row' }, [
     dirToggleBtn,
@@ -153,7 +206,7 @@ export function cardDialog(folderId, card) {
   ]);
 
   m = modal(el('div', null, [
-    card ? modalHead('Карточка', featherIcon('modal-head-icon')) : el('h3', { class: 'modal-title' }, 'Новая карточка'),
+    isEditing ? modalHead('Карточка', featherIcon('modal-head-icon')) : el('h3', { class: 'modal-title' }, 'Новая карточка'),
     el('div', { class: 'editor-sides' }, [
       el('div', { class: 'side-box' }, [
         el('div', { class: 'side-title' }, 'Лицо'),
@@ -175,12 +228,8 @@ export function cardDialog(folderId, card) {
         imgDrop('back_img', state),
       ]),
     ]),
-    el('div', { class: 'modal-actions' }, [
-      el('button', { class: 'btn ghost', onclick: () => m.close() }, 'Отмена'),
-      saveMoreBtn,
-      saveBtn,
-    ]),
-  ]), { wide: true });
+    actionsRow,
+  ]), { wide: true, sticky: fromLesson });
 
-  if (!card) setTimeout(() => frontRich.focus(), 260);
+  if (!isEditing) setTimeout(() => frontRich.focus(), 260);
 }

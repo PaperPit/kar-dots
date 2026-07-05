@@ -1,6 +1,7 @@
 import { store } from '../core/state.js';
 import { el, CROW_SVG, stripHtml } from './ui.js';
 import { RAVEN_BRAND_SVG } from './raven-brand.js';
+import { lessonStarsLabel } from '../lib/lesson-stars.js';
 
 const ICON_SRC = {
   ghost: 'icons/ghost.svg',
@@ -10,6 +11,8 @@ const ICON_SRC = {
   scarecrow: 'icons/Scarecrow.svg',
   feather: 'icons/feather.svg',
   cup: 'icons/cup.svg',
+  star: 'icons/star.svg',
+  starEmpty: 'icons/star-empty.svg',
 };
 
 export function svgNode(svgText) {
@@ -77,6 +80,30 @@ export function cupBox(cls) {
 
 export function trophyBox() {
   return cupBox('trophy-drop');
+}
+
+/** Кубок + ряд из заработанных звёзд (1–3), по центру. */
+export function lessonRewardBox(earnedStars) {
+  const n = Math.min(3, Math.max(1, earnedStars || 1));
+  const stars = el('div', {
+    class: 'lesson-stars',
+    'data-count': String(n),
+    role: 'img',
+    'aria-label': `${n} из 3`,
+  });
+  for (let i = 1; i <= n; i++) {
+    stars.append(el('img', {
+      class: `lesson-star earned star-${i}`,
+      src: ICON_SRC.star,
+      alt: '',
+      draggable: 'false',
+    }));
+  }
+  return el('div', { class: 'lesson-reward' }, [
+    cupBox('trophy-drop'),
+    stars,
+    el('p', { class: 'lesson-stars-label' }, lessonStarsLabel(n)),
+  ]);
 }
 
 export function initials(name) {

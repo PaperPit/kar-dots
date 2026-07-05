@@ -1,5 +1,5 @@
 {
-  "version": 9,
+  "version": 10,
   "packs": [
     {
       "id": "en-a0-starters",
@@ -35,6 +35,18 @@
       "cardCount": 969,
       "file": "en-a2-oxford.json",
       "multiVariantCards": 849,
+      "untranslatedCards": 0
+    },
+    {
+      "id": "en-phrases-a0-a2",
+      "title": "English · Phrases",
+      "subtitle": "100 самых частых фраз · A0–A2",
+      "level": "A1",
+      "version": 1,
+      "color": "#6B7FA3",
+      "cardCount": 100,
+      "file": "en-phrases-a0-a2.json",
+      "multiVariantCards": 95,
       "untranslatedCards": 0
     }
   ]

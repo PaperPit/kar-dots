@@ -1,33 +1,26 @@
 import { el } from '../../../ui/ui.js';
 import { buildFaceScroll } from '../../../ui/card-face.js';
 import { detectSpeechLang, haptic } from '../../../ui/helpers.js';
-import { playAnswerFeedbackFromStore } from '../../../lib/sounds.js';
+import { playAnswerFeedback, unlockAnswerAudio } from '../../../lib/sounds.js';
 import { flashStudyCard, showStudyFeedback } from '../../../ui/answer-feedback.js';
 import { checkCardAnswer, getExpectedAnswer, formatExpectedDisplay } from '../../../lib/answer-check.js';
 import { listenOnce, speechRecognitionSupported } from '../../../lib/speech-input.js';
+import { isSpaceKey, shouldStartVoiceFromSpace } from '../../../lib/voice-keyboard.js';
 
 function buildPrompt(card, promptSide) {
   return el('div', { class: 'study-prompt-card' }, [
-    el('div', { class: 'side-label' }, promptSide === 'front' ? 'лицо' : 'оборот'),
     buildFaceScroll(promptSide, card),
   ]);
 }
 
-function isTextEntryTarget(node) {
-  if (!node || !(node instanceof Element)) return false;
-  if (node.closest('.modal-overlay')) return true;
-  const tag = node.tagName;
-  if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return true;
-  if (node.isContentEditable) return true;
-  return !!node.closest('[contenteditable="true"]');
-}
-
 export function createVoiceModeCard(card, ctx) {
-  const { promptSide, onSuccess, onFail } = ctx;
+  const { promptSide, onSuccess, onFail, getSettings } = ctx;
   let answered = false;
+  let listens = 0;
   let stopListen = null;
   let listening = false;
 
+  const prompt = buildPrompt(card, promptSide);
   const status = el('p', { class: 'study-voice-status muted' }, 'Пробел или кнопка — начать запись');
   const heard = el('div', { class: 'study-feedback', hidden: true });
   const actions = el('div', { class: 'study-actions study-voice-actions' });
@@ -38,6 +31,14 @@ export function createVoiceModeCard(card, ctx) {
     disabled: !speechRecognitionSupported(),
   }, '🎤 Сказать ответ');
 
+  function playFeedback(isCorrect) {
+    const settings = getSettings?.();
+    if (!settings) return;
+    const run = () => playAnswerFeedback(isCorrect, settings);
+    if (isCorrect) run();
+    else setTimeout(run, 120);
+  }
+
   function cleanupListen() {
     if (stopListen) { stopListen(); stopListen = null; }
     listening = false;
@@ -46,7 +47,7 @@ export function createVoiceModeCard(card, ctx) {
   }
 
   function showWrong(transcript, expected) {
-    flashStudyCard(box, false);
+    flashStudyCard(prompt, false);
     showStudyFeedback(heard, false, transcript ? `Услышано: «${transcript}»` : 'Неверно');
     actions.innerHTML = '';
     const revealBtn = el('button', {
@@ -72,7 +73,7 @@ export function createVoiceModeCard(card, ctx) {
         class: 'btn ghost',
         onclick: () => {
           cleanupListen();
-          if (!answered) { answered = true; onFail(); }
+          if (!answered) { answered = true; onFail({ firstTry: false }); }
         },
       }, 'Не знаю'),
     );
@@ -80,7 +81,9 @@ export function createVoiceModeCard(card, ctx) {
 
   function startListen() {
     if (answered || listening || !speechRecognitionSupported()) return;
-    cleanupListen();
+    const settings = getSettings?.();
+    if (settings) unlockAnswerAudio(settings);
+    if (stopListen) cleanupListen();
     const expected = getExpectedAnswer(card, promptSide);
     const lang = detectSpeechLang(expected);
     status.textContent = 'Слушаю…';
@@ -96,16 +99,18 @@ export function createVoiceModeCard(card, ctx) {
       onResult: (transcript) => {
         cleanupListen();
         status.textContent = '';
+        listens++;
+        const firstTry = listens === 1;
         const { ok } = checkCardAnswer(transcript, card, promptSide, { fuzzy: true, fuzzyThreshold: 0.75 });
         if (ok) {
           answered = true;
-          playAnswerFeedbackFromStore(true);
+          playFeedback(true);
           haptic(12);
-          flashStudyCard(box, true);
+          flashStudyCard(prompt, true);
           showStudyFeedback(heard, true, 'Верно!');
-          setTimeout(() => onSuccess(), 580);
+          setTimeout(() => onSuccess({ firstTry }), 580);
         } else {
-          playAnswerFeedbackFromStore(false);
+          playFeedback(false);
           haptic(4);
           showWrong(transcript, expected);
         }
@@ -128,10 +133,15 @@ export function createVoiceModeCard(card, ctx) {
   }
 
   micBtn.addEventListener('click', startListen);
+  micBtn.addEventListener('keydown', (e) => {
+    if (!isSpaceKey(e)) return;
+    e.preventDefault();
+    startListen();
+  });
   actions.append(micBtn);
 
-  const box = el('div', { class: 'study-voice-card' }, [
-    buildPrompt(card, promptSide),
+  const box = el('div', { class: 'study-voice-card', tabindex: '-1' }, [
+    prompt,
     status,
     heard,
     actions,
@@ -139,15 +149,18 @@ export function createVoiceModeCard(card, ctx) {
 
   const onKey = (e) => {
     if (!document.body.contains(box)) {
-      document.removeEventListener('keydown', onKey);
+      document.removeEventListener('keydown', onKey, true);
       return;
     }
-    if (isTextEntryTarget(e.target)) return;
-    if (e.key !== ' ' && e.code !== 'Space') return;
+    if (!shouldStartVoiceFromSpace(e, box)) return;
     e.preventDefault();
     startListen();
   };
-  document.addEventListener('keydown', onKey);
+  document.addEventListener('keydown', onKey, true);
+
+  requestAnimationFrame(() => {
+    if (document.body.contains(box)) box.focus({ preventScroll: true });
+  });
 
   if (!speechRecognitionSupported()) {
     status.textContent = 'Голосовой режим недоступен — используйте ввод текста';
@@ -157,7 +170,7 @@ export function createVoiceModeCard(card, ctx) {
     box,
     getPromptSide: () => promptSide,
     destroy() {
-      document.removeEventListener('keydown', onKey);
+      document.removeEventListener('keydown', onKey, true);
       cleanupListen();
     },
   };

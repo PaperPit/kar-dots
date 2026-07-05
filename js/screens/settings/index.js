@@ -7,9 +7,10 @@ import { DEFAULT_SETTINGS } from '../../data/store-common.js';
 import { initActivity } from '../../lib/activity.js';
 import { loadStudyStats } from '../../lib/stats.js';
 import {
-  SUCCESS_MELODIES, FAIL_MELODIES,
-  playSuccessSound, playFailSound,
+  SUCCESS_MELODIES, FAIL_MELODIES, CUP_MELODIES, UI_CLICK_MELODIES,
+  playSuccessSound, playFailSound, playCupMelody, playUiClickSound,
   normalizeSuccessSoundId, normalizeFailSoundId, normalizeAnswerSoundMode,
+  normalizeCupMelodyId, normalizeUiClickSoundId,
 } from '../../lib/sounds.js';
 import { melodyPickerField } from '../../ui/melody-picker.js';
 import { vocabPacksDialog } from '../../ui/vocab-packs-dialog.js';
@@ -191,11 +192,26 @@ export async function renderSettings() {
   }
 
   const soundGroup = el('div', { class: 'settings-group' }, [
-    el('h4', null, 'Звуки ответа'),
+    el('h4', null, 'Звуки'),
     el('div', { class: 'setting-row setting-row-stack sound-settings-compact' }, [
       el('div', { class: 'lab' }, [
-        el('b', null, 'Мелодии'),
-        el('span', null, 'Короткие отбивки в режимах «Ввод», «Голос» и «Пары». Нажмите ▶ в меню, чтобы прослушать.'),
+        el('b', null, 'Клики интерфейса'),
+        el('span', null, 'Звук при нажатии кнопок, вкладок и пунктов меню. «Без звука» — тихий интерфейс.'),
+      ]),
+      el('div', { class: 'sound-pickers' }, [
+        melodyPickerField({
+          label: 'Клики',
+          value: normalizeUiClickSoundId(s.uiClickSound),
+          melodies: UI_CLICK_MELODIES,
+          play: id => { if (id !== 'none') playUiClickSound(id, { preview: true }); },
+          onChange: id => { s.uiClickSound = id; save(); },
+        }),
+      ]),
+    ]),
+    el('div', { class: 'setting-row setting-row-stack sound-settings-compact' }, [
+      el('div', { class: 'lab' }, [
+        el('b', null, 'Мелодии ответов'),
+        el('span', null, 'Короткие отбивки в режимах «Ввод», «Голос» и «Пары»; отдельно — мелодия при появлении кубка. Нажмите ▶ в меню, чтобы прослушать.'),
       ]),
       el('div', { class: 'sound-pickers' }, [
         melodyPickerField({
@@ -211,6 +227,13 @@ export async function renderSettings() {
           melodies: FAIL_MELODIES,
           play: id => playFailSound(id, { preview: true }),
           onChange: id => { s.failSound = id; save(); },
+        }),
+        melodyPickerField({
+          label: 'Кубок',
+          value: normalizeCupMelodyId(s.cupMelody),
+          melodies: CUP_MELODIES,
+          play: id => playCupMelody(id, { preview: true }),
+          onChange: id => { s.cupMelody = id; save(); },
         }),
       ]),
       el('div', { class: 'setting-row sound-mode-row' }, [

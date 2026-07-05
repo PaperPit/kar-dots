@@ -64,8 +64,8 @@ export async function renderFolder(folderId) {
       class: 'btn' + (due > 0 ? '' : ' accent'),
       onclick: () => studyModePicker({ folderId, cram: true }),
     }, [svgNode(ICONS.play), 'Закрепить папку']) : null,
-    el('button', { class: 'btn primary', onclick: () => cardDialog(folderId) }, [svgNode(ICONS.plus), 'Добавить карточку']),
-    el('button', { class: 'btn', onclick: () => bulkCardDialog(folderId) }, 'Добавить списком'),
+    el('button', { class: 'btn', onclick: () => cardDialog(folderId) }, [svgNode(ICONS.plus), 'Добавить карточку']),
+    el('button', { class: 'btn ghost', onclick: () => bulkCardDialog(folderId) }, 'Добавить списком'),
   ]);
 
   let filterMode = 'all';

@@ -24,11 +24,12 @@ export async function route() {
       const { renderFolder } = await import('../screens/folder/index.js');
       await renderFolder(arg);
     } else if (name === 'review') {
-      const { folderId, cram, mode } = reviewOpts;
+      const { folderId, cram, mode, cramLimit } = reviewOpts;
       const { renderReview } = await import('../screens/review/index.js');
       await renderReview(folderId, {
         cram: cram && !!folderId,
         mode: isStudyMode(mode) ? mode : 'flip',
+        cramLimit: cramLimit > 0 ? cramLimit : null,
       });
     } else if (name === 'settings') {
       const { renderSettings } = await import('../screens/settings/index.js');

@@ -4,6 +4,7 @@ import { MiniSupabase } from './data/supabase.js';
 import { CloudStore } from './data/index.js';
 import { renderAuth, enterLocal } from './screens/auth/index.js';
 import { initActivity } from './lib/activity.js';
+import { initUiClicks } from './lib/ui-clicks.js';
 import { initRouter, route } from './core/router.js';
 
 function dismissBootSplash() {
@@ -19,6 +20,7 @@ async function boot() {
   }
 
   initRouter();
+  initUiClicks();
   const mode = localStorage.getItem('kar_mode');
 
   try {

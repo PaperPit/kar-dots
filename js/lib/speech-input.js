@@ -25,6 +25,7 @@ export function listenOnce({ lang, onResult, onError, onEnd }) {
   };
   rec.onerror = (e) => {
     if (stopped) return;
+    if (e.error === 'aborted') return;
     const msg = e.error === 'not-allowed'
       ? 'Нет доступа к микрофону'
       : (e.error === 'no-speech' ? 'Речь не распознана' : (e.error || 'Ошибка распознавания'));

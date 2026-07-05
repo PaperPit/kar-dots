@@ -1,4 +1,4 @@
-const VERSION = 'kar-v7.46';
+const VERSION = 'kar-v10.22';
 const APP_FILES = [
   './', 'index.html', 'manifest.webmanifest', 'css/style.css',
   'css/fonts/fonts.css',
@@ -13,7 +13,7 @@ const APP_FILES = [
   'js/data/store-cloud.js', 'js/data/sync-queue.js', 'js/data/supabase.js',
   'js/lib/srs.js', 'js/lib/activity.js', 'js/lib/stats.js',
   'js/lib/card-import.js', 'js/lib/translate.js',
-  'js/lib/answer-check.js', 'js/lib/speech-input.js', 'js/lib/study-modes.js', 'js/lib/sounds.js', 'js/lib/vocab-packs.js',
+  'js/lib/answer-check.js', 'js/lib/speech-input.js', 'js/lib/study-modes.js', 'js/lib/lesson-stars.js', 'js/lib/sounds.js', 'js/lib/vocab-packs.js', 'js/lib/raven-easter-egg.js', 'js/lib/ui-clicks.js',
   'js/ui/ui.js', 'js/ui/shell.js', 'js/ui/helpers.js', 'js/ui/constants.js',
   'js/ui/rich-editor.js', 'js/ui/card-face.js', 'js/ui/activity-calendar.js', 'js/ui/raven-brand.js',
   'js/ui/translate-dir-toggle.js', 'js/ui/melody-picker.js', 'js/ui/answer-feedback.js', 'js/ui/vocab-packs-dialog.js',
@@ -30,13 +30,34 @@ const APP_FILES = [
   'icons/icon.svg', 'icons/logo.svg', 'icons/raven.svg',
   'icons/icon-192.png', 'icons/icon-512.png', 'icons/apple-touch-icon.png',
   'icons/The%20crow%20with%20the%20tombstone.svg', 'icons/Scarecrow.svg', 'icons/feather.svg',
-  'icons/cup.svg', 'icons/ghost.svg', 'icons/empty%20cage.svg', 'icons/Bird%20cage.svg',
+  'icons/cup.svg', 'icons/star.svg', 'icons/star-empty.svg', 'icons/ghost.svg', 'icons/empty%20cage.svg', 'icons/Bird%20cage.svg',
   'icons/ghost.png', 'icons/feather.png', 'icons/raven.png',
   'icons/Scarecrow.png', 'icons/Bird%20cage.png',
   'packs/manifest.json',
   'packs/en-a0-starters.json',
   'packs/en-a1-oxford.json',
   'packs/en-a2-oxford.json',
+  'packs/en-phrases-a0-a2.json',
+  'audio/game-bonus.mp3',
+  'audio/show-alert.mp3',
+  'audio/level-up.mp3',
+  'audio/victory-chime.mp3',
+  'audio/correct-answer.mp3',
+  'audio/success/clear-combo.mp3',
+  'audio/success/ui-pop.mp3',
+  'audio/success/soft-plopp.mp3',
+  'audio/success/ui-notification.mp3',
+  'audio/success/confirm-tap.mp3',
+  'audio/crow-scream.mp3',
+  'audio/glitch-fx.mp3',
+  'audio/fail/game-button.mp3',
+  'audio/fail/sword-cut.mp3',
+  'audio/fail/short-fail.mp3',
+  'audio/fail/glitch-error.mp3',
+  'audio/fail/load-fail.mp3',
+  'audio/ui/system-click.mp3',
+  'audio/ui/click-soft.mp3',
+  'audio/ui/click-crisp.mp3',
 ];
 
 self.addEventListener('install', e => {
@@ -58,8 +79,10 @@ self.addEventListener('fetch', e => {
   const isSameOrigin = url.origin === location.origin;
   if (!isSameOrigin && !isStorageImage) return;
 
+  const isAppJs = isSameOrigin && /\.(js|css|html)$/.test(url.pathname);
+
   e.respondWith(
-    fetch(e.request)
+    fetch(isAppJs ? new Request(e.request, { cache: 'no-cache' }) : e.request)
       .then(resp => {
         if (resp.ok) {
           const copy = resp.clone();

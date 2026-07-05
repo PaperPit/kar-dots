@@ -74,22 +74,38 @@ describe('card answer', () => {
 
 describe('study-modes routes', () => {
   it('parseReviewRoute', async () => {
-    const { parseReviewRoute, buildReviewHash, resolveStudyMode, setSessionStudyMode } = await import('../js/lib/study-modes.js');
-    expect(parseReviewRoute(['review'])).toEqual({ folderId: null, cram: false, mode: 'flip' });
-    expect(parseReviewRoute(['review', 'type'])).toEqual({ folderId: null, cram: false, mode: 'type' });
-    expect(parseReviewRoute(['review', 'voice'])).toEqual({ folderId: null, cram: false, mode: 'voice' });
-    expect(parseReviewRoute(['review', 'abc', 'type'])).toEqual({ folderId: 'abc', cram: false, mode: 'type' });
-    expect(parseReviewRoute(['review', 'abc', 'cram', 'voice'])).toEqual({ folderId: 'abc', cram: true, mode: 'voice' });
+    const { parseReviewRoute, buildReviewHash, resolveStudyMode, setSessionStudyMode, setLastStudyMode } = await import('../js/lib/study-modes.js');
+    expect(parseReviewRoute(['review'])).toEqual({ folderId: null, cram: false, mode: 'flip', cramLimit: null });
+    expect(parseReviewRoute(['review', 'type'])).toEqual({ folderId: null, cram: false, mode: 'type', cramLimit: null });
+    expect(parseReviewRoute(['review', 'voice'])).toEqual({ folderId: null, cram: false, mode: 'voice', cramLimit: null });
+    expect(parseReviewRoute(['review', 'combo'])).toEqual({ folderId: null, cram: false, mode: 'combo', cramLimit: null });
+    expect(parseReviewRoute(['review', 'abc', 'type'])).toEqual({ folderId: 'abc', cram: false, mode: 'type', cramLimit: null });
+    expect(parseReviewRoute(['review', 'abc', 'cram', 'voice'])).toEqual({ folderId: 'abc', cram: true, mode: 'voice', cramLimit: null });
+    expect(parseReviewRoute(['review', 'abc', 'cram', '20', 'combo'])).toEqual({ folderId: 'abc', cram: true, mode: 'combo', cramLimit: 20 });
+    expect(parseReviewRoute(['review', 'abc', 'cram', '20'])).toEqual({ folderId: 'abc', cram: true, mode: 'flip', cramLimit: 20 });
     expect(buildReviewHash('abc', { mode: 'match' })).toBe('#review/abc/match');
     expect(buildReviewHash('abc', { cram: true, mode: 'type' })).toBe('#review/abc/cram/type');
+    expect(buildReviewHash(null, { mode: 'combo' })).toBe('#review/combo');
     const ss = {};
+    const ls = {};
     vi.stubGlobal('sessionStorage', {
       getItem: k => (k in ss ? ss[k] : null),
       setItem: (k, v) => { ss[k] = v; },
       removeItem: k => { delete ss[k]; },
     });
+    vi.stubGlobal('localStorage', {
+      getItem: k => (k in ls ? ls[k] : null),
+      setItem: (k, v) => { ls[k] = v; },
+      removeItem: k => { delete ls[k]; },
+    });
     setSessionStudyMode('match');
     expect(resolveStudyMode('flip')).toBe('match');
+    setLastStudyMode('combo');
+    expect(resolveStudyMode('flip')).toBe('combo');
+    setLastStudyMode('flip');
+    expect(resolveStudyMode('combo')).toBe('combo');
+    setLastStudyMode('flip');
+    expect(resolveStudyMode('flip')).toBe('flip');
     expect(resolveStudyMode('type')).toBe('type');
     vi.unstubAllGlobals();
   });

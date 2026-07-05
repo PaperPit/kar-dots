@@ -6,13 +6,14 @@ import { isVocabPackFolder } from '../js/lib/vocab-packs.js';
 const packsDir = resolve(import.meta.dirname, '../packs');
 
 describe('vocab packs', () => {
-  it('manifest lists three CEFR packs', () => {
+  it('manifest lists CEFR packs and phrases', () => {
     const manifest = JSON.parse(readFileSync(resolve(packsDir, 'manifest.json'), 'utf8'));
-    expect(manifest.packs).toHaveLength(3);
+    expect(manifest.packs).toHaveLength(4);
     const ids = manifest.packs.map(p => p.id);
     expect(ids).toContain('en-a0-starters');
     expect(ids).toContain('en-a1-oxford');
     expect(ids).toContain('en-a2-oxford');
+    expect(ids).toContain('en-phrases-a0-a2');
   });
 
   it('each pack file has cards with front and back', () => {

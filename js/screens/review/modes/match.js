@@ -5,6 +5,8 @@ import { flashMatchPair, flashMatchHint } from '../../../ui/answer-feedback.js';
 
 const BATCH_SIZE = 4;
 const MIN_BATCH = 2;
+/** Размер раунда «пары» в режиме «Микс» (считается за 1 шаг прогресса). */
+const COMBO_MATCH_BATCH = 5;
 
 function cardSideText(card, side) {
   return stripHtml(side === 'front' ? card.front : card.back).trim();
@@ -148,4 +150,4 @@ export function pickMatchBatch(queue, minSize = MIN_BATCH, batchSize = BATCH_SIZ
   return { batch: [], skipped, single: false };
 }
 
-export { BATCH_SIZE, MIN_BATCH };
+export { BATCH_SIZE, MIN_BATCH, COMBO_MATCH_BATCH };

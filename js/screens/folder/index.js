@@ -2,8 +2,9 @@ import { store } from '../../core/state.js';
 import * as SRS from '../../lib/srs.js';
 import { el, toast, confirmDialog, stripHtml, plural } from '../../ui/ui.js';
 import { ICONS } from '../../ui/constants.js';
-import { crowTombIcon, featherIcon, initials, newBudget, svgNode, textPreview } from '../../ui/helpers.js';
+import { crowTombIcon, featherIcon, folderSwatch, newBudget, svgNode, textPreview } from '../../ui/helpers.js';
 import { shell, nav, offlineBanner } from '../../ui/shell.js';
+import { backBtn } from '../../ui/navigation.js';
 import { folderDialog } from '../home/folder-dialog.js';
 import { cardDialog } from '../card-editor/index.js';
 import { bulkCardDialog } from '../card-editor/bulk-dialog.js';
@@ -33,8 +34,8 @@ export async function renderFolder(folderId) {
   const isPack = isVocabPackFolder(folder);
 
   const head = el('div', { class: 'page-head' }, [
-    el('button', { class: 'icon-btn', onclick: () => nav('#home') }, svgNode(ICONS.back)),
-    el('div', { class: 'swatch', style: { background: folder.color, width: '30px', height: '30px', borderRadius: '8px', display: 'grid', placeItems: 'center', color: '#fff', fontWeight: '800', fontSize: '13px' } }, initials(folder.name)),
+    backBtn('#home'),
+    folderSwatch(folder, { compact: true }),
     el('h2', { class: 'page-title grow' }, folder.name),
     isPack ? null : el('button', { class: 'icon-btn', title: 'Переименовать', onclick: () => folderDialog(folder) }, featherIcon()),
     el('button', {
@@ -55,18 +56,26 @@ export async function renderFolder(folderId) {
     }, svgNode(ICONS.trash)),
   ]);
 
-  const actions = el('div', { class: 'row folder-actions', style: { marginBottom: '18px', flexWrap: 'wrap' } }, [
-    due > 0 ? el('button', {
-      class: 'btn accent',
-      onclick: () => studyModePicker({ folderId }),
-    }, [svgNode(ICONS.play), `Повторить (${due})`]) : null,
-    cards.length ? el('button', {
-      class: 'btn' + (due > 0 ? '' : ' accent'),
-      onclick: () => studyModePicker({ folderId, cram: true }),
-    }, [svgNode(ICONS.play), 'Закрепить папку']) : null,
+  const reviewBtn = due > 0 ? el('button', {
+    class: 'btn accent folder-action-wide',
+    onclick: () => studyModePicker({ folderId }),
+  }, [svgNode(ICONS.play), `Повторить (${due})`]) : null;
+
+  const addRow = el('div', { class: 'folder-actions-pair' }, [
     el('button', { class: 'btn', onclick: () => cardDialog(folderId) }, [svgNode(ICONS.plus), 'Добавить карточку']),
-    el('button', { class: 'btn ghost', onclick: () => bulkCardDialog(folderId) }, 'Добавить списком'),
+    el('button', { class: 'btn', onclick: () => bulkCardDialog(folderId) }, [svgNode(ICONS.plus), 'Добавить списком']),
   ]);
+
+  const cramBtn = cards.length ? el('button', {
+    class: 'btn' + (due > 0 ? '' : ' accent') + ' folder-action-wide',
+    onclick: () => studyModePicker({ folderId, cram: true }),
+  }, [svgNode(ICONS.play), 'Повторять все карточки']) : null;
+
+  const actions = el('div', { class: 'folder-actions' }, [
+    reviewBtn,
+    addRow,
+    cramBtn,
+  ].filter(Boolean));
 
   let filterMode = 'all';
   const searchInput = el('input', {
@@ -141,7 +150,7 @@ export async function renderFolder(folderId) {
       chip = el('span', { class: 'srs-chip' }, 'через ' + SRS.fmtDays(Math.max(1, Math.round((d - Date.now()) / 86400000))));
     }
     const row = el('div', {
-      class: 'card-row', style: { animationDelay: Math.min(i * 30, 400) + 'ms' },
+      class: 'card-row stagger-in', style: { '--stagger-delay': Math.min(i * 30, 400) + 'ms' },
       onclick: () => cardDialog(c.folder_id, c),
     }, [
       img ? el('img', { class: 'thumb', src: img, alt: '' }) : null,

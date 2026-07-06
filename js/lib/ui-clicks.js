@@ -16,7 +16,7 @@ function shouldPlayForTarget(node) {
   if (node.isContentEditable || node.closest?.('[contenteditable="true"]')) return false;
   return !!node.closest(
     'button, a[href], [role="button"], [role="tab"], [role="option"], '
-    + '.tab-btn, .nav-btn, .brand, .folder-card, .grade-btn, .match-item, '
+    + '.tab-btn, .nav-btn, .brand, .folder-card, .box-card, .grade-btn, .match-item, '
     + '.melody-picker-trigger, .melody-picker-option, .seg button, label.chk-wrap',
   );
 }

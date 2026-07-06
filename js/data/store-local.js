@@ -1,52 +1,22 @@
-// ============================================================
-// КАР-точки — слой данных
 // LocalStore — IndexedDB, карточки подгружаются по папкам
-// CloudStore — Supabase + локальное зеркало + очередь офлайн
-// ============================================================
-
-import * as SRS from '../lib/srs.js';
 import { indexGetAll } from './sync-queue.js';
-import { DEFAULT_SETTINGS, uuid } from './store-common.js';
+import { DEFAULT_SETTINGS } from './store-common.js';
+import { normalizeFolderRecord, normalizeBoxRecord } from '../lib/folder-icons.js';
+import { resizeImage, blobToDataURL } from '../lib/image-utils.js';
+import {
+  buildFolderRecord, buildCardRecord, buildBoxRecord, exportJSONPayload,
+} from './store-contract.js';
+import { buildReviewQueue, srsMatch } from './srs-query.js';
+import {
+  findFolderByPackId, importVocabPack as doImportVocabPack,
+  deleteVocabPack as doDeleteVocabPack,
+} from './store-vocab.js';
+import { StoreCache } from './store-cache.js';
 
 export { DEFAULT_SETTINGS, uuid } from './store-common.js';
 
-function resizeImage(file, maxSide) {
-  maxSide = maxSide || 1024;
-  return new Promise((resolve, reject) => {
-    const img = new Image();
-    const url = URL.createObjectURL(file);
-    img.onload = () => {
-      URL.revokeObjectURL(url);
-      let { width, height } = img;
-      const scale = Math.min(1, maxSide / Math.max(width, height));
-      width = Math.round(width * scale);
-      height = Math.round(height * scale);
-      const canvas = document.createElement('canvas');
-      canvas.width = width; canvas.height = height;
-      canvas.getContext('2d').drawImage(img, 0, 0, width, height);
-      const hasAlpha = file.type === 'image/png' || file.type === 'image/webp';
-      canvas.toBlob(
-        blob => blob ? resolve(blob) : reject(new Error('Не удалось обработать картинку')),
-        hasAlpha ? 'image/png' : 'image/jpeg',
-        0.85
-      );
-    };
-    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('Файл не похож на картинку')); };
-    img.src = url;
-  });
-}
-
-function blobToDataURL(blob) {
-  return new Promise((resolve, reject) => {
-    const fr = new FileReader();
-    fr.onload = () => resolve(fr.result);
-    fr.onerror = reject;
-    fr.readAsDataURL(blob);
-  });
-}
-
 const IDB_NAME = 'kartochki';
-const IDB_VERSION = 2;
+const IDB_VERSION = 3;
 
 function openDB() {
   return new Promise((resolve, reject) => {
@@ -61,6 +31,7 @@ function openDB() {
         const cards = req.transaction.objectStore('cards');
         if (!cards.indexNames.contains('folder_id')) cards.createIndex('folder_id', 'folder_id', { unique: false });
       }
+      if (!db.objectStoreNames.contains('boxes')) db.createObjectStore('boxes', { keyPath: 'id' });
       if (!db.objectStoreNames.contains('kv')) db.createObjectStore('kv');
     };
     req.onsuccess = () => resolve(req.result);
@@ -119,108 +90,91 @@ function cardCount(db, folderId) {
   });
 }
 
-function shuffle(arr) {
-  for (let i = arr.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [arr[i], arr[j]] = [arr[j], arr[i]];
-  }
-  return arr;
+async function collectCards(db, folderId) {
+  const cards = [];
+  await forEachCard(db, folderId || null, c => cards.push(c));
+  return cards;
+}
+
+async function countCardsMatching(db, folderId, predicate) {
+  let n = 0;
+  await forEachCard(db, folderId || null, c => { if (predicate(c)) n++; });
+  return n;
 }
 
 export class LocalStore {
   constructor() {
     this.kind = 'local';
     this.folders = [];
+    this.boxes = [];
     this.settings = Object.assign({}, DEFAULT_SETTINGS);
-    this._folderCache = new Map();
-    this._cardCounts = new Map();
+    this._cache = new StoreCache();
   }
 
   async init() {
     this.db = await openDB();
-    this.folders = await idbGetAll(this.db, 'folders');
+    this.folders = (await idbGetAll(this.db, 'folders')).map(normalizeFolderRecord);
     this.folders.sort((a, b) => (a.created_at || 0) - (b.created_at || 0));
+    this.boxes = (await idbGetAll(this.db, 'boxes')).map(normalizeBoxRecord);
+    this.boxes.sort((a, b) => (a.created_at || 0) - (b.created_at || 0));
     const raw = localStorage.getItem('kar_settings_local');
     if (raw) try { this.settings = Object.assign({}, DEFAULT_SETTINGS, JSON.parse(raw)); } catch (e) {}
     await this._refreshCounts();
   }
 
   async _refreshCounts() {
-    this._cardCounts.clear();
+    this._cache.cardCounts.clear();
     for (const f of this.folders) {
-      this._cardCounts.set(f.id, await cardCount(this.db, f.id));
+      this._cache.setCount(f.id, await cardCount(this.db, f.id));
     }
   }
 
   async getFolderCards(folderId) {
-    if (this._folderCache.has(folderId)) return this._folderCache.get(folderId);
+    if (this._cache.folderCache.has(folderId)) return this._cache.folderCache.get(folderId);
     const cards = await indexGetAll(this.db, 'cards', 'folder_id', folderId);
     cards.sort((a, b) => (b.created_at || 0) - (a.created_at || 0));
     cards.forEach(c => { if (c.description == null) c.description = ''; });
-    this._folderCache.set(folderId, cards);
+    this._cache.folderCache.set(folderId, cards);
     return cards;
   }
 
   async countCards(folderId) {
-    if (folderId) return this._cardCounts.get(folderId) || cardCount(this.db, folderId);
-    let n = 0;
-    for (const c of this._cardCounts.values()) n += c;
-    return n;
+    if (folderId) {
+      if (this._cache.hasCount(folderId)) return this._cache.getCount(folderId);
+      return cardCount(this.db, folderId);
+    }
+    return this._cache.countCards(null);
   }
 
   async countDue(folderId, algo) {
     algo = algo || this.settings.algo;
     const now = Date.now();
-    let n = 0;
-    await forEachCard(this.db, folderId || null, c => {
-      if (SRS.isDue(c, algo, now)) n++;
-    });
-    return n;
+    return countCardsMatching(this.db, folderId, c => srsMatch.due(c, algo, now));
   }
 
   async countDueBetween(folderId, algo, from, to) {
     algo = algo || this.settings.algo;
-    let n = 0;
-    await forEachCard(this.db, folderId || null, c => {
-      if (SRS.isDueBetween(c, algo, from, to)) n++;
-    });
-    return n;
+    return countCardsMatching(this.db, folderId, c => srsMatch.dueBetween(c, algo, from, to));
   }
 
   async countNew(folderId, algo) {
     algo = algo || this.settings.algo;
-    let n = 0;
-    await forEachCard(this.db, folderId || null, c => {
-      if (SRS.isNew(c, algo)) n++;
-    });
-    return n;
+    return countCardsMatching(this.db, folderId, c => srsMatch.isNew(c, algo));
   }
 
   async getReviewCards(folderId, algo, newLimit, now) {
     algo = algo || this.settings.algo;
     now = now || Date.now();
-    const due = [];
-    const fresh = [];
-    await forEachCard(this.db, folderId || null, c => {
-      if (SRS.isDue(c, algo, now)) due.push(c);
-      else if (SRS.isNew(c, algo)) fresh.push(c);
-    });
-    return { due: shuffle(due), fresh: shuffle(fresh).slice(0, newLimit) };
+    const cards = await collectCards(this.db, folderId);
+    return buildReviewQueue(cards, algo, newLimit, now);
   }
 
   async createFolder(data) {
-    const f = {
-      id: uuid(),
-      name: data.name,
-      color: data.color || '#7C8DB5',
-      created_at: Date.now(),
-      pack_id: data.pack_id || null,
-      pack_version: data.pack_version ?? null,
-    };
+    const f = buildFolderRecord(data);
     await tx(this.db, 'folders', 'readwrite', s => s.put(f));
     this.folders.push(f);
     this.folders.sort((a, b) => (a.created_at || 0) - (b.created_at || 0));
-    this._cardCounts.set(f.id, 0);
+    this._cache.setCount(f.id, 0);
     return f;
   }
 
@@ -237,60 +191,83 @@ export class LocalStore {
     await tx(this.db, 'cards', 'readwrite', s => { dead.forEach(c => s.delete(c.id)); });
     await tx(this.db, 'folders', 'readwrite', s => s.delete(id));
     this.folders = this.folders.filter(f => f.id !== id);
-    this._folderCache.delete(id);
-    this._cardCounts.delete(id);
+    this._cache.deleteFolder(id);
+  }
+
+  async createBox(data) {
+    const b = buildBoxRecord(data);
+    await tx(this.db, 'boxes', 'readwrite', s => s.put(b));
+    this.boxes.push(b);
+    this.boxes.sort((a, b) => (a.created_at || 0) - (b.created_at || 0));
+    return b;
+  }
+
+  async updateBox(id, patch) {
+    const b = this.boxes.find(x => x.id === id);
+    if (!b) return null;
+    Object.assign(b, patch);
+    await tx(this.db, 'boxes', 'readwrite', s => s.put(b));
+    return b;
+  }
+
+  async deleteBox(id) {
+    const folders = this.folders.filter(f => f.box_id === id);
+    for (const f of folders) {
+      f.box_id = null;
+      await tx(this.db, 'folders', 'readwrite', s => s.put(f));
+    }
+    await tx(this.db, 'boxes', 'readwrite', s => s.delete(id));
+    this.boxes = this.boxes.filter(b => b.id !== id);
+  }
+
+  async assignFolderToBox(folderId, boxId) {
+    const f = this.folders.find(x => x.id === folderId);
+    if (!f) return null;
+    if (boxId && !this.boxes.find(b => b.id === boxId)) return null;
+    f.box_id = boxId || null;
+    await tx(this.db, 'folders', 'readwrite', s => s.put(f));
+    return f;
+  }
+
+  async setBoxFolders(boxId, folderIds) {
+    const idSet = new Set(folderIds);
+    for (const f of this.folders) {
+      if (f.box_id === boxId && !idSet.has(f.id)) {
+        f.box_id = null;
+        await tx(this.db, 'folders', 'readwrite', s => s.put(f));
+      }
+    }
+    for (const fid of folderIds) {
+      const f = this.folders.find(x => x.id === fid);
+      if (!f || (f.box_id && f.box_id !== boxId)) continue;
+      f.box_id = boxId;
+      await tx(this.db, 'folders', 'readwrite', s => s.put(f));
+    }
   }
 
   findFolderByPackId(packId) {
-    return this.folders.find(f => f.pack_id === packId) || null;
+    return findFolderByPackId(this.folders, packId);
   }
 
   async importVocabPack(pack, onProgress) {
-    if (!pack?.id || !Array.isArray(pack.cards)) throw new Error('Неверный формат пака');
-    if (this.findFolderByPackId(pack.id)) throw new Error('Этот пак уже установлен');
-    const cards = pack.cards.filter(c => c.front?.trim());
-    const folder = await this.createFolder({
-      name: pack.title,
-      color: pack.color || '#7C8DB5',
-      pack_id: pack.id,
-      pack_version: pack.version ?? 1,
-    });
-    for (let i = 0; i < cards.length; i++) {
-      const card = cards[i];
-      await this.createCard({
-        folder_id: folder.id,
-        front: card.front,
-        back: card.back || '',
-        description: card.description || '',
-      });
-      if (onProgress) onProgress({ phase: 'import', done: i + 1, total: cards.length });
-    }
-    return folder;
+    return doImportVocabPack(this, pack, onProgress);
   }
 
   async deleteVocabPack(packId) {
-    const folder = this.findFolderByPackId(packId);
-    if (!folder) throw new Error('Пак не установлен');
-    await this.deleteFolder(folder.id);
+    return doDeleteVocabPack(this, packId);
   }
 
   async createCard(data) {
-    const c = Object.assign({
-      id: uuid(), created_at: Date.now(),
-      front: '', back: '', description: '', front_img: null, back_img: null,
-      sm2_ef: 2.5, sm2_reps: 0, sm2_ivl: 0, sm2_due: null,
-      box: 0, box_due: null,
-    }, data);
+    const c = buildCardRecord(data);
     await tx(this.db, 'cards', 'readwrite', s => s.put(c));
-    const cached = this._folderCache.get(c.folder_id);
-    if (cached) cached.unshift(c);
-    this._cardCounts.set(c.folder_id, (this._cardCounts.get(c.folder_id) || 0) + 1);
+    this._cache.prependCard(c.folder_id, c);
+    this._cache.bumpCount(c.folder_id, 1);
     return c;
   }
 
   async updateCard(id, patch) {
     let c = null;
-    for (const list of this._folderCache.values()) {
+    for (const list of this._cache.folderCache.values()) {
       c = list.find(x => x.id === id);
       if (c) break;
     }
@@ -307,7 +284,7 @@ export class LocalStore {
 
   async deleteCard(id) {
     let folderId = null;
-    for (const [fid, list] of this._folderCache) {
+    for (const [fid, list] of this._cache.folderCache) {
       const idx = list.findIndex(x => x.id === id);
       if (idx >= 0) { folderId = fid; list.splice(idx, 1); break; }
     }
@@ -317,7 +294,7 @@ export class LocalStore {
       });
     }
     await tx(this.db, 'cards', 'readwrite', s => s.delete(id));
-    if (folderId) this._cardCounts.set(folderId, Math.max(0, (this._cardCounts.get(folderId) || 1) - 1));
+    if (folderId) this._cache.bumpCount(folderId, -1);
   }
 
   async uploadImage(file) {
@@ -334,16 +311,24 @@ export class LocalStore {
 
   async exportJSONFull() {
     const cards = await idbGetAll(this.db, 'cards');
-    return JSON.stringify({ v: 1, folders: this.folders, cards, settings: this.settings }, null, 2);
+    return exportJSONPayload(this.folders, cards, this.settings, this.boxes);
   }
 
   async importJSON(text) {
     const data = JSON.parse(text);
     if (!data.folders || !data.cards) throw new Error('Неверный формат файла');
+    for (const b of (data.boxes || [])) {
+      if (!this.boxes.find(x => x.id === b.id)) {
+        const row = normalizeBoxRecord(b);
+        await tx(this.db, 'boxes', 'readwrite', s => s.put(row));
+        this.boxes.push(row);
+      }
+    }
     for (const f of data.folders) {
       if (!this.folders.find(x => x.id === f.id)) {
-        await tx(this.db, 'folders', 'readwrite', s => s.put(f));
-        this.folders.push(f);
+        const row = normalizeFolderRecord(f);
+        await tx(this.db, 'folders', 'readwrite', s => s.put(row));
+        this.folders.push(row);
       }
     }
     for (const c of data.cards) {
@@ -355,7 +340,8 @@ export class LocalStore {
       localStorage.setItem('kar_settings_local', JSON.stringify(this.settings));
     }
     this.folders.sort((a, b) => (a.created_at || 0) - (b.created_at || 0));
-    this._folderCache.clear();
+    this.boxes.sort((a, b) => (a.created_at || 0) - (b.created_at || 0));
+    this._cache.clearFolderLists();
     await this._refreshCounts();
   }
 
@@ -363,4 +349,3 @@ export class LocalStore {
   async pendingSync() { return 0; }
   async flushSync() { return { ok: 0, fail: 0 }; }
 }
-

@@ -1,13 +1,21 @@
 import { store } from './state.js';
 import { recordVisit } from '../lib/activity.js';
 import { parseReviewRoute, isStudyMode } from '../lib/study-modes.js';
+import { animateBootSplashOut } from '../lib/motion-ui.js';
+import { cancelNavFallback } from '../ui/navigation.js';
+
+export function parseHash(hash) {
+  const parts = (hash || '#home').slice(1).split('/').filter(Boolean);
+  return {
+    name: parts[0] || 'home',
+    arg: parts[1] || null,
+    parts,
+  };
+}
 
 export async function route() {
   try {
-    const h = (location.hash || '#home').slice(1);
-    const parts = h.split('/').filter(Boolean);
-    const name = parts[0];
-    const arg = parts[1];
+    const { name, arg, parts } = parseHash(location.hash);
     const reviewOpts = name === 'review' ? parseReviewRoute(parts) : null;
     if (!store) {
       const { renderAuth } = await import('../screens/auth/index.js');
@@ -16,13 +24,16 @@ export async function route() {
     }
 
     const bootSplash = document.getElementById('bootSplash');
-    if (bootSplash) bootSplash.remove();
+    if (bootSplash) animateBootSplashOut(bootSplash);
 
     await recordVisit();
 
     if (name === 'folder' && arg) {
       const { renderFolder } = await import('../screens/folder/index.js');
       await renderFolder(arg);
+    } else if (name === 'box' && arg) {
+      const { renderBox } = await import('../screens/box/index.js');
+      await renderBox(arg);
     } else if (name === 'review') {
       const { folderId, cram, mode, cramLimit } = reviewOpts;
       const { renderReview } = await import('../screens/review/index.js');
@@ -46,5 +57,8 @@ export async function route() {
 }
 
 export function initRouter() {
-  window.addEventListener('hashchange', () => { route().catch(console.error); });
+  window.addEventListener('hashchange', () => {
+    cancelNavFallback();
+    route().catch(console.error);
+  });
 }

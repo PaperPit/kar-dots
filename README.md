@@ -119,3 +119,9 @@ supabase_schema.sql     — схема базы для Supabase
 alter table public.cards add column if not exists back_desc text default '';
 ```
 Существующие карточки не пострадают — поле «Описание» у них будет просто пустым, а «Определение» (старый текст оборота) останется как было.
+
+**Иконки папок не сохраняются / ошибка про колонку `icon`?** В базе ещё нет этого поля. В **SQL Editor** выполните:
+```sql
+alter table public.folders add column if not exists icon text;
+```
+Перезагрузите приложение и сохраните папку снова.

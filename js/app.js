@@ -6,12 +6,14 @@ import { renderAuth, enterLocal } from './screens/auth/index.js';
 import { initActivity } from './lib/activity.js';
 import { initUiClicks } from './lib/ui-clicks.js';
 import { initRouter, route } from './core/router.js';
+import { initMotionUi, animateBootSplashOut } from './lib/motion-ui.js';
 
 function dismissBootSplash() {
-  document.getElementById('bootSplash')?.remove();
+  animateBootSplashOut(document.getElementById('bootSplash'));
 }
 
 async function boot() {
+  initMotionUi();
   await initConfig();
   await initActivity();
 

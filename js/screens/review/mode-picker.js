@@ -1,5 +1,5 @@
 import { el, modal } from '../../ui/ui.js';
-import { nav } from '../../ui/shell.js';
+import { nav } from '../../ui/navigation.js';
 import { store } from '../../core/state.js';
 import {
   STUDY_MODE_META, PROMPT_SIDE_META, buildReviewHash,

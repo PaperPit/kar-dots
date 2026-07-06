@@ -4,7 +4,7 @@ import {
   normalizeSuccessSoundId, normalizeFailSoundId, normalizeAnswerSoundMode,
   normalizeCupMelodyId, normalizeUiClickSoundId,
   successSoundLabel, failSoundLabel, cupMelodyLabel, uiClickSoundLabel,
-  playLessonCompleteSound,
+  playLessonCompleteFromStore, playSuccessSound, playFailSound,
 } from '../js/lib/sounds.js';
 
 describe('sounds', () => {
@@ -69,7 +69,9 @@ describe('sounds', () => {
     expect(uiClickSoundLabel('click-crisp')).toBe('Чёткий клик');
   });
 
-  it('playLessonCompleteSound — экспорт', () => {
-    expect(typeof playLessonCompleteSound).toBe('function');
+  it('MP3 playback exports', () => {
+    expect(typeof playLessonCompleteFromStore).toBe('function');
+    expect(typeof playSuccessSound).toBe('function');
+    expect(typeof playFailSound).toBe('function');
   });
 });

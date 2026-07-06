@@ -2,8 +2,12 @@
 // КАР-точки — алгоритмы интервального повторения
 // ============================================================
 
-export const DAY = 24 * 60 * 60 * 1000;
-export const MIN = 60 * 1000;
+import { DAY, MIN, fmtDays } from './time-units.js';
+import {
+  fsrsIsUntouched, fsrsNext as runFsrsNext, fsrsPreviewLabel, FsrsRating,
+} from './fsrs-engine.js';
+
+export { DAY, MIN, fmtDays };
 
 export function sm2Next(card, quality, now) {
   now = now || Date.now();
@@ -44,11 +48,13 @@ export function leitnerNext(card, remembered, intervals, now) {
 
 export function dueOf(card, algo) {
   if (algo === 'leitner') return card.box ? card.box_due : null;
+  if (algo === 'fsrs') return fsrsIsUntouched(card) ? null : card.fsrs_due;
   return card.sm2_reps || card.sm2_due ? card.sm2_due : null;
 }
 
 export function isNew(card, algo) {
   if (algo === 'leitner') return !card.box;
+  if (algo === 'fsrs') return fsrsIsUntouched(card);
   return !card.sm2_reps && !card.sm2_due;
 }
 
@@ -91,10 +97,28 @@ export function leitnerPreview(card, remembered, intervals) {
   return fmtDays(ivs[r.box - 1]);
 }
 
+export function fsrsPreview(card, rating, now) {
+  return fsrsPreviewLabel(card, rating, now);
+}
+
 /** Поля SRS для отката оценки. */
 export function srsSnapshot(card, algo) {
   if (algo === 'leitner') {
     return { box: card.box ?? 0, box_due: card.box_due ?? null };
+  }
+  if (algo === 'fsrs') {
+    return {
+      fsrs_state: card.fsrs_state ?? null,
+      fsrs_stability: card.fsrs_stability ?? null,
+      fsrs_difficulty: card.fsrs_difficulty ?? null,
+      fsrs_due: card.fsrs_due ?? null,
+      fsrs_scheduled_days: card.fsrs_scheduled_days ?? null,
+      fsrs_elapsed_days: card.fsrs_elapsed_days ?? null,
+      fsrs_reps: card.fsrs_reps ?? null,
+      fsrs_lapses: card.fsrs_lapses ?? null,
+      fsrs_learning_steps: card.fsrs_learning_steps ?? null,
+      fsrs_last_review: card.fsrs_last_review ?? null,
+    };
   }
   return {
     sm2_ef: card.sm2_ef ?? 2.5,
@@ -104,16 +128,8 @@ export function srsSnapshot(card, algo) {
   };
 }
 
-export function fmtDays(d) {
-  if (d < 1) return '< 1 дня';
-  if (d === 1) return '1 день';
-  if (d < 30) {
-    const n = Math.round(d);
-    if (n % 10 === 1 && n % 100 !== 11) return n + ' день';
-    if ([2, 3, 4].includes(n % 10) && ![12, 13, 14].includes(n % 100)) return n + ' дня';
-    return n + ' дней';
-  }
-  const m = Math.round(d / 30);
-  if (m === 1) return '1 мес';
-  return m + ' мес';
+export function fsrsNext(card, rating, now) {
+  return runFsrsNext(card, rating, now);
 }
+
+export { FsrsRating };

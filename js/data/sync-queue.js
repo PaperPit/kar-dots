@@ -5,18 +5,20 @@
 import { isNetworkError } from './supabase.js';
 
 const MIRROR_DB = 'kartochki_cloud';
+const MIRROR_VERSION = 2;
 const QUEUE_STORE = 'sync_queue';
 
 function openMirrorDB() {
   return new Promise((resolve, reject) => {
-    const req = indexedDB.open(MIRROR_DB, 1);
-    req.onupgradeneeded = () => {
+    const req = indexedDB.open(MIRROR_DB, MIRROR_VERSION);
+    req.onupgradeneeded = (e) => {
       const db = req.result;
       if (!db.objectStoreNames.contains('folders')) db.createObjectStore('folders', { keyPath: 'id' });
       if (!db.objectStoreNames.contains('cards')) {
         const cards = db.createObjectStore('cards', { keyPath: 'id' });
         cards.createIndex('folder_id', 'folder_id', { unique: false });
       }
+      if (!db.objectStoreNames.contains('boxes')) db.createObjectStore('boxes', { keyPath: 'id' });
       if (!db.objectStoreNames.contains('kv')) db.createObjectStore('kv');
       if (!db.objectStoreNames.contains(QUEUE_STORE)) db.createObjectStore(QUEUE_STORE, { keyPath: 'id', autoIncrement: true });
     };

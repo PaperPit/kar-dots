@@ -5,6 +5,7 @@ import { FOLDER_COLORS } from '../../ui/constants.js';
 import { brandMark, ghostBox } from '../../ui/helpers.js';
 import { nav } from '../../ui/shell.js';
 import { route } from '../../core/router.js';
+import { animateFadeIn } from '../../lib/motion-ui.js';
 
 export function renderAuth(busyMsg) {
   app.innerHTML = '';
@@ -18,6 +19,7 @@ export function renderAuth(busyMsg) {
   if (busyMsg) {
     content.append(el('div', { class: 'center-pad' }, [spinner(), el('p', { class: 'auth-note' }, busyMsg)]));
     app.append(el('main', { class: 'main' }, content));
+    requestAnimationFrame(() => animateFadeIn(content));
     return;
   }
 
@@ -60,7 +62,7 @@ export function renderAuth(busyMsg) {
         el('p', { class: 'auth-note' }, ['Нет аккаунта? ', btnUp]),
       ]
     : [
-        el('p', { class: 'modal-text', style: { margin: 0 } },
+        el('p', { class: 'modal-text modal-text-flush' },
           'Облачный режим пока не настроен. Скопируйте js/config.example.js → js/config.js и заполните ключи Supabase (см. README.md).'),
       ]
   );
@@ -77,6 +79,7 @@ export function renderAuth(busyMsg) {
   content.append(cloudCard, el('div', { class: 'auth-or' }, '· · ·'), demoBtn,
     el('p', { class: 'auth-note' }, 'Демо-режим: данные хранятся только в этом браузере.'));
   app.append(el('main', { class: 'main' }, content));
+  requestAnimationFrame(() => animateFadeIn(content));
 }
 
 export async function enterLocal() {

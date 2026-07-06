@@ -2,6 +2,8 @@
 // КАР-точки — маленькие помощники интерфейса
 // ============================================================
 
+import { animateModalIn, animateModalOut, animateToastIn, animateToastOut } from '../lib/motion-ui.js';
+
 export function el(tag, attrs, children) {
   const node = document.createElement(tag);
   if (attrs) {
@@ -32,10 +34,9 @@ export function toast(msg, type) {
   const root = document.getElementById('toasts');
   const t = el('div', { class: 'toast ' + (type || '') }, msg);
   root.appendChild(t);
-  requestAnimationFrame(() => t.classList.add('show'));
+  animateToastIn(t);
   setTimeout(() => {
-    t.classList.remove('show');
-    setTimeout(() => t.remove(), 350);
+    animateToastOut(t).then(() => t.remove());
   }, 2600);
 }
 
@@ -50,8 +51,7 @@ export function toastAction(msg, actionLabel, onAction, duration = 4500, onExpir
   const dismiss = () => {
     clearTimeout(hideTimer);
     if (activeActionToast?.el === t) activeActionToast = null;
-    t.classList.remove('show');
-    setTimeout(() => t.remove(), 350);
+    animateToastOut(t).then(() => t.remove());
   };
   const btn = el('button', {
     class: 'toast-action',
@@ -62,7 +62,7 @@ export function toastAction(msg, actionLabel, onAction, duration = 4500, onExpir
     btn,
   ]);
   root.appendChild(t);
-  requestAnimationFrame(() => t.classList.add('show'));
+  animateToastIn(t);
   hideTimer = setTimeout(() => { if (onExpire) onExpire(); dismiss(); }, duration);
   activeActionToast = { el: t, dismiss };
   return activeActionToast;
@@ -76,6 +76,7 @@ export function modal(content, opts) {
     class: 'modal-box' + (opts.wide ? ' wide' : ''),
     role: 'dialog', 'aria-modal': 'true', tabindex: '-1',
   }, content);
+  if (opts.labelledBy) box.setAttribute('aria-labelledby', opts.labelledBy);
   const overlay = el('div', { class: 'modal-overlay' }, box);
 
   const focusableSel = 'button, [href], input, textarea, select, [contenteditable="true"], [tabindex]:not([tabindex="-1"])';
@@ -83,10 +84,11 @@ export function modal(content, opts) {
     .filter(n => !n.disabled && n.offsetParent !== null);
 
   function close() {
-    overlay.classList.remove('open');
     document.removeEventListener('keydown', onKey);
-    setTimeout(() => overlay.remove(), 260);
-    if (prevFocus && prevFocus.focus) { try { prevFocus.focus({ preventScroll: true }); } catch (e) {} }
+    animateModalOut(overlay, box).then(() => {
+      overlay.remove();
+      if (prevFocus && prevFocus.focus) { try { prevFocus.focus({ preventScroll: true }); } catch (e) {} }
+    });
   }
   function onKey(e) {
     if (e.key === 'Escape') { close(); return; }
@@ -108,11 +110,12 @@ export function modal(content, opts) {
   });
   document.addEventListener('keydown', onKey);
   root.appendChild(overlay);
-  requestAnimationFrame(() => requestAnimationFrame(() => {
-    overlay.classList.add('open');
-    const f = focusables();
-    (f[0] || box).focus({ preventScroll: true });
-  }));
+  requestAnimationFrame(() => {
+    animateModalIn(overlay, box).then(() => {
+      const f = focusables();
+      (f[0] || box).focus({ preventScroll: true });
+    });
+  });
   return { close, box };
 }
 
@@ -156,6 +159,15 @@ function safeHref(href) {
   return null;
 }
 
+const RICH_HL_CLASSES = new Set([
+  'rich-hl-terra', 'rich-hl-green', 'rich-hl-rose', 'rich-hl-sand', 'rich-hl-sky',
+]);
+
+function pickRichHlClass(className) {
+  if (!className) return '';
+  return className.split(/\s+/).find(c => RICH_HL_CLASSES.has(c)) || '';
+}
+
 export function sanitizeRich(html) {
   const doc = new DOMParser().parseFromString('<div>' + String(html || '') + '</div>', 'text/html');
   function clean(node) {
@@ -174,6 +186,12 @@ export function sanitizeRich(html) {
           out.push('<b>' + clean(ch) + '</b>');
         } else if (tag === 'I' || tag === 'EM') {
           out.push('<i>' + clean(ch) + '</i>');
+        } else if (tag === 'U') {
+          out.push('<u>' + clean(ch) + '</u>');
+        } else if (tag === 'MARK') {
+          const hl = pickRichHlClass(ch.getAttribute('class'));
+          if (hl) out.push('<mark class="' + hl + '">' + clean(ch) + '</mark>');
+          else out.push(clean(ch));
         } else if (tag === 'A') {
           const href = safeHref(ch.getAttribute('href'));
           if (href) out.push('<a href="' + escapeHtml(href) + '" target="_blank" rel="noopener noreferrer">' + clean(ch) + '</a>');

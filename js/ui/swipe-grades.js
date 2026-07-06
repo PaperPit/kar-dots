@@ -1,5 +1,7 @@
 import { haptic } from './helpers.js';
 
+const CARD_EXIT_MS = 640;
+export { CARD_EXIT_MS };
 const THRESH = 52;
 const LOCK_THRESH = 10;
 const AXIS_RATIO = 1.15;
@@ -24,11 +26,17 @@ function dragTransform(tx) {
 
 function clearDrag(el, box) {
   if (!el) return;
-  el.classList.remove('swipe-dragging', 'swipe-animating');
+  el.classList.remove(
+    'swipe-dragging', 'swipe-animating', 'swipe-exiting',
+    'swipe-exiting-left', 'swipe-exiting-right',
+  );
   el.style.transform = '';
   el.style.opacity = '';
+  el.style.transition = '';
   if (box) {
     box.dataset.swipeDir = '';
+    box.dataset.grading = '';
+    box.classList.remove('is-exit-left', 'is-exit-right', 'is-grading', 'is-card-exiting');
     box.style.removeProperty('--swipe-glow');
   }
 }
@@ -47,49 +55,109 @@ function setDragHint(box, dx) {
   }
 }
 
-function animateTo(el, box, tx, opacity, duration, onDone) {
-  el.classList.remove('swipe-dragging');
-  el.classList.add('swipe-animating');
-  el.style.transform = dragTransform(tx);
-  el.style.opacity = String(opacity);
-
-  let done = false;
-  const finish = () => {
-    if (done) return;
-    done = true;
-    el.removeEventListener('transitionend', onEnd);
-    onDone();
-  };
-  const onEnd = e => {
-    if (e.target !== el || e.propertyName !== 'transform') return;
-    finish();
-  };
-  el.addEventListener('transitionend', onEnd);
-  setTimeout(finish, duration + 50);
+function markExitVisuals(box, dir) {
+  if (!box) return;
+  box.dataset.swipeDir = dir === 'right' ? 'right' : 'left';
+  box.dataset.grading = '1';
+  box.classList.add('is-grading', 'is-card-exiting');
+  box.classList.remove('is-exit-left', 'is-exit-right');
+  box.classList.add(dir === 'right' ? 'is-exit-right' : 'is-exit-left');
+  box.style.setProperty('--swipe-glow', '1');
 }
 
 /** Плавный уход карточки влево/вправо (кнопки и свайпы). */
 export function animateCardExit(el, dir, onDone, box) {
   if (!el) { onDone(); return; }
-  const off = (dir === 'right' ? 1 : -1) * (window.innerWidth * 0.55 + 48);
   if (reduceMotion()) {
     clearDrag(el, box);
     onDone();
     return;
   }
-  haptic(8);
-  animateTo(el, box, off, 0, 320, () => {
-    clearDrag(el, box);
+  if (el.classList.contains('swipe-exiting')) {
     onDone();
-  });
+    return;
+  }
+
+  el.getAnimations?.().forEach(a => a.cancel());
+  el.classList.remove('swipe-dragging', 'swipe-animating', 'swipe-exiting-left', 'swipe-exiting-right');
+
+  markExitVisuals(box, dir);
+  haptic(8);
+
+  const fromTx = readCurrentTx(el);
+  const hasDrag = Math.abs(fromTx) > 4;
+
+  let done = false;
+  const finish = (e, type) => {
+    if (done) return;
+    if (e) {
+      if (e.target !== el) return;
+      if (type === 'transition' && e.propertyName !== 'transform') return;
+    }
+    done = true;
+    el.removeEventListener('animationend', onAnimEnd);
+    el.removeEventListener('transitionend', onTransEnd);
+    onDone();
+  };
+  const onAnimEnd = e => finish(e, 'animation');
+  const onTransEnd = e => finish(e, 'transition');
+
+  if (hasDrag) {
+    // Свайп: продолжаем с текущей позиции пальца, короче если уже сдвинута
+    el.classList.add('swipe-exiting');
+    const travel = window.innerWidth * 0.55 + 48;
+    const progress = Math.min(1, Math.abs(fromTx) / travel);
+    const ms = Math.round(Math.max(260, (1 - progress * 0.5) * CARD_EXIT_MS));
+    const off = (dir === 'right' ? 1 : -1) * travel;
+    const tilt = dir === 'right' ? 8 : -8;
+    el.style.transition = `transform ${ms}ms cubic-bezier(0.22, 1, 0.36, 1), opacity ${Math.round(ms * 0.75)}ms ease`;
+    void el.offsetWidth;
+    requestAnimationFrame(() => {
+      el.style.transform = `translateX(${off}px) rotate(${tilt}deg)`;
+      el.style.opacity = '0';
+    });
+    el.addEventListener('transitionend', onTransEnd);
+    setTimeout(() => finish(null, 'transition'), ms + 80);
+    return;
+  }
+
+  // Кнопки: CSS keyframes из центра
+  el.style.transform = '';
+  el.style.opacity = '';
+  el.style.transition = 'none';
+  void el.offsetWidth;
+  el.classList.add('swipe-exiting', dir === 'right' ? 'swipe-exiting-right' : 'swipe-exiting-left');
+  el.addEventListener('animationend', onAnimEnd);
+  setTimeout(() => finish(null, 'animation'), CARD_EXIT_MS + 120);
+}
+
+function readCurrentTx(el) {
+  const m = el.style.transform?.match(/translateX\(([-\d.]+)px\)/);
+  return m ? Number(m[1]) : 0;
 }
 
 function springBack(el, box) {
-  if (reduceMotion()) {
-    clearDrag(el, box);
+  if (reduceMotion() || box?.dataset?.grading === '1' || el?.classList.contains('swipe-exiting')) {
     return;
   }
-  animateTo(el, box, 0, 1, 400, () => clearDrag(el, box));
+  el.classList.remove('swipe-dragging');
+  el.classList.add('swipe-animating');
+  el.style.transition = 'transform 400ms cubic-bezier(0.22, 1, 0.36, 1), opacity 280ms ease';
+  requestAnimationFrame(() => {
+    el.style.transform = dragTransform(0);
+    el.style.opacity = '1';
+  });
+  const onEnd = e => {
+    if (e.target !== el || e.propertyName !== 'transform') return;
+    el.removeEventListener('transitionend', onEnd);
+    clearDrag(el, box);
+  };
+  el.addEventListener('transitionend', onEnd);
+  setTimeout(() => clearDrag(el, box), 450);
+}
+
+function isGradeControl(node) {
+  return !!node?.closest?.('.grade-row, .grade-btn, .swipe-hint, .keyboard-hint');
 }
 
 /**
@@ -103,10 +171,9 @@ export function attachSwipeGrades(box, opts) {
   let startY = 0;
   let tracking = false;
   let axis = null;
-  let dragX = 0;
+  let touchFromGrade = false;
 
   function setDrag(dx, el) {
-    dragX = dx;
     const tx = withResistance(dx);
     el.style.transform = dragTransform(tx);
     const fade = Math.min(Math.abs(tx) / (maxDrag() * 1.6), 0.12);
@@ -122,24 +189,27 @@ export function attachSwipeGrades(box, opts) {
     const el = layer();
     if (!el) return;
     markHandled();
-    animateCardExit(el, dir, () => opts.onSwipe(dir), box);
+    opts.onSwipe(dir);
   }
 
   box.addEventListener('touchstart', e => {
+    if (box.dataset.grading === '1') return;
     if (!opts.enabled()) return;
+    if (isGradeControl(e.target)) { touchFromGrade = true; return; }
+    touchFromGrade = false;
     if (e.touches.length !== 1) return;
     const el = layer();
-    if (!el) return;
+    if (!el || el.classList.contains('swipe-exiting')) return;
     startX = e.touches[0].clientX;
     startY = e.touches[0].clientY;
     tracking = true;
     axis = null;
-    dragX = 0;
     el.classList.remove('swipe-animating');
+    el.style.transition = 'none';
   }, { passive: true });
 
   box.addEventListener('touchmove', e => {
-    if (!tracking || !opts.enabled()) return;
+    if (!tracking || !opts.enabled() || box.dataset.grading === '1') return;
     if (e.touches.length !== 1) return;
     const el = layer();
     if (!el) return;
@@ -166,6 +236,8 @@ export function attachSwipeGrades(box, opts) {
   }, { passive: false });
 
   function onTouchEnd(e) {
+    if (touchFromGrade) { touchFromGrade = false; return; }
+    if (box.dataset.grading === '1') return;
     if (!tracking || !opts.enabled()) return;
     tracking = false;
     const el = layer();
@@ -196,7 +268,7 @@ export function attachSwipeGrades(box, opts) {
     axis = null;
     const el = layer();
     if (!el) return;
-    if (wasHorizontal) springBack(el, box);
-    else clearDrag(el, box);
+    if (wasHorizontal && box.dataset.grading !== '1') springBack(el, box);
+    else if (box.dataset.grading !== '1') clearDrag(el, box);
   }, { passive: true });
 }

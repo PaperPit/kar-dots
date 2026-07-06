@@ -88,7 +88,7 @@ export function bulkCardDialog(folderId) {
 
   m = modal(el('div', null, [
     el('h3', { class: 'modal-title' }, 'Добавить списком'),
-    el('p', { class: 'modal-text' }, 'По одной паре на строку. Разделители: —, -, | или табуляция.'),
+    el('p', { class: 'modal-text' }, 'По одной паре на строку.'),
     textarea,
     el('div', { class: 'bulk-options' }, [
       el('label', { class: 'bulk-option-row' }, [

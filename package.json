@@ -4,10 +4,17 @@
   "type": "module",
   "scripts": {
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "sw:generate": "node scripts/generate-sw-files.js",
+    "vendor:motion": "esbuild node_modules/motion/dist/es/mini.mjs --bundle --format=esm --outfile=js/vendor/motion.mjs"
+  },
+  "dependencies": {
+    "motion": "^12.42.2"
   },
   "devDependencies": {
+    "esbuild": "^0.28.1",
     "happy-dom": "^20.10.6",
+    "ts-fsrs": "^5.4.1",
     "vitest": "^3.2.4"
   }
 }

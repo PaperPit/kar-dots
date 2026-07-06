@@ -2,13 +2,18 @@ import { store } from '../../core/state.js';
 import { el, toast, modal } from '../../ui/ui.js';
 import { FOLDER_COLORS } from '../../ui/constants.js';
 import { featherIcon, modalHead } from '../../ui/helpers.js';
+import { createIconPicker } from '../../ui/icon-picker.js';
 import { route } from '../../core/router.js';
+import { folderSaveErrorMessage } from '../../lib/folder-errors.js';
+import { normalizeFolderIcon } from '../../lib/folder-icons.js';
 
-export function folderDialog(folder) {
+export function folderDialog(folder, opts = {}) {
   let color = folder ? folder.color : FOLDER_COLORS[Math.floor(Math.random() * FOLDER_COLORS.length)];
   const name = el('input', { class: 'input', value: folder ? folder.name : '', placeholder: 'Например, Английский' });
+
   const dots = el('div', { class: 'color-row' }, FOLDER_COLORS.map(c =>
     el('button', {
+      type: 'button',
       class: 'color-dot' + (c === color ? ' sel' : ''), style: { background: c },
       onclick: e => {
         color = c;
@@ -18,6 +23,8 @@ export function folderDialog(folder) {
     })
   ));
 
+  const iconPicker = createIconPicker(folder?.icon);
+
   let m;
   const save = el('button', {
     class: 'btn primary',
@@ -26,10 +33,11 @@ export function folderDialog(folder) {
       if (!nm) { toast('Введите название', 'error'); return; }
       save.disabled = true;
       try {
-        if (folder) await store.updateFolder(folder.id, { name: nm, color });
-        else await store.createFolder({ name: nm, color });
+        const patch = { name: nm, color, icon: normalizeFolderIcon(iconPicker.getIcon()) };
+        if (folder) await store.updateFolder(folder.id, patch);
+        else await store.createFolder(Object.assign({ box_id: opts.box_id || null }, patch));
         m.close(); await route();
-      } catch (e) { toast(e.message, 'error'); save.disabled = false; }
+      } catch (e) { toast(folderSaveErrorMessage(e), 'error'); save.disabled = false; }
     },
   }, folder ? 'Сохранить' : 'Создать');
 
@@ -37,6 +45,11 @@ export function folderDialog(folder) {
     folder ? modalHead('Папка', featherIcon('modal-head-icon')) : el('h3', { class: 'modal-title' }, 'Новая папка'),
     el('div', { class: 'field' }, [el('label', null, 'Название'), name]),
     el('div', { class: 'field' }, [el('label', null, 'Цвет'), dots]),
+    el('div', { class: 'field' }, [
+      el('label', null, 'Значок'),
+      el('p', { class: 'field-hint' }, 'Если ничего не выбрано — первая буква названия. Повторное нажатие снимает выбор.'),
+      iconPicker.node,
+    ]),
     el('div', { class: 'modal-actions' }, [
       el('button', { class: 'btn ghost', onclick: () => m.close() }, 'Отмена'),
       save,

@@ -1,20 +1,26 @@
 import { store } from '../../core/state.js';
 import { el, plural } from '../../ui/ui.js';
 import { ICONS } from '../../ui/constants.js';
-import { crowBox, emptyFoldersBox, initials, newBudget, scarecrowBox, svgNode, countUp } from '../../ui/helpers.js';
+import { crowBox, emptyFoldersBox, scarecrowBox, svgNode, countUp } from '../../ui/helpers.js';
 import { shell, nav, offlineBanner, refreshDueBadge } from '../../ui/shell.js';
 import { homeCalendarWidget } from '../../ui/activity-calendar.js';
 import { folderDialog } from './folder-dialog.js';
+import { boxDialog } from './box-dialog.js';
 import { studyModePicker } from '../review/mode-picker.js';
 import { vocabPacksDialog } from '../../ui/vocab-packs-dialog.js';
+import { looseFolders, boxFolderStats } from '../../data/store-box.js';
+import { folderCardStats, folderCardEl, boxCardEl } from '../../ui/folder-cards.js';
+import { newBudget } from '../../ui/helpers.js';
 
 export async function renderHome() {
-  await refreshDueBadge();
-  const dueAll = await store.countDue(null);
-  const newAll = Math.min(await store.countNew(null), newBudget());
+  const dueAll = await refreshDueBadge();
+  const [newAllRaw, totalCards] = await Promise.all([
+    store.countNew(null),
+    store.countCards(null),
+  ]);
+  const newAll = Math.min(newAllRaw, newBudget());
   const totalToStudy = dueAll + newAll;
-  const totalCards = await store.countCards(null);
-  const isWelcome = !store.folders.length && totalCards === 0;
+  const isWelcome = !store.folders.length && totalCards === 0 && !store.boxes.length;
   const hasFoldersNoCards = store.folders.length > 0 && totalCards === 0;
 
   let heroIcon, heroTitle, heroSub, heroBtn;
@@ -28,7 +34,7 @@ export async function renderHome() {
   } else if (isWelcome) {
     heroIcon = crowBox('crow');
     heroTitle = 'Кар! Рада знакомству';
-    heroSub = 'Я — ворона вашей памяти. Создайте папку, добавьте первые слова — или установите готовый пак English A0–A2.';
+    heroSub = 'Я — ворона вашей памяти. Создайте папку или коробку, добавьте слова — или установите готовый пак English A0–A2.';
     heroBtn = el('div', { class: 'hero-btns' }, [
       el('button', { class: 'btn accent big', onclick: () => folderDialog(null) }, 'Создать первую папку'),
       el('button', { class: 'btn big', onclick: () => vocabPacksDialog() }, 'Лексические паки'),
@@ -54,38 +60,59 @@ export async function renderHome() {
     heroBtn,
   ]);
 
-  const grid = el('div', { class: 'folder-grid' });
-  for (let i = 0; i < store.folders.length; i++) {
-    const f = store.folders[i];
-    const n = await store.countCards(f.id);
-    const due = (await store.countDue(f.id)) + Math.min(await store.countNew(f.id), newBudget());
-    grid.append(el('div', {
-      class: 'folder-card', style: { animationDelay: (i * 40) + 'ms' },
-      onclick: () => nav('#folder/' + f.id),
-    }, [
-      el('div', { class: 'swatch', style: { background: f.color } }, initials(f.name)),
-      el('h3', null, f.name),
-      el('div', { class: 'meta' }, n + ' ' + plural(n, 'карточка', 'карточки', 'карточек')),
-      f.pack_id ? el('div', { class: 'pack-chip' }, 'Лексический пак') : null,
-      due > 0 ? el('div', { class: 'due-chip' }, due + ' к повторению') : null,
-    ]));
+  const budget = newBudget();
+  const loose = looseFolders(store.folders);
+
+  const boxGrid = el('div', { class: 'folder-grid box-grid' });
+  const boxRows = await Promise.all(store.boxes.map(async (b, i) => {
+    const stats = await boxFolderStats(store, b.id, budget);
+    return { b, stats, i };
+  }));
+  for (const { b, stats, i } of boxRows) {
+    boxGrid.append(boxCardEl(b, stats, i));
   }
-  grid.append(el('button', {
-    class: 'add-tile', style: { animationDelay: (store.folders.length * 40) + 'ms' },
+  boxGrid.append(el('button', {
+    class: 'add-tile add-tile-box stagger-in',
+    style: { '--stagger-delay': (store.boxes.length * 40) + 'ms' },
+    onclick: () => boxDialog(null),
+  }, '+ Новая коробка'));
+
+  const folderGrid = el('div', { class: 'folder-grid' });
+  const folderRows = await Promise.all(loose.map(async (f, i) => {
+    const stats = await folderCardStats(store, f, budget);
+    return { f, stats, i };
+  }));
+  for (const { f, stats, i } of folderRows) {
+    folderGrid.append(folderCardEl(f, stats, i));
+  }
+  folderGrid.append(el('button', {
+    class: 'add-tile stagger-in',
+    style: { '--stagger-delay': (loose.length * 40) + 'ms' },
     onclick: () => folderDialog(null),
   }, '+ Новая папка'));
 
-  const mainCol = el('div', { class: 'home-main' }, [
-    hero,
-    el('div', { class: 'page-head' }, el('h2', { class: 'page-title' }, 'Папки')),
-    grid,
-  ]);
+  const sections = [hero];
 
-  if (!store.folders.length) {
+  sections.push(
+    el('div', { class: 'page-head' }, el('h2', { class: 'page-title' }, 'Коробки')),
+    el('p', { class: 'section-hint' }, 'Объединяют папки по теме — карточки хранятся только в папках.'),
+    boxGrid,
+  );
+
+  if (loose.length || !store.folders.length) {
+    sections.push(
+      el('div', { class: 'page-head section-head-spaced' }, el('h2', { class: 'page-title' }, 'Папки')),
+      folderGrid,
+    );
+  }
+
+  const mainCol = el('div', { class: 'home-main' }, sections);
+
+  if (!store.folders.length && !store.boxes.length) {
     mainCol.append(el('div', { class: 'empty' }, [
       emptyFoldersBox(),
       el('h3', null, 'Пока пусто'),
-      el('p', null, 'Создайте папку — например, «Английский» или «Философия».'),
+      el('p', null, 'Создайте коробку или папку — например, «Английский» или «Философия».'),
     ]));
   }
 

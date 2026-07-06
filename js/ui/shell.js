@@ -2,8 +2,14 @@ import { store, app } from '../core/state.js';
 import { el } from './ui.js';
 import { ICONS } from './constants.js';
 import { brandMark, svgNode } from './helpers.js';
-import { studyModePicker } from '../screens/review/mode-picker.js';
+import { nav } from './navigation.js';
 import { syncRavenEggScreen, tryRavenEggClick } from '../lib/raven-easter-egg.js';
+import { animateViewIn, staggerIn } from '../lib/motion-ui.js';
+
+async function openStudyModePicker() {
+  const { studyModePicker } = await import('../screens/review/mode-picker.js');
+  studyModePicker({});
+}
 
 let dueBadge = 0;
 
@@ -23,7 +29,7 @@ export function shell(viewName, content, prependToMain) {
     { id: 'home', label: 'Папки', icon: ICONS.home, hash: '#home' },
     {
       id: 'review', label: 'Повторение', icon: ICONS.cards,
-      onclick: () => studyModePicker({}),
+      onclick: () => openStudyModePicker(),
       hash: '#review',
       badge,
     },
@@ -59,9 +65,13 @@ export function shell(viewName, content, prependToMain) {
   const main = el('main', { class: 'main' }, mainKids);
   app.append(header, main, tabbar);
   main.scrollTop = 0;
+  requestAnimationFrame(() => {
+    animateViewIn(view);
+    staggerIn(view);
+  });
 }
 
-export function nav(hash) { location.hash = hash; }
+export { nav } from './navigation.js';
 
 export function offlineBanner() {
   if (!store || store.kind !== 'cloud' || !store.offline) return null;

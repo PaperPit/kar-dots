@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256">
+  <!-- КАР-точки: минималистичная ворона + точки -->
+  <rect width="256" height="256" rx="56" fill="#FBFAF7"/>
+  <g>
+    <!-- голова вороны -->
+    <circle cx="112" cy="102" r="54" fill="#1C1D21"/>
+    <!-- клюв -->
+    <path d="M 152 84 Q 196 88 220 101 Q 196 114 152 120 Q 162 101 152 84 Z" fill="#1C1D21"/>
+    <!-- глаз -->
+    <circle cx="124" cy="88" r="10" fill="#FBFAF7"/>
+    <circle cx="127" cy="86" r="4.5" fill="#1C1D21"/>
+    <!-- точки -->
+    <circle cx="76" cy="196" r="13" fill="#1C1D21"/>
+    <circle cx="120" cy="196" r="13" fill="#1C1D21" opacity="0.62"/>
+    <circle cx="164" cy="196" r="13" fill="#1C1D21" opacity="0.3"/>
+  </g>
+</svg>

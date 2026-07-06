@@ -1,0 +1,78 @@
+/* --- модальные окна ---------------------------------------- */
+.modal-overlay {
+  position: fixed; inset: 0; z-index: 40;
+  background: rgba(15,16,19,.45);
+  display: grid; place-items: center;
+  padding: max(18px, env(safe-area-inset-top, 0px)) 16px max(18px, env(safe-area-inset-bottom, 0px));
+  opacity: 0; transition: opacity .26s var(--ease);
+  backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px);
+  overflow-y: auto;
+}
+.modal-overlay.open { opacity: 1; }
+.modal-box {
+  background: var(--bg); border-radius: 20px; padding: 24px;
+  width: 100%; max-width: 440px; box-shadow: var(--shadow-lg);
+  transform: translateY(18px) scale(.97); transition: transform .26s var(--ease);
+  max-height: calc(100dvh - 48px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
+  overflow-y: auto;
+}
+.modal-box.wide { max-width: 620px; }
+.modal-overlay.open .modal-box { transform: none; }
+
+html.motion-ui .modal-overlay { transition: none; }
+html.motion-ui .modal-box { transition: none; }
+
+.modal-title { margin: 0 0 8px; font-size: 19px; letter-spacing: -.01em; }
+.modal-head { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; }
+.modal-head-toolbar { justify-content: space-between; gap: 10px; }
+.modal-head-left { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.modal-head .modal-title { margin: 0; }
+.modal-head-toolbar .modal-delete-btn { flex: none; min-width: 0; padding: 8px 14px; font-size: 14px; }
+.modal-head-icon { width: 28px; height: 28px; object-fit: contain; flex: none; }
+.modal-illus { text-align: center; margin: 0 0 14px; }
+.modal-illus img:not(.crow-tomb-illus),
+.modal-illus-img:not(.crow-tomb-illus) {
+  display: block; width: 88px; height: 88px; margin: 0 auto;
+  object-fit: contain;
+}
+.modal-illus:has(.crow-tomb-illus) {
+  margin: 0 0 12px;
+  overflow: visible;
+}
+.modal-illus .crow-tomb-illus {
+  display: block;
+  width: min(220px, calc(100vw - 80px));
+  height: auto;
+  max-height: none;
+  margin: 0 auto;
+  object-fit: contain;
+  object-position: center bottom;
+}
+.modal-box:has(.crow-tomb-illus) {
+  max-width: min(460px, calc(100vw - 36px));
+}
+.modal-text { color: var(--ink-soft); margin: 0 0 18px; font-size: 14.5px; }
+.modal-text-flush { margin: 0; }
+.modal-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px; flex-wrap: wrap; }
+.modal-actions-center { justify-content: center; }
+.modal-actions-split {
+  justify-content: space-between;
+  align-items: center;
+}
+.modal-actions-end {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  margin-left: auto;
+}
+.modal-actions .modal-delete-btn { margin-right: auto; }
+.modal-actions .btn { min-width: 96px; }
+.modal-actions-center .btn { min-width: 112px; }
+
+@media (max-width: 520px) {
+  .modal-box { padding: 20px 16px; border-radius: 18px; }
+  .modal-box.wide { max-width: min(620px, calc(100vw - 32px)); }
+  .modal-head-toolbar { flex-wrap: wrap; gap: 8px; }
+  .modal-head-toolbar .modal-delete-btn { width: 100%; justify-content: center; }
+}

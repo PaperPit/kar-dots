@@ -1,0 +1,12 @@
+{
+  "appId": "ru.kartochki.app",
+  "appName": "КАР-точки",
+  "webDir": "www",
+  "ios": {
+    "contentInset": "automatic",
+    "allowsLinkPreview": false
+  },
+  "server": {
+    "androidScheme": "https"
+  }
+}

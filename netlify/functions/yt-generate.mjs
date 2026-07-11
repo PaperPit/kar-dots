@@ -146,6 +146,95 @@ function normalizeCards(raw) {
   return out;
 }
 
+// ---------- точные таймкоды ----------
+// Gemini видит транскрипт, склеенный в строки ~по 200 символов с одной меткой на строку,
+// поэтому её `t` промахивается на десятки секунд. Ищем первое реальное вхождение
+// слова/фразы в исходных сегментах субтитров и берём время оттуда.
+
+function normText(s) {
+  return String(s || '').toLowerCase().replace(/[’‘`]/g, "'").replace(/\s+/g, ' ').trim();
+}
+
+function escapeRe(s) {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+/** Вероятные формы слова в речи: walk → walks/walked/walking/…; study → studies/studied. */
+function spokenForms(word) {
+  const w = normText(word);
+  const out = new Set([w]);
+  if (!w || w.includes(' ')) return out;
+  out.add(w + 's');
+  out.add(w + 'es');
+  out.add(w + 'ed');
+  out.add(w + 'd');
+  out.add(w + 'ing');
+  if (w.endsWith('e')) {
+    out.add(w.slice(0, -1) + 'ing'); // love → loving
+  }
+  if (w.endsWith('y') && w.length > 2) {
+    out.add(w.slice(0, -1) + 'ies'); // study → studies
+    out.add(w.slice(0, -1) + 'ied'); // study → studied
+  }
+  const last = w[w.length - 1];
+  if (/[bdgmnprt]/.test(last)) {
+    out.add(w + last + 'ed');  // stop → stopped
+    out.add(w + last + 'ing'); // run → running
+  }
+  return out;
+}
+
+function boundaryRe(term) {
+  return new RegExp(`(?<![\\p{L}\\p{N}])${escapeRe(term)}(?![\\p{L}\\p{N}])`, 'u');
+}
+
+/** Переписывает card.t временем сегмента с первым вхождением front; фоллбэк — t от Gemini. */
+export function resolveTimestamps(cards, segments) {
+  const segs = (Array.isArray(segments) ? segments : [])
+    .map(s => ({ t: Math.max(0, Math.round(Number(s?.t) || 0)), text: normText(s?.text) }))
+    .filter(s => s.text);
+  if (!segs.length) return cards;
+
+  // фразы могут разрываться границей сегмента — проверяем и склейку с соседним
+  const joined = segs.map((s, i) => (i + 1 < segs.length ? s.text + ' ' + segs[i + 1].text : s.text));
+
+  function findFirst(res, usePairs) {
+    for (let i = 0; i < segs.length; i++) {
+      const hay = usePairs ? joined[i] : segs[i].text;
+      for (const re of res) if (re.test(hay)) return segs[i].t;
+    }
+    return null;
+  }
+
+  return cards.map(card => {
+    const n = normText(card.front);
+    if (!n) return card;
+    let t = null;
+    if (card.kind === 'phrase' || n.includes(' ')) {
+      t = findFirst([boundaryRe(n)], true);
+      if (t === null) {
+        // фраза сказана в другой форме («came up with») — ищем место,
+        // где рядом встречается больше всего слов фразы
+        const wordRes = n.split(' ')
+          .filter(w => w.length > 1)
+          .map(w => [...spokenForms(w)].map(boundaryRe));
+        if (wordRes.length) {
+          let best = { count: 0, t: null };
+          for (let i = 0; i < segs.length; i++) {
+            let count = 0;
+            for (const res of wordRes) if (res.some(re => re.test(joined[i]))) count++;
+            if (count > best.count) best = { count, t: segs[i].t };
+          }
+          if (best.count >= Math.min(2, wordRes.length)) t = best.t;
+        }
+      }
+    } else {
+      t = findFirst([...spokenForms(n)].map(boundaryRe), false);
+    }
+    return t === null ? card : { ...card, t };
+  });
+}
+
 export default async function handler(req) {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) return err('config', 'GEMINI_API_KEY не настроен на сервере', 500);
@@ -183,7 +272,7 @@ export default async function handler(req) {
     return err('llm-bad-json', 'Gemini вернул некорректный JSON — попробуй ещё раз', 502);
   }
   if (!cards.length) return err('no-cards', 'Не удалось выделить лексику из этого видео', 422);
-  return json({ cards });
+  return json({ cards: resolveTimestamps(cards, segments) });
 }
 
 export const config = { path: '/api/yt-generate' };

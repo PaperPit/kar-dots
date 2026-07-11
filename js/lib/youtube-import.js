@@ -127,8 +127,12 @@ export function fmtTimestamp(sec) {
   return h ? `${h}:${mm}:${ss}` : `${mm}:${ss}`;
 }
 
+/** Ссылка открывает видео на 2 сек раньше слова — чтобы услышать его в контексте. */
+const LINK_LEAD_SEC = 2;
+
 export function buildYtLink(videoId, t) {
-  return `https://www.youtube.com/watch?v=${videoId}&t=${Math.max(0, Math.floor(Number(t) || 0))}s`;
+  const sec = Math.max(0, Math.floor(Number(t) || 0) - LINK_LEAD_SEC);
+  return `https://www.youtube.com/watch?v=${videoId}&t=${sec}s`;
 }
 
 /**

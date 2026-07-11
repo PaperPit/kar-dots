@@ -104,12 +104,13 @@ describe('таймкоды и description', () => {
     expect(fmtTimestamp(125)).toBe('2:05');
     expect(fmtTimestamp(3723)).toBe('1:02:03');
   });
-  it('buildYtLink', () => {
-    expect(buildYtLink('abc12345678', 125.9)).toBe('https://www.youtube.com/watch?v=abc12345678&t=125s');
+  it('buildYtLink — с упреждением 2 сек, не уходит в минус', () => {
+    expect(buildYtLink('abc12345678', 125.9)).toBe('https://www.youtube.com/watch?v=abc12345678&t=123s');
+    expect(buildYtLink('abc12345678', 1)).toBe('https://www.youtube.com/watch?v=abc12345678&t=0s');
   });
-  it('description в стиле паков + ссылка', () => {
+  it('description в стиле паков + ссылка (метка честная, ссылка на 2 сек раньше)', () => {
     const d = buildCardDescription({ level: 'B1', pos: 'гл.', kind: 'word', t: 125 }, 'abc12345678');
-    expect(d).toBe('B1 · гл. · <a href="https://www.youtube.com/watch?v=abc12345678&t=125s">▶ 2:05</a>');
+    expect(d).toBe('B1 · гл. · <a href="https://www.youtube.com/watch?v=abc12345678&t=123s">▶ 2:05</a>');
   });
   it('description фразы и без таймкода', () => {
     expect(buildCardDescription({ level: 'A2', kind: 'phrase', t: null }, 'abc12345678')).toBe('A2 · phrase');

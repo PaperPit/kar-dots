@@ -2,6 +2,12 @@
   publish = "."
   command = "node scripts/generate-config.js"
 
+[build.environment]
+  # Ключи Supabase — публичные по дизайну (anon key уезжает в браузер, данные
+  # защищает RLS), поэтому исключаем их из сканера секретов. Настоящие секреты
+  # (SUPADATA_API_KEY, GEMINI_API_KEY) сканер продолжает проверять.
+  SECRETS_SCAN_OMIT_KEYS = "SUPABASE_URL,SUPABASE_ANON_KEY"
+
 # Серверная часть импорта из YouTube (ключи — в Environment variables):
 #   SUPADATA_API_KEY  — dash.supadata.ai (транскрипты)
 #   GEMINI_API_KEY    — aistudio.google.com (генерация карточек)

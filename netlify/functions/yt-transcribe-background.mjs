@@ -13,7 +13,17 @@ const MODEL = 'whisper-large-v3-turbo';
 const MAX_AUDIO_BYTES = 24 * 1024 * 1024; // запас от лимита Groq free tier (25 МБ)
 
 function jobsStore() {
-  return getStore({ name: 'yt-import-jobs', consistency: 'strong' });
+  try {
+    return getStore({ name: 'yt-import-jobs', consistency: 'strong' });
+  } catch (e) {
+    // локальная разработка (scripts/dev-server.mjs): Netlify Blobs недоступны,
+    // но обе функции работают в одном процессе — хватает общего in-memory стора
+    const mem = globalThis.__ytJobsMem || (globalThis.__ytJobsMem = new Map());
+    return {
+      async setJSON(key, value) { mem.set(key, value); },
+      async get(key) { return mem.has(key) ? mem.get(key) : null; },
+    };
+  }
 }
 
 async function saveFailed(jobId, errorCode, message) {

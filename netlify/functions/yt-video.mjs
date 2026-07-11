@@ -120,7 +120,17 @@ function pickDirectAudioFormat(streamingData) {
 }
 
 function jobsStore() {
-  return getStore({ name: 'yt-import-jobs', consistency: 'strong' });
+  try {
+    return getStore({ name: 'yt-import-jobs', consistency: 'strong' });
+  } catch (e) {
+    // локальная разработка (scripts/dev-server.mjs): Netlify Blobs недоступны,
+    // но обе функции работают в одном процессе — хватает общего in-memory стора
+    const mem = globalThis.__ytJobsMem || (globalThis.__ytJobsMem = new Map());
+    return {
+      async setJSON(key, value) { mem.set(key, value); },
+      async get(key) { return mem.has(key) ? mem.get(key) : null; },
+    };
+  }
 }
 
 /** Ключ из payload: только разумный формат, иначе игнорируем (защита заголовка Authorization). */

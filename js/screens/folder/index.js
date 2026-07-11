@@ -8,6 +8,7 @@ import { backBtn } from '../../ui/navigation.js';
 import { folderDialog } from '../home/folder-dialog.js';
 import { cardDialog } from '../card-editor/index.js';
 import { bulkCardDialog } from '../card-editor/bulk-dialog.js';
+import { youtubeImportDialog } from './youtube-dialog.js';
 import { studyModePicker } from '../review/mode-picker.js';
 import { isVocabPackFolder } from '../../lib/vocab-packs.js';
 import { route } from '../../core/router.js';
@@ -66,6 +67,11 @@ export async function renderFolder(folderId) {
     el('button', { class: 'btn', onclick: () => bulkCardDialog(folderId) }, [svgNode(ICONS.plus), 'Добавить списком']),
   ]);
 
+  const ytBtn = isPack ? null : el('button', {
+    class: 'btn folder-action-wide',
+    onclick: () => youtubeImportDialog(folderId),
+  }, [svgNode(ICONS.youtube), 'Карточки из YouTube']);
+
   const cramBtn = cards.length ? el('button', {
     class: 'btn' + (due > 0 ? '' : ' accent') + ' folder-action-wide',
     onclick: () => studyModePicker({ folderId, cram: true }),
@@ -74,6 +80,7 @@ export async function renderFolder(folderId) {
   const actions = el('div', { class: 'folder-actions' }, [
     reviewBtn,
     addRow,
+    ytBtn,
     cramBtn,
   ].filter(Boolean));
 

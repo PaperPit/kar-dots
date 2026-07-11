@@ -1,3 +1,10 @@
 [build]
   publish = "."
   command = "node scripts/generate-config.js"
+
+# Серверная часть импорта из YouTube (ключи — в Environment variables):
+#   SUPADATA_API_KEY  — dash.supadata.ai (транскрипты)
+#   GEMINI_API_KEY    — aistudio.google.com (генерация карточек)
+#   GEMINI_MODEL      — опционально, по умолчанию gemini-2.5-flash
+[functions]
+  directory = "netlify/functions"

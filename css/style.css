@@ -8,6 +8,7 @@
 @import 'screens/card-editor.css';
 @import 'screens/review.css';
 @import 'screens/settings.css';
+@import 'screens/youtube-import.css';
 
 :root {
   --bg: #F6F0E6;

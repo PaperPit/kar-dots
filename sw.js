@@ -1,4 +1,4 @@
-const VERSION = 'kar-v12.2';
+const VERSION = 'kar-v12.3';
 
 /** AUTO-GENERATED CORE_FILES — node scripts/generate-sw-files.js */
 const CORE_FILES = [
@@ -12,6 +12,7 @@ const CORE_FILES = [
   'css/screens/card-editor.css',
   'css/screens/review.css',
   'css/screens/settings.css',
+  'css/screens/youtube-import.css',
   'css/fonts/fonts.css',
   'css/fonts/baloo2-latin.woff2',
   'css/fonts/nunito-cyr-ext.woff2',
@@ -57,6 +58,7 @@ const CORE_FILES = [
   'js/lib/ui-clicks.js',
   'js/lib/vocab-packs.js',
   'js/lib/voice-keyboard.js',
+  'js/lib/youtube-import.js',
   'js/screens/auth/index.js',
   'js/screens/box/index.js',
   'js/screens/card-editor/actions.js',
@@ -65,6 +67,7 @@ const CORE_FILES = [
   'js/screens/card-editor/image-drop.js',
   'js/screens/card-editor/index.js',
   'js/screens/folder/index.js',
+  'js/screens/folder/youtube-dialog.js',
   'js/screens/home/box-dialog.js',
   'js/screens/home/folder-dialog.js',
   'js/screens/home/index.js',

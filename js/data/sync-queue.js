@@ -9,8 +9,9 @@ const MIRROR_DB = 'kartochki_cloud';
 // база уже поднята до версии 3 — IndexedDB не разрешает открывать её с меньшей.
 // Апгрейд-обработчик идемпотентен (все createObjectStore под проверками contains),
 // поэтому для баз версии 2 это просто безопасный no-op-апгрейд.
-const MIRROR_VERSION = 3;
+const MIRROR_VERSION = 4;
 const QUEUE_STORE = 'sync_queue';
+const DEAD_LETTER_STORE = 'sync_dead_letters';
 
 function openMirrorDB() {
   return new Promise((resolve, reject) => {
@@ -25,6 +26,7 @@ function openMirrorDB() {
       if (!db.objectStoreNames.contains('boxes')) db.createObjectStore('boxes', { keyPath: 'id' });
       if (!db.objectStoreNames.contains('kv')) db.createObjectStore('kv');
       if (!db.objectStoreNames.contains(QUEUE_STORE)) db.createObjectStore(QUEUE_STORE, { keyPath: 'id', autoIncrement: true });
+      if (!db.objectStoreNames.contains(DEAD_LETTER_STORE)) db.createObjectStore(DEAD_LETTER_STORE, { keyPath: 'id', autoIncrement: true });
     };
     req.onsuccess = () => resolve(req.result);
     req.onerror = () => reject(req.error);
@@ -49,6 +51,14 @@ function getAll(db, store) {
   });
 }
 
+function getOne(db, store, key) {
+  return new Promise((resolve, reject) => {
+    const req = db.transaction(store).objectStore(store).get(key);
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+
 export { openMirrorDB, getAll, txAll, MIRROR_DB };
 
 export class SyncQueue {
@@ -56,6 +66,7 @@ export class SyncQueue {
     this.db = null;
     this.flushing = false;
     this._handler = null;
+    this._deadLetterHandler = null;
   }
 
   async init(db) {
@@ -67,6 +78,17 @@ export class SyncQueue {
     return items.length;
   }
 
+  async deadLetterCount() {
+    const items = await getAll(this.db, DEAD_LETTER_STORE);
+    return items.length;
+  }
+
+  async deadLetters() {
+    const items = await getAll(this.db, DEAD_LETTER_STORE);
+    items.sort((a, b) => (a.failed_at || 0) - (b.failed_at || 0));
+    return items;
+  }
+
   async enqueue(item) {
     await txAll(this.db, QUEUE_STORE, 'readwrite', s => {
       s.add(Object.assign({ created_at: Date.now() }, item));
@@ -75,6 +97,40 @@ export class SyncQueue {
 
   onFlush(handler) {
     this._handler = handler;
+  }
+
+  onDeadLetter(handler) {
+    this._deadLetterHandler = handler;
+  }
+
+  async _moveToDeadLetter(item, error) {
+    const letter = {
+      op: item.op,
+      payload: item.payload,
+      error: String(error?.message || error),
+      created_at: item.created_at,
+      failed_at: Date.now(),
+    };
+    await txAll(this.db, DEAD_LETTER_STORE, 'readwrite', s => s.add(letter));
+    if (this._deadLetterHandler) {
+      const letters = await this.deadLetters();
+      this._deadLetterHandler(letters[letters.length - 1]);
+    }
+  }
+
+  async retryDeadLetter(id) {
+    const letter = await getOne(this.db, DEAD_LETTER_STORE, id);
+    if (!letter) return false;
+    await this.enqueue({ op: letter.op, payload: letter.payload });
+    await txAll(this.db, DEAD_LETTER_STORE, 'readwrite', s => s.delete(id));
+    return true;
+  }
+
+  async discardDeadLetter(id) {
+    const letter = await getOne(this.db, DEAD_LETTER_STORE, id);
+    if (!letter) return false;
+    await txAll(this.db, DEAD_LETTER_STORE, 'readwrite', s => s.delete(id));
+    return true;
   }
 
   async flush() {
@@ -92,9 +148,9 @@ export class SyncQueue {
           ok++;
         } catch (e) {
           if (isNetworkError(e)) break;
+          await this._moveToDeadLetter(item, e);
           await txAll(this.db, QUEUE_STORE, 'readwrite', s => s.delete(item.id));
           fail++;
-          console.warn('Sync item dropped:', item, e);
         }
       }
     } finally {

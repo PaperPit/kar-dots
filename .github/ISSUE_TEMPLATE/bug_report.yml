@@ -4,8 +4,9 @@ title: "[Bug]: "
 labels: ["bug"]
 body:
   - type: markdown
-    value: |
-      Спасибо за репорт! Чем точнее описание, тем быстрее починим.
+    attributes:
+      value: |
+        Спасибо за репорт! Чем точнее описание, тем быстрее починим.
 
   - type: dropdown
     id: mode

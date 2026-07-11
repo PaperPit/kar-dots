@@ -4,8 +4,9 @@ title: "[Feature]: "
 labels: ["enhancement"]
 body:
   - type: markdown
-    value: |
-      Опишите **задачу пользователя**, а не только решение. Смотрите также [ROADMAP.md](https://github.com/PaperPit/kar-dots/blob/main/ROADMAP.md).
+    attributes:
+      value: |
+        Опишите **задачу пользователя**, а не только решение. Смотрите также [ROADMAP.md](https://github.com/PaperPit/kar-dots/blob/main/ROADMAP.md).
 
   - type: textarea
     id: problem

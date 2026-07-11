@@ -7,6 +7,9 @@
  * @property {boolean} tts
  * @property {number} ttsRate
  * @property {boolean} ttsAuto
+ * @property {string} ttsVoiceRu
+ * @property {string} ttsVoiceEn
+ * @property {string} supadataApiKey
  * @property {string} geminiApiKey
  * @property {string} groqApiKey
  */

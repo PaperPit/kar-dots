@@ -54,6 +54,7 @@ describe('isStudyMode', () => {
   it('accepts known modes only', () => {
     expect(isStudyMode('flip')).toBe(true);
     expect(isStudyMode('match')).toBe(true);
+    expect(isStudyMode('cloze')).toBe(true);
     expect(isStudyMode('bogus')).toBe(false);
   });
 });

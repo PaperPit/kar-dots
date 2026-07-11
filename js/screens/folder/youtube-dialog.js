@@ -9,7 +9,7 @@ import {
   parseYouTubeId, collectKnownTerms, isYoutubeCard,
   filterNewCandidates, buildCardDescription, fmtTimestamp,
 } from '../../lib/youtube-import.js';
-import { withApiKeys } from '../../lib/youtube-import-settings.js';
+import { withApiKeys, hasSupadataApiKey } from '../../lib/youtube-import-settings.js';
 
 const POLL_MS = 2500;
 const POLL_MAX_MS = 3 * 60 * 1000;
@@ -113,6 +113,11 @@ export function youtubeImportDialog(folderId) {
           errEl.classList.remove('hidden');
           return;
         }
+        if (!hasSupadataApiKey(store.settings)) {
+          errEl.textContent = 'Укажи Supadata API ключ: Настройки → «Карточки из YouTube» → «Настроить»';
+          errEl.classList.remove('hidden');
+          return;
+        }
         runImport(urlInput.value.trim(), mode);
       },
     }, 'Получить карточки');
@@ -155,7 +160,7 @@ export function youtubeImportDialog(folderId) {
       });
       const video = data.video;
       if (data.pending) {
-        setStatus('Субтитров нет — расшифровываю аудио, это может занять минуту…');
+        setStatus('Получаю транскрипт через Supadata, это может занять минуту…');
         const deadline = Date.now() + POLL_MAX_MS;
         while (data.pending) {
           if (closed) return;

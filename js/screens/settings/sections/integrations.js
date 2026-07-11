@@ -1,21 +1,36 @@
-import { el } from '../../../ui/ui.js';
+import { el, modal } from '../../../ui/ui.js';
+import { integrationsKeySummary } from '../../../lib/youtube-import-settings.js';
+import { cleanGeminiApiKey, cleanGroqApiKey, cleanSupadataApiKey } from '../../../lib/llm-api-keys.js';
 
-// Поля личных API-ключей для «Карточки из YouTube». Ключ из настроек имеет
-// приоритет над серверным (Netlify env); пустое поле = используется серверный.
-
-const KEYS = [
+const KEY_DEFS = [
+  {
+    prop: 'supadataApiKey',
+    title: 'Supadata API ключ',
+    placeholder: 'sd_…',
+    required: true,
+    lead: 'Обязателен: достаёт субтитры и транскрипт из YouTube.',
+    help: {
+      linkText: 'supadata.ai',
+      linkHref: 'https://supadata.ai',
+      steps: [
+        'Зарегистрируйся и открой раздел API Keys.',
+        'Скопируй ключ и вставь сюда.',
+        'Бесплатный тариф покрывает личное использование; одно видео = один запрос.',
+      ],
+    },
+  },
   {
     prop: 'geminiApiKey',
     title: 'Gemini API ключ',
     placeholder: 'AIza…',
-    lead: 'Основной: нейросеть выделяет слова и фразы из субтитров и составляет переводы.',
+    lead: 'Генерация карточек: слова и переводы из транскрипта.',
     help: {
       linkText: 'Google AI Studio',
       linkHref: 'https://aistudio.google.com/apikey',
       steps: [
-        'Войдите в Google-аккаунт и нажмите «Create API key».',
-        'Скопируйте ключ (начинается с AIza…) и вставьте его ниже.',
-        'У Google есть бесплатный лимит на Gemini Flash; одно видео = один запрос.',
+        'Создай API key в Google AI Studio.',
+        'Вставь ключ (AIza… или новый формат AQ.…).',
+        'Если пусто — используется серверный ключ (если настроен).',
       ],
     },
   },
@@ -23,22 +38,56 @@ const KEYS = [
     prop: 'groqApiKey',
     title: 'Groq API ключ',
     placeholder: 'gsk_…',
-    lead: 'Резервный: подхватывает генерацию, если у Gemini кончилась квота, и распознаёт речь в роликах без субтитров.',
+    lead: 'Резерв, если у Gemini кончилась квота.',
     help: {
       linkText: 'console.groq.com/keys',
       linkHref: 'https://console.groq.com/keys',
       steps: [
-        'Зарегистрируйтесь (бесплатно) и нажмите «Create API Key».',
-        'Скопируйте ключ (начинается с gsk_…) и вставьте его ниже.',
-        'Бесплатного лимита Groq хватает с запасом: Llama для карточек, Whisper для расшифровки речи.',
+        'Создай API Key в Groq Console.',
+        'Вставь ключ (начинается с gsk_…).',
+        'Если модели отключены в проекте — Project → Limits: включи GPT OSS.',
+        'Если пусто — используется серверный ключ (если настроен).',
       ],
     },
   },
 ];
 
+function validateKey(prop, value) {
+  const v = String(value || '').trim();
+  if (!v) return { ok: true, message: '' };
+  if (prop === 'geminiApiKey' && !cleanGeminiApiKey(v)) {
+    return { ok: false, message: 'Неверный формат — ключ AI Studio: AIza… или AQ.…' };
+  }
+  if (prop === 'groqApiKey' && !cleanGroqApiKey(v)) {
+    return { ok: false, message: 'Неверный формат — ключ Groq начинается с gsk_…' };
+  }
+  if (prop === 'supadataApiKey' && !cleanSupadataApiKey(v)) {
+    return { ok: false, message: 'Неверный формат ключа Supadata' };
+  }
+  return { ok: true, message: '' };
+}
+
+function updateKeyStatus(statusEl, def, value) {
+  const next = String(value || '').trim();
+  if (!next) {
+    statusEl.textContent = def.required ? 'Не указан — импорт недоступен' : 'Не указан — серверный (если есть)';
+    statusEl.classList.remove('is-set', 'is-invalid');
+    return;
+  }
+  const check = validateKey(def.prop, next);
+  if (!check.ok) {
+    statusEl.textContent = check.message;
+    statusEl.classList.add('is-invalid');
+    statusEl.classList.remove('is-set');
+    return;
+  }
+  statusEl.textContent = 'Ключ сохранён';
+  statusEl.classList.add('is-set');
+  statusEl.classList.remove('is-invalid');
+}
+
 function buildKeyField(def, s, save) {
   let visible = false;
-  const isSet = () => !!String(s[def.prop] || '').trim();
 
   const keyInput = el('input', {
     type: 'password',
@@ -49,9 +98,8 @@ function buildKeyField(def, s, save) {
     value: s[def.prop] || '',
   });
 
-  const statusEl = el('span', {
-    class: 'api-key-status' + (isSet() ? ' is-set' : ''),
-  }, isSet() ? 'Ключ сохранён' : 'Ключ не указан — используется серверный (если настроен)');
+  const statusEl = el('span', { class: 'api-key-status' }, '');
+  updateKeyStatus(statusEl, def, s[def.prop]);
 
   const toggleBtn = el('button', {
     type: 'button',
@@ -63,16 +111,29 @@ function buildKeyField(def, s, save) {
     },
   }, 'Показать');
 
-  function persist() {
+  function flush() {
     const next = keyInput.value.trim();
-    if (next === (s[def.prop] || '')) return;
-    s[def.prop] = next;
-    statusEl.textContent = next ? 'Ключ сохранён' : 'Ключ не указан — используется серверный (если настроен)';
-    statusEl.classList.toggle('is-set', !!next);
+    let normalized = next;
+    if (def.prop === 'geminiApiKey') normalized = cleanGeminiApiKey(next) || next;
+    else if (def.prop === 'groqApiKey') normalized = cleanGroqApiKey(next) || next;
+    else if (def.prop === 'supadataApiKey') normalized = cleanSupadataApiKey(next) || next;
+    const check = validateKey(def.prop, normalized);
+    updateKeyStatus(statusEl, def, normalized);
+    if (!check.ok && normalized) {
+      // Сохраняем как есть — сервер тоже попробует нормализовать
+      s[def.prop] = normalized;
+      save();
+      return true;
+    }
+    if (!check.ok) return false;
+    if (normalized === (s[def.prop] || '')) return true;
+    s[def.prop] = normalized;
     save();
+    return true;
   }
 
-  keyInput.addEventListener('blur', persist);
+  keyInput.addEventListener('blur', () => { flush(); });
+
   keyInput.addEventListener('keydown', e => {
     if (e.key === 'Enter') {
       e.preventDefault();
@@ -80,37 +141,77 @@ function buildKeyField(def, s, save) {
     }
   });
 
-  return el('div', { class: 'setting-row setting-row-stack api-key-block' }, [
+  const node = el('div', { class: 'api-key-block' }, [
     el('div', { class: 'lab' }, [
-      el('b', null, def.title),
+      el('b', null, def.title + (def.required ? ' *' : '')),
       el('span', { class: 'api-key-lead' }, def.lead),
       el('details', { class: 'api-key-help' }, [
-        el('summary', null, 'Как получить ключ'),
+        el('summary', null, 'Как получить'),
         el('ol', null, [
           el('li', null, [
-            'Откройте ',
-            el('a', {
-              href: def.help.linkHref,
-              target: '_blank',
-              rel: 'noopener noreferrer',
-            }, def.help.linkText),
+            'Открой ',
+            el('a', { href: def.help.linkHref, target: '_blank', rel: 'noopener noreferrer' }, def.help.linkText),
             '.',
           ]),
           ...def.help.steps.map(step => el('li', null, step)),
         ]),
         el('p', { class: 'muted api-key-note' },
-          'Ключ хранится в ваших настройках и передаётся на сервер приложения только при импорте из YouTube.'),
+          'Ключ сохраняется при нажатии «Готово». Передаётся на сервер только при импорте.'),
       ]),
     ]),
     el('div', { class: 'api-key-field' }, [keyInput, toggleBtn, statusEl]),
   ]);
+
+  return { node, flush };
+}
+
+function openKeysModal(s, save, onClose) {
+  const fields = KEY_DEFS.map(def => buildKeyField(def, s, save));
+  const body = el('div', { class: 'integrations-keys-modal' }, fields.map(f => f.node));
+
+  const m = modal(el('div', null, [
+    el('h3', { class: 'modal-title' }, 'API-ключи YouTube'),
+    el('p', { class: 'modal-text muted' },
+      'Supadata обязателен для транскрипта. Gemini — основной для карточек, Groq — резерв.'),
+    body,
+    el('div', { class: 'modal-actions' }, [
+      el('button', {
+        class: 'btn primary',
+        onclick: () => {
+          const ok = fields.every(f => f.flush());
+          if (ok) m.close();
+        },
+      }, 'Готово'),
+    ]),
+  ]), { wide: true });
+
+  const origClose = m.close;
+  m.close = () => {
+    fields.forEach(f => { f.flush(); });
+    origClose();
+    onClose?.();
+  };
 }
 
 export function buildIntegrationsGroup(s, save) {
+  const statusEl = el('span', { class: 'integrations-status muted' }, integrationsKeySummary(s));
+
+  const refreshStatus = () => {
+    statusEl.textContent = integrationsKeySummary(s);
+  };
+
   return el('div', { class: 'settings-group' }, [
     el('h4', null, 'Карточки из YouTube'),
-    el('p', { class: 'integrations-lead muted' },
-      'Личные API-ключи для импорта карточек из роликов. Если поле пустое, используется общий ключ сервера (настраивается в Netlify) — свои ключи дают собственные бесплатные лимиты.'),
-    ...KEYS.map(def => buildKeyField(def, s, save)),
+    el('div', { class: 'setting-row integrations-compact' }, [
+      el('div', { class: 'lab' }, [
+        el('b', null, 'API-ключи'),
+        statusEl,
+      ]),
+      el('button', {
+        type: 'button',
+        class: 'btn',
+        onclick: () => openKeysModal(s, save, refreshStatus),
+      }, 'Настроить'),
+    ]),
   ]);
 }

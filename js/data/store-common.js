@@ -8,14 +8,19 @@ export const DEFAULT_SETTINGS = {
   tts: true,
   ttsRate: 1,
   ttsAuto: false,
+  /** URI системного голоса (Speech Synthesis); пусто = авто. */
+  ttsVoiceRu: '',
+  ttsVoiceEn: '',
   successSound: 'confirm-tap',
   failSound: 'load-fail',
   answerSoundMode: 'both',
   cupMelody: 'show-alert',
   uiClickSound: 'none',
-  /** Личный ключ Google AI Studio для «Карточки из YouTube» (пусто = серверный). */
+  /** Личный ключ Supadata — транскрипт YouTube (обязателен для импорта). */
+  supadataApiKey: '',
+  /** Личный ключ Google AI Studio для генерации карточек (пусто = серверный). */
   geminiApiKey: '',
-  /** Личный ключ Groq (резерв генерации + расшифровка речи) для «Карточки из YouTube». */
+  /** Личный ключ Groq (резерв генерации) для «Карточки из YouTube». */
   groqApiKey: '',
 };
 

@@ -1,4 +1,4 @@
-const MODES = new Set(['flip', 'type', 'voice', 'match', 'combo']);
+const MODES = new Set(['flip', 'type', 'voice', 'match', 'combo', 'cloze']);
 const STORAGE_KEY = 'kar_last_study_mode';
 const SESSION_KEY = 'kar_session_study_mode';
 const PROMPT_SIDE_KEY = 'kar_last_prompt_side';
@@ -14,6 +14,7 @@ export const PROMPT_SIDE_META = [
 export const STUDY_MODE_META = [
   { id: 'flip', title: 'Классический', desc: 'Переворот карточки и свайп «Знаю / Не знаю»' },
   { id: 'type', title: 'Ввод', desc: 'Напечатать перевод или ответ' },
+  { id: 'cloze', title: 'Пропуски', desc: 'Дописать 1–2 пропущенные буквы в слове или фразе' },
   { id: 'voice', title: 'Голос', desc: 'Сказать перевод в микрофон' },
   { id: 'combo', title: 'Микс', desc: 'Случайно: ввод, голос или 5 пар слов' },
   { id: 'match', title: 'Пары', desc: 'Собрать термины и переводы в пары' },

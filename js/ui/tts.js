@@ -1,66 +1,88 @@
 import { store } from '../core/state.js';
-import { stripHtml } from './ui.js';
+import { stripHtml, toast } from './ui.js';
+import {
+  detectSpeechLang,
+  resolveSpeechVoice,
+  waitForSpeechVoices,
+  getSpeechVoices,
+  clampSpeechRate,
+  speechSynthesisSupported,
+} from '../lib/web-speech-tts.js';
 
-/** Кириллица → ru-RU, латиница → en-US, иначе ru-RU. */
-export function detectSpeechLang(text) {
-  const t = String(text || '');
-  if (/[\u0400-\u04FF]/.test(t)) return 'ru-RU';
-  if (/[a-zA-Z]/.test(t)) return 'en-US';
-  return 'ru-RU';
+export { detectSpeechLang } from '../lib/web-speech-tts.js';
+
+let speakSession = 0;
+
+export function stopAllSpeech() {
+  speakSession += 1;
+  if (speechSynthesisSupported()) speechSynthesis.cancel();
 }
 
-function pickVoice(lang) {
-  const voices = speechSynthesis.getVoices();
-  const prefix = lang.startsWith('en') ? 'en' : 'ru';
-  const matching = voices.filter(v => v.lang.startsWith(prefix));
-  return matching.find(v => /samantha|daniel|karen|alex|moira|milena|yuri|google|premium|enhanced/i.test(v.name))
-    || matching.find(v => !/compact|low/i.test(v.name))
-    || matching[0]
-    || null;
+function voiceUriForLang(settings, lang) {
+  const en = String(lang || '').toLowerCase().startsWith('en');
+  return en ? (settings?.ttsVoiceEn || '') : (settings?.ttsVoiceRu || '');
 }
 
-function speechRate() {
-  const r = store?.settings?.ttsRate;
-  if (r == null || r === '') return 1;
-  return Math.min(2, Math.max(0.5, Number(r) || 1));
+function speechRate(settings) {
+  return clampSpeechRate(settings?.ttsRate);
 }
 
-function speakUtterance(text, lang, onDone) {
-  const u = new SpeechSynthesisUtterance(text);
-  const resolved = lang || detectSpeechLang(text);
-  u.lang = resolved;
-  u.rate = speechRate();
-  const voice = pickVoice(resolved);
-  if (voice) u.voice = voice;
-  if (onDone) {
-    u.onend = onDone;
-    u.onerror = onDone;
+function speakUtteranceAsync(text, lang, settings, session) {
+  return new Promise(resolve => {
+    if (session !== speakSession || !speechSynthesisSupported()) {
+      resolve();
+      return;
+    }
+    const resolved = lang || detectSpeechLang(text);
+    const voices = getSpeechVoices();
+    const voice = resolveSpeechVoice(voices, resolved, voiceUriForLang(settings, resolved));
+    const u = new SpeechSynthesisUtterance(text);
+    u.lang = resolved;
+    u.rate = speechRate(settings);
+    if (voice) u.voice = voice;
+    const done = () => {
+      if (session === speakSession) resolve();
+    };
+    u.onend = done;
+    u.onerror = done;
+    speechSynthesis.speak(u);
+  });
+}
+
+async function speakOne(text, lang, settings) {
+  const trimmed = String(text || '').trim();
+  if (!trimmed) return;
+  if (!speechSynthesisSupported()) {
+    toast('Озвучка недоступна в этом браузере', 'error');
+    return;
   }
-  speechSynthesis.speak(u);
+  stopAllSpeech();
+  const session = speakSession;
+  await waitForSpeechVoices();
+  if (session !== speakSession) return;
+  await speakUtteranceAsync(trimmed, lang, settings, session);
 }
 
-export function speakText(text, lang) {
-  if (!text?.trim() || typeof speechSynthesis === 'undefined') return;
-  speechSynthesis.cancel();
-  speakUtterance(text.trim(), lang);
+/**
+ * @param {string} text
+ * @param {string} [lang]
+ */
+export async function speakText(text, lang) {
+  if (!text?.trim()) return;
+  const settings = store?.settings || {};
+  await speakOne(text, lang, settings);
 }
 
-export function speakSequence(texts) {
-  if (typeof speechSynthesis === 'undefined') return;
+export async function speakSequence(texts) {
   const queue = (Array.isArray(texts) ? texts : [texts])
     .map(t => String(t || '').trim())
     .filter(Boolean);
-  if (!queue.length) return;
-  speechSynthesis.cancel();
-  let i = 0;
-  function next() {
-    if (i >= queue.length) return;
-    speakUtterance(queue[i++], null, next);
+  for (const t of queue) {
+    await speakText(t);
   }
-  next();
 }
 
-export function speakCardSide(card, side) {
+export async function speakCardSide(card, side) {
   const parts = [];
   if (side === 'front') {
     const t = stripHtml(card.front);
@@ -72,10 +94,12 @@ export function speakCardSide(card, side) {
     if (d) parts.push(d);
   }
   if (!parts.length) return false;
-  speakSequence(parts);
+  await speakSequence(parts);
   return true;
 }
 
-if (typeof speechSynthesis !== 'undefined') {
-  speechSynthesis.addEventListener('voiceschanged', () => {});
+/** Прослушать выбранный системный голос в настройках. */
+export async function previewSpeechVoice(lang) {
+  const sample = String(lang || '').toLowerCase().startsWith('en') ? 'Hello' : 'Привет';
+  await speakText(sample, lang);
 }

@@ -1,6 +1,5 @@
 // Netlify Function: генерация карточек из транскрипта. Основной провайдер — Gemini;
-// если он отказал (квота, устаревшая модель, сбой) и настроен GROQ_API_KEY —
-// автоматически повторяем запрос через бесплатный Groq (Llama 3.3 70B).
+// резерв — Groq (цепочка моделей: gpt-oss-120b → gpt-oss-20b → llama-3.3 …).
 // POST { title, lang, mode: 'words'|'phrases'|'both', segments: [{t, text}] }
 //   → { cards: [{ front, back, pos, level, kind, t }] }
 //
@@ -8,19 +7,22 @@
 //   payload.geminiApiKey | GEMINI_API_KEY — основной провайдер; GEMINI_MODEL
 //     (опционально, по умолчанию gemini-flash-latest — авто-обновляемый алиас,
 //     чтобы не ловить "model no longer available" при смене поколений моделей).
-//   payload.groqApiKey | GROQ_API_KEY — резервный провайдер (без него при отказе
-//     Gemini генерация карточек просто не сработает).
+//   payload.groqApiKey | GROQ_API_KEY — резервный провайдер; GROQ_MODEL (опционально)
+//     — первая модель в цепочке (см. js/lib/groq-generate.js).
 // Личные ключи задаются в приложении: Настройки → «Карточки из YouTube».
 // См. docs/youtube-import-setup.md.
 
-/** Ключ из payload: только разумный формат, иначе игнорируем (защита заголовка Authorization). */
-export function cleanApiKey(raw) {
-  const s = String(raw || '').trim();
-  return /^[A-Za-z0-9_-]{20,200}$/.test(s) ? s : '';
-}
+import {
+  groqModelsToTry,
+  shouldTryNextGroqModel,
+  formatGroqGenerateError,
+} from '../../js/lib/groq-generate.js';
+import { cleanGeminiApiKey, cleanGroqApiKey } from '../../js/lib/llm-api-keys.js';
+import { formatGeminiGenerateError, combineLlmErrors } from '../../js/lib/gemini-generate.js';
+
+export { cleanGroqApiKey as cleanApiKey } from '../../js/lib/llm-api-keys.js';
 
 const DEFAULT_GEMINI_MODEL = 'gemini-flash-latest';
-const GROQ_MODEL = 'llama-3.3-70b-versatile';
 const MAX_TRANSCRIPT_CHARS = 28000;
 const LIMITS = { words: 50, phrases: 30, bothWords: 40, bothPhrases: 20 };
 
@@ -124,14 +126,14 @@ const GEMINI_RESPONSE_SCHEMA = {
   required: ['cards'],
 };
 
-async function callGemini(apiKey, model, prompt, withThinkingConfig) {
+async function callGemini(apiKey, model, prompt, { thinking = false, schema = true } = {}) {
   const generationConfig = {
     temperature: 0.3,
     maxOutputTokens: 8192,
     responseMimeType: 'application/json',
-    responseSchema: GEMINI_RESPONSE_SCHEMA,
   };
-  if (withThinkingConfig) generationConfig.thinkingConfig = { thinkingBudget: 0 };
+  if (schema) generationConfig.responseSchema = GEMINI_RESPONSE_SCHEMA;
+  if (thinking) generationConfig.thinkingConfig = { thinkingBudget: 0 };
   const res = await fetch(
     `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,
     {
@@ -153,12 +155,38 @@ function geminiText(body) {
   return body?.candidates?.[0]?.content?.parts?.map(p => p.text || '').join('') || '';
 }
 
-async function callGroq(apiKey, prompt) {
+async function runGemini(apiKey, prompt) {
+  const model = process.env.GEMINI_MODEL || DEFAULT_GEMINI_MODEL;
+  const attempts = [
+    { thinking: true, schema: true },
+    { thinking: false, schema: true },
+    { thinking: false, schema: false },
+  ];
+  let lastStatus = 502;
+  let lastRaw = '';
+  for (const opts of attempts) {
+    const { status, body } = await callGemini(apiKey, model, prompt, opts);
+    if (status === 200) {
+      const text = geminiText(body).trim();
+      if (text) return { ok: true, text };
+    }
+    lastStatus = status;
+    lastRaw = body?.error?.message || body?.message || '';
+    if (status === 429 || status === 401 || status === 403) break;
+  }
+  return {
+    ok: false,
+    message: formatGeminiGenerateError(lastRaw, lastStatus),
+    status: lastStatus >= 400 ? lastStatus : 502,
+  };
+}
+
+async function callGroq(apiKey, prompt, model) {
   const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
     method: 'POST',
     headers: { 'content-type': 'application/json', authorization: `Bearer ${apiKey}` },
     body: JSON.stringify({
-      model: GROQ_MODEL,
+      model,
       temperature: 0.3,
       max_tokens: 8192,
       response_format: { type: 'json_object' },
@@ -167,11 +195,33 @@ async function callGroq(apiKey, prompt) {
   });
   let body = null;
   try { body = await res.json(); } catch (e) { /* пусто */ }
-  return { status: res.status, body };
+  return { status: res.status, body, model };
 }
 
 function groqText(body) {
   return body?.choices?.[0]?.message?.content || '';
+}
+
+/** Перебирает модели Groq, пока одна не ответит или ошибка не фatal. */
+async function callGroqWithFallback(apiKey, prompt) {
+  const models = groqModelsToTry(process.env.GROQ_MODEL);
+  let lastStatus = 502;
+  let lastMessage = '';
+  for (const model of models) {
+    const { status, body } = await callGroq(apiKey, prompt, model);
+    if (status === 200) {
+      const text = groqText(body);
+      if (text) return { ok: true, text, model };
+    }
+    lastStatus = status;
+    lastMessage = body?.error?.message || `Groq (${status})`;
+    if (!shouldTryNextGroqModel(status, lastMessage)) break;
+  }
+  return {
+    ok: false,
+    message: formatGroqGenerateError(lastMessage),
+    status: lastStatus >= 400 ? lastStatus : 502,
+  };
 }
 
 const VALID_LEVELS = new Set(['A1', 'A2', 'B1', 'B2', 'C1', 'C2']);
@@ -291,9 +341,14 @@ export default async function handler(req) {
   let payload;
   try { payload = await req.json(); } catch (e) { return err('bad-request', 'Неверный JSON'); }
 
-  // личный ключ из настроек приложения приоритетнее серверного
-  const geminiKey = cleanApiKey(payload.geminiApiKey) || process.env.GEMINI_API_KEY;
-  const groqKey = cleanApiKey(payload.groqApiKey) || process.env.GROQ_API_KEY;
+  const rawGemini = String(payload.geminiApiKey || '').trim();
+  const rawGroq = String(payload.groqApiKey || '').trim();
+  const geminiKey = cleanGeminiApiKey(rawGemini) || cleanGeminiApiKey(process.env.GEMINI_API_KEY);
+  const groqKey = cleanGroqApiKey(rawGroq) || cleanGroqApiKey(process.env.GROQ_API_KEY);
+
+  if (rawGemini && !geminiKey) {
+    return err('config', 'Не удалось прочитать Gemini ключ — вставь целиком из AI Studio (формат AIza… или AQ.…). Обнови страницу (Cmd+Shift+R) и перезапусти npm run dev.', 401);
+  }
   if (!geminiKey && !groqKey) {
     return err('config', 'Нет API-ключа: укажи Gemini или Groq ключ в Настройках → «Карточки из YouTube» (или настрой ключи на сервере)', 401);
   }
@@ -312,34 +367,41 @@ export default async function handler(req) {
 
   let text = null;
   let lastErr = null;
+  let geminiErr = null;
 
   // --- основной провайдер: Gemini ---
   if (geminiKey) {
-    const model = process.env.GEMINI_MODEL || DEFAULT_GEMINI_MODEL;
-    let { status, body } = await callGemini(geminiKey, model, prompt, true);
-    if (status === 400) {
-      // старые/другие модели могут не знать thinkingConfig — повторяем без него
-      ({ status, body } = await callGemini(geminiKey, model, prompt, false));
-    }
-    if (status === 200) {
-      text = geminiText(body);
-    } else if (status === 429) {
-      lastErr = { code: 'quota', message: 'Квота Gemini исчерпана', status: 429 };
+    const gem = await runGemini(geminiKey, prompt);
+    if (gem.ok) {
+      text = gem.text;
     } else {
-      lastErr = { code: 'llm-failed', message: body?.error?.message || `Gemini вернул ошибку (${status})`, status: 502 };
+      geminiErr = gem.message;
+      if (gem.status === 429) {
+        lastErr = { code: 'quota', message: gem.message, status: 429 };
+      }
     }
   }
 
-  // --- резервный провайдер: Groq (Llama), если Gemini недоступен или не настроен ---
+  // --- резервный провайдер: Groq, если Gemini недоступен или не настроен ---
   if (text === null && groqKey) {
-    const { status, body } = await callGroq(groqKey, prompt);
-    if (status === 200) {
-      text = groqText(body);
-    } else if (status === 429) {
-      lastErr = { code: 'quota', message: 'Квота Gemini и Groq исчерпана — попробуй позже', status: 429 };
+    const groq = await callGroqWithFallback(groqKey, prompt);
+    if (groq.ok) {
+      text = groq.text;
+    } else if (groq.status === 429) {
+      lastErr = {
+        code: 'quota',
+        message: combineLlmErrors(geminiErr, 'квота Groq исчерпана'),
+        status: 429,
+      };
     } else {
-      lastErr = { code: 'llm-failed', message: body?.error?.message || `Groq вернул ошибку (${status})`, status: 502 };
+      lastErr = {
+        code: 'llm-failed',
+        message: combineLlmErrors(geminiErr, groq.message),
+        status: 502,
+      };
     }
+  } else if (text === null && geminiErr) {
+    lastErr = { code: 'llm-failed', message: geminiErr, status: 502 };
   }
 
   if (text === null) {

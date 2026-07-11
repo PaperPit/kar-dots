@@ -7,6 +7,7 @@ import { initActivity } from './lib/activity.js';
 import { initUiClicks } from './lib/ui-clicks.js';
 import { initRouter, route } from './core/router.js';
 import { initMotionUi, animateBootSplashOut } from './lib/motion-ui.js';
+import { initSpeechVoices } from './lib/web-speech-tts.js';
 
 function dismissBootSplash() {
   animateBootSplashOut(document.getElementById('bootSplash'));
@@ -23,6 +24,7 @@ async function boot() {
 
   initRouter();
   initUiClicks();
+  initSpeechVoices();
   const mode = localStorage.getItem('kar_mode');
 
   try {

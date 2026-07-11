@@ -5,7 +5,11 @@
 import { isNetworkError } from './supabase.js';
 
 const MIRROR_DB = 'kartochki_cloud';
-const MIRROR_VERSION = 2;
+// 3: в браузерах, где успела поработать промежуточная реализация YouTube-импорта,
+// база уже поднята до версии 3 — IndexedDB не разрешает открывать её с меньшей.
+// Апгрейд-обработчик идемпотентен (все createObjectStore под проверками contains),
+// поэтому для баз версии 2 это просто безопасный no-op-апгрейд.
+const MIRROR_VERSION = 3;
 const QUEUE_STORE = 'sync_queue';
 
 function openMirrorDB() {

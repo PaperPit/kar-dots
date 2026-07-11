@@ -1,0 +1,11 @@
+blank_issues_enabled: false
+contact_links:
+  - name: 📖 Полная инструкция (деплой, ПК, телефон)
+    url: https://github.com/PaperPit/kar-dots/blob/main/docs/USER-GUIDE.md
+    about: Пошаговое руководство для любого пользователя
+  - name: 📖 YouTube-импорт
+    url: https://github.com/PaperPit/kar-dots/blob/main/docs/youtube-import-setup.md
+    about: Настройка Supadata / Gemini для «Карточки из YouTube»
+  - name: 💡 Roadmap и идеи
+    url: https://github.com/PaperPit/kar-dots/blob/main/ROADMAP.md
+    about: Направления развития и идеи от сообщества

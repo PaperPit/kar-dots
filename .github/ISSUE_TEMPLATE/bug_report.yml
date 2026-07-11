@@ -1,0 +1,60 @@
+name: 🐛 Баг
+description: Что-то работает не так
+title: "[Bug]: "
+labels: ["bug"]
+body:
+  - type: markdown
+    value: |
+      Спасибо за репорт! Чем точнее описание, тем быстрее починим.
+
+  - type: dropdown
+    id: mode
+    attributes:
+      label: Режим
+      options:
+        - Локальный (без регистрации)
+        - Облако (Supabase)
+        - Не знаю
+    validations:
+      required: true
+
+  - type: input
+    id: browser
+    attributes:
+      label: Браузер / ОС
+      placeholder: "Chrome 131 / macOS, Safari iOS 18, …"
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Шаги воспроизведения
+      placeholder: |
+        1. Открыть …
+        2. Нажать …
+        3. Увидеть …
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Ожидалось
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Получилось
+    validations:
+      required: true
+
+  - type: textarea
+    id: extra
+    attributes:
+      label: Дополнительно
+      description: Скрин, консоль (F12), версия после hard refresh
+    validations:
+      required: false

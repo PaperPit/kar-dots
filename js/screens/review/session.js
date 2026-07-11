@@ -7,11 +7,13 @@ import { playLessonCompleteFromStore } from '../../lib/sounds.js';
 import { nav } from '../../ui/navigation.js';
 import { cardDialog } from '../card-editor/index.js';
 import { attachSwipeGrades } from '../../ui/swipe-grades.js';
-import { cardHasCheckableAnswer } from '../../lib/answer-check.js';
+import { cardHasCheckableAnswer, getExpectedAnswer } from '../../lib/answer-check.js';
+import { canBuildCloze } from '../../lib/cloze.js';
 import { speechRecognitionSupported } from '../../lib/speech-input.js';
 import { createFlipModeCard } from './modes/flip.js';
 import { createTypeModeCard } from './modes/type.js';
 import { createVoiceModeCard } from './modes/voice.js';
+import { createClozeModeCard } from './modes/cloze.js';
 import { createMatchRound, pickMatchBatch, MIN_BATCH, BATCH_SIZE, COMBO_MATCH_BATCH } from './modes/match.js';
 import { finishProgressAnswered } from '../../lib/review-progress.js';
 import {
@@ -92,10 +94,21 @@ export function runReviewSession(ctx) {
     ctx.stage.append(box);
   }
 
+  function cardWorksInMode(card, side) {
+    if (!cardHasCheckableAnswer(card, side)) return false;
+    if (ctx.mode === 'cloze') {
+      return canBuildCloze(getExpectedAnswer(card, side));
+    }
+    return true;
+  }
+
   function skipUncheckableFromHead() {
     const side = pickSide();
-    while (ctx.queue.length && !cardHasCheckableAnswer(ctx.queue[0], side)) {
-      toast(side === 'front' ? 'Нет перевода для проверки — пропуск' : 'Нет термина для проверки — пропуск', 'error');
+    while (ctx.queue.length && !cardWorksInMode(ctx.queue[0], side)) {
+      const msg = ctx.mode === 'cloze'
+        ? 'Слишком короткий ответ для пропусков — пропуск'
+        : (side === 'front' ? 'Нет перевода для проверки — пропуск' : 'Нет термина для проверки — пропуск');
+      toast(msg, 'error');
       ctx.queue.shift();
     }
   }
@@ -176,14 +189,20 @@ export function runReviewSession(ctx) {
     let widget;
     if (activeMode === 'type') {
       ctx.speakBtn.style.display = store.settings.tts !== false ? '' : 'none';
-      ctx.speakBtn.onclick = () => {
-        if (!speakCardSide(card, promptSide)) toast('Нет текста для озвучки', 'error');
+      ctx.speakBtn.onclick = async () => {
+        if (!(await speakCardSide(card, promptSide))) toast('Нет текста для озвучки', 'error');
       };
       widget = createTypeModeCard(card, { promptSide, onSuccess, onFail, getSettings: () => store.settings });
+    } else if (activeMode === 'cloze') {
+      ctx.speakBtn.style.display = store.settings.tts !== false ? '' : 'none';
+      ctx.speakBtn.onclick = async () => {
+        if (!(await speakCardSide(card, promptSide))) toast('Нет текста для озвучки', 'error');
+      };
+      widget = createClozeModeCard(card, { promptSide, onSuccess, onFail, getSettings: () => store.settings });
     } else if (activeMode === 'voice') {
       ctx.speakBtn.style.display = store.settings.tts !== false ? '' : 'none';
-      ctx.speakBtn.onclick = () => {
-        if (!speakCardSide(card, promptSide)) toast('Нет текста для озвучки', 'error');
+      ctx.speakBtn.onclick = async () => {
+        if (!(await speakCardSide(card, promptSide))) toast('Нет текста для озвучки', 'error');
       };
       widget = createVoiceModeCard(card, { promptSide, onSuccess, onFail, getSettings: () => store.settings });
     } else {
@@ -209,7 +228,7 @@ export function runReviewSession(ctx) {
         renderGrades(ctx, card, grades);
       },
       onFlip: flipSide => {
-        if (store.settings.tts !== false && store.settings.ttsAuto) speakCardSide(card, flipSide);
+        if (store.settings.tts !== false && store.settings.ttsAuto) void speakCardSide(card, flipSide);
       },
       onGradeKey: (key, gradeRow) => {
         const btns = gradeRow.querySelectorAll('.grade-btn');
@@ -218,8 +237,8 @@ export function runReviewSession(ctx) {
       },
       onGradeDir: dir => submitGrade(ctx, card, gradePayload(ctx.algo, dir === 'right'), dir, { flipGrade: true }),
     });
-    ctx.speakBtn.onclick = () => {
-      if (!speakCardSide(card, getVisibleSide())) toast('Нет текста для озвучки', 'error');
+    ctx.speakBtn.onclick = async () => {
+      if (!(await speakCardSide(card, getVisibleSide()))) toast('Нет текста для озвучки', 'error');
     };
     attachSwipeGrades(box, {
       cardEl: swipeWrap,
@@ -263,7 +282,7 @@ export function runReviewSession(ctx) {
     if (ctx.mode === 'match') {
       return `Пары с первой попытки: ${ctx.stats.firstTryOk} из ${ctx.sessionTotal}`;
     }
-    if (ctx.mode === 'flip' || ctx.mode === 'type' || ctx.mode === 'voice' || ctx.mode === 'combo') {
+    if (ctx.mode === 'flip' || ctx.mode === 'type' || ctx.mode === 'cloze' || ctx.mode === 'voice' || ctx.mode === 'combo') {
       return `Верно с первой попытки: ${ctx.stats.firstTryOk} из ${ctx.sessionTotal}`;
     }
     return null;

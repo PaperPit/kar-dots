@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * Локальный dev-сервер: статика + Netlify Functions
- * (/api/yt-video, /api/yt-generate и фоновая yt-transcribe-background).
+ * (/api/yt-video, /api/yt-generate — транскрипт через Supadata).
  * Заменяет python -m http.server для разработки с YouTube-импортом.
  *
  * Запуск: npm run dev  (сначала один раз npm install)
@@ -55,11 +55,12 @@ function loadDotEnv() {
 
 loadDotEnv();
 
-let ytVideo, ytGenerate, ytTranscribeBg;
+let ytVideo, ytTranscribeBg, ttsFn;
 try {
   ({ default: ytVideo } = await import('../netlify/functions/yt-video.mjs'));
-  ({ default: ytGenerate } = await import('../netlify/functions/yt-generate.mjs'));
+  await import('../netlify/functions/yt-generate.mjs');
   ({ default: ytTranscribeBg } = await import('../netlify/functions/yt-transcribe-background.mjs'));
+  ({ default: ttsFn } = await import('../netlify/functions/tts.mjs'));
 } catch (e) {
   if (e.code === 'ERR_MODULE_NOT_FOUND' && String(e.message).includes('@netlify/blobs')) {
     console.error('\nНе найден пакет @netlify/blobs — запусти сначала:  npm install\n');
@@ -68,12 +69,23 @@ try {
   throw e;
 }
 
-const API = {
-  '/api/yt-video': ytVideo,
-  '/api/yt-generate': ytGenerate,
-  // фоновую функцию yt-video вызывает сама по этому пути (как на Netlify)
-  '/.netlify/functions/yt-transcribe-background': ytTranscribeBg,
+const API_STATIC = {
+  '/api/yt-video': () => ytVideo,
+  '/api/tts': () => ttsFn,
+  '/.netlify/functions/yt-transcribe-background': () => ytTranscribeBg,
 };
+
+/** yt-generate часто меняется — в dev перечитываем модуль на каждый запрос. */
+async function getYtGenerateHandler() {
+  const mod = await import(`../netlify/functions/yt-generate.mjs?dev=${Date.now()}`);
+  return mod.default;
+}
+
+async function resolveApiHandler(pathname) {
+  if (pathname === '/api/yt-generate') return getYtGenerateHandler();
+  const get = API_STATIC[pathname];
+  return get ? get() : null;
+}
 
 function readBody(req) {
   return new Promise((resolve, reject) => {
@@ -117,7 +129,7 @@ const server = http.createServer(async (req, res) => {
   const port = server.address()?.port || PREFERRED_PORT;
   try {
     const pathname = new URL(req.url, `http://${req.headers.host || 'localhost'}`).pathname;
-    const handler = API[pathname];
+    const handler = await resolveApiHandler(pathname);
     if (handler) {
       const body = await readBody(req);
       await sendWebResponse(await handler(toWebRequest(req, body, port)), res);
@@ -204,4 +216,4 @@ function printPortHelp(port) {
 
 const boundPort = await startServer();
 console.log(`КАР-точки dev → http://localhost:${boundPort}`);
-console.log('  YouTube API: /api/yt-video, /api/yt-generate (+ фоновая расшифровка)');
+console.log('  API: /api/yt-video, /api/yt-generate, /api/tts');

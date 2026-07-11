@@ -1,0 +1,53 @@
+name: 💡 Идея / фича
+description: Предложить улучшение или направление развития
+title: "[Feature]: "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    value: |
+      Опишите **задачу пользователя**, а не только решение. Смотрите также [ROADMAP.md](https://github.com/PaperPit/kar-dots/blob/main/ROADMAP.md).
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Какую проблему решаем?
+      placeholder: "Когда я …, мне не хватает …"
+    validations:
+      required: true
+
+  - type: textarea
+    id: solution
+    attributes:
+      label: Предлагаемое решение
+    validations:
+      required: false
+
+  - type: dropdown
+    id: audience
+    attributes:
+      label: Кому это важнее всего?
+      options:
+        - Изучающим языки
+        - Готовящимся к экзаменам / терминам
+        - Преподавателям
+        - Всем
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: help
+    attributes:
+      label: Готовность помочь
+      options:
+        - label: Могу протестировать beta
+          required: false
+        - label: Могу сделать PR (укажите в комментарии scope)
+          required: false
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Альтернативы
+      description: Как люди решают это сейчас (Anki, Quizlet, …)?
+    validations:
+      required: false

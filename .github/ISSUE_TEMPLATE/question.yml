@@ -1,0 +1,24 @@
+name: ❓ Вопрос
+description: Настройка, деплой, как устроено
+title: "[Question]: "
+labels: ["question"]
+body:
+  - type: textarea
+    id: question
+    attributes:
+      label: Вопрос
+    validations:
+      required: true
+
+  - type: dropdown
+    id: topic
+    attributes:
+      label: Тема
+      options:
+        - Установка / деплой
+        - Supabase / облако
+        - YouTube-импорт
+        - Разработка / архитектура
+        - Другое
+    validations:
+      required: true

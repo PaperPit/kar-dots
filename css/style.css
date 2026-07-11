@@ -297,8 +297,13 @@ textarea.input { resize: vertical; min-height: 72px; }
   gap: 10px;
   margin-bottom: 6px;
 }
-.field-label-row label { margin-bottom: 0; }
-.field-label-row .rich-toolbar { margin-bottom: 0; }
+.field-label-row label { margin-bottom: 0; flex-shrink: 0; }
+.field-label-row .rich-toolbar {
+  margin-bottom: 0;
+  flex-wrap: nowrap;
+  flex-shrink: 0;
+}
+.field-label-row .rich-btn { flex-shrink: 0; }
 
 
 .page-head { display: flex; align-items: center; gap: 12px; margin: 4px 0 20px; flex-wrap: nowrap; }
@@ -649,7 +654,27 @@ html.motion-ui .toast.show { opacity: 1; transform: none; }
 .study-answer-input { width: 100%; margin-bottom: 10px; font-size: 17px; }
 .study-actions { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
 .study-check-btn { min-width: 140px; }
-.study-voice-card, .study-type-card { max-width: 520px; margin: 0 auto; position: relative; }
+.study-voice-card, .study-type-card, .study-cloze-card { max-width: 520px; margin: 0 auto; position: relative; }
+.study-cloze-text {
+  font-size: clamp(1.25rem, 4.5vw, 1.65rem);
+  font-weight: 650;
+  line-height: 1.45;
+  text-align: center;
+  margin: 0 0 14px;
+  padding: 14px 12px;
+  border-radius: 12px;
+  background: var(--bg-sunken);
+  border: 1px solid var(--line);
+  word-break: break-word;
+}
+.study-cloze-blank {
+  display: inline-block;
+  min-width: 0.55em;
+  color: var(--accent);
+  border-bottom: 2.5px solid var(--accent);
+  margin: 0 0.04em;
+  vertical-align: baseline;
+}
 .study-voice-card:focus,
 .study-voice-card:focus-visible {
   outline: none;

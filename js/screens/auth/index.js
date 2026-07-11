@@ -63,7 +63,7 @@ export function renderAuth(busyMsg) {
       ]
     : [
         el('p', { class: 'modal-text modal-text-flush' },
-          'Облачный режим пока не настроен. Скопируйте js/config.example.js → js/config.js и заполните ключи Supabase (см. README.md).'),
+          'Облачный режим пока не настроен. Скопируйте js/config.example.js → js/config.js и заполните ключи Supabase (см. docs/USER-GUIDE.md).'),
       ]
   );
 

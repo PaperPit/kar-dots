@@ -61,7 +61,7 @@ npm install && npm run dev   # http://localhost:8080
 
 ## Скриншоты
 
-| Главная — коробки и календарь | Папка и карточки | Режимы повторения | Настройки SRS |
+| Главная — коробки, drag-and-drop, тёмная тема | Папка и карточки | Режимы повторения | Настройки SRS |
 |:---:|:---:|:---:|:---:|
 | ![Главная](docs/screenshots/home.png) | ![Папка](docs/screenshots/folder.png) | ![Режимы](docs/screenshots/review-modes.png) | ![Настройки](docs/screenshots/settings.png) |
 
@@ -96,15 +96,16 @@ npm install && npm run dev   # http://localhost:8080
 
 ### Карточки и контент
 - Лицо / оборот с **определением** и **описанием**, rich-text (жирный, ссылка, подсветка)
-- Картинки на любой стороне, drag-and-drop
-- Папки с цветами и иконками, **коробки** для групп папок
+- Картинки на любой стороне, drag-and-drop; **поиск стоковых фото и GIF** (Openverse, Pixabay, Giphy)
+- **Просмотр карточки** перед сохранением (flip-превью в редакторе)
+- Папки с цветами и иконками, **коробки** для групп папок; **перетаскивание папок мышью** в коробку и обратно
 - Массовый импорт (`слово — перевод`), автоперевод RU↔EN, экспорт/импорт JSON
 - **Карточки из YouTube** — субтитры + LLM (Gemini / Groq), см. [docs/youtube-import-setup.md](docs/youtube-import-setup.md)
 - Готовые **паки слов** в `packs/`
 
 ### Повторение (SRS)
 - Алгоритмы: **SM-2**, **FSRS**, **коробки Лейтнера** (прогресс каждого хранится отдельно)
-- Режимы: классика, **ввод ответа**, **пропуски (cloze)**, голос, **пары**, микс
+- Режимы: классика, **ввод ответа**, **пропуски (cloze)** с inline-полями, голос, **пары**, микс
 - Лимит новых в день, направление лицо↔оборот, календарь активности
 - Озвучка через **Web Speech API**, выбор голосов RU/EN
 
@@ -112,8 +113,9 @@ npm install && npm run dev   # http://localhost:8080
 - **Self-hosted**: статика на любом HTTPS-хостинге — ваш URL для себя и друзей
 - **PWA**: офлайн-кэш, установка на iOS/Android
 - **Локальный режим** (IndexedDB) — без регистрации, данные только в браузере
-- **Облако** (ваш Supabase): аккаунты, sync, изоляция данных по пользователю
-- Тёмная тема по системе, клавиатура и свайпы на review
+- **Облако** (ваш Supabase): аккаунты, sync, изоляция данных по пользователю; картинки в Storage
+- **Светлая и тёмная тема** — переключатель в шапке, сохраняется в браузере
+- Клавиатура и свайпы на review; увеличенная карточка на десктопе
 
 ---
 
@@ -197,7 +199,7 @@ tests/                  — unit-тесты
 
 **KAR-dots** is a **self-hosted, open-source** flashcard PWA for personal use. Deploy it on Netlify, Vercel, or your own server — share the link with friends; each person gets a private collection (optional Supabase auth). Not a commercial SaaS: you own the instance and the data.
 
-Features: SM-2, FSRS, Leitner; typing, cloze, voice, matching; YouTube import; offline PWA. Vanilla JS, MIT license.
+Features: SM-2, FSRS, Leitner; typing, cloze, voice, matching; YouTube import; stock images; drag-and-drop folders into boxes; light/dark theme; offline PWA. Vanilla JS, MIT license.
 
 See [docs/DEPLOY.md](docs/DEPLOY.md) to deploy. Ideas welcome: [CONTRIBUTING.md](CONTRIBUTING.md), [ROADMAP.md](ROADMAP.md).
 

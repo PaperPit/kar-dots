@@ -5,6 +5,7 @@ import { brandMark, svgNode } from './helpers.js';
 import { nav } from './navigation.js';
 import { syncRavenEggScreen, tryRavenEggClick } from '../lib/raven-easter-egg.js';
 import { animateViewIn, staggerIn } from '../lib/motion-ui.js';
+import { createThemeToggle } from './theme-toggle.js';
 
 async function openStudyModePicker() {
   const { studyModePicker } = await import('../screens/review/mode-picker.js');
@@ -44,12 +45,15 @@ export function shell(viewName, content, prependToMain) {
           nav('#home');
         },
       }),
-      el('nav', { class: 'nav-desktop' }, tabs.map(t =>
-        el('button', {
-          class: 'nav-btn' + (viewName === t.id ? ' active' : ''),
-          onclick: () => (t.onclick ? t.onclick() : nav(t.hash)),
-        }, [t.label, t.badge ? el('span', { class: 'badge' }, t.badge) : null])
-      )),
+      el('div', { class: 'header-actions' }, [
+        el('nav', { class: 'nav-desktop' }, tabs.map(t =>
+          el('button', {
+            class: 'nav-btn' + (viewName === t.id ? ' active' : ''),
+            onclick: () => (t.onclick ? t.onclick() : nav(t.hash)),
+          }, [t.label, t.badge ? el('span', { class: 'badge' }, t.badge) : null])
+        )),
+        createThemeToggle(),
+      ]),
     ])
   );
 

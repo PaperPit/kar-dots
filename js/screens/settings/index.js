@@ -12,6 +12,7 @@ import { buildDataGroup } from './sections/data.js';
 import { buildAccountGroup } from './sections/account.js';
 import { buildStatsGroup } from './sections/stats.js';
 import { buildIntegrationsGroup } from './sections/integrations.js';
+import { buildStockMediaGroup } from './sections/stock-media.js';
 
 export async function renderSettings() {
   await initActivity();
@@ -29,13 +30,14 @@ export async function renderSettings() {
   const soundGroup = buildSoundGroup(s, save);
   const packsGroup = buildPacksGroup();
   const integrationsGroup = buildIntegrationsGroup(s, save);
+  const stockMediaGroup = buildStockMediaGroup(s, save);
   const dataGroup = buildDataGroup(store, route);
   const accGroup = buildAccountGroup(store, sb, setStore, renderAuth, route);
 
   shell('settings', el('div', null, [
     offlineBanner(),
     el('div', { class: 'page-head' }, el('h2', { class: 'page-title' }, 'Настройки')),
-    statsGroup, calendarGroup, algoGroup, soundGroup, packsGroup, integrationsGroup, dataGroup, accGroup,
+    statsGroup, calendarGroup, algoGroup, soundGroup, packsGroup, integrationsGroup, stockMediaGroup, dataGroup, accGroup,
     el('p', { class: 'muted settings-footer' }, 'КАР-точки · ворона помнит всё'),
   ]));
 }

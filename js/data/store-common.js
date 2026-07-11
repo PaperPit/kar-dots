@@ -22,6 +22,10 @@ export const DEFAULT_SETTINGS = {
   geminiApiKey: '',
   /** Личный ключ Groq (резерв генерации) для «Карточки из YouTube». */
   groqApiKey: '',
+  /** Pixabay — поиск фото/иллюстраций для обложек карточек. */
+  pixabayApiKey: '',
+  /** Giphy — GIF и стикеры для обложек карточек. */
+  giphyApiKey: '',
 };
 
 export function uuid() {

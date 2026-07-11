@@ -97,7 +97,9 @@ export function runReviewSession(ctx) {
   function cardWorksInMode(card, side) {
     if (!cardHasCheckableAnswer(card, side)) return false;
     if (ctx.mode === 'cloze') {
-      return canBuildCloze(getExpectedAnswer(card, side));
+      const answer = getExpectedAnswer(card, side);
+      const promptText = getExpectedAnswer(card, side === 'front' ? 'back' : 'front');
+      return canBuildCloze(answer, { promptText });
     }
     return true;
   }

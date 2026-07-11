@@ -6,7 +6,7 @@
   # Ключи Supabase — публичные по дизайну (anon key уезжает в браузер, данные
   # защищает RLS), поэтому исключаем их из сканера секретов. Настоящие секреты
   # (GEMINI_API_KEY, GROQ_API_KEY) сканер продолжает проверять.
-  SECRETS_SCAN_OMIT_KEYS = "SUPABASE_URL,SUPABASE_ANON_KEY"
+  SECRETS_SCAN_OMIT_KEYS = "SUPABASE_URL,SUPABASE_ANON_KEY,PIXABAY_API_KEY,GIPHY_API_KEY"
 
 # Серверная часть импорта из YouTube (ключи — в Environment variables).
 # Транскрипт достаётся напрямую из YouTube (без сторонних сервисов), см.

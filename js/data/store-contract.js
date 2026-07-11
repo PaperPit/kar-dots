@@ -12,6 +12,8 @@
  * @property {string} supadataApiKey
  * @property {string} geminiApiKey
  * @property {string} groqApiKey
+ * @property {string} pixabayApiKey
+ * @property {string} giphyApiKey
  */
 
 /**

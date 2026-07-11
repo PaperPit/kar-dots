@@ -1,7 +1,8 @@
 import { el, toast, spinner } from '../../ui/ui.js';
 import { store } from '../../core/state.js';
+import { openStockImagePicker } from './stock-image-picker.js';
 
-export function imgDrop(side, state) {
+export function imgDrop(side, state, opts = {}) {
   const box = el('div', {
     class: 'img-drop', tabindex: '0', role: 'button',
     'aria-label': 'Добавить картинку: клик — выбрать файл, Ctrl+V — вставить из буфера обмена',
@@ -19,9 +20,22 @@ export function imgDrop(side, state) {
         }, '✕')
       );
     } else {
+      const findBtn = el('button', {
+        type: 'button',
+        class: 'btn secondary stock-find-btn',
+        onclick: e => {
+          e.stopPropagation();
+          openStockImagePicker({
+            initialQuery: opts.suggestQuery?.() || '',
+            getSettings: () => store.settings,
+            onSelect: file => handleFile(file),
+          });
+        },
+      }, 'Найти сток');
       box.append(
         el('span', null, '+ Картинка'),
-        el('span', { class: 'img-drop-hint' }, 'или Ctrl+V'),
+        el('span', { class: 'img-drop-hint' }, 'файл, Ctrl+V или сток'),
+        el('div', { class: 'img-drop-actions' }, [findBtn]),
         input,
       );
     }

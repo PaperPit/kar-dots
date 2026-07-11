@@ -44,6 +44,23 @@ export function cleanSupadataApiKey(raw) {
   return '';
 }
 
+/** Pixabay: 12345678-abcdef… (бесплатно на pixabay.com/api/docs/) */
+export function cleanPixabayApiKey(raw) {
+  const s = strip(raw);
+  if (!s) return '';
+  if (/^[0-9]+-[A-Za-z0-9_-]{10,128}$/.test(s)) return s;
+  if (s.length >= 20 && s.includes('-')) return s;
+  return '';
+}
+
+/** Giphy Developers (developers.giphy.com) */
+export function cleanGiphyApiKey(raw) {
+  const s = strip(raw);
+  if (!s) return '';
+  if (/^[A-Za-z0-9]{16,128}$/.test(s)) return s;
+  return '';
+}
+
 /** @deprecated используй cleanGroqApiKey / cleanGeminiApiKey */
 export function cleanApiKey(raw) {
   return cleanGroqApiKey(raw) || cleanGeminiApiKey(raw);

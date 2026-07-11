@@ -55,12 +55,13 @@ function loadDotEnv() {
 
 loadDotEnv();
 
-let ytVideo, ytTranscribeBg, ttsFn;
+let ytVideo, ytTranscribeBg, ttsFn, stockSearchFn;
 try {
   ({ default: ytVideo } = await import('../netlify/functions/yt-video.mjs'));
   await import('../netlify/functions/yt-generate.mjs');
   ({ default: ytTranscribeBg } = await import('../netlify/functions/yt-transcribe-background.mjs'));
   ({ default: ttsFn } = await import('../netlify/functions/tts.mjs'));
+  ({ default: stockSearchFn } = await import('../netlify/functions/stock-search.mjs'));
 } catch (e) {
   if (e.code === 'ERR_MODULE_NOT_FOUND' && String(e.message).includes('@netlify/blobs')) {
     console.error('\nНе найден пакет @netlify/blobs — запусти сначала:  npm install\n');
@@ -72,6 +73,7 @@ try {
 const API_STATIC = {
   '/api/yt-video': () => ytVideo,
   '/api/tts': () => ttsFn,
+  '/api/stock-search': () => stockSearchFn,
   '/.netlify/functions/yt-transcribe-background': () => ytTranscribeBg,
 };
 
@@ -216,4 +218,4 @@ function printPortHelp(port) {
 
 const boundPort = await startServer();
 console.log(`КАР-точки dev → http://localhost:${boundPort}`);
-console.log('  API: /api/yt-video, /api/yt-generate, /api/tts');
+console.log('  API: /api/yt-video, /api/yt-generate, /api/tts, /api/stock-search');

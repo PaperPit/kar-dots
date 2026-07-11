@@ -8,7 +8,6 @@
 @import 'screens/card-editor.css';
 @import 'screens/review.css';
 @import 'screens/settings.css';
-@import 'screens/youtube-import.css';
 
 :root {
   --bg: #F6F0E6;
@@ -17,16 +16,20 @@
   --paper-deep: #E3D9CC;
   --ink: #2C2219;
   --ink-soft: #6E6052;
-  --ink-faint: #A59484;
+  --ink-faint: #857260; /* контраст 4.49 на bg-raised (было #A59484 — 2.86) */
   --line: #DDD2C4;
   --accent: #C45528;
   --accent-bright: #E06F38;
   --accent-soft: #FAEBE0;
   --terra-deep: #8F3D18;
+  --accent-text: #B04A1F; /* акцент как мелкий текст/ссылки: 5.34 AA */
   --danger: #C4453C;
   --danger-soft: #FBE4E1;
   --ok: #4A8F5D;
   --ok-soft: #E0F0E5;
+  --ok-text: #3E7A4F;     /* зелёный как текст: 5.01 AA */
+  --btn-ink: #fff;        /* текст на залитых акцентом/цветом кнопках */
+  --hl-sky: #E3EEF8;      /* подсветка «небо» в rich-тексте */
   --shadow: 0 1px 3px rgba(44,34,25,.06), 0 6px 20px rgba(44,34,25,.07);
   --shadow-lg: 0 4px 14px rgba(44,34,25,.08), 0 18px 44px rgba(44,34,25,.12);
   --radius: 18px;
@@ -62,30 +65,36 @@
   }
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
+/* Тёмная тема управляется js/lib/theme.js через data-theme (инлайн-скрипт в index.html
+   выставляет её до первой отрисовки), поэтому селектор — по атрибуту, а не по media:
+   иначе ручной переключатель не работал бы. */
+:root[data-theme="dark"] {
+    color-scheme: dark; /* нативные скроллбары, инпуты, автозаполнение */
     --bg: #1A1612;
     --bg-raised: #242018;
     --bg-sunken: #14110E;
     --paper-deep: #2E2820;
     --ink: #F3EBE0;
     --ink-soft: #B8AA9A;
-    --ink-faint: #7A6E62;
+    --ink-faint: #948875; /* контраст 4.66 (было #7A6E62 — 3.27) */
     --line: #3A332B;
     --accent: #E07840;
     --accent-bright: #F09058;
     --accent-soft: #3D2A1C;
     --terra-deep: #C45528;
+    --accent-text: #F09058;
     --danger: #E06D64;
     --danger-soft: #3B2422;
     --ok: #6FBB84;
     --ok-soft: #1F3326;
+    --ok-text: #6FBB84;
+    --btn-ink: #1A1612;   /* тёмный текст на оранжевом: 5.9 против 3.0 у белого */
+    --hl-sky: #263441;
     --shadow: 0 1px 3px rgba(0,0,0,.35), 0 6px 20px rgba(0,0,0,.35);
     --shadow-lg: 0 4px 14px rgba(0,0,0,.45), 0 18px 44px rgba(0,0,0,.5);
     --chip-bg:     color-mix(in srgb, var(--ink) 8%, var(--bg-raised));
     --chip-due-bg: color-mix(in srgb, var(--accent) 22%, var(--bg-raised));
     --chip-new-bg: color-mix(in srgb, var(--ok) 22%, var(--bg-raised));
-  }
 }
 
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
@@ -159,11 +168,43 @@ input, textarea, select { font: inherit; color: inherit; }
 }
 .brand:hover .brand-logo { transform: rotate(-8deg); }
 .brand .kar { color: var(--accent); }
-@media (prefers-color-scheme: dark) {
-  .brand-logo { filter: brightness(1.25) contrast(1.05); }
-}
+[data-theme="dark"] .brand-logo { filter: brightness(1.25) contrast(1.05); }
 
-.nav-desktop { margin-left: auto; display: flex; gap: 4px; }
+.header-actions { margin-left: auto; display: flex; align-items: center; gap: 12px; }
+.nav-desktop { display: flex; gap: 4px; }
+
+/* Переключатель светлой / тёмной темы (js/ui/theme-toggle.js) */
+.theme-toggle {
+  flex: none; position: relative; cursor: pointer; padding: 0;
+  width: 58px; height: 30px;
+  border: 1.5px solid var(--line); border-radius: 999px;
+  background: var(--bg-sunken);
+  transition: background var(--dur) var(--ease), border-color var(--dur) var(--ease);
+}
+.theme-toggle:hover { border-color: var(--accent); }
+.theme-toggle:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+.theme-toggle-track {
+  position: absolute; inset: 0;
+  display: flex; align-items: center; justify-content: space-between; padding: 0 7px;
+}
+.theme-toggle-icon {
+  position: relative; z-index: 1; width: 15px; height: 15px;
+  display: grid; place-items: center; color: var(--ink-faint);
+  transition: color var(--dur) var(--ease), opacity var(--dur) var(--ease);
+}
+.theme-toggle-icon svg { width: 15px; height: 15px; display: block; }
+.theme-toggle-sun { color: var(--accent); }
+.theme-toggle-moon { opacity: .55; }
+.theme-toggle.is-dark .theme-toggle-sun { color: var(--ink-faint); opacity: .55; }
+.theme-toggle.is-dark .theme-toggle-moon { color: var(--accent); opacity: 1; }
+.theme-toggle-knob {
+  position: absolute; top: 50%; left: 3px; z-index: 0;
+  width: 24px; height: 24px; border-radius: 50%;
+  background: var(--bg-raised); box-shadow: 0 1px 3px rgba(0,0,0,.22);
+  transform: translateY(-50%);
+  transition: transform .34s cubic-bezier(.34,1.4,.4,1);
+}
+.theme-toggle.is-dark .theme-toggle-knob { transform: translate(28px, -50%); }
 .nav-btn {
   border: 0; background: none; padding: 8px 14px; border-radius: 999px;
   color: var(--ink-soft); font-weight: 500; cursor: pointer;
@@ -173,7 +214,7 @@ input, textarea, select { font: inherit; color: inherit; }
 .nav-btn:hover { background: var(--bg-sunken); color: var(--ink); }
 .nav-btn.active { background: var(--ink); color: var(--bg); }
 .nav-btn .badge {
-  background: var(--accent); color: #fff; font-size: 12px; font-weight: 700;
+  background: var(--accent); color: var(--btn-ink); font-size: 12px; font-weight: 700;
   border-radius: 999px; padding: 1px 7px; line-height: 1.4;
 }
 .nav-btn.active .badge { background: var(--accent); }
@@ -218,7 +259,7 @@ html.motion-ui .auth-wrap { animation: none; }
 .tab-btn svg { width: 24px; height: 24px; }
 .tab-btn .badge {
   position: absolute; top: 0; right: 8px;
-  background: var(--accent); color: #fff; font-size: 10px; font-weight: 700;
+  background: var(--accent); color: var(--btn-ink); font-size: 10px; font-weight: 700;
   border-radius: 999px; padding: 0 5px; line-height: 1.5; min-width: 15px;
 }
 @media (max-width: 719px) { .nav-desktop { display: none; } }
@@ -237,11 +278,9 @@ html.motion-ui .auth-wrap { animation: none; }
 .btn:active { transform: scale(.96); }
 .btn.primary { background: var(--ink); color: var(--bg); }
 .btn.primary:hover { opacity: .85; }
-.btn.accent { background: var(--terra-deep); color: #fff; }
+.btn.accent { background: var(--terra-deep); color: var(--btn-ink); }
 .btn.accent:hover { opacity: .92; filter: brightness(1.04); }
-@media (prefers-color-scheme: dark) {
-  .btn.accent { background: var(--accent); }
-}
+[data-theme="dark"] .btn.accent { background: var(--accent); }
 .btn.ghost { background: transparent; color: var(--ink-soft); }
 .btn.ghost:hover { background: var(--bg-sunken); color: var(--ink); }
 .btn.secondary {
@@ -254,7 +293,7 @@ html.motion-ui .auth-wrap { animation: none; }
   background: color-mix(in srgb, var(--accent) 12%, var(--accent-soft));
   border-color: color-mix(in srgb, var(--accent) 52%, var(--line));
 }
-.btn.danger { background: var(--danger); color: #fff; }
+.btn.danger { background: var(--danger); color: var(--btn-ink); }
 .btn.danger:hover { opacity: .88; }
 .btn.big { padding: 14px 24px; font-size: 16px; border-radius: 14px; }
 .btn.block { width: 100%; }
@@ -297,13 +336,8 @@ textarea.input { resize: vertical; min-height: 72px; }
   gap: 10px;
   margin-bottom: 6px;
 }
-.field-label-row label { margin-bottom: 0; flex-shrink: 0; }
-.field-label-row .rich-toolbar {
-  margin-bottom: 0;
-  flex-wrap: nowrap;
-  flex-shrink: 0;
-}
-.field-label-row .rich-btn { flex-shrink: 0; }
+.field-label-row label { margin-bottom: 0; }
+.field-label-row .rich-toolbar { margin-bottom: 0; }
 
 
 .page-head { display: flex; align-items: center; gap: 12px; margin: 4px 0 20px; flex-wrap: nowrap; }
@@ -356,7 +390,7 @@ textarea.input { resize: vertical; min-height: 72px; }
 }
 .auth-or { text-align: center; color: var(--ink-faint); font-size: 13px; margin: 18px 0; }
 .auth-note { font-size: 13px; color: var(--ink-faint); text-align: center; margin-top: 10px; }
-.link-btn { border: 0; background: none; color: var(--accent); cursor: pointer; font-weight: 600; padding: 0; }
+.link-btn { border: 0; background: none; color: var(--accent-text); cursor: pointer; font-weight: 600; padding: 0; }
 .link-btn:hover { text-decoration: underline; }
 
 /* --- тосты -------------------------------------------------- */
@@ -376,8 +410,8 @@ textarea.input { resize: vertical; min-height: 72px; }
 .toast.show { opacity: 1; transform: none; }
 html.motion-ui .toast { transition: none; }
 html.motion-ui .toast.show { opacity: 1; transform: none; }
-.toast.error { background: var(--danger); color: #fff; }
-.toast.ok { background: var(--ok); color: #fff; }
+.toast.error { background: var(--danger); color: var(--btn-ink); }
+.toast.ok { background: var(--ok); color: var(--btn-ink); }
 .toast-actionable {
   pointer-events: auto;
   display: flex; align-items: center; gap: 14px;
@@ -654,27 +688,7 @@ html.motion-ui .toast.show { opacity: 1; transform: none; }
 .study-answer-input { width: 100%; margin-bottom: 10px; font-size: 17px; }
 .study-actions { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
 .study-check-btn { min-width: 140px; }
-.study-voice-card, .study-type-card, .study-cloze-card { max-width: 520px; margin: 0 auto; position: relative; }
-.study-cloze-text {
-  font-size: clamp(1.25rem, 4.5vw, 1.65rem);
-  font-weight: 650;
-  line-height: 1.45;
-  text-align: center;
-  margin: 0 0 14px;
-  padding: 14px 12px;
-  border-radius: 12px;
-  background: var(--bg-sunken);
-  border: 1px solid var(--line);
-  word-break: break-word;
-}
-.study-cloze-blank {
-  display: inline-block;
-  min-width: 0.55em;
-  color: var(--accent);
-  border-bottom: 2.5px solid var(--accent);
-  margin: 0 0.04em;
-  vertical-align: baseline;
-}
+.study-voice-card, .study-type-card { max-width: 520px; margin: 0 auto; position: relative; }
 .study-voice-card:focus,
 .study-voice-card:focus-visible {
   outline: none;

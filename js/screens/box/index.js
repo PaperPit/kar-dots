@@ -7,6 +7,8 @@ import { shell, nav, offlineBanner } from '../../ui/shell.js';
 import { backBtn } from '../../ui/navigation.js';
 import { foldersInBox } from '../../data/store-box.js';
 import { folderCardStats, folderCardEl } from '../../ui/folder-cards.js';
+import { attachFolderDraggable, createUnboxDropZone } from '../../ui/folder-drag.js';
+import { route } from '../../core/router.js';
 import { boxDialog, boxDeleteConfirm } from '../home/box-dialog.js';
 import { folderDialog } from '../home/folder-dialog.js';
 
@@ -41,8 +43,22 @@ export async function renderBox(boxId) {
     const stats = await folderCardStats(store, f, budget);
     return { f, stats, i };
   }));
+  const unboxZone = createUnboxDropZone(async folderId => {
+    const folder = store.folders.find(f => f.id === folderId);
+    if (!folder || folder.box_id !== boxId) return;
+    const ok = await store.assignFolderToBox(folderId, null);
+    if (!ok) {
+      toast('Не удалось вынести папку', 'error');
+      return;
+    }
+    toast(`«${folder.name}» вынесена из коробки`);
+    await route();
+  });
+
   for (const { f, stats, i } of rows) {
-    grid.append(folderCardEl(f, stats, i));
+    const card = folderCardEl(f, stats, i);
+    attachFolderDraggable(card, f.id);
+    grid.append(card);
   }
   grid.append(el('button', {
     class: 'add-tile stagger-in',
@@ -59,6 +75,7 @@ export async function renderBox(boxId) {
   shell('home', el('div', null, [
     offlineBanner(),
     head,
+    unboxZone,
     el('div', { class: 'page-head' }, el('h2', { class: 'page-title' }, 'Папки')),
     grid,
     empty,

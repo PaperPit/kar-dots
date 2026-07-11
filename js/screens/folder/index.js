@@ -12,6 +12,10 @@ import { youtubeImportDialog } from './youtube-dialog.js';
 import { studyModePicker } from '../review/mode-picker.js';
 import { isVocabPackFolder } from '../../lib/vocab-packs.js';
 import { route } from '../../core/router.js';
+import { createVirtualList, VIRTUAL_LIST_THRESHOLD } from '../../lib/virtual-list.js';
+
+const CARD_ROW_HEIGHT = 74;
+const CARD_ROW_GAP = 10;
 
 function matchesSearch(card, query) {
   if (!query) return true;
@@ -102,8 +106,72 @@ export async function renderFolder(folderId) {
     filterSeg,
   ]);
 
-  const list = el('div', { class: 'card-list' });
+  const listMount = el('div', { class: 'card-list' });
   const emptyFilter = el('p', { class: 'folder-filter-empty muted hidden' }, 'Ничего не найдено');
+  let virtualList = null;
+
+  function buildFilteredItems() {
+    const q = searchInput.value.trim();
+    const items = [];
+    cards.forEach((c, i) => {
+      if (filterMode === 'due' && !SRS.isReviewable(c, algo, now)) return;
+      if (!matchesSearch(c, q)) return;
+      items.push({ card: c, i });
+    });
+    return items;
+  }
+
+  function updateEmptyState(shown) {
+    emptyFilter.classList.toggle('hidden', shown > 0 || !cards.length);
+    if (shown === 0 && cards.length && (searchInput.value.trim() || filterMode === 'due')) {
+      emptyFilter.textContent = filterMode === 'due' && !searchInput.value.trim()
+        ? 'Сейчас нет карточек к повторению'
+        : 'Ничего не найдено';
+    }
+  }
+
+  function paintListPlain(items) {
+    listMount.innerHTML = '';
+    listMount.className = 'card-list';
+    for (const { card, i } of items) {
+      listMount.append(cardRow(card, i, algo, false));
+    }
+  }
+
+  function paintListVirtual(items, scrollRoot) {
+    if (!virtualList) {
+      virtualList = createVirtualList({
+        scrollRoot,
+        mount: listMount,
+        items,
+        rowHeight: CARD_ROW_HEIGHT,
+        gap: CARD_ROW_GAP,
+        renderRow: ({ card, i }) => cardRow(card, i, algo, true),
+      });
+    } else {
+      virtualList.setItems(items);
+    }
+  }
+
+  function paintList() {
+    const items = buildFilteredItems();
+    updateEmptyState(items.length);
+
+    const useVirtual = cards.length >= VIRTUAL_LIST_THRESHOLD;
+    if (!useVirtual) {
+      virtualList?.destroy();
+      virtualList = null;
+      paintListPlain(items);
+      return;
+    }
+
+    const scrollRoot = listMount.closest('.main') || document.querySelector('.main');
+    if (!scrollRoot) {
+      paintListPlain(items);
+      return;
+    }
+    paintListVirtual(items, scrollRoot);
+  }
 
   function setFilter(mode) {
     filterMode = mode;
@@ -116,24 +184,6 @@ export async function renderFolder(folderId) {
   filterDueBtn.addEventListener('click', () => setFilter('due'));
   searchInput.addEventListener('input', () => paintList());
 
-  function paintList() {
-    const q = searchInput.value.trim();
-    list.innerHTML = '';
-    let shown = 0;
-    cards.forEach((c, i) => {
-      if (filterMode === 'due' && !SRS.isReviewable(c, algo, now)) return;
-      if (!matchesSearch(c, q)) return;
-      list.append(cardRow(c, i, algo));
-      shown++;
-    });
-    emptyFilter.classList.toggle('hidden', shown > 0 || !cards.length);
-    if (shown === 0 && cards.length && (q || filterMode === 'due')) {
-      emptyFilter.textContent = filterMode === 'due' && !q
-        ? 'Сейчас нет карточек к повторению'
-        : 'Ничего не найдено';
-    }
-  }
-
   const wrap = el('div', { class: 'folder-page' + (!cards.length ? ' is-empty' : '') });
   const content = [offlineBanner(), head];
   if (isPack) {
@@ -141,13 +191,16 @@ export async function renderFolder(folderId) {
   }
   content.push(actions);
   if (cards.length) {
-    content.push(toolbar, list, emptyFilter);
+    content.push(toolbar, listMount, emptyFilter);
   }
   content.forEach(node => { if (node) wrap.append(node); });
   shell('home', wrap);
   paintList();
+  if (virtualList) {
+    requestAnimationFrame(() => virtualList.refresh());
+  }
 
-  function cardRow(c, i, algoName) {
+  function cardRow(c, i, algoName, virtual) {
     const img = c.front_img || c.back_img;
     let chip;
     if (SRS.isNew(c, algoName)) chip = el('span', { class: 'srs-chip new' }, 'новая');
@@ -156,11 +209,20 @@ export async function renderFolder(folderId) {
       const d = SRS.dueOf(c, algoName);
       chip = el('span', { class: 'srs-chip' }, 'через ' + SRS.fmtDays(Math.max(1, Math.round((d - Date.now()) / 86400000))));
     }
+    const rowClass = virtual ? 'card-row' : 'card-row stagger-in';
+    const rowStyle = virtual ? null : { '--stagger-delay': Math.min(i * 30, 400) + 'ms' };
     const row = el('div', {
-      class: 'card-row stagger-in', style: { '--stagger-delay': Math.min(i * 30, 400) + 'ms' },
+      class: rowClass,
+      style: rowStyle,
       onclick: () => cardDialog(c.folder_id, c),
     }, [
-      img ? el('img', { class: 'thumb', src: img, alt: '' }) : null,
+      img ? el('img', {
+        class: 'thumb',
+        src: img,
+        alt: '',
+        loading: virtual ? 'lazy' : 'eager',
+        decoding: 'async',
+      }) : null,
       el('div', { class: 'texts' }, [
         el('div', { class: 'front' }, stripHtml(c.front) || '(картинка)'),
         el('div', { class: 'back' }, stripHtml(c.back) || ''),

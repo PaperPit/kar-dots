@@ -9,6 +9,7 @@
     "vendor:motion": "esbuild node_modules/motion/dist/es/mini.mjs --bundle --format=esm --outfile=js/vendor/motion.mjs"
   },
   "dependencies": {
+    "@netlify/blobs": "^8.1.0",
     "motion": "^12.42.2"
   },
   "devDependencies": {

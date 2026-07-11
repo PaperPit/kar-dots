@@ -1,4 +1,4 @@
-const VERSION = 'kar-v12.3';
+const VERSION = 'kar-v12.5';
 
 /** AUTO-GENERATED CORE_FILES — node scripts/generate-sw-files.js */
 const CORE_FILES = [
@@ -58,6 +58,7 @@ const CORE_FILES = [
   'js/lib/ui-clicks.js',
   'js/lib/vocab-packs.js',
   'js/lib/voice-keyboard.js',
+  'js/lib/youtube-import-settings.js',
   'js/lib/youtube-import.js',
   'js/screens/auth/index.js',
   'js/screens/box/index.js',
@@ -85,6 +86,7 @@ const CORE_FILES = [
   'js/screens/settings/sections/algo.js',
   'js/screens/settings/sections/calendar.js',
   'js/screens/settings/sections/data.js',
+  'js/screens/settings/sections/integrations.js',
   'js/screens/settings/sections/packs.js',
   'js/screens/settings/sections/sounds.js',
   'js/screens/settings/sections/stats.js',

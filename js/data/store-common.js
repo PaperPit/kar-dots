@@ -13,6 +13,10 @@ export const DEFAULT_SETTINGS = {
   answerSoundMode: 'both',
   cupMelody: 'show-alert',
   uiClickSound: 'none',
+  /** Личный ключ Google AI Studio для «Карточки из YouTube» (пусто = серверный). */
+  geminiApiKey: '',
+  /** Личный ключ Groq (резерв генерации + расшифровка речи) для «Карточки из YouTube». */
+  groqApiKey: '',
 };
 
 export function uuid() {

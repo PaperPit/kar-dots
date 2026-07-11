@@ -1,6 +1,9 @@
 # Локальные ключи Supabase (скопируйте config.example.js → config.js)
 js/config.js
 
+# Локальные переменные окружения (API-ключи) — не коммитить!
+.env
+
 # Зависимости и сборка
 node_modules/
 
@@ -16,3 +19,7 @@ graphify-out/
 
 # Исходники для scripts/build-vocab-packs.py (скачиваются отдельно)
 scripts/data/
+
+# Резервная копия альтернативной реализации YouTube-импорта (можно удалить после ревью)
+_backup_alt_youtube_impl/
+_to_delete/

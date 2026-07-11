@@ -9,6 +9,7 @@ import {
   parseYouTubeId, collectKnownTerms, isYoutubeCard,
   filterNewCandidates, buildCardDescription, fmtTimestamp,
 } from '../../lib/youtube-import.js';
+import { withApiKeys } from '../../lib/youtube-import-settings.js';
 
 const POLL_MS = 2500;
 const POLL_MAX_MS = 3 * 60 * 1000;
@@ -150,7 +151,7 @@ export function youtubeImportDialog(folderId) {
       let data = await apiJson('/api/yt-video', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ url }),
+        body: JSON.stringify(withApiKeys(store.settings, { url })),
       });
       const video = data.video;
       if (data.pending) {
@@ -172,12 +173,12 @@ export function youtubeImportDialog(folderId) {
       const gen = await apiJson('/api/yt-generate', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({
+        body: JSON.stringify(withApiKeys(store.settings, {
           title: video?.title || '',
           lang: transcript.lang || '',
           mode,
           segments: transcript.segments,
-        }),
+        })),
       });
       if (closed) return;
 

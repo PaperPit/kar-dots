@@ -1,12 +1,26 @@
-// Netlify Function: генерация карточек из транскрипта через Gemini.
+// Netlify Function: генерация карточек из транскрипта. Основной провайдер — Gemini;
+// если он отказал (квота, устаревшая модель, сбой) и настроен GROQ_API_KEY —
+// автоматически повторяем запрос через бесплатный Groq (Llama 3.3 70B).
 // POST { title, lang, mode: 'words'|'phrases'|'both', segments: [{t, text}] }
 //   → { cards: [{ front, back, pos, level, kind, t }] }
 //
-// Ключи: GEMINI_API_KEY (обязательно), GEMINI_MODEL (опционально, по умолчанию gemini-flash-latest —
-// авто-обновляемый алиас на актуальную flash-модель, чтобы не ловить "model no longer available"
-// при следующей смене поколений; см. docs/youtube-import-setup.md).
+// Ключи (личный ключ из payload имеет приоритет над серверным из env):
+//   payload.geminiApiKey | GEMINI_API_KEY — основной провайдер; GEMINI_MODEL
+//     (опционально, по умолчанию gemini-flash-latest — авто-обновляемый алиас,
+//     чтобы не ловить "model no longer available" при смене поколений моделей).
+//   payload.groqApiKey | GROQ_API_KEY — резервный провайдер (без него при отказе
+//     Gemini генерация карточек просто не сработает).
+// Личные ключи задаются в приложении: Настройки → «Карточки из YouTube».
+// См. docs/youtube-import-setup.md.
 
-const DEFAULT_MODEL = 'gemini-flash-latest';
+/** Ключ из payload: только разумный формат, иначе игнорируем (защита заголовка Authorization). */
+export function cleanApiKey(raw) {
+  const s = String(raw || '').trim();
+  return /^[A-Za-z0-9_-]{20,200}$/.test(s) ? s : '';
+}
+
+const DEFAULT_GEMINI_MODEL = 'gemini-flash-latest';
+const GROQ_MODEL = 'llama-3.3-70b-versatile';
 const MAX_TRANSCRIPT_CHARS = 28000;
 const LIMITS = { words: 50, phrases: 30, bothWords: 40, bothPhrases: 20 };
 
@@ -80,7 +94,7 @@ function buildPrompt({ title, lang, mode, transcript }) {
     '- kind: "word" or "phrase".',
     '- t: integer — the [seconds] marker of the line where the item first occurs.',
     '',
-    'Return ONLY a JSON array of objects {front, back, pos, level, kind, t}. No other text.',
+    'Return ONLY a JSON object of the exact shape {"cards": [{front, back, pos, level, kind, t}, ...]}. No other text, no markdown fences.',
     '',
     'TRANSCRIPT:',
     transcript,
@@ -88,20 +102,26 @@ function buildPrompt({ title, lang, mode, transcript }) {
   return parts.join('\n');
 }
 
-const RESPONSE_SCHEMA = {
-  type: 'ARRAY',
-  items: {
-    type: 'OBJECT',
-    properties: {
-      front: { type: 'STRING' },
-      back: { type: 'STRING' },
-      pos: { type: 'STRING' },
-      level: { type: 'STRING' },
-      kind: { type: 'STRING' },
-      t: { type: 'INTEGER' },
-    },
-    required: ['front', 'back', 'kind'],
+const CARD_ITEM_SCHEMA = {
+  type: 'OBJECT',
+  properties: {
+    front: { type: 'STRING' },
+    back: { type: 'STRING' },
+    pos: { type: 'STRING' },
+    level: { type: 'STRING' },
+    kind: { type: 'STRING' },
+    t: { type: 'INTEGER' },
   },
+  required: ['front', 'back', 'kind'],
+};
+
+// Gemini поддерживает responseSchema (валидация формы прямо на стороне модели);
+// Groq/Llama такого не умеет — для него формат задаём только текстом промпта
+// и полагаемся на response_format: json_object (гарантирует валидный JSON, не форму).
+const GEMINI_RESPONSE_SCHEMA = {
+  type: 'OBJECT',
+  properties: { cards: { type: 'ARRAY', items: CARD_ITEM_SCHEMA } },
+  required: ['cards'],
 };
 
 async function callGemini(apiKey, model, prompt, withThinkingConfig) {
@@ -109,7 +129,7 @@ async function callGemini(apiKey, model, prompt, withThinkingConfig) {
     temperature: 0.3,
     maxOutputTokens: 8192,
     responseMimeType: 'application/json',
-    responseSchema: RESPONSE_SCHEMA,
+    responseSchema: GEMINI_RESPONSE_SCHEMA,
   };
   if (withThinkingConfig) generationConfig.thinkingConfig = { thinkingBudget: 0 };
   const res = await fetch(
@@ -128,12 +148,38 @@ async function callGemini(apiKey, model, prompt, withThinkingConfig) {
   return { status: res.status, body };
 }
 
+/** Текст ответа Gemini: конкатенация text-частей первого кандидата. */
+function geminiText(body) {
+  return body?.candidates?.[0]?.content?.parts?.map(p => p.text || '').join('') || '';
+}
+
+async function callGroq(apiKey, prompt) {
+  const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', authorization: `Bearer ${apiKey}` },
+    body: JSON.stringify({
+      model: GROQ_MODEL,
+      temperature: 0.3,
+      max_tokens: 8192,
+      response_format: { type: 'json_object' },
+      messages: [{ role: 'user', content: prompt }],
+    }),
+  });
+  let body = null;
+  try { body = await res.json(); } catch (e) { /* пусто */ }
+  return { status: res.status, body };
+}
+
+function groqText(body) {
+  return body?.choices?.[0]?.message?.content || '';
+}
+
 const VALID_LEVELS = new Set(['A1', 'A2', 'B1', 'B2', 'C1', 'C2']);
 
 function normalizeCards(raw) {
-  if (!Array.isArray(raw)) return [];
+  const list = Array.isArray(raw) ? raw : Array.isArray(raw?.cards) ? raw.cards : [];
   const out = [];
-  for (const c of raw) {
+  for (const c of list) {
     const front = String(c?.front || '').trim();
     const back = String(c?.back || '').trim();
     if (!front || !back) continue;
@@ -211,7 +257,11 @@ export function resolveTimestamps(cards, segments) {
     if (!n) return card;
     let t = null;
     if (card.kind === 'phrase' || n.includes(' ')) {
-      t = findFirst([boundaryRe(n)], true);
+      // сначала ищем фразу целиком внутри одного сегмента (точный таймкод),
+      // и только если не нашли — пробуем склейку с соседним сегментом
+      // (на случай, если фраза разорвана границей субтитров)
+      t = findFirst([boundaryRe(n)], false);
+      if (t === null) t = findFirst([boundaryRe(n)], true);
       if (t === null) {
         // фраза сказана в другой форме («came up with») — ищем место,
         // где рядом встречается больше всего слов фразы
@@ -236,12 +286,17 @@ export function resolveTimestamps(cards, segments) {
 }
 
 export default async function handler(req) {
-  const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey) return err('config', 'GEMINI_API_KEY не настроен на сервере', 500);
   if (req.method !== 'POST') return err('bad-request', 'Ожидается POST', 405);
 
   let payload;
   try { payload = await req.json(); } catch (e) { return err('bad-request', 'Неверный JSON'); }
+
+  // личный ключ из настроек приложения приоритетнее серверного
+  const geminiKey = cleanApiKey(payload.geminiApiKey) || process.env.GEMINI_API_KEY;
+  const groqKey = cleanApiKey(payload.groqApiKey) || process.env.GROQ_API_KEY;
+  if (!geminiKey && !groqKey) {
+    return err('config', 'Нет API-ключа: укажи Gemini или Groq ключ в Настройках → «Карточки из YouTube» (или настрой ключи на сервере)', 401);
+  }
 
   const mode = ['words', 'phrases', 'both'].includes(payload.mode) ? payload.mode : 'both';
   const segments = Array.isArray(payload.segments) ? payload.segments : [];
@@ -255,21 +310,46 @@ export default async function handler(req) {
     transcript,
   });
 
-  const model = process.env.GEMINI_MODEL || DEFAULT_MODEL;
-  let { status, body } = await callGemini(apiKey, model, prompt, true);
-  if (status === 400) {
-    // старые/другие модели могут не знать thinkingConfig — повторяем без него
-    ({ status, body } = await callGemini(apiKey, model, prompt, false));
-  }
-  if (status === 429) return err('quota', 'Квота Gemini исчерпана — попробуй позже', 429);
-  if (status !== 200) {
-    return err('llm-failed', body?.error?.message || `Gemini вернул ошибку (${status})`, 502);
+  let text = null;
+  let lastErr = null;
+
+  // --- основной провайдер: Gemini ---
+  if (geminiKey) {
+    const model = process.env.GEMINI_MODEL || DEFAULT_GEMINI_MODEL;
+    let { status, body } = await callGemini(geminiKey, model, prompt, true);
+    if (status === 400) {
+      // старые/другие модели могут не знать thinkingConfig — повторяем без него
+      ({ status, body } = await callGemini(geminiKey, model, prompt, false));
+    }
+    if (status === 200) {
+      text = geminiText(body);
+    } else if (status === 429) {
+      lastErr = { code: 'quota', message: 'Квота Gemini исчерпана', status: 429 };
+    } else {
+      lastErr = { code: 'llm-failed', message: body?.error?.message || `Gemini вернул ошибку (${status})`, status: 502 };
+    }
   }
 
-  const text = body?.candidates?.[0]?.content?.parts?.map(p => p.text || '').join('') || '';
+  // --- резервный провайдер: Groq (Llama), если Gemini недоступен или не настроен ---
+  if (text === null && groqKey) {
+    const { status, body } = await callGroq(groqKey, prompt);
+    if (status === 200) {
+      text = groqText(body);
+    } else if (status === 429) {
+      lastErr = { code: 'quota', message: 'Квота Gemini и Groq исчерпана — попробуй позже', status: 429 };
+    } else {
+      lastErr = { code: 'llm-failed', message: body?.error?.message || `Groq вернул ошибку (${status})`, status: 502 };
+    }
+  }
+
+  if (text === null) {
+    const e = lastErr || { code: 'llm-failed', message: 'Не удалось сгенерировать карточки', status: 502 };
+    return err(e.code, e.message, e.status);
+  }
+
   let cards;
   try { cards = normalizeCards(JSON.parse(text)); } catch (e) {
-    return err('llm-bad-json', 'Gemini вернул некорректный JSON — попробуй ещё раз', 502);
+    return err('llm-bad-json', 'Модель вернула некорректный JSON — попробуй ещё раз', 502);
   }
   if (!cards.length) return err('no-cards', 'Не удалось выделить лексику из этого видео', 422);
   return json({ cards: resolveTimestamps(cards, segments) });

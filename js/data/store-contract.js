@@ -7,6 +7,8 @@
  * @property {boolean} tts
  * @property {number} ttsRate
  * @property {boolean} ttsAuto
+ * @property {string} geminiApiKey
+ * @property {string} groqApiKey
  */
 
 /**

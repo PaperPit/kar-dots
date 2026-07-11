@@ -5,12 +5,15 @@
 [build.environment]
   # Ключи Supabase — публичные по дизайну (anon key уезжает в браузер, данные
   # защищает RLS), поэтому исключаем их из сканера секретов. Настоящие секреты
-  # (SUPADATA_API_KEY, GEMINI_API_KEY) сканер продолжает проверять.
+  # (GEMINI_API_KEY, GROQ_API_KEY) сканер продолжает проверять.
   SECRETS_SCAN_OMIT_KEYS = "SUPABASE_URL,SUPABASE_ANON_KEY"
 
-# Серверная часть импорта из YouTube (ключи — в Environment variables):
-#   SUPADATA_API_KEY  — dash.supadata.ai (транскрипты)
-#   GEMINI_API_KEY    — aistudio.google.com (генерация карточек)
-#   GEMINI_MODEL      — опционально, по умолчанию gemini-2.5-flash
+# Серверная часть импорта из YouTube (ключи — в Environment variables).
+# Транскрипт достаётся напрямую из YouTube (без сторонних сервисов), см.
+# docs/youtube-import-setup.md.
+#   GEMINI_API_KEY  — aistudio.google.com (основной провайдер генерации карточек)
+#   GEMINI_MODEL    — опционально, по умолчанию gemini-flash-latest
+#   GROQ_API_KEY    — console.groq.com (резерв генерации + распознавание речи
+#                     для роликов без субтитров) — настоятельно рекомендуется
 [functions]
   directory = "netlify/functions"

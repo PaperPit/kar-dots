@@ -121,3 +121,47 @@ input[type="range"].tts-rate { width: 100%; margin: 0; accent-color: var(--accen
 .seg button.active {
   background: var(--bg-raised); color: var(--ink); box-shadow: var(--shadow);
 }
+
+/* --- Настройки → Карточки из YouTube (личные API-ключи) --- */
+.setting-row-stack { flex-direction: column; align-items: stretch; }
+.setting-row-stack .lab { min-width: 0; }
+.integrations-lead { font-size: 13px; line-height: 1.45; margin: 0 0 8px; padding: 0 0 4px; }
+.api-key-block + .api-key-block { border-top: 1px solid var(--line); padding-top: 14px; margin-top: 4px; }
+.api-key-lead { display: block; margin-top: 4px; line-height: 1.45; }
+.api-key-help {
+  margin-top: 10px;
+  font-size: 13px;
+  color: var(--ink-soft);
+  line-height: 1.45;
+}
+.api-key-help summary {
+  cursor: pointer;
+  font-weight: 650;
+  color: var(--accent);
+  user-select: none;
+}
+.api-key-help ol { margin: 8px 0 0 1.1em; padding: 0; }
+.api-key-help li { margin-bottom: 6px; }
+.api-key-help a { color: var(--accent); }
+.api-key-note { margin: 10px 0 0; font-size: 12px; line-height: 1.4; }
+.api-key-field {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+}
+.api-key-input {
+  flex: 1 1 220px;
+  min-width: 0;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 13px;
+}
+.api-key-toggle { flex: none; min-height: 44px; }
+.api-key-status {
+  flex: 1 1 100%;
+  font-size: 12px;
+  font-weight: 650;
+  color: var(--ink-faint);
+}
+.api-key-status.is-set { color: var(--ok); }

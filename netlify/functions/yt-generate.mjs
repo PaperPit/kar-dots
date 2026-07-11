@@ -2,9 +2,11 @@
 // POST { title, lang, mode: 'words'|'phrases'|'both', segments: [{t, text}] }
 //   → { cards: [{ front, back, pos, level, kind, t }] }
 //
-// Ключи: GEMINI_API_KEY (обязательно), GEMINI_MODEL (опционально, по умолчанию gemini-2.5-flash).
+// Ключи: GEMINI_API_KEY (обязательно), GEMINI_MODEL (опционально, по умолчанию gemini-flash-latest —
+// авто-обновляемый алиас на актуальную flash-модель, чтобы не ловить "model no longer available"
+// при следующей смене поколений; см. docs/youtube-import-setup.md).
 
-const DEFAULT_MODEL = 'gemini-2.5-flash';
+const DEFAULT_MODEL = 'gemini-flash-latest';
 const MAX_TRANSCRIPT_CHARS = 28000;
 const LIMITS = { words: 50, phrases: 30, bothWords: 40, bothPhrases: 20 };
 

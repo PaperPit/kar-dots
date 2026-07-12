@@ -2,6 +2,14 @@ import { el } from '../../../ui/ui.js';
 import { route } from '../../../core/router.js';
 import { DEFAULT_SETTINGS } from '../../../data/store-common.js';
 import { segControl } from '../shared.js';
+import {
+  getSpeechVoices,
+  waitForSpeechVoices,
+  listSpeechVoicesForLang,
+  formatSpeechVoiceLabel,
+  speechSynthesisSupported,
+} from '../../../lib/web-speech-tts.js';
+import { previewSpeechVoice } from '../../../ui/tts.js';
 
 const ALGO_DESCRIPTIONS = {
   sm2: 'Классика из Anki. Две кнопки: «Знаю» и «Не знаю». Интервал считается для каждой карточки отдельно — «Не знаю» вернёт её через 10 минут, «Знаю» отодвинет на день и дальше. Простой и привычный режим.',
@@ -10,6 +18,115 @@ const ALGO_DESCRIPTIONS = {
 };
 
 const ALGO_FOOTNOTE = 'При переключении алгоритма старый прогресс не теряется — у SM-2, FSRS и Лейтнера он хранится отдельно.';
+
+function fillVoiceSelect(select, voices, prefix, savedUri) {
+  select.replaceChildren();
+  select.append(el('option', { value: '' }, 'Авто (лучший доступный)'));
+  listSpeechVoicesForLang(voices, prefix).forEach(v => {
+    const opt = el('option', null, formatSpeechVoiceLabel(v));
+    opt.value = v.voiceURI;
+    select.append(opt);
+  });
+  const uri = String(savedUri || '').trim();
+  select.value = uri && [...select.options].some(o => o.value === uri) ? uri : '';
+}
+
+function buildSpeechVoiceRow(s, save, ttsEnabled) {
+  const ruSelect = el('select', { class: 'input speech-voice-select', disabled: !ttsEnabled });
+  const enSelect = el('select', { class: 'input speech-voice-select', disabled: !ttsEnabled });
+  const ruPreview = el('button', {
+    type: 'button',
+    class: 'btn ghost speech-preview-btn',
+    title: 'Прослушать «Привет»',
+    onclick: () => previewSpeechVoice('ru-RU'),
+  }, '▶ Привет');
+  const enPreview = el('button', {
+    type: 'button',
+    class: 'btn ghost speech-preview-btn',
+    title: 'Прослушать «Hello»',
+    onclick: () => previewSpeechVoice('en-US'),
+  }, '▶ Hello');
+  const hintEl = el('div', { class: 'speech-voice-hint muted' }, '');
+
+  function refreshHint() {
+    if (!speechSynthesisSupported()) {
+      hintEl.textContent = 'Speech Synthesis недоступен в этом браузере.';
+      return;
+    }
+    const n = getSpeechVoices().length;
+    hintEl.textContent = n
+      ? `Системных голосов: ${n}. «Авто» выбирает лучший для языка текста.`
+      : 'Голоса загружаются… обновите страницу, если список пуст.';
+  }
+
+  function repopulate() {
+    const voices = getSpeechVoices();
+    fillVoiceSelect(ruSelect, voices, 'ru', s.ttsVoiceRu);
+    fillVoiceSelect(enSelect, voices, 'en', s.ttsVoiceEn);
+    refreshHint();
+  }
+
+  async function ensureVoices() {
+    await waitForSpeechVoices();
+    repopulate();
+  }
+
+  void ensureVoices();
+  if (typeof speechSynthesis !== 'undefined') {
+    speechSynthesis.addEventListener('voiceschanged', repopulate);
+  }
+
+  let ttsOn = ttsEnabled;
+
+  function syncUi() {
+    const on = ttsOn;
+    ruSelect.disabled = !on;
+    enSelect.disabled = !on;
+    ruPreview.disabled = !on;
+    enPreview.disabled = !on;
+    refreshHint();
+  }
+
+  ruSelect.addEventListener('change', () => {
+    s.ttsVoiceRu = ruSelect.value;
+    save();
+    if (ttsOn) void previewSpeechVoice('ru-RU');
+  });
+
+  enSelect.addEventListener('change', () => {
+    s.ttsVoiceEn = enSelect.value;
+    save();
+    if (ttsOn) void previewSpeechVoice('en-US');
+  });
+
+  syncUi();
+
+  const node = el('div', { class: 'setting-row setting-row-stack speech-voice-settings' }, [
+    el('div', { class: 'lab' }, [
+      el('b', null, 'Голоса браузера'),
+      el('span', null, 'Speech Synthesis API — без интернета и лимитов. Язык текста определяется автоматически: кириллица → русский, латиница → английский.'),
+      hintEl,
+    ]),
+    el('div', { class: 'speech-voice-row' }, [
+      el('label', { class: 'speech-voice-label' }, 'Русский'),
+      ruSelect,
+      ruPreview,
+    ]),
+    el('div', { class: 'speech-voice-row' }, [
+      el('label', { class: 'speech-voice-label' }, 'Английский'),
+      enSelect,
+      enPreview,
+    ]),
+  ]);
+
+  return {
+    node,
+    setTtsEnabled(on) {
+      ttsOn = on;
+      syncUi();
+    },
+  };
+}
 
 export function buildAlgoGroup(s, save) {
   let ttsAutoInput;
@@ -23,6 +140,8 @@ export function buildAlgoGroup(s, save) {
     save();
   });
 
+  const speechVoiceBlock = buildSpeechVoiceRow(s, save, ttsEnabled);
+
   const ttsInput = el('input', { type: 'checkbox', class: 'chk' });
   ttsInput.checked = ttsEnabled;
   ttsInput.addEventListener('change', () => {
@@ -32,6 +151,7 @@ export function buildAlgoGroup(s, save) {
       s.ttsAuto = false;
       ttsAutoInput.checked = false;
     }
+    speechVoiceBlock.setTtsEnabled(ttsInput.checked);
     save();
   });
 
@@ -80,7 +200,7 @@ export function buildAlgoGroup(s, save) {
     el('div', { class: 'setting-row' }, [
       el('div', { class: 'lab' }, [
         el('b', null, 'Озвучка на повторении'),
-        el('span', null, 'На экране повторения появляется кнопка 🔊. Нажмите — прочитает то, что сейчас на карточке: лицо или оборот (определение и описание). Язык выбирается по тексту: кириллица — русский, латиница — английский. Скорость — ползунком ниже.'),
+        el('span', null, 'На экране повторения появляется кнопка 🔊. Язык — по тексту (кириллица / латиница). Голоса и скорость настраиваются ниже.'),
       ]),
       el('label', { class: 'chk-wrap' }, ttsInput),
     ]),
@@ -115,6 +235,7 @@ export function buildAlgoGroup(s, save) {
         return el('div', { class: 'tts-rate-wrap' }, [val, range]);
       })(),
     ]),
+    speechVoiceBlock.node,
   ]);
 
   if (s.algo === 'leitner') {

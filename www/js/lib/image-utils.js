@@ -1,4 +1,10 @@
 export function resizeImage(file, maxSide = 1024) {
+  if (file.type === 'image/gif') {
+    if (file.size > 4 * 1024 * 1024) {
+      return Promise.reject(new Error('GIF слишком большой (макс. 4 МБ)'));
+    }
+    return Promise.resolve(file);
+  }
   return new Promise((resolve, reject) => {
     const img = new Image();
     const url = URL.createObjectURL(file);

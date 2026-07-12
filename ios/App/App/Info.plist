@@ -47,5 +47,13 @@
 	</array>
 	<key>UIViewControllerBasedStatusBarAppearance</key>
 	<true/>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Микрофон нужен для режима «Голос» — произнесите перевод вслух.</string>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>Распознавание речи нужно для проверки ответа в режиме «Голос».</string>
+	<key>NSCameraUsageDescription</key>
+	<string>Камера нужна, чтобы сфотографировать картинку для карточки.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Доступ к фото нужен, чтобы выбрать картинку для карточки.</string>
 </dict>
 </plist>

@@ -3,9 +3,12 @@ import { buildFaceScroll } from '../../../ui/card-face.js';
 import { detectSpeechLang, haptic } from '../../../ui/helpers.js';
 import { playAnswerFeedback, unlockAnswerAudio } from '../../../lib/sounds.js';
 import { flashStudyCard, showStudyFeedback } from '../../../ui/answer-feedback.js';
-import { checkCardAnswer, getExpectedAnswer, formatExpectedDisplay } from '../../../lib/answer-check.js';
+import { checkCardAnswer, getExpectedAnswer, formatExpectedDisplay, expectedVariants } from '../../../lib/answer-check.js';
 import { listenOnce, speechRecognitionSupported } from '../../../lib/speech-input.js';
 import { isSpaceKey, shouldStartVoiceFromSpace } from '../../../lib/voice-keyboard.js';
+
+const LABEL_START = '🎤 Сказать ответ';
+const LABEL_CHECK = '✓ Проверить';
 
 function buildPrompt(card, promptSide) {
   return el('div', { class: 'study-prompt-card' }, [
@@ -29,7 +32,19 @@ export function createVoiceModeCard(card, ctx) {
     type: 'button',
     class: 'btn accent study-mic-btn',
     disabled: !speechRecognitionSupported(),
-  }, '🎤 Сказать ответ');
+  }, LABEL_START);
+
+  function setMicIdle() {
+    micBtn.textContent = LABEL_START;
+    micBtn.classList.remove('is-listening');
+    micBtn.disabled = answered || !speechRecognitionSupported();
+  }
+
+  function setMicListening() {
+    micBtn.textContent = LABEL_CHECK;
+    micBtn.classList.add('is-listening');
+    micBtn.disabled = false;
+  }
 
   function playFeedback(isCorrect) {
     const settings = getSettings?.();
@@ -42,8 +57,35 @@ export function createVoiceModeCard(card, ctx) {
   function cleanupListen() {
     if (stopListen) { stopListen(); stopListen = null; }
     listening = false;
-    micBtn.classList.remove('is-listening');
-    micBtn.disabled = answered || !speechRecognitionSupported();
+    setMicIdle();
+  }
+
+  function evaluateTranscript(transcript) {
+    cleanupListen();
+    status.textContent = '';
+    if (!transcript?.trim()) {
+      status.textContent = 'Речь не распознана — скажите ответ и нажмите «Проверить»';
+      heard.hidden = true;
+      actions.innerHTML = '';
+      actions.append(micBtn);
+      return;
+    }
+    listens++;
+    const firstTry = listens === 1;
+    const expected = getExpectedAnswer(card, promptSide);
+    const { ok } = checkCardAnswer(transcript, card, promptSide, { fuzzy: true, fuzzyThreshold: 0.75 });
+    if (ok) {
+      answered = true;
+      playFeedback(true);
+      haptic(12);
+      flashStudyCard(prompt, true);
+      showStudyFeedback(heard, true, 'Верно!');
+      setTimeout(() => onSuccess({ firstTry }), 580);
+    } else {
+      playFeedback(false);
+      haptic(4);
+      showWrong(transcript, expected);
+    }
   }
 
   function showWrong(transcript, expected) {
@@ -79,6 +121,11 @@ export function createVoiceModeCard(card, ctx) {
     );
   }
 
+  function finishListen() {
+    if (!listening || answered) return;
+    stopListen?.();
+  }
+
   function startListen() {
     if (answered || listening || !speechRecognitionSupported()) return;
     const settings = getSettings?.();
@@ -88,55 +135,45 @@ export function createVoiceModeCard(card, ctx) {
     const lang = detectSpeechLang(expected);
     status.textContent = 'Слушаю…';
     listening = true;
-    micBtn.classList.add('is-listening');
-    micBtn.disabled = true;
+    setMicListening();
     heard.hidden = true;
     actions.innerHTML = '';
     actions.append(micBtn);
 
     stopListen = listenOnce({
       lang,
-      onResult: (transcript) => {
-        cleanupListen();
-        status.textContent = '';
-        listens++;
-        const firstTry = listens === 1;
-        const { ok } = checkCardAnswer(transcript, card, promptSide, { fuzzy: true, fuzzyThreshold: 0.75 });
-        if (ok) {
-          answered = true;
-          playFeedback(true);
-          haptic(12);
-          flashStudyCard(prompt, true);
-          showStudyFeedback(heard, true, 'Верно!');
-          setTimeout(() => onSuccess({ firstTry }), 580);
-        } else {
-          playFeedback(false);
-          haptic(4);
-          showWrong(transcript, expected);
-        }
+      manualStop: true,
+      contextualStrings: expectedVariants(expected),
+      onInterim: (text) => {
+        status.textContent = `Слушаю: «${text}»`;
       },
+      onResult: evaluateTranscript,
       onError: (err) => {
         cleanupListen();
         status.textContent = err.message;
-        micBtn.disabled = false;
         actions.innerHTML = '';
         actions.append(micBtn);
       },
       onEnd: () => {
         if (!answered && listening) {
-          cleanupListen();
-          status.textContent = 'Пробел или кнопка — начать запись';
-          micBtn.disabled = false;
+          listening = false;
+          stopListen = null;
+          setMicIdle();
         }
       },
     });
   }
 
-  micBtn.addEventListener('click', startListen);
+  function onMicAction() {
+    if (listening) finishListen();
+    else startListen();
+  }
+
+  micBtn.addEventListener('click', onMicAction);
   micBtn.addEventListener('keydown', (e) => {
     if (!isSpaceKey(e)) return;
     e.preventDefault();
-    startListen();
+    onMicAction();
   });
   actions.append(micBtn);
 
@@ -154,7 +191,7 @@ export function createVoiceModeCard(card, ctx) {
     }
     if (!shouldStartVoiceFromSpace(e, box)) return;
     e.preventDefault();
-    startListen();
+    onMicAction();
   };
   document.addEventListener('keydown', onKey, true);
 

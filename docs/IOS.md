@@ -131,7 +131,8 @@ npm run ios:sync
 В Xcode: **File → Packages → Reset Package Caches**, проверьте интернет (нужен доступ к `github.com`).
 
 **Режим «Голос»**  
-Разрешения микрофона добавляются скриптом `patch-ios-plist` при `ios:sync`.
+Разрешения микрофона добавляются скриптом `patch-ios-plist` при `ios:sync`.  
+На iOS/Android используется нативный `@capgo/capacitor-speech-recognition` (SFSpeechRecognizer); в браузере — Web Speech API.
 
 ---
 

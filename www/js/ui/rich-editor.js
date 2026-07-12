@@ -33,9 +33,21 @@ export function richEditor(opts) {
     sel.removeAllRanges();
     sel.addRange(savedRange);
   }
+  /** Ближайшая ссылка <a>, содержащая узел node (или null). */
+  function closestLink(node) {
+    if (!node) return null;
+    if (node.nodeType === Node.TEXT_NODE) node = node.parentNode;
+    const a = node && node.closest ? node.closest('a') : null;
+    return (a && editable.contains(a)) ? a : null;
+  }
+
   function updateToolbarState() {
     try { boldBtn.classList.toggle('active', document.queryCommandState('bold')); } catch (e) {}
     try { underlineBtn.classList.toggle('active', document.queryCommandState('underline')); } catch (e) {}
+    const sel = window.getSelection();
+    const inLink = !!(sel && sel.rangeCount && editable.contains(sel.anchorNode) && closestLink(sel.anchorNode));
+    linkBtn.classList.toggle('active', inLink);
+    linkBtn.title = inLink ? 'Изменить ссылку' : 'Ссылка';
   }
 
   function closeHlMenu() {
@@ -74,6 +86,18 @@ export function richEditor(opts) {
   editable.addEventListener('keyup', () => { saveSelection(); updateToolbarState(); });
   editable.addEventListener('mouseup', () => { saveSelection(); updateToolbarState(); });
   editable.addEventListener('blur', saveSelection);
+
+  // Ctrl/Cmd+клик по ссылке (например, таймкоду YouTube) открывает её,
+  // не мешая обычному клику ставить курсор для редактирования текста.
+  editable.addEventListener('click', e => {
+    if (!(e.ctrlKey || e.metaKey)) return;
+    const a = closestLink(e.target);
+    if (!a) return;
+    const href = a.getAttribute('href');
+    if (!href) return;
+    e.preventDefault();
+    window.open(href, '_blank', 'noopener,noreferrer');
+  });
 
   const boldBtn = el('button', {
     type: 'button', class: 'rich-btn', title: 'Жирный',
@@ -127,6 +151,20 @@ export function richEditor(opts) {
     onclick: e => {
       e.preventDefault();
       closeHlMenu();
+
+      // Курсор/выделение стояли внутри существующей ссылки (например,
+      // таймкода YouTube) — правим её адрес, а не создаём новую.
+      const existing = savedRange ? closestLink(savedRange.startContainer) : null;
+      if (existing) {
+        const url = window.prompt('Адрес ссылки (https://...)', existing.getAttribute('href') || 'https://');
+        if (url === null) return;
+        const trimmed = url.trim();
+        if (trimmed) existing.setAttribute('href', trimmed);
+        editable.focus();
+        updateToolbarState();
+        return;
+      }
+
       editable.focus(); restoreSelection();
       const sel = window.getSelection();
       if (!sel || sel.isCollapsed) { toast('Сначала выделите текст для ссылки', 'error'); return; }

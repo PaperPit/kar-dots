@@ -4,6 +4,7 @@ import { FOLDER_COLORS } from '../../ui/constants.js';
 import { featherIcon, modalHead } from '../../ui/helpers.js';
 import { createIconPicker } from '../../ui/icon-picker.js';
 import { route } from '../../core/router.js';
+import { folderSaveErrorMessage } from '../../lib/folder-errors.js';
 import { normalizeFolderIcon } from '../../lib/folder-icons.js';
 
 export function folderDialog(folder, opts = {}) {
@@ -36,7 +37,7 @@ export function folderDialog(folder, opts = {}) {
         if (folder) await store.updateFolder(folder.id, patch);
         else await store.createFolder(Object.assign({ box_id: opts.box_id || null }, patch));
         m.close(); await route();
-      } catch (e) { toast(e.message || 'Не удалось сохранить папку', 'error'); save.disabled = false; }
+      } catch (e) { toast(folderSaveErrorMessage(e), 'error'); save.disabled = false; }
     },
   }, folder ? 'Сохранить' : 'Создать');
 

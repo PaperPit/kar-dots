@@ -1,64 +1,7 @@
-import { el, toast, confirmDialog, plural } from '../../../ui/ui.js';
+import { el, toast, confirmDialog } from '../../../ui/ui.js';
 import { nav } from '../../../ui/shell.js';
 
-const DEAD_LETTER_LABELS = {
-  createFolder: 'Создание папки',
-  updateFolder: 'Изменение папки',
-  deleteFolder: 'Удаление папки',
-  createBox: 'Создание коробки',
-  updateBox: 'Изменение коробки',
-  deleteBox: 'Удаление коробки',
-  createCard: 'Создание карточки',
-  updateCard: 'Изменение карточки',
-  deleteCard: 'Удаление карточки',
-  saveSettings: 'Сохранение настроек',
-  uploadImage: 'Загрузка картинки',
-};
-
-function fmtFailedAt(ts) {
-  if (!ts) return '';
-  try {
-    return new Date(ts).toLocaleString('ru-RU', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
-  } catch (e) { return ''; }
-}
-
-function buildDeadLettersBlock(store, route, items) {
-  return el('div', { class: 'setting-row dead-letter-block' }, [
-    el('div', { class: 'lab' }, [
-      el('b', null, `Не сохранилось в облаке: ${items.length} ${plural(items.length, 'изменение', 'изменения', 'изменений')}`),
-      el('span', null, 'Это не проблема сети — сервер отклонил операцию. Повторите попытку или отмените правку.'),
-    ]),
-    el('div', { class: 'dead-letter-list' }, items.map(item => el('div', { class: 'dead-letter-row' }, [
-      el('div', { class: 'dead-letter-info' }, [
-        el('b', null, DEAD_LETTER_LABELS[item.op] || item.op),
-        el('span', null, fmtFailedAt(item.failed_at)),
-        item.error ? el('span', { class: 'dead-letter-error' }, item.error) : null,
-      ]),
-      el('div', { class: 'dead-letter-actions' }, [
-        el('button', {
-          class: 'btn ghost',
-          onclick: async () => {
-            await store.retryDeadLetterSync(item.id);
-            toast('Отправлено ещё раз', 'ok');
-            await route();
-          },
-        }, 'Повторить'),
-        el('button', {
-          class: 'btn ghost',
-          onclick: async () => {
-            const yes = await confirmDialog('Отменить это изменение?', 'Оно не будет сохранено в облаке.', 'Отменить');
-            if (!yes) return;
-            await store.discardDeadLetterSync(item.id);
-            toast('Изменение отменено', 'ok');
-            await route();
-          },
-        }, 'Отменить'),
-      ]),
-    ]))),
-  ]);
-}
-
-export async function buildAccountGroup(store, sb, setStore, renderAuth, route) {
+export function buildAccountGroup(store, sb, setStore, renderAuth, route) {
   const isCloud = store.kind === 'cloud';
   const accGroup = el('div', { class: 'settings-group' }, [
     el('h4', null, 'Режим работы'),
@@ -103,11 +46,6 @@ export async function buildAccountGroup(store, sb, setStore, renderAuth, route) 
         },
       }, 'Синхронизировать'),
     ]));
-
-    const deadLetters = typeof store.deadLetters === 'function' ? await store.deadLetters() : [];
-    if (deadLetters.length) {
-      accGroup.append(buildDeadLettersBlock(store, route, deadLetters));
-    }
   }
 
   return accGroup;

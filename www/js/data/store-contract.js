@@ -7,6 +7,13 @@
  * @property {boolean} tts
  * @property {number} ttsRate
  * @property {boolean} ttsAuto
+ * @property {string} ttsVoiceRu
+ * @property {string} ttsVoiceEn
+ * @property {string} supadataApiKey
+ * @property {string} geminiApiKey
+ * @property {string} groqApiKey
+ * @property {string} pixabayApiKey
+ * @property {string} giphyApiKey
  */
 
 /**
@@ -44,10 +51,6 @@
  * @property {(text: string) => Promise<void>} importJSON
  * @property {() => Promise<number>} pendingSync
  * @property {() => Promise<{ok: number, fail: number}>} flushSync
- * @property {() => {offline: boolean, deadLetterCount: number}} syncHealth Синхронный снимок для баннеров.
- * @property {() => Promise<Object[]>} deadLetters Операции, которые не удалось отправить (не сетевая ошибка).
- * @property {(id: number) => Promise<boolean>} retryDeadLetterSync Вернуть операцию обратно в очередь.
- * @property {(id: number) => Promise<void>} discardDeadLetterSync Отменить операцию навсегда.
  */
 
 import { uuid } from './store-common.js';
@@ -55,14 +58,12 @@ import { normalizeFolderIcon } from '../lib/folder-icons.js';
 
 /** Поля новой папки — общие для local и cloud. */
 export function buildFolderRecord(data, extras = {}) {
-  const now = Date.now();
   return {
     id: uuid(),
     name: data.name,
     color: data.color || '#7C8DB5',
     icon: normalizeFolderIcon(data.icon),
-    created_at: now,
-    updated_at: now,
+    created_at: Date.now(),
     pack_id: data.pack_id || null,
     pack_version: data.pack_version ?? null,
     box_id: data.box_id || null,
@@ -72,25 +73,21 @@ export function buildFolderRecord(data, extras = {}) {
 
 /** Поля новой коробки — группа папок по теме. */
 export function buildBoxRecord(data, extras = {}) {
-  const now = Date.now();
   return {
     id: uuid(),
     name: data.name,
     color: data.color || '#8F3D18',
     icon: normalizeFolderIcon(data.icon),
-    created_at: now,
-    updated_at: now,
+    created_at: Date.now(),
     ...extras,
   };
 }
 
 /** Поля новой карточки — общие для local и cloud. */
 export function buildCardRecord(data, extras = {}) {
-  const now = Date.now();
   return Object.assign({
     id: uuid(),
-    created_at: now,
-    updated_at: now,
+    created_at: Date.now(),
     front: '',
     back: '',
     description: '',

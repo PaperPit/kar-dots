@@ -30,7 +30,10 @@ export function createFlipCard(card, firstSide, opts) {
   const hint = el('div', { class: 'flip-hint' }, 'Нажмите на карточку, чтобы перевернуть');
   const grades = el('div', { class: 'grade-row' });
   const swipeWrap = el('div', { class: 'flip-swipe-wrap' }, [flip]);
+  // декоративные слои-«стопка» позади карточки: создают ощущение колоды
   const swipeArea = el('div', { class: 'flip-swipe-area' }, [
+    el('div', { class: 'flip-stack flip-stack-2', 'aria-hidden': 'true' }),
+    el('div', { class: 'flip-stack flip-stack-1', 'aria-hidden': 'true' }),
     swipeWrap,
     el('div', { class: 'swipe-glow swipe-glow-left', 'aria-hidden': 'true' }),
     el('div', { class: 'swipe-glow swipe-glow-right', 'aria-hidden': 'true' }),
@@ -44,6 +47,10 @@ export function createFlipCard(card, firstSide, opts) {
 
   function toggleFlip() {
     flip.classList.toggle('flipped');
+    // перезапуск «нырка» (flipDip в review.css) на НЕ-3D обёртке при каждом перевороте
+    swipeWrap.classList.remove('flip-dip');
+    void swipeWrap.offsetWidth;
+    swipeWrap.classList.add('flip-dip');
     haptic(6);
     if (!gradesShown) {
       gradesShown = true;
@@ -93,13 +100,17 @@ export function createFlipCard(card, firstSide, opts) {
 }
 
 export function sizeFlipCard(flipEl) {
+  const isDesktop = window.matchMedia('(min-width: 720px)').matches;
+  const padY = isDesktop ? 39 : 28;
+  const minBase = isDesktop ? 448 : 320;
+  const vhFactor = isDesktop ? 0.8 : 0.72;
   const faces = flipEl.querySelectorAll('.flip-face');
-  let maxNeeded = 320;
+  let maxNeeded = minBase;
   faces.forEach(face => {
     const scrollBox = face.querySelector('.flip-face-scroll');
     if (!scrollBox) return;
-    maxNeeded = Math.max(maxNeeded, scrollBox.scrollHeight + 28 * 2 + 26);
+    maxNeeded = Math.max(maxNeeded, scrollBox.scrollHeight + padY * 2 + 26);
   });
-  const viewportMax = Math.max(320, Math.round(window.innerHeight * 0.72));
+  const viewportMax = Math.max(minBase, Math.round(window.innerHeight * vhFactor));
   flipEl.style.height = Math.min(maxNeeded, viewportMax) + 'px';
 }

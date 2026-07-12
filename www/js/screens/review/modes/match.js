@@ -1,7 +1,6 @@
 import { el, stripHtml } from '../../../ui/ui.js';
 import { shuffle, haptic } from '../../../ui/helpers.js';
-import { playAnswerFeedback } from '../../../lib/sounds.js';
-import { store } from '../../../core/state.js';
+import { playAnswerFeedbackFromStore } from '../../../lib/sounds.js';
 import { flashMatchPair, flashMatchHint } from '../../../ui/answer-feedback.js';
 
 const BATCH_SIZE = 4;
@@ -77,7 +76,7 @@ export function createMatchRound(cards, ctx) {
     const termEl = termsCol.querySelector(`[data-id="${selectedTerm}"]`);
     const defEl = defsCol.querySelector(`[data-id="${selectedDef}"]`);
     if (selectedTerm === selectedDef) {
-      playAnswerFeedback(true, store?.settings);
+      playAnswerFeedbackFromStore(true);
       haptic(8);
       flashMatchPair(termEl, defEl, true, () => {
         paired.set(selectedTerm, selectedDef);
@@ -101,7 +100,7 @@ export function createMatchRound(cards, ctx) {
       return;
     }
     mistakes.add(selectedTerm);
-    playAnswerFeedback(false, store?.settings);
+    playAnswerFeedbackFromStore(false);
     haptic(4);
     flashMatchPair(termEl, defEl, false, () => {
       selectedTerm = null;

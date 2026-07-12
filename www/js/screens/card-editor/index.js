@@ -4,6 +4,7 @@ import { getTranslateDir, translateText } from '../../lib/translate.js';
 import { createTranslateDirToggle } from '../../ui/translate-dir-toggle.js';
 import { buildCardEditorForm } from './form.js';
 import { saveCard, deleteCardAction } from './actions.js';
+import { openCardPreview } from './card-preview.js';
 
 export function cardDialog(folderId, card, opts = {}) {
   const isEditing = !!card;
@@ -85,13 +86,22 @@ export function cardDialog(folderId, card, opts = {}) {
     }, 'Удалить')
     : null;
 
-  const actionBtns = [
+  const previewBtn = el('button', {
+    type: 'button',
+    class: 'btn card-preview-btn',
+    onclick: () => openCardPreview({ frontRich, defRich, descRich, state }),
+  }, 'Просмотр');
+
+  const actionBtnsEnd = [
     el('button', { type: 'button', class: 'btn secondary', onclick: () => m.close() }, 'Отмена'),
   ];
-  if (saveMoreBtn) actionBtns.push(saveMoreBtn);
-  actionBtns.push(saveBtn);
+  if (saveMoreBtn) actionBtnsEnd.push(saveMoreBtn);
+  actionBtnsEnd.push(saveBtn);
 
-  const actionsRow = el('div', { class: 'modal-actions modal-actions-center' }, actionBtns);
+  const actionsRow = el('div', { class: 'modal-actions modal-actions-split card-editor-actions' }, [
+    previewBtn,
+    el('div', { class: 'modal-actions-end' }, actionBtnsEnd),
+  ]);
 
   const header = isEditing
     ? el('div', { class: 'modal-head modal-head-toolbar' }, [

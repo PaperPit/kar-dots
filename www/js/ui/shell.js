@@ -1,11 +1,11 @@
 import { store, app } from '../core/state.js';
-import { el, plural } from './ui.js';
+import { el } from './ui.js';
 import { ICONS } from './constants.js';
 import { brandMark, svgNode } from './helpers.js';
 import { nav } from './navigation.js';
 import { syncRavenEggScreen, tryRavenEggClick } from '../lib/raven-easter-egg.js';
 import { animateViewIn, staggerIn } from '../lib/motion-ui.js';
-import { schemaOutdatedMessage } from '../data/schema-version.js';
+import { createThemeToggle } from './theme-toggle.js';
 
 async function openStudyModePicker() {
   const { studyModePicker } = await import('../screens/review/mode-picker.js');
@@ -45,12 +45,15 @@ export function shell(viewName, content, prependToMain) {
           nav('#home');
         },
       }),
-      el('nav', { class: 'nav-desktop' }, tabs.map(t =>
-        el('button', {
-          class: 'nav-btn' + (viewName === t.id ? ' active' : ''),
-          onclick: () => (t.onclick ? t.onclick() : nav(t.hash)),
-        }, [t.label, t.badge ? el('span', { class: 'badge' }, t.badge) : null])
-      )),
+      el('div', { class: 'header-actions' }, [
+        el('nav', { class: 'nav-desktop' }, tabs.map(t =>
+          el('button', {
+            class: 'nav-btn' + (viewName === t.id ? ' active' : ''),
+            onclick: () => (t.onclick ? t.onclick() : nav(t.hash)),
+          }, [t.label, t.badge ? el('span', { class: 'badge' }, t.badge) : null])
+        )),
+        createThemeToggle(),
+      ]),
     ])
   );
 
@@ -75,19 +78,6 @@ export function shell(viewName, content, prependToMain) {
 export { nav } from './navigation.js';
 
 export function offlineBanner() {
-  if (!store || store.kind !== 'cloud') return null;
-  const schema = store.schemaStatus?.();
-  if (schema && schema.outdated) {
-    return el('div', { class: 'offline-banner schema-banner' },
-      schemaOutdatedMessage(schema.current, schema.required));
-  }
-  const health = store.syncHealth?.();
-  if (health && health.deadLetterCount > 0) {
-    return el('div', { class: 'offline-banner dead-letter-banner' }, [
-      `Не удалось сохранить в облаке ${health.deadLetterCount} ${plural(health.deadLetterCount, 'изменение', 'изменения', 'изменений')}. `,
-      el('a', { href: '#settings' }, 'Смотреть в настройках'),
-    ]);
-  }
-  if (!health || !health.offline) return null;
+  if (!store || store.kind !== 'cloud' || !store.offline) return null;
   return el('div', { class: 'offline-banner' }, 'Нет сети — изменения сохранятся локально и синхронизируются позже');
 }

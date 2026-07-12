@@ -1,6 +1,15 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
+  <script>
+    (function () {
+      var t = localStorage.getItem('kar_theme');
+      if (t !== 'light' && t !== 'dark') {
+        t = matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+      }
+      document.documentElement.dataset.theme = t;
+    })();
+  </script>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>КАР-точки — запоминай слова</title>
@@ -36,29 +45,6 @@
   <div id="toasts" class="toasts" aria-live="polite"></div>
   <div id="modalRoot"></div>
 
-  <script>
-    (function () {
-      var VER = '12.9';
-      var prev = localStorage.getItem('kar_ver');
-      if (prev === VER) return;
-      localStorage.setItem('kar_ver', VER);
-      var swActive = 'serviceWorker' in navigator && !!navigator.serviceWorker.controller;
-      if (!prev && !swActive) return;
-      var done = function () { location.reload(); };
-      var purge = typeof caches !== 'undefined'
-        ? caches.keys().then(function (ks) { return Promise.all(ks.map(function (k) { return caches.delete(k); })); })
-        : Promise.resolve();
-      if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.getRegistrations()
-          .then(function (rs) { return Promise.all(rs.map(function (r) { return r.unregister(); })); })
-          .then(function () { return purge; })
-          .then(done)
-          .catch(done);
-      } else {
-        purge.then(done).catch(done);
-      }
-    })();
-  </script>
   <script type="module" src="js/app.js"></script>
 </body>
 </html>

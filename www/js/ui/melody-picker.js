@@ -1,5 +1,4 @@
 import { el } from './ui.js';
-import { ensureAudioUnlocked } from '../lib/sounds.js';
 
 /**
  * Компактный выбор мелодии: кнопка → выпадающее меню с ▶ и выбором.
@@ -45,7 +44,6 @@ export function melodyPickerField(opts) {
     }, '▶');
     playBtn.addEventListener('click', (e) => {
       e.stopPropagation();
-      ensureAudioUnlocked();
       opts.play(m.id);
     });
 

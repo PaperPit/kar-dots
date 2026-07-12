@@ -1,4 +1,4 @@
-const VERSION = 'kar-v12.9';
+const VERSION = 'kar-v13.4';
 
 /** AUTO-GENERATED CORE_FILES — node scripts/generate-sw-files.js */
 const CORE_FILES = [
@@ -23,9 +23,7 @@ const CORE_FILES = [
   'js/config.example.js',
   'js/core/router.js',
   'js/core/state.js',
-  'js/core/version.js',
   'js/data/index.js',
-  'js/data/schema-version.js',
   'js/data/srs-meta.js',
   'js/data/srs-query.js',
   'js/data/store-box.js',
@@ -40,6 +38,7 @@ const CORE_FILES = [
   'js/lib/activity.js',
   'js/lib/answer-check.js',
   'js/lib/card-import.js',
+  'js/lib/folder-errors.js',
   'js/lib/folder-icons.js',
   'js/lib/fsrs-engine.js',
   'js/lib/image-utils.js',
@@ -109,6 +108,7 @@ const CORE_FILES = [
   'js/ui/vocab-packs-dialog.js',
   'js/vendor/motion.mjs',
   'js/vendor/ts-fsrs.mjs',
+  'js/vendor/capacitor-speech-recognition.mjs',
   'icons/Bird cage.svg',
   'icons/Scarecrow.svg',
   'icons/The crow with the tombstone.svg',
@@ -169,8 +169,6 @@ self.addEventListener('activate', e => {
 self.addEventListener('fetch', e => {
   const url = new URL(e.request.url);
   if (e.request.method !== 'GET') return;
-  // MP3 через service worker часто ломается (Range-запросы, iOS) — отдаём напрямую браузеру.
-  if (/\.(mp3|wav|ogg|m4a|aac)$/i.test(url.pathname)) return;
   const isStorageImage = url.pathname.includes('/storage/v1/object/public/');
   const isSameOrigin = url.origin === location.origin;
   if (!isSameOrigin && !isStorageImage) return;

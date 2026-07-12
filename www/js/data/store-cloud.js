@@ -8,6 +8,10 @@ import { DEFAULT_SETTINGS, uuid } from './store-common.js';
 import { normalizeFolderRecord, normalizeBoxRecord } from '../lib/folder-icons.js';
 import { resizeImage, blobToDataURL } from '../lib/image-utils.js';
 import {
+  folderSaveErrorMessage, isMissingFolderIconColumnError, isMissingBoxIdColumnError,
+  isMissingBoxesTableError, isMissingBoxIconColumnError, withoutFolderIcon, withoutBoxId,
+} from '../lib/folder-errors.js';
+import {
   buildFolderRecord, buildCardRecord, buildBoxRecord, exportJSONPayload,
 } from './store-contract.js';
 import {
@@ -22,7 +26,8 @@ import {
   SRS_FIELDS, upsertSrsMeta, removeSrsMeta, removeSrsMetaForFolder, countSrsMetaByFolder,
 } from './srs-meta.js';
 import { StoreCache } from './store-cache.js';
-import { REQUIRED_SCHEMA_VERSION, fetchSchemaVersion } from './schema-version.js';
+
+export { folderSaveErrorMessage } from '../lib/folder-errors.js';
 
 export class CloudStore {
   constructor(sb) {
@@ -37,60 +42,19 @@ export class CloudStore {
     this.queue = new SyncQueue();
     this.mirror = null;
     this._onSyncChange = null;
-    this._schemaVersion = REQUIRED_SCHEMA_VERSION;
-    this._schemaOutdated = false;
-    this._deadLetterCount = 0;
+    this._folderIconCloudUnsupported = false;
+    this._boxesCloudUnsupported = false;
+    this._boxIdCloudUnsupported = false;
+    this._boxIconCloudUnsupported = false;
   }
 
   onSyncChange(fn) { this._onSyncChange = fn; }
 
   async _notifySync() {
-    this._deadLetterCount = this.queue.db ? await this.queue.deadLetterCount() : 0;
-    if (this._onSyncChange) this._onSyncChange(await this.pendingSync(), this._offline, this._deadLetterCount);
+    if (this._onSyncChange) this._onSyncChange(await this.pendingSync(), this._offline);
   }
 
   get offline() { return this._offline; }
-
-  /** Состояние схемы облака для UI-баннера. */
-  schemaStatus() {
-    return {
-      current: this._schemaVersion,
-      required: REQUIRED_SCHEMA_VERSION,
-      outdated: !!this._schemaOutdated,
-    };
-  }
-
-  /** Синхронный снимок для баннеров — не требует await. */
-  syncHealth() {
-    return { offline: this._offline, deadLetterCount: this._deadLetterCount };
-  }
-
-  /** Операции, которые не удалось отправить в облако (не сетевая ошибка). */
-  async deadLetters() {
-    if (!this.queue.db) return [];
-    return this.queue.deadLetters();
-  }
-
-  /** Вернуть операцию в очередь и сразу попробовать отправить. */
-  async retryDeadLetterSync(id) {
-    const ok = await this.queue.retryDeadLetter(id);
-    if (ok) {
-      await this._notifySync();
-      if (navigator.onLine && !this._schemaOutdated) await this.flushSync();
-    }
-    return ok;
-  }
-
-  /** Отменить операцию навсегда — она не попадёт в облако. */
-  async discardDeadLetterSync(id) {
-    await this.queue.discardDeadLetter(id);
-    await this._notifySync();
-  }
-
-  /** Можно ли читать напрямую из облака (онлайн, не офлайн, схема актуальна). */
-  _cloudReadable() {
-    return navigator.onLine && !this._offline && !this._schemaOutdated;
-  }
 
   async pendingSync() {
     if (!this.queue.db) return 0;
@@ -100,46 +64,30 @@ export class CloudStore {
   async init() {
     this.mirror = await openMirrorDB();
     await this.queue.init(this.mirror);
+    await this._loadCloudFlags();
     this.queue.onFlush(item => this._executeSyncItem(item));
-    this.queue.onDeadLetter(() => this._notifySync());
     window.addEventListener('online', () => this._onOnline());
     await this._loadData();
   }
 
   async _onOnline() {
     this._offline = false;
-    if (this._schemaOutdated) { this._notifySync(); return; }
     await this.flushSync();
     try { await this._fetchFromCloud(); this._notifySync(); } catch (e) { /* mirror */ }
   }
 
   async flushSync() {
-    if (this._schemaOutdated) return { ok: 0, fail: 0 };
     const r = await this.queue.flush();
     if (r.ok > 0) this._notifySync();
     return r;
   }
 
-  /** Один раз при старте: сверяет версию схемы с нужной. */
-  async _checkSchema() {
-    this._schemaVersion = await fetchSchemaVersion(this.sb);
-    this._schemaOutdated = this._schemaVersion < REQUIRED_SCHEMA_VERSION;
-    return !this._schemaOutdated;
-  }
-
   async _loadData() {
     if (navigator.onLine) {
       try {
-        await this._checkSchema();
-        if (this._schemaOutdated) {
-          // Схема устарела — работаем из зеркала, пишем в очередь,
-          // баннер просит выполнить миграции. Никакого угадывания колонок.
-          await this._loadFromMirror({ offline: false });
-        } else {
-          await this._fetchFromCloud();
-          this._offline = false;
-          await this.flushSync();
-        }
+        await this._fetchFromCloud();
+        this._offline = false;
+        await this.flushSync();
       } catch (e) {
         if (isNetworkError(e)) await this._loadFromMirror();
         else throw e;
@@ -156,10 +104,14 @@ export class CloudStore {
       this.sb.select('folders', 'select=*&order=created_at.asc'),
       this.sb.select('cards', 'select=' + SRS_FIELDS),
       this.sb.select('settings', 'select=*&user_id=eq.' + uid),
-      this.sb.select('boxes', 'select=*&order=created_at.asc'),
+      this._fetchBoxesFromCloud(),
     ]);
     this.folders = folders.map(normalizeFolderRecord);
     this.boxes = boxesRaw.map(normalizeBoxRecord).sort((a, b) => (a.created_at || 0) - (b.created_at || 0));
+    if (folders.some(f => Object.prototype.hasOwnProperty.call(f, 'icon'))) {
+      this._folderIconCloudUnsupported = false;
+      await this._saveCloudFlags();
+    }
     await mirrorReplaceAll(this.mirror, 'folders', folders);
     await mirrorReplaceAll(this.mirror, 'boxes', this.boxes);
     this._srsMeta = srsMeta;
@@ -175,7 +127,27 @@ export class CloudStore {
     this._offline = false;
   }
 
-  async _loadFromMirror({ offline = true } = {}) {
+  async _fetchBoxesFromCloud() {
+    try {
+      const rows = await this.sb.select('boxes', 'select=*&order=created_at.asc');
+      if (this._boxesCloudUnsupported) {
+        this._boxesCloudUnsupported = false;
+        await this._saveCloudFlags();
+      }
+      return rows;
+    } catch (e) {
+      if (isMissingBoxesTableError(e)) {
+        this._boxesCloudUnsupported = true;
+        await this._saveCloudFlags();
+      }
+      try {
+        if (this.mirror) return await getAll(this.mirror, 'boxes');
+      } catch (e2) { /* mirror empty */ }
+      return [];
+    }
+  }
+
+  async _loadFromMirror() {
     this.folders = (await getAll(this.mirror, 'folders')).map(normalizeFolderRecord);
     this.folders.sort((a, b) => (a.created_at || 0) - (b.created_at || 0));
     this.boxes = (await getAll(this.mirror, 'boxes')).map(normalizeBoxRecord);
@@ -186,13 +158,13 @@ export class CloudStore {
     this._srsMeta = meta || [];
     this._cache.clearAll();
     this._cache.rebuildCountsFromSrsMeta(this.folders, this._srsMeta);
-    this._offline = offline;
+    this._offline = true;
   }
 
   async _cloudOrQueue(op, payload, localFn) {
     const result = await localFn();
-    if (!navigator.onLine || this._schemaOutdated) {
-      if (!navigator.onLine) this._offline = true;
+    if (!navigator.onLine) {
+      this._offline = true;
       await this.queue.enqueue({ op, payload });
       this._notifySync();
       return result;
@@ -212,131 +184,152 @@ export class CloudStore {
     }
   }
 
+  async _loadCloudFlags() {
+    if (!this.mirror) return;
+    const flags = await mirrorGetKV(this.mirror, 'cloud_flags');
+    this._folderIconCloudUnsupported = !!flags?.folderIconCloudUnsupported;
+    this._boxesCloudUnsupported = !!flags?.boxesCloudUnsupported;
+    this._boxIdCloudUnsupported = !!flags?.boxIdCloudUnsupported;
+    this._boxIconCloudUnsupported = !!flags?.boxIconCloudUnsupported;
+  }
+
+  async _saveCloudFlags() {
+    if (!this.mirror) return;
+    await mirrorSetKV(this.mirror, 'cloud_flags', {
+      folderIconCloudUnsupported: !!this._folderIconCloudUnsupported,
+      boxesCloudUnsupported: !!this._boxesCloudUnsupported,
+      boxIdCloudUnsupported: !!this._boxIdCloudUnsupported,
+      boxIconCloudUnsupported: !!this._boxIconCloudUnsupported,
+    });
+  }
+
+  async _cloudInsertFolder(row) {
+    let payload = row;
+    if (this._folderIconCloudUnsupported) payload = withoutFolderIcon(row);
+    try {
+      await this.sb.insert('folders', payload);
+    } catch (e) {
+      if (!this._folderIconCloudUnsupported && isMissingFolderIconColumnError(e) && row && 'icon' in row) {
+        this._folderIconCloudUnsupported = true;
+        await this._saveCloudFlags();
+        await this.sb.insert('folders', withoutFolderIcon(row));
+        return;
+      }
+      throw e;
+    }
+  }
+
+  async _cloudPatchFolder(id, patch) {
+    let payload = Object.assign({}, patch);
+    if (this._folderIconCloudUnsupported) payload = withoutFolderIcon(payload);
+    if (this._boxIdCloudUnsupported) payload = withoutBoxId(payload);
+    if (!Object.keys(payload).length) return;
+    try {
+      await this.sb.update('folders', 'id=eq.' + id, payload);
+    } catch (e) {
+      if (!this._folderIconCloudUnsupported && isMissingFolderIconColumnError(e) && patch && 'icon' in patch) {
+        this._folderIconCloudUnsupported = true;
+        await this._saveCloudFlags();
+        await this._cloudPatchFolder(id, withoutFolderIcon(patch));
+        return;
+      }
+      if (!this._boxIdCloudUnsupported && isMissingBoxIdColumnError(e) && patch && 'box_id' in patch) {
+        this._boxIdCloudUnsupported = true;
+        await this._saveCloudFlags();
+        await this._cloudPatchFolder(id, withoutBoxId(patch));
+        return;
+      }
+      throw e;
+    }
+  }
+
+  async _cloudInsertBox(row) {
+    if (this._boxesCloudUnsupported) return;
+    let payload = row;
+    if (this._boxIconCloudUnsupported) payload = withoutFolderIcon(row);
+    try {
+      await this.sb.insert('boxes', payload);
+    } catch (e) {
+      if (isMissingBoxesTableError(e)) {
+        this._boxesCloudUnsupported = true;
+        await this._saveCloudFlags();
+        return;
+      }
+      if (!this._boxIconCloudUnsupported && isMissingBoxIconColumnError(e) && row && 'icon' in row) {
+        this._boxIconCloudUnsupported = true;
+        await this._saveCloudFlags();
+        await this._cloudInsertBox(withoutFolderIcon(row));
+        return;
+      }
+      throw e;
+    }
+  }
+
+  async _cloudUpdateBox(id, patch) {
+    if (this._boxesCloudUnsupported) return;
+    let payload = Object.assign({}, patch);
+    if (this._boxIconCloudUnsupported) payload = withoutFolderIcon(payload);
+    if (!Object.keys(payload).length) return;
+    try {
+      await this.sb.update('boxes', 'id=eq.' + id, payload);
+    } catch (e) {
+      if (isMissingBoxesTableError(e)) {
+        this._boxesCloudUnsupported = true;
+        await this._saveCloudFlags();
+        return;
+      }
+      if (!this._boxIconCloudUnsupported && isMissingBoxIconColumnError(e) && patch && 'icon' in patch) {
+        this._boxIconCloudUnsupported = true;
+        await this._saveCloudFlags();
+        await this._cloudUpdateBox(id, withoutFolderIcon(patch));
+        return;
+      }
+      throw e;
+    }
+  }
+
+  async _cloudDeleteBox(id) {
+    if (this._boxesCloudUnsupported) return;
+    try {
+      await this.sb.remove('boxes', 'id=eq.' + id);
+    } catch (e) {
+      if (isMissingBoxesTableError(e)) {
+        this._boxesCloudUnsupported = true;
+        await this._saveCloudFlags();
+        return;
+      }
+      throw e;
+    }
+  }
+
   async _executeSyncItem({ op, payload }) {
     switch (op) {
-      // Upsert вместо insert — повтор той же операции (например, после
-      // потерянного ответа сети) не падает с конфликтом первичного ключа.
-      case 'createFolder':
-        await this.sb.upsert('folders', payload.row);
-        break;
-      case 'updateFolder':
-        await this._applyPatchWithLww('folders', payload.id, payload.patch, id => this._reconcileFolder(id));
-        break;
+      case 'createFolder': await this._cloudInsertFolder(payload.row); break;
+      case 'updateFolder': await this._cloudPatchFolder(payload.id, payload.patch); break;
       case 'deleteFolder':
         await this.sb.remove('cards', 'folder_id=eq.' + payload.id);
         await this.sb.remove('folders', 'id=eq.' + payload.id);
         break;
-      case 'createBox':
-        await this.sb.upsert('boxes', payload.row);
-        break;
-      case 'updateBox':
-        await this._applyPatchWithLww('boxes', payload.id, payload.patch, id => this._reconcileBox(id));
-        break;
-      case 'deleteBox':
-        await this.sb.remove('boxes', 'id=eq.' + payload.id);
-        break;
-      case 'createCard':
-        await this.sb.upsert('cards', payload.row);
-        break;
-      case 'updateCard':
-        await this._applyPatchWithLww('cards', payload.id, payload.patch, id => this._reconcileCard(id));
-        break;
+      case 'createBox': await this._cloudInsertBox(payload.row); break;
+      case 'updateBox': await this._cloudUpdateBox(payload.id, payload.patch); break;
+      case 'deleteBox': await this._cloudDeleteBox(payload.id); break;
+      case 'createCard': await this.sb.insert('cards', payload.row); break;
+      case 'updateCard': await this.sb.update('cards', 'id=eq.' + payload.id, payload.patch); break;
       case 'deleteCard':
         if (payload.urls) for (const url of payload.urls) await this.deleteImage(url);
         await this.sb.remove('cards', 'id=eq.' + payload.id);
         break;
       case 'saveSettings':
-        await this.sb.upsert('settings', { user_id: this.sb.userId(), data: payload.settings, updated_at: Date.now() });
+        await this.sb.upsert('settings', { user_id: this.sb.userId(), data: payload.settings });
         break;
       case 'uploadImage':
         payload.url = await this.sb.uploadFile('card-images', payload.path, payload.blob, payload.contentType);
         if (payload.cardId && payload.side) {
-          // Точечное поле после загрузки картинки — без LWW-guard'а: правка узкая
-          // и почти никогда не конфликтует с параллельным редактированием карточки.
-          await this.sb.update('cards', 'id=eq.' + payload.cardId, { [payload.side]: payload.url, updated_at: Date.now() });
+          await this.sb.update('cards', 'id=eq.' + payload.cardId, { [payload.side]: payload.url });
         }
         break;
       default: throw new Error('Unknown sync op: ' + op);
     }
-  }
-
-  /**
-   * Применяет patch на сервере только если наша версия не старше текущей
-   * (last-write-wins на уровне записи, без лишних round-trip'ов): PostgREST
-   * отфильтрует строку по updated_at, и PATCH не заденет её, если сервер уже
-   * содержит более новую правку. В этом случае подтягиваем актуальное
-   * состояние с сервера, чтобы не разойтись с реальным содержимым облака.
-   */
-  async _applyPatchWithLww(table, id, patch, reconcile) {
-    if (!patch || !Object.keys(patch).length) return;
-    const stampedAt = Number(patch.updated_at) || Date.now();
-    const filter = 'id=eq.' + id + '&updated_at=lte.' + stampedAt;
-    const result = await this.sb.update(table, filter, patch);
-    if (Array.isArray(result) && result.length === 0) {
-      await reconcile(id);
-    }
-  }
-
-  async _reconcileFolder(id) {
-    try {
-      const rows = await this.sb.select('folders', 'id=eq.' + id + '&select=*');
-      if (!rows.length) {
-        this.folders = this.folders.filter(f => f.id !== id);
-        this._cache.deleteFolder(id);
-        await mirrorDelete(this.mirror, 'folders', id);
-        return;
-      }
-      const fresh = normalizeFolderRecord(rows[0]);
-      const idx = this.folders.findIndex(f => f.id === id);
-      if (idx >= 0) this.folders[idx] = fresh; else this.folders.push(fresh);
-      await mirrorPut(this.mirror, 'folders', fresh);
-    } catch (e) { if (!isNetworkError(e)) throw e; }
-  }
-
-  async _reconcileBox(id) {
-    try {
-      const rows = await this.sb.select('boxes', 'id=eq.' + id + '&select=*');
-      if (!rows.length) {
-        this.boxes = this.boxes.filter(b => b.id !== id);
-        await mirrorDelete(this.mirror, 'boxes', id);
-        return;
-      }
-      const fresh = normalizeBoxRecord(rows[0]);
-      const idx = this.boxes.findIndex(b => b.id === id);
-      if (idx >= 0) this.boxes[idx] = fresh; else this.boxes.push(fresh);
-      await mirrorPut(this.mirror, 'boxes', fresh);
-    } catch (e) { if (!isNetworkError(e)) throw e; }
-  }
-
-  async _reconcileCard(id) {
-    try {
-      const rows = await this.sb.select('cards', 'id=eq.' + id + '&select=*');
-      if (!rows.length) {
-        await mirrorDelete(this.mirror, 'cards', id);
-        this._patchSrsMetaRemoval(id);
-        this._removeCardFromCacheEverywhere(id);
-        return;
-      }
-      const fresh = rows[0];
-      await mirrorPut(this.mirror, 'cards', fresh);
-      this._patchSrsMeta(fresh);
-      for (const list of this._cache.folderCache.values()) {
-        const idx = list.findIndex(x => x.id === id);
-        if (idx >= 0) list[idx] = fresh;
-      }
-    } catch (e) { if (!isNetworkError(e)) throw e; }
-  }
-
-  _removeCardFromCacheEverywhere(id) {
-    for (const [fid, list] of this._cache.folderCache) {
-      const idx = list.findIndex(x => x.id === id);
-      if (idx >= 0) {
-        list.splice(idx, 1);
-        this._cache.bumpCount(fid, -1);
-        return fid;
-      }
-    }
-    return null;
   }
 
   _patchSrsMeta(card) {
@@ -354,7 +347,7 @@ export class CloudStore {
   async getFolderCards(folderId) {
     if (this._cache.folderCache.has(folderId)) return this._cache.folderCache.get(folderId);
     let cards;
-    if (this._cloudReadable()) {
+    if (navigator.onLine && !this._offline) {
       try {
         cards = await this.sb.select('cards', 'folder_id=eq.' + folderId + '&order=created_at.desc');
         for (const c of cards) await mirrorPut(this.mirror, 'cards', c);
@@ -394,7 +387,7 @@ export class CloudStore {
   async getReviewCards(folderId, algo, newLimit, now) {
     algo = algo || this.settings.algo;
     now = now || Date.now();
-    if (this._cloudReadable()) {
+    if (navigator.onLine && !this._offline) {
       try {
         const uid = this.sb.userId();
         const prefix = folderId ? 'folder_id=eq.' + folderId + '&user_id=eq.' + uid : 'user_id=eq.' + uid;
@@ -454,10 +447,9 @@ export class CloudStore {
   async updateFolder(id, patch) {
     const f = this.folders.find(x => x.id === id);
     if (!f) return null;
-    const stamped = Object.assign({}, patch, { updated_at: Date.now() });
-    Object.assign(f, stamped);
+    Object.assign(f, patch);
     await mirrorPut(this.mirror, 'folders', f);
-    return this._cloudOrQueue('updateFolder', { id, patch: stamped }, async () => f);
+    return this._cloudOrQueue('updateFolder', { id, patch }, async () => f);
   }
 
   async deleteFolder(id) {
@@ -476,16 +468,17 @@ export class CloudStore {
     this.boxes.push(row);
     this.boxes.sort((a, b) => (a.created_at || 0) - (b.created_at || 0));
     await mirrorPut(this.mirror, 'boxes', row);
+    if (this._boxesCloudUnsupported) return row;
     return this._cloudOrQueue('createBox', { row }, async () => row);
   }
 
   async updateBox(id, patch) {
     const b = this.boxes.find(x => x.id === id);
     if (!b) return null;
-    const stamped = Object.assign({}, patch, { updated_at: Date.now() });
-    Object.assign(b, stamped);
+    Object.assign(b, patch);
     await mirrorPut(this.mirror, 'boxes', b);
-    return this._cloudOrQueue('updateBox', { id, patch: stamped }, async () => b);
+    if (this._boxesCloudUnsupported) return b;
+    return this._cloudOrQueue('updateBox', { id, patch }, async () => b);
   }
 
   async deleteBox(id) {
@@ -495,6 +488,7 @@ export class CloudStore {
     }
     await mirrorDelete(this.mirror, 'boxes', id);
     this.boxes = this.boxes.filter(b => b.id !== id);
+    if (this._boxesCloudUnsupported) return true;
     return this._cloudOrQueue('deleteBox', { id }, async () => true);
   }
 
@@ -502,29 +496,26 @@ export class CloudStore {
     const f = this.folders.find(x => x.id === folderId);
     if (!f) return null;
     if (boxId && !this.boxes.find(b => b.id === boxId)) return null;
-    const patch = { box_id: boxId || null, updated_at: Date.now() };
-    Object.assign(f, patch);
+    f.box_id = boxId || null;
     await mirrorPut(this.mirror, 'folders', f);
-    return this._cloudOrQueue('updateFolder', { id: folderId, patch }, async () => f);
+    return this._cloudOrQueue('updateFolder', { id: folderId, patch: { box_id: f.box_id } }, async () => f);
   }
 
   async setBoxFolders(boxId, folderIds) {
     const idSet = new Set(folderIds);
     for (const f of this.folders) {
       if (f.box_id === boxId && !idSet.has(f.id)) {
-        const patch = { box_id: null, updated_at: Date.now() };
-        Object.assign(f, patch);
+        f.box_id = null;
         await mirrorPut(this.mirror, 'folders', f);
-        await this._cloudOrQueue('updateFolder', { id: f.id, patch }, async () => f);
+        await this._cloudOrQueue('updateFolder', { id: f.id, patch: { box_id: null } }, async () => f);
       }
     }
     for (const fid of folderIds) {
       const f = this.folders.find(x => x.id === fid);
       if (!f || (f.box_id && f.box_id !== boxId)) continue;
-      const patch = { box_id: boxId, updated_at: Date.now() };
-      Object.assign(f, patch);
+      f.box_id = boxId;
       await mirrorPut(this.mirror, 'folders', f);
-      await this._cloudOrQueue('updateFolder', { id: fid, patch }, async () => f);
+      await this._cloudOrQueue('updateFolder', { id: fid, patch: { box_id: boxId } }, async () => f);
     }
   }
 
@@ -552,12 +543,11 @@ export class CloudStore {
   async updateCard(id, patch) {
     let c = await this._getCardById(id);
     if (!c) return null;
-    const stamped = Object.assign({}, patch, { updated_at: Date.now() });
-    Object.assign(c, stamped);
+    Object.assign(c, patch);
     await mirrorPut(this.mirror, 'cards', c);
     this._patchSrsMeta(c);
-    this._cache.patchCardInLists(id, stamped);
-    return this._cloudOrQueue('updateCard', { id, patch: stamped }, async () => c);
+    this._cache.patchCardInLists(id, patch);
+    return this._cloudOrQueue('updateCard', { id, patch }, async () => c);
   }
 
   async deleteCard(id) {
@@ -627,21 +617,21 @@ export class CloudStore {
     if (!data.folders || !data.cards) throw new Error('Неверный формат файла');
     for (const b of (data.boxes || [])) {
       if (this.boxes.find(x => x.id === b.id)) continue;
-      const row = normalizeBoxRecord(Object.assign({ updated_at: b.created_at || Date.now() }, b, { user_id: this.sb.userId() }));
+      const row = normalizeBoxRecord(Object.assign({}, b, { user_id: this.sb.userId() }));
       this.boxes.push(row);
       await mirrorPut(this.mirror, 'boxes', row);
       await this._cloudOrQueue('createBox', { row }, async () => row);
     }
     for (const f of data.folders) {
       if (this.folders.find(x => x.id === f.id)) continue;
-      const row = normalizeFolderRecord(Object.assign({ updated_at: f.created_at || Date.now() }, f, { user_id: this.sb.userId() }));
+      const row = normalizeFolderRecord(Object.assign({}, f, { user_id: this.sb.userId() }));
       this.folders.push(row);
       await mirrorPut(this.mirror, 'folders', row);
       await this._cloudOrQueue('createFolder', { row }, async () => row);
     }
     for (const c of data.cards) {
       if (c.description == null) c.description = '';
-      const row = Object.assign({ updated_at: c.created_at || Date.now() }, c, { user_id: this.sb.userId() });
+      const row = Object.assign({}, c, { user_id: this.sb.userId() });
       for (const side of ['front_img', 'back_img']) {
         if (row[side] && row[side].startsWith('data:')) {
           try {

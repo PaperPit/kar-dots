@@ -45,9 +45,25 @@
 .flip-swipe-area {
   position: relative;
   width: 100%;
-  overflow: hidden;
+  overflow: visible;      /* чтобы слои-«стопка» выглядывали снизу */
   border-radius: 24px;
+  margin-bottom: 22px;    /* место под выглядывающую стопку */
 }
+/* Декоративная «стопка» карт позади текущей — ощущение колоды.
+   Слои повторяют форму карточки, смещены вниз и сужены. */
+.flip-stack {
+  position: absolute; inset: 0; z-index: 0;
+  border-radius: 24px;
+  background: var(--bg-raised);
+  border: 1.5px solid var(--line);
+  box-shadow: var(--shadow);
+  pointer-events: none;
+}
+.flip-stack-1 { transform: translateY(16px) scale(.965); opacity: 1; }
+.flip-stack-2 { transform: translateY(30px) scale(.93); opacity: .8; }
+/* при вылете карточки стопка чуть «подрастает» на её место */
+.flip-scene.is-card-exiting .flip-stack-1 { transform: translateY(6px) scale(.985); transition: transform .5s var(--ease); }
+.flip-scene.is-card-exiting .flip-stack-2 { transform: translateY(20px) scale(.955); transition: transform .5s var(--ease); }
 .swipe-glow {
   position: absolute;
   inset: 0;
@@ -110,13 +126,14 @@
   transition: none !important;
   animation: kartCardExitRight 640ms cubic-bezier(0.22, 1, 0.36, 1) forwards !important;
 }
+/* улёт с дугой вверх и доворотом — как карта, брошенная из колоды */
 @keyframes kartCardExitLeft {
-  from { transform: translateX(0) rotate(0deg); opacity: 1; }
-  to { transform: translateX(calc(-55vw - 48px)) rotate(-8deg); opacity: 0; }
+  30%  { transform: translate(-18vw, -26px) rotate(-6deg); opacity: 1; }
+  100% { transform: translate(calc(-58vw - 48px), 10px) rotate(-13deg); opacity: 0; }
 }
 @keyframes kartCardExitRight {
-  from { transform: translateX(0) rotate(0deg); opacity: 1; }
-  to { transform: translateX(calc(55vw + 48px)) rotate(8deg); opacity: 0; }
+  30%  { transform: translate(18vw, -26px) rotate(6deg); opacity: 1; }
+  100% { transform: translate(calc(58vw + 48px), 10px) rotate(13deg); opacity: 0; }
 }
 .flip-scene.is-grading .grade-row,
 .flip-scene.is-grading .flip-hint {
@@ -139,10 +156,24 @@
 .flip-card {
   position: relative; width: 100%; min-height: 320px; max-height: 72vh;
   transform-style: preserve-3d;
-  transition: transform .55s var(--ease), height .3s var(--ease);
+  transition: transform .62s cubic-bezier(.3,.08,.16,1), height .3s var(--ease);
   cursor: pointer;
 }
 .flip-card.flipped { transform: rotateY(180deg); }
+/* «нырок»: лёгкое отдаление в середине переворота + расплывающаяся тень.
+   Применяется к НЕ-3D обёртке (.flip-swipe-wrap), а не к самой .flip-card:
+   независимое свойство scale на preserve-3d элементе в Safari вызывало
+   мигание/исчезновение карты при перевороте. Явные 0%/100% — чтобы движок
+   не синтезировал границы неверно. */
+.flip-swipe-wrap.flip-dip { animation: flipDip .62s cubic-bezier(.3,.08,.16,1); }
+@keyframes flipDip { 0%, 100% { scale: 1; } 45% { scale: .95; } }
+.flip-face { transition: box-shadow .3s ease; }
+.flip-swipe-wrap.flip-dip .flip-face {
+  box-shadow: 0 2px 6px rgba(44,34,25,.05), 0 26px 60px rgba(44,34,25,.16);
+}
+[data-theme="dark"] .flip-swipe-wrap.flip-dip .flip-face {
+  box-shadow: 0 2px 6px rgba(0,0,0,.3), 0 26px 60px rgba(0,0,0,.55);
+}
 .flip-face {
   position: absolute; inset: 0; backface-visibility: hidden; -webkit-backface-visibility: hidden;
   background: var(--bg-raised); border: 1.5px solid var(--line); border-radius: 24px;
@@ -168,7 +199,7 @@
 .flip-face-scroll .word.small { font-size: 38px; font-weight: 600; }
 .flip-face-scroll .word.long { font-size: 32px; font-weight: 500; text-align: left; }
 .flip-face-scroll .word b, .flip-face-scroll .word strong { font-weight: 800; }
-.flip-face-scroll .word a { color: var(--accent); text-decoration: underline; word-break: break-all; }
+.flip-face-scroll .word a { color: var(--accent-text); text-decoration: underline; word-break: break-all; }
 
 /* Оборот: определение + описание */
 .card-definition {
@@ -176,13 +207,13 @@
   line-height: 1.35; white-space: pre-wrap; word-break: break-word; width: 100%;
 }
 .card-definition.long { font-size: 17px; }
-.card-definition a { color: var(--accent); text-decoration: underline; }
+.card-definition a { color: var(--accent-text); text-decoration: underline; }
 .card-description {
   font-size: 15px; font-weight: 400; text-align: justify; line-height: 1.5;
   margin-top: 14px; width: 100%; white-space: pre-wrap; word-break: break-word;
   color: var(--ink-soft);
 }
-.card-description a { color: var(--accent); text-decoration: underline; }
+.card-description a { color: var(--accent-text); text-decoration: underline; }
 .card-description b, .card-description strong { font-weight: 700; }
 .card-description u { text-decoration: underline; text-underline-offset: 2px; }
 .card-description mark { border-radius: 3px; padding: 0 2px; color: inherit; }
@@ -190,7 +221,7 @@
 .card-description .rich-hl-green { background: var(--ok-soft); }
 .card-description .rich-hl-rose { background: var(--danger-soft); }
 .card-description .rich-hl-sand { background: color-mix(in srgb, var(--paper-deep) 55%, #F5E6C8); }
-.card-description .rich-hl-sky { background: #E3EEF8; }
+.card-description .rich-hl-sky { background: var(--hl-sky); }
 .field-hint {
   font-size: 12px; color: var(--ink-faint); margin: -4px 0 8px;
 }
@@ -202,9 +233,10 @@
 .flip-hint { text-align: center; color: var(--ink-faint); font-size: 13px; margin-top: 14px; }
 
 .card-swap-out { animation: swapOut .3s var(--ease) forwards; }
-.card-swap-in { animation: swapIn .38s var(--ease); }
+/* следующая карточка «подрастает» с места, где лежала бы в стопке позади */
+.card-swap-in { animation: swapIn .5s cubic-bezier(.18,1.25,.4,1); }
 @keyframes swapOut { to { opacity: 0; transform: translateX(-48px) rotate(-2deg); } }
-@keyframes swapIn { from { opacity: 0; transform: translateX(48px) rotate(2deg); } }
+@keyframes swapIn { from { opacity: .5; transform: translateY(16px) scale(.955); } }
 
 .grade-row { display: flex; gap: 10px; margin-top: 20px; }
 /* FSRS: четыре оценки в один ряд на планшете и выше */
@@ -264,10 +296,19 @@
 .grade-btn:hover { filter: brightness(1.05); transform: translateY(-1px); }
 .grade-btn:active { transform: scale(.94) translateY(0); box-shadow: none; }
 .grade-btn small { font-family: var(--font-body); font-weight: 700; font-size: 11px; opacity: .78; }
-.grade-btn.again { background: var(--danger-soft); color: var(--danger); }
+.grade-btn.again { background: var(--danger); color: var(--btn-ink); }
 .grade-btn.hard { background: var(--paper-deep); color: var(--ink-soft); }
-.grade-btn.good { background: var(--ok-soft); color: var(--ok); }
-.grade-btn.easy { background: var(--accent-soft); color: var(--terra-deep); }
+.grade-btn.good { background: var(--ok); color: var(--btn-ink); }
+.grade-btn.easy { background: var(--accent); color: var(--btn-ink); }
+.grade-btn small { opacity: .82; }
+/* стрелки направления свайпа на кнопках «не знаю» (←) и «знаю» (→) */
+.grade-btn.again, .grade-btn.good { position: relative; }
+.grade-btn.again::before, .grade-btn.good::after {
+  position: absolute; top: 50%; transform: translateY(-50%);
+  font-size: 17px; font-weight: 800; opacity: .55; line-height: 1;
+}
+.grade-btn.again::before { content: '\2190'; left: 12px; }
+.grade-btn.good::after  { content: '\2192'; right: 12px; }
 
 .review-done { text-align: center; padding: 28px 16px 40px; animation: itemIn .45s var(--ease); overflow: hidden; }
 .review-wrap--done {
@@ -358,6 +399,31 @@
 .review-done h2 { margin: 14px 0 6px; letter-spacing: -.02em; }
 .review-done p { color: var(--ink-soft); margin: 0 0 4px; }
 .review-done .btn { width: auto; min-width: 160px; }
+
+@media (min-width: 720px) {
+  .review-wrap { max-width: 784px; }
+  .review-intro { max-width: 784px; font-size: 18px; margin-bottom: 24px; }
+  .review-top { gap: 18px; margin-bottom: 22px; }
+  .review-count { font-size: 14px; }
+  .deck-progress { height: 12px; }
+  .flip-swipe-area { border-radius: 28px; }
+  .flip-card { min-height: 448px; max-height: 80vh; }
+  .flip-face {
+    padding: 39px 36px;
+    border-radius: 28px;
+  }
+  .flip-face-scroll { gap: 20px; }
+  .flip-face-scroll .word { font-size: 73px; }
+  .flip-face-scroll .word.small { font-size: 53px; }
+  .flip-face-scroll .word.long { font-size: 45px; }
+  .card-definition { font-size: 31px; }
+  .card-definition.long { font-size: 24px; }
+  .card-description { font-size: 21px; margin-top: 18px; }
+  .flip-face img { max-height: 252px; border-radius: 14px; }
+  .flip-hint { font-size: 14px; margin-top: 18px; }
+  .grade-row { gap: 12px; margin-top: 24px; }
+  .grade-btn { padding: 16px 8px 14px; font-size: 16px; border-radius: 18px; }
+}
 
 @media (max-width: 520px) {
   .flip-card { min-height: 260px; max-height: min(58dvh, 420px); }

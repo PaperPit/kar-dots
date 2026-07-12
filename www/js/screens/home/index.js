@@ -1,7 +1,9 @@
 import { store } from '../../core/state.js';
-import { el, plural } from '../../ui/ui.js';
+import { el, plural, toast } from '../../ui/ui.js';
+import { route } from '../../core/router.js';
+import { folderDragEnabled, attachFolderDraggable, attachBoxDropTarget } from '../../ui/folder-drag.js';
 import { ICONS } from '../../ui/constants.js';
-import { crowBox, emptyFoldersBox, scarecrowBox, svgNode, countUp } from '../../ui/helpers.js';
+import { crowBox, emptyFoldersBox, scarecrowBox, svgNode } from '../../ui/helpers.js';
 import { shell, nav, offlineBanner, refreshDueBadge } from '../../ui/shell.js';
 import { homeCalendarWidget } from '../../ui/activity-calendar.js';
 import { folderDialog } from './folder-dialog.js';
@@ -27,7 +29,7 @@ export async function renderHome() {
   let heroCountNode = null;
   if (totalToStudy > 0) {
     heroIcon = crowBox('crow');
-    heroCountNode = el('span', { class: 'tnum' }, '0');
+    heroCountNode = el('span', { class: 'tnum' }, String(totalToStudy));
     heroTitle = ['К повторению: ', heroCountNode, ` ${plural(totalToStudy, 'карточка', 'карточки', 'карточек')}`];
     heroSub = 'Ворона ждёт — пара минут, и память скажет спасибо.';
     heroBtn = el('button', { class: 'btn accent big', onclick: () => studyModePicker({}) }, [svgNode(ICONS.play), 'Повторить']);
@@ -69,7 +71,23 @@ export async function renderHome() {
     return { b, stats, i };
   }));
   for (const { b, stats, i } of boxRows) {
-    boxGrid.append(boxCardEl(b, stats, i));
+    const card = boxCardEl(b, stats, i);
+    attachBoxDropTarget(card, b.id, async (folderId, boxId) => {
+      const folder = store.folders.find(f => f.id === folderId);
+      if (!folder) return;
+      if (folder.box_id === boxId) {
+        toast('Папка уже в этой коробке');
+        return;
+      }
+      const ok = await store.assignFolderToBox(folderId, boxId);
+      if (!ok) {
+        toast('Не удалось переместить папку', 'error');
+        return;
+      }
+      toast(`«${folder.name}» → «${b.name}»`);
+      await route();
+    });
+    boxGrid.append(card);
   }
   boxGrid.append(el('button', {
     class: 'add-tile add-tile-box stagger-in',
@@ -83,7 +101,9 @@ export async function renderHome() {
     return { f, stats, i };
   }));
   for (const { f, stats, i } of folderRows) {
-    folderGrid.append(folderCardEl(f, stats, i));
+    const card = folderCardEl(f, stats, i);
+    attachFolderDraggable(card, f.id);
+    folderGrid.append(card);
   }
   folderGrid.append(el('button', {
     class: 'add-tile stagger-in',
@@ -95,7 +115,9 @@ export async function renderHome() {
 
   sections.push(
     el('div', { class: 'page-head' }, el('h2', { class: 'page-title' }, 'Коробки')),
-    el('p', { class: 'section-hint' }, 'Объединяют папки по теме — карточки хранятся только в папках.'),
+    el('p', { class: 'section-hint' }, folderDragEnabled()
+      ? 'Объединяют папки по теме. Перетащите папку из списка ниже на коробку.'
+      : 'Объединяют папки по теме — карточки хранятся только в папках.'),
     boxGrid,
   );
 
@@ -127,6 +149,4 @@ export async function renderHome() {
     offlineBanner(),
     el('div', { class: 'home-page' }, [mainCol]),
   ]), calendarAside);
-
-  if (heroCountNode) countUp(heroCountNode, totalToStudy);
 }

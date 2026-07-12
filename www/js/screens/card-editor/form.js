@@ -26,7 +26,7 @@ export function buildCardEditorForm(card, state, translateRow) {
       el('div', { class: 'side-title' }, 'Лицо'),
       el('p', { class: 'field-hint' }, 'Только слово или термин'),
       frontRich.node,
-      imgDrop('front_img', state),
+      imgDrop('front_img', state, { suggestQuery: () => frontRich.getPlain() }),
     ]),
     el('div', { class: 'side-box' }, [
       el('div', { class: 'side-title' }, 'Оборот'),
@@ -42,7 +42,7 @@ export function buildCardEditorForm(card, state, translateRow) {
         ]),
         descRich.node,
       ]),
-      imgDrop('back_img', state),
+      imgDrop('back_img', state, { suggestQuery: () => defRich.getPlain() }),
     ]),
   ]);
 

@@ -4,6 +4,7 @@ import { FOLDER_COLORS } from '../../ui/constants.js';
 import { createIconPicker } from '../../ui/icon-picker.js';
 import { route } from '../../core/router.js';
 import { foldersInBox } from '../../data/store-box.js';
+import { folderSaveErrorMessage } from '../../lib/folder-errors.js';
 import { normalizeFolderIcon } from '../../lib/folder-icons.js';
 
 export function boxDialog(box) {
@@ -81,7 +82,7 @@ export function boxDialog(box) {
         m.close();
         await route();
       } catch (e) {
-        toast(e.message || 'Не удалось сохранить коробку', 'error');
+        toast(folderSaveErrorMessage(e), 'error');
         save.disabled = false;
       }
     },

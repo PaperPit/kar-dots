@@ -348,8 +348,4 @@ export class LocalStore {
   get offline() { return false; }
   async pendingSync() { return 0; }
   async flushSync() { return { ok: 0, fail: 0 }; }
-  syncHealth() { return { offline: false, deadLetterCount: 0 }; }
-  async deadLetters() { return []; }
-  async retryDeadLetterSync() { return false; }
-  async discardDeadLetterSync() {}
 }

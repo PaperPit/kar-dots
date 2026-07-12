@@ -52,4 +52,14 @@ describe('shouldStartVoiceFromSpace', () => {
     expect(shouldStartVoiceFromSpace(spaceEvent(mic), box)).toBe(true);
     box.remove();
   });
+
+  it('allows space on check button inside voice card', () => {
+    const box = document.createElement('div');
+    const check = document.createElement('button');
+    check.className = 'btn primary study-check-btn';
+    box.append(check);
+    document.body.append(box);
+    expect(shouldStartVoiceFromSpace(spaceEvent(check), box)).toBe(true);
+    box.remove();
+  });
 });

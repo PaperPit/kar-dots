@@ -22,28 +22,44 @@ export function createVoiceModeCard(card, ctx) {
   let listens = 0;
   let stopListen = null;
   let listening = false;
+  let stopping = false;
 
   const prompt = buildPrompt(card, promptSide);
   const status = el('p', { class: 'study-voice-status muted' }, 'Пробел или кнопка — начать запись');
   const heard = el('div', { class: 'study-feedback', hidden: true });
   const actions = el('div', { class: 'study-actions study-voice-actions' });
 
-  const micBtn = el('button', {
+  const startBtn = el('button', {
     type: 'button',
     class: 'btn accent study-mic-btn',
     disabled: !speechRecognitionSupported(),
   }, LABEL_START);
 
-  function setMicIdle() {
-    micBtn.textContent = LABEL_START;
-    micBtn.classList.remove('is-listening');
-    micBtn.disabled = answered || !speechRecognitionSupported();
+  const checkBtn = el('button', {
+    type: 'button',
+    class: 'btn primary study-check-btn',
+    hidden: true,
+  }, LABEL_CHECK);
+
+  function setUiIdle() {
+    listening = false;
+    stopping = false;
+    startBtn.hidden = false;
+    checkBtn.hidden = true;
+    checkBtn.classList.remove('is-listening');
+    startBtn.disabled = answered || !speechRecognitionSupported();
+    checkBtn.disabled = false;
+    checkBtn.removeAttribute('disabled');
   }
 
-  function setMicListening() {
-    micBtn.textContent = LABEL_CHECK;
-    micBtn.classList.add('is-listening');
-    micBtn.disabled = false;
+  function setUiListening() {
+    listening = true;
+    stopping = false;
+    startBtn.hidden = true;
+    checkBtn.hidden = false;
+    checkBtn.classList.add('is-listening');
+    checkBtn.disabled = false;
+    checkBtn.removeAttribute('disabled');
   }
 
   function playFeedback(isCorrect) {
@@ -55,19 +71,22 @@ export function createVoiceModeCard(card, ctx) {
   }
 
   function cleanupListen() {
-    if (stopListen) { stopListen(); stopListen = null; }
-    listening = false;
-    setMicIdle();
+    if (stopListen) {
+      const fn = stopListen;
+      stopListen = null;
+      fn();
+    }
+    setUiIdle();
   }
 
   function evaluateTranscript(transcript) {
-    cleanupListen();
+    stopListen = null;
+    stopping = false;
+    setUiIdle();
     status.textContent = '';
     if (!transcript?.trim()) {
       status.textContent = 'Речь не распознана — скажите ответ и нажмите «Проверить»';
       heard.hidden = true;
-      actions.innerHTML = '';
-      actions.append(micBtn);
       return;
     }
     listens++;
@@ -76,6 +95,7 @@ export function createVoiceModeCard(card, ctx) {
     const { ok } = checkCardAnswer(transcript, card, promptSide, { fuzzy: true, fuzzyThreshold: 0.75 });
     if (ok) {
       answered = true;
+      startBtn.disabled = true;
       playFeedback(true);
       haptic(12);
       flashStudyCard(prompt, true);
@@ -122,8 +142,17 @@ export function createVoiceModeCard(card, ctx) {
   }
 
   function finishListen() {
-    if (!listening || answered) return;
+    if (!listening || answered || stopping) return;
+    stopping = true;
+    checkBtn.textContent = '…';
     stopListen?.();
+  }
+
+  function resetListenUi() {
+    stopListen = null;
+    stopping = false;
+    checkBtn.textContent = LABEL_CHECK;
+    setUiIdle();
   }
 
   function startListen() {
@@ -131,14 +160,17 @@ export function createVoiceModeCard(card, ctx) {
     const settings = getSettings?.();
     if (settings) unlockAnswerAudio(settings);
     if (stopListen) cleanupListen();
+
+    if (!actions.contains(startBtn)) {
+      actions.innerHTML = '';
+      actions.append(startBtn, checkBtn);
+    }
+
     const expected = getExpectedAnswer(card, promptSide);
     const lang = detectSpeechLang(expected);
     status.textContent = 'Слушаю…';
-    listening = true;
-    setMicListening();
     heard.hidden = true;
-    actions.innerHTML = '';
-    actions.append(micBtn);
+    setUiListening();
 
     stopListen = listenOnce({
       lang,
@@ -149,33 +181,39 @@ export function createVoiceModeCard(card, ctx) {
       },
       onResult: evaluateTranscript,
       onError: (err) => {
-        cleanupListen();
+        resetListenUi();
         status.textContent = err.message;
-        actions.innerHTML = '';
-        actions.append(micBtn);
       },
       onEnd: () => {
-        if (!answered && listening) {
-          listening = false;
-          stopListen = null;
-          setMicIdle();
+        if (!answered && listening && !stopping) {
+          resetListenUi();
+          status.textContent = 'Запись остановлена — нажмите «Сказать ответ»';
+        } else if (stopping) {
+          checkBtn.textContent = LABEL_CHECK;
         }
       },
     });
   }
 
-  function onMicAction() {
-    if (listening) finishListen();
-    else startListen();
-  }
+  startBtn.addEventListener('click', (e) => {
+    e.preventDefault();
+    startListen();
+  });
+  checkBtn.addEventListener('click', (e) => {
+    e.preventDefault();
+    finishListen();
+  });
 
-  micBtn.addEventListener('click', onMicAction);
-  micBtn.addEventListener('keydown', (e) => {
+  const onVoiceKey = (e) => {
     if (!isSpaceKey(e)) return;
     e.preventDefault();
-    onMicAction();
-  });
-  actions.append(micBtn);
+    if (listening) finishListen();
+    else startListen();
+  };
+  startBtn.addEventListener('keydown', onVoiceKey);
+  checkBtn.addEventListener('keydown', onVoiceKey);
+
+  actions.append(startBtn, checkBtn);
 
   const box = el('div', { class: 'study-voice-card', tabindex: '-1' }, [
     prompt,
@@ -191,7 +229,8 @@ export function createVoiceModeCard(card, ctx) {
     }
     if (!shouldStartVoiceFromSpace(e, box)) return;
     e.preventDefault();
-    onMicAction();
+    if (listening) finishListen();
+    else startListen();
   };
   document.addEventListener('keydown', onKey, true);
 
@@ -208,7 +247,13 @@ export function createVoiceModeCard(card, ctx) {
     getPromptSide: () => promptSide,
     destroy() {
       document.removeEventListener('keydown', onKey, true);
-      cleanupListen();
+      if (stopListen) {
+        const fn = stopListen;
+        stopListen = null;
+        fn();
+      }
+      listening = false;
+      stopping = false;
     },
   };
 }

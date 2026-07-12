@@ -7,11 +7,15 @@ function isTextEntryTarget(node) {
   return !!node.closest('[contenteditable="true"]');
 }
 
+function isVoiceActionButton(node) {
+  return !!node?.closest('.study-mic-btn, .study-check-btn');
+}
+
 export function isSpaceKey(e) {
   return e.key === ' ' || e.code === 'Space';
 }
 
-/** Пробел запускает запись только когда не активирует другую кнопку. */
+/** Пробел запускает/останавливает запись, если не активирует другую кнопку. */
 export function shouldStartVoiceFromSpace(e, box) {
   if (!box || !isSpaceKey(e) || e.repeat) return false;
   if (typeof document !== 'undefined' && !document.body.contains(box)) return false;
@@ -26,11 +30,13 @@ export function shouldStartVoiceFromSpace(e, box) {
   const hit = target || active;
   if (hit?.closest('.icon-btn, .nav, .nav-btn, .tab-btn, .brand')) return false;
 
-  const foreignBtn = hit?.closest('button:not(.study-mic-btn), a[href], [role="button"]:not(.study-mic-btn)');
+  const foreignBtn = hit?.closest('button:not(.study-mic-btn):not(.study-check-btn), a[href], [role="button"]:not(.study-mic-btn):not(.study-check-btn)');
   if (foreignBtn && !box.contains(foreignBtn)) return false;
 
-  const voiceBtn = hit?.closest('button:not(.study-mic-btn), a[href]');
-  if (voiceBtn && box.contains(voiceBtn)) return false;
+  const otherVoiceBtn = hit?.closest('button:not(.study-mic-btn):not(.study-check-btn), a[href]');
+  if (otherVoiceBtn && box.contains(otherVoiceBtn)) return false;
+
+  if (isVoiceActionButton(hit) && box.contains(hit)) return true;
 
   const inVoice = box.contains(active)
     || active === document.body

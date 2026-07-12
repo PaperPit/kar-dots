@@ -779,8 +779,9 @@ html.motion-ui .toast.show { opacity: 1; transform: none; }
   from { opacity: 0; transform: scale(0.4); filter: blur(3px); }
   to { opacity: 1; transform: scale(1); filter: blur(0); }
 }
-.study-mic-btn { min-width: 160px; }
-.study-mic-btn.is-listening {
+.study-mic-btn, .study-check-btn { min-width: 160px; touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
+.study-mic-btn.is-listening,
+.study-check-btn.is-listening {
   animation: micPulse 1s ease-in-out infinite;
   border-color: var(--accent);
 }

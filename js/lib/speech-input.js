@@ -73,6 +73,7 @@ function listenOnceNative({
 } = {}) {
   let stopped = false;
   let delivered = false;
+  let started = false;
   let transcript = '';
   const handles = [];
   let SR = null;
@@ -150,6 +151,7 @@ function listenOnceNative({
         maxResults: 3,
         contextualStrings: hints.length ? hints : undefined,
       });
+      started = true;
     } catch (e) {
       if (!stopped) onError?.(e instanceof Error ? e : new Error(String(e)));
     }
@@ -163,7 +165,14 @@ function listenOnceNative({
     (async () => {
       try {
         if (!SR) SR = await loadNativePlugin();
-        if (!SR) return;
+        if (!SR) {
+          if (!delivered) onEnd?.();
+          return;
+        }
+        if (!started) {
+          onEnd?.();
+          return;
+        }
         if (manualStop) {
           await SR.forceStop().catch(() => SR.stop());
           await refreshTranscript();
@@ -173,7 +182,9 @@ function listenOnceNative({
           return;
         }
         await SR.stop();
-      } catch (e) {}
+      } catch (e) {
+        onEnd?.();
+      }
     })();
   };
 }
@@ -240,8 +251,12 @@ function listenOnceWeb({
 
   rec.onend = () => {
     if (manualStop) {
-      if (stopped && !delivered) deliver();
-      if (stopped) onEnd?.();
+      if (!stopped) {
+        onEnd?.();
+        return;
+      }
+      if (!delivered) deliver();
+      onEnd?.();
       return;
     }
     if (!stopped) onEnd?.();

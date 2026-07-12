@@ -10,6 +10,15 @@ export function getTheme() {
   return document.documentElement.dataset.theme === 'dark' ? 'dark' : 'light';
 }
 
+function updateNativeStatusBar(theme) {
+  // Нативный статус-бар iOS/Android через плагин Capacitor StatusBar.
+  // На обычном вебе window.Capacitor нет — тихо выходим.
+  const bar = window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.StatusBar;
+  if (!bar) return;
+  // Style.Dark = светлый текст (для тёмного фона); Style.Light = тёмный текст (для светлого).
+  try { bar.setStyle({ style: theme === 'dark' ? 'DARK' : 'LIGHT' }); } catch (e) { /* игнор */ }
+}
+
 function updateThemeColor(theme) {
   let meta = document.querySelector('meta[name="theme-color"]:not([media])');
   if (!meta) {
@@ -23,6 +32,7 @@ function updateThemeColor(theme) {
 export function applyTheme(theme, { animate = false } = {}) {
   document.documentElement.dataset.theme = theme;
   updateThemeColor(theme);
+  updateNativeStatusBar(theme);
   if (animate) {
     document.documentElement.classList.add('theme-transition');
     window.setTimeout(() => {

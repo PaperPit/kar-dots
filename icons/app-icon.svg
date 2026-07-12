@@ -16,8 +16,6 @@
   </defs>
 
   <!-- фон (полное поле — iOS сам скруглит) -->
-  <clipPath id="round"><rect width="1024" height="1024" rx="224"/></clipPath>
-  <g clip-path="url(#round)">
   <rect width="1024" height="1024" fill="url(#paper)"/>
   <rect width="1024" height="1024" fill="url(#glow)"/>
 
@@ -41,6 +39,5 @@
     <circle cx="372" cy="756" r="46" fill="#C45528"/>
     <circle cx="512" cy="756" r="46" fill="#C45528" opacity="0.6"/>
     <circle cx="652" cy="756" r="46" fill="#C45528" opacity="0.3"/>
-  </g>
   </g>
 </svg>

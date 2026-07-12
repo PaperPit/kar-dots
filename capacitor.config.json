@@ -3,10 +3,12 @@
   "appName": "КАР-точки",
   "webDir": "www",
   "ios": {
-    "contentInset": "automatic",
+    "contentInset": "never",
+    "backgroundColor": "#1a1612",
     "allowsLinkPreview": false
   },
   "server": {
+    "url": "https://enchanting-rolypoly-897ed9.netlify.app",
     "androidScheme": "https"
   }
 }

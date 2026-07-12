@@ -10,10 +10,12 @@
     "vendor:motion": "esbuild node_modules/motion/dist/es/mini.mjs --bundle --format=esm --outfile=js/vendor/motion.mjs"
   },
   "dependencies": {
+    "@capacitor/status-bar": "^7.0.0",
     "@netlify/blobs": "^8.1.0",
     "motion": "^12.42.2"
   },
   "devDependencies": {
+    "@capacitor/cli": "^7.6.7",
     "esbuild": "^0.28.1",
     "happy-dom": "^20.10.6",
     "ts-fsrs": "^5.4.1",

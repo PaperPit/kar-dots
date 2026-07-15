@@ -206,9 +206,10 @@ self.addEventListener('fetch', e => {
   e.respondWith(
     fetch(isAppJs ? new Request(e.request, { cache: 'no-cache' }) : e.request)
       .then(resp => {
-        if (resp.ok) {
+        const hasRange = e.request.headers.has('range');
+        if (resp.status === 200 && !hasRange) {
           const copy = resp.clone();
-          caches.open(VERSION).then(c => c.put(e.request, copy));
+          caches.open(VERSION).then(c => c.put(e.request, copy)).catch(() => {});
         }
         return resp;
       })

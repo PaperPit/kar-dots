@@ -179,13 +179,14 @@ export function runReviewSession(ctx) {
     ctx.currentIsNew = SRS.isNew(card, ctx.algo);
 
     const promptSide = pickSide();
+    const gradeOpts = { quiet: true };
     const onSuccess = ({ firstTry } = {}) => {
       recordFirstTryResult({ success: true, firstTry: !!firstTry });
-      submitGrade(ctx, card, gradePayload(ctx.algo, true));
+      submitGrade(ctx, card, gradePayload(ctx.algo, true), null, gradeOpts);
     };
     const onFail = () => {
       recordFirstTryResult({ success: false, firstTry: false });
-      submitGrade(ctx, card, gradePayload(ctx.algo, false));
+      submitGrade(ctx, card, gradePayload(ctx.algo, false), null, gradeOpts);
     };
 
     let widget;

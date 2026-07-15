@@ -10,6 +10,11 @@ import {
 import { playAnswerFeedback, unlockAnswerAudio } from '../../../lib/sounds.js';
 import { flashStudyCard, showStudyFeedback, pulseStudyInput } from '../../../ui/answer-feedback.js';
 import { haptic } from '../../../ui/helpers.js';
+import { focusWithoutScroll } from '../../../lib/study-keyboard.js';
+
+function focusClozeInput(inp) {
+  if (inp) focusWithoutScroll(inp);
+}
 
 function buildPrompt(card, promptSide) {
   return el('div', { class: 'study-prompt-card' }, [
@@ -83,7 +88,7 @@ function wireClozeInputs(inputs, { onSubmit, onEdit }) {
 
       const chars = [...inp.value];
       if (chars.length <= 1) {
-        if (chars[0] && idx < list.length - 1) list[idx + 1].focus();
+        if (chars[0] && idx < list.length - 1) focusClozeInput(list[idx + 1]);
         return;
       }
 
@@ -95,14 +100,14 @@ function wireClozeInputs(inputs, { onSubmit, onEdit }) {
         pos++;
       }
       const nextEmpty = list.findIndex((node, i) => i > idx && inputs[i].kind === 'letter' && !node.value);
-      if (nextEmpty >= 0) list[nextEmpty].focus();
-      else list[Math.min(pos, list.length - 1)].focus();
+      if (nextEmpty >= 0) focusClozeInput(list[nextEmpty]);
+      else focusClozeInput(list[Math.min(pos, list.length - 1)]);
     });
 
     inp.addEventListener('keydown', e => {
       if (e.key === 'Backspace' && !inp.value && idx > 0) {
         e.preventDefault();
-        list[idx - 1].focus();
+        focusClozeInput(list[idx - 1]);
         return;
       }
       if (e.key === 'Enter') {
@@ -199,7 +204,7 @@ export function createClozeModeCard(card, ctx) {
       flashStudyCard(prompt, false);
       showWrong();
       const first = clozeInputs.find(i => !i.inp.disabled)?.inp;
-      first?.focus();
+      focusClozeInput(first);
     }
   }
 
@@ -219,8 +224,6 @@ export function createClozeModeCard(card, ctx) {
     feedback,
     actions,
   ]);
-
-  setTimeout(() => clozeInputs[0]?.inp.focus(), 120);
 
   return {
     box,

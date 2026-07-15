@@ -96,7 +96,7 @@ function playMp3(file, slot, opts = {}, volume = 0.85) {
   } catch (e) {}
 }
 
-function primeMp3(file, slot, volume = 0.001) {
+function primeMp3(file, slot) {
   if (typeof Audio === 'undefined') return;
   try {
     let audio = mp3Audio[slot];
@@ -105,12 +105,17 @@ function primeMp3(file, slot, volume = 0.001) {
       audio.__soundFile = file;
       mp3Audio[slot] = audio;
     }
-    audio.volume = volume;
+    audio.pause();
     audio.currentTime = 0;
+    audio.muted = true;
+    audio.volume = 0;
     audio.play().then(() => {
       audio.pause();
       audio.currentTime = 0;
-    }).catch(() => {});
+      audio.muted = false;
+    }).catch(() => {
+      audio.muted = false;
+    });
   } catch (e) {}
 }
 
@@ -175,6 +180,17 @@ export function playFailSound(melodyId = 'load-fail', opts = {}) {
   const meta = FAIL_MELODIES.find(m => m.id === normalizeFailSoundId(melodyId));
   if (!meta?.file) return;
   playMp3(meta.file, 'fail', { gameplay: true, ...opts }, 0.85);
+}
+
+/** Остановить MP3-звуки ответов (освободить аудио-сессию перед микрофоном). */
+export function stopAnswerAudio() {
+  Object.values(mp3Audio).forEach((audio) => {
+    if (!audio) return;
+    try {
+      audio.pause();
+      audio.currentTime = 0;
+    } catch (e) {}
+  });
 }
 
 /** Разблокировать аудио ответов на жесте пользователя. */

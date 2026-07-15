@@ -1,4 +1,4 @@
-const VERSION = 'kar-v13.4';
+const VERSION = 'kar-v13.5';
 
 /** AUTO-GENERATED CORE_FILES — node scripts/generate-sw-files.js */
 const CORE_FILES = [
@@ -62,6 +62,7 @@ const CORE_FILES = [
   'js/lib/stock-media-providers.js',
   'js/lib/stock-media-settings.js',
   'js/lib/stock-media.js',
+  'js/lib/study-keyboard.js',
   'js/lib/study-modes.js',
   'js/lib/theme.js',
   'js/lib/time-units.js',

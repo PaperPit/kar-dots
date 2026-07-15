@@ -2,13 +2,18 @@
   "appId": "ru.kartochki.app",
   "appName": "КАР-точки",
   "webDir": "www",
+  "plugins": {
+    "Keyboard": {
+      "resize": "none"
+    }
+  },
   "ios": {
     "contentInset": "never",
     "backgroundColor": "#1a1612",
-    "allowsLinkPreview": false
+    "allowsLinkPreview": false,
+    "webContentsDebuggingEnabled": true
   },
   "server": {
-    "url": "https://enchanting-rolypoly-897ed9.netlify.app",
     "androidScheme": "https"
   }
 }

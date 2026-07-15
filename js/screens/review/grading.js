@@ -44,7 +44,7 @@ function applyAlgoGrade(card, algo, g, now) {
   return SRS.sm2Next(card, g.q, now);
 }
 
-export function submitGrade(ctx, card, g, dir, { flipGrade = false } = {}) {
+export function submitGrade(ctx, card, g, dir, { flipGrade = false, quiet = false } = {}) {
   if (ctx.grading) return;
   ctx.grading = true;
   if (ctx.currentBox) {
@@ -59,6 +59,7 @@ export function submitGrade(ctx, card, g, dir, { flipGrade = false } = {}) {
       flipGrade,
       firstTryRecorded,
       firstTryOk: firstTryRecorded && know,
+      quiet,
     }).finally(() => { ctx.grading = false; });
   };
   if (dir && ctx.currentSwipeWrap && ctx.currentBox) {
@@ -160,7 +161,8 @@ export async function applyGrade(ctx, card, g, opts = {}) {
     firstTryRecorded: !!opts.firstTryRecorded,
     firstTryOk: !!opts.firstTryOk,
   };
-  if (opts.quiet) {
+  const showUndoToast = opts.flipGrade && !opts.quiet;
+  if (!showUndoToast) {
     ctx.pendingUndo = null;
     ctx.undoToastDismiss = null;
   } else {
@@ -172,7 +174,7 @@ export async function applyGrade(ctx, card, g, opts = {}) {
       undoToast.dismiss();
       ctx.pendingUndo = null;
     };
-    ctx.undoHoldUntilFlip = !!opts.flipGrade;
+    ctx.undoHoldUntilFlip = true;
   }
 }
 
@@ -226,7 +228,7 @@ export async function gradeMatchResults(ctx, results, { countAsOne = false } = {
     ctx.currentIsNew = SRS.isNew(item, ctx.algo);
     await applyGrade(ctx, item, gradePayload(ctx.algo, know), {
       skipAdvance: true,
-      quiet: i < results.length - 1,
+      quiet: true,
       skipProgress: countAsOne,
     });
   }

@@ -4,6 +4,7 @@ import { checkCardAnswer, formatExpectedDisplay } from '../../../lib/answer-chec
 import { playAnswerFeedback, unlockAnswerAudio } from '../../../lib/sounds.js';
 import { flashStudyCard, showStudyFeedback, pulseStudyInput } from '../../../ui/answer-feedback.js';
 import { haptic } from '../../../ui/helpers.js';
+import { focusWithoutScroll } from '../../../lib/study-keyboard.js';
 
 function buildPrompt(card, promptSide) {
   return el('div', { class: 'study-prompt-card' }, [
@@ -86,7 +87,7 @@ export function createTypeModeCard(card, ctx) {
       pulseStudyInput(input, false);
       flashStudyCard(prompt, false);
       showWrong(expected);
-      input.focus();
+      focusWithoutScroll(input);
     }
   }
 
@@ -110,8 +111,6 @@ export function createTypeModeCard(card, ctx) {
     feedback,
     actions,
   ]);
-
-  setTimeout(() => input.focus(), 120);
 
   return {
     box,

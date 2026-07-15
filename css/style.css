@@ -224,9 +224,27 @@ input, textarea, select { font: inherit; color: inherit; }
   overflow-y: auto; overflow-x: hidden;
   -webkit-overflow-scrolling: touch;
   overscroll-behavior-y: contain;
-  padding: var(--main-pad-y) 20px calc(84px + env(safe-area-inset-bottom));
+  padding: var(--main-pad-y) 20px calc(68px + env(safe-area-inset-bottom));
 }
 @media (min-width: 720px) { .main { padding-bottom: 48px; } }
+@media (max-width: 719px) {
+  .app--study-session .main {
+    padding-bottom: calc(16px + env(safe-area-inset-bottom));
+    padding-top: calc(10px + env(safe-area-inset-top, 0px));
+    overflow: hidden;
+    overscroll-behavior: none;
+  }
+  .app--study-session .header {
+    display: none;
+  }
+  .app--study-session {
+    --header-h: 0px;
+  }
+  .app--study-session input,
+  .app--study-session textarea {
+    scroll-margin: 0;
+  }
+}
 
 /* переключение экранов */
 .view { animation: viewIn .34s var(--ease); }
@@ -239,26 +257,39 @@ html.motion-ui .auth-wrap { animation: none; }
 /* --- нижняя навигация (мобильная) -------------------------- */
 .tabbar {
   position: fixed; bottom: 0; left: 0; right: 0; z-index: 20;
-  display: flex; justify-content: space-around;
+  display: flex; align-items: center; justify-content: space-around;
   background: color-mix(in srgb, var(--bg-raised) 92%, transparent);
   backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
   border-top: 1px solid var(--line);
-  padding: 6px 8px calc(6px + env(safe-area-inset-bottom));
+  min-height: calc(52px + env(safe-area-inset-bottom, 0px));
+  padding: 2px 8px env(safe-area-inset-bottom, 0px);
+  transition: transform 0.28s var(--ease), opacity 0.28s var(--ease), visibility 0.28s var(--ease);
 }
 @media (min-width: 720px) { .tabbar { display: none; } }
+@media (max-width: 719px) {
+  .app--study-session .tabbar {
+    transform: translateY(100%);
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+  }
+  .app--study-session .toasts {
+    bottom: calc(20px + env(safe-area-inset-bottom));
+  }
+}
 .tab-btn {
   border: 0; background: none; cursor: pointer;
   display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
-  color: var(--ink-soft); font-size: 11px; font-weight: 600;
+  color: var(--ink-soft); font-size: 10px; font-weight: 600;
   min-height: 44px; min-width: 44px;
-  padding: 6px 12px; border-radius: 12px; position: relative;
+  padding: 4px 10px 2px; border-radius: 12px; position: relative;
   transition: color var(--dur) var(--ease), transform .18s var(--ease);
 }
 .tab-btn:active { transform: scale(.92); }
 .tab-btn.active { color: var(--ink); }
-.tab-btn svg { width: 24px; height: 24px; }
+.tab-btn svg { width: 22px; height: 22px; flex: none; }
 .tab-btn .badge {
-  position: absolute; top: 0; right: 8px;
+  position: absolute; top: 0; right: 4px;
   background: var(--accent); color: var(--btn-ink); font-size: 10px; font-weight: 700;
   border-radius: 999px; padding: 0 5px; line-height: 1.5; min-width: 15px;
 }
@@ -395,7 +426,7 @@ textarea.input { resize: vertical; min-height: 72px; }
 
 /* --- тосты -------------------------------------------------- */
 .toasts {
-  position: fixed; bottom: calc(88px + env(safe-area-inset-bottom)); left: 0; right: 0;
+  position: fixed; bottom: calc(72px + env(safe-area-inset-bottom)); left: 0; right: 0;
   display: flex; flex-direction: column; align-items: center; gap: 8px;
   z-index: 60; pointer-events: none; padding: 0 16px;
 }
@@ -689,6 +720,55 @@ html.motion-ui .toast.show { opacity: 1; transform: none; }
 .study-actions { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
 .study-check-btn { min-width: 140px; }
 .study-voice-card, .study-type-card { max-width: 520px; margin: 0 auto; position: relative; }
+.study-voice-card {
+  display: flex;
+  flex-direction: column;
+  min-height: min(56dvh, 500px);
+  padding-top: clamp(12px, 3.5dvh, 28px);
+}
+.study-voice-card .study-prompt-card {
+  flex: 1 1 auto;
+  min-height: min(38dvh, 340px);
+  margin-bottom: 8px;
+  padding: clamp(32px, 7dvh, 52px) clamp(20px, 5vw, 28px);
+  border-radius: 20px;
+}
+.study-voice-card .study-prompt-card .flip-face-scroll {
+  max-height: none;
+  min-height: min(24dvh, 200px);
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.study-voice-card .study-voice-status {
+  flex: none;
+  margin: 10px 0 6px;
+}
+.study-voice-card .study-voice-actions {
+  flex: none;
+  margin-top: auto;
+  padding-top: clamp(14px, 3.5dvh, 28px);
+  opacity: 1;
+  transform: translateY(0);
+  visibility: visible;
+  transition:
+    opacity 0.32s var(--ease),
+    transform 0.32s var(--ease),
+    visibility 0.32s var(--ease);
+}
+.study-voice-actions.is-action-hidden {
+  opacity: 0;
+  transform: translateY(10px);
+  visibility: hidden;
+  pointer-events: none;
+}
+.study-voice-actions.is-action-enter.is-action-visible {
+  opacity: 1;
+  transform: translateY(0);
+  visibility: visible;
+  pointer-events: auto;
+}
 .study-voice-card:focus,
 .study-voice-card:focus-visible {
   outline: none;
@@ -699,16 +779,23 @@ html.motion-ui .toast.show { opacity: 1; transform: none; }
 .study-answer-input.is-animating.is-correct { animation: inputSuccessBounce .48s var(--ease); }
 .study-answer-input.is-animating.is-wrong { animation: inputWrongShake .42s ease; }
 
-.study-feedback { margin: 0 0 12px; font-size: 14px; font-weight: 650; text-align: center; }
+.study-feedback { margin: 0 0 12px; font-size: 14px; font-weight: 650; text-align: center; width: 100%; }
 .study-feedback.is-correct { color: var(--ok); }
 .study-feedback.is-wrong { color: var(--danger); }
 .study-feedback.is-enter {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
-  flex-wrap: wrap;
+  width: 100%;
   animation: feedbackPopIn .44s var(--ease) both;
+}
+.answer-feedback-row {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  /* Иконка слева визуально тянет блок — лёгкий сдвиг вправо */
+  transform: translateX(4px);
 }
 .answer-feedback-icon {
   display: inline-flex;
@@ -717,9 +804,11 @@ html.motion-ui .toast.show { opacity: 1; transform: none; }
   width: 28px;
   height: 28px;
   border-radius: 50%;
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 800;
+  line-height: 1;
   flex: none;
+  padding-top: 1px;
   animation: iconPop .36s var(--ease) .05s both;
 }
 .study-feedback.is-correct .answer-feedback-icon {
@@ -730,7 +819,7 @@ html.motion-ui .toast.show { opacity: 1; transform: none; }
   background: var(--danger-soft);
   color: var(--danger);
 }
-.answer-feedback-text { line-height: 1.35; }
+.answer-feedback-text { line-height: 1.2; text-align: center; }
 
 .study-prompt-card.answer-flash-correct {
   animation: promptTintOk .7s var(--ease);
@@ -779,6 +868,7 @@ html.motion-ui .toast.show { opacity: 1; transform: none; }
   from { opacity: 0; transform: scale(0.4); filter: blur(3px); }
   to { opacity: 1; transform: scale(1); filter: blur(0); }
 }
+.study-voice-actions [hidden] { display: none !important; }
 .study-mic-btn, .study-check-btn { min-width: 160px; touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
 .study-mic-btn.is-listening,
 .study-check-btn.is-listening {

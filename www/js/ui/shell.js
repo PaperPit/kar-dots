@@ -22,9 +22,10 @@ export async function refreshDueBadge() {
   return dueBadge;
 }
 
-export function shell(viewName, content, prependToMain) {
+export function shell(viewName, content, prependToMain, opts = {}) {
   syncRavenEggScreen(viewName);
   app.innerHTML = '';
+  app.classList.toggle('app--study-session', !!opts.hideTabbar);
   const badge = dueBadge > 0 ? String(dueBadge) : null;
   const tabs = [
     { id: 'home', label: 'Папки', icon: ICONS.home, hash: '#home' },

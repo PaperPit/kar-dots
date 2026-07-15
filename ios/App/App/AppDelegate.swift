@@ -7,7 +7,15 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     var window: UIWindow?
 
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
-        // Override point for customization after application launch.
+        #if DEBUG
+        if #available(iOS 16.4, *) {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                if let bridge = self.window?.rootViewController as? CAPBridgeViewController {
+                    bridge.webView?.isInspectable = true
+                }
+            }
+        }
+        #endif
         return true
     }
 

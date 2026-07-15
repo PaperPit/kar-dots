@@ -15,7 +15,10 @@ export function showStudyFeedback(el, isCorrect, text) {
   if (!el) return;
   el.hidden = false;
   el.className = `study-feedback is-enter ${isCorrect ? 'is-correct' : 'is-wrong'}`;
-  el.replaceChildren(
+  const row = Object.assign(document.createElement('span'), {
+    className: 'answer-feedback-row',
+  });
+  row.append(
     Object.assign(document.createElement('span'), {
       className: 'answer-feedback-icon',
       ariaHidden: 'true',
@@ -26,6 +29,7 @@ export function showStudyFeedback(el, isCorrect, text) {
       textContent: text,
     }),
   );
+  el.replaceChildren(row);
 }
 
 export function pulseStudyInput(inputEl, isCorrect) {

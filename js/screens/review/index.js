@@ -137,7 +137,7 @@ export async function renderReview(folderId, opts = {}) {
     offlineBanner(),
     intro,
     wrap,
-  ]));
+  ]), null, { hideTabbar: true });
 
   runReviewSession(ctx);
 }

@@ -172,24 +172,10 @@ export class CloudStore {
     // Сначала быстрый локальный рендер из зеркала IndexedDB — мгновенно и работает офлайн.
     await this._loadFromMirror();
     this._offline = !navigator.onLine;
-    const mirrorEmpty = this.folders.length === 0 && (this._srsMeta || []).length === 0;
-
-    if (navigator.onLine) {
-      if (mirrorEmpty) {
-        // Свежее устройство без локальных данных: ждём первую загрузку, чтобы не мигать пустым экраном.
-        try {
-          await this._fetchFromCloud();
-          this._offline = false;
-          await this.flushSync();
-        } catch (e) {
-          if (!isNetworkError(e)) throw e;
-          this._offline = true;
-        }
-      } else {
-        // Есть локальные данные — показываем их сразу, облако догружаем в фоне.
-        this._syncFromCloudInBackground();
-      }
-    }
+    // Не блокируем старт сетью: показываем данные из зеркала сразу (даже если оно пустое),
+    // а облако вместе с обновлением токена догружаем в фоне. При недоступном Supabase
+    // старт не висит — данные подтянутся и экран обновится, когда бэкенд ответит.
+    if (navigator.onLine) this._syncFromCloudInBackground();
 
     this._notifySync();
     if (this.settings.algo === 'fsrs') {

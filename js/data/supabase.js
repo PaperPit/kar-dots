@@ -104,6 +104,11 @@ export class MiniSupabase {
     return this.session;
   }
 
+  /** Есть ли сохранённая сессия — синхронно, без обращения к сети (для быстрого старта). */
+  hasSession() {
+    return !!(this.session && this.session.access_token);
+  }
+
   userId() {
     return this.session && this.session.user ? this.session.user.id : null;
   }

@@ -33,7 +33,7 @@ async function boot() {
   try {
     if (mode === 'local') {
       await enterLocal();
-    } else if (mode === 'cloud' && sb && await sb.ensureFresh()) {
+    } else if (mode === 'cloud' && sb && sb.hasSession()) {
       const { CloudStore } = await import('./data/store-cloud.js');
       const cloud = new CloudStore(sb);
       await cloud.init();

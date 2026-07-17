@@ -37,10 +37,18 @@ export async function renderReview(folderId, opts = {}) {
   const budget = newBudget();
   const folder = folderId ? store.folders.find(f => f.id === folderId) : null;
 
+  if (algo === 'fsrs') {
+    const { preloadFsrs } = await import('../../lib/srs.js');
+    await preloadFsrs();
+  }
+  if (session !== reviewSession) return;
+
   let queue;
   if (cram) {
-    queue = shuffle([...(await store.getFolderCards(folderId))]);
-    if (cramLimit != null && cramLimit > 0) queue = queue.slice(0, cramLimit);
+    const limit = cramLimit > 0 ? cramLimit : null;
+    queue = typeof store.getCramCards === 'function'
+      ? await store.getCramCards(folderId, limit)
+      : shuffle([...(await store.getFolderCards(folderId))]).slice(0, limit || undefined);
   } else {
     const { due: dueCards, fresh: newCards } = await store.getReviewCards(folderId || null, algo, budget, now);
     queue = shuffle(dueCards.concat(newCards));

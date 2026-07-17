@@ -3,12 +3,12 @@
 .review-wrap { max-width: 560px; margin: 0 auto; }
 .review-intro {
   text-align: center; color: var(--ink-soft); font-size: 16px; font-weight: 500;
-  margin: 0 auto 20px; max-width: 560px; letter-spacing: -.01em;
+  margin: 0 auto var(--sp-5); max-width: 560px; letter-spacing: -.01em;
   animation: itemIn .45s var(--ease) backwards;
 }
 .review-intro .kar { color: var(--accent); font-weight: 800; }
 .review-intro-cram { font-size: 15px; line-height: 1.45; }
-.review-top { display: flex; align-items: center; gap: 14px; margin-bottom: 18px; }
+.review-top { display: flex; align-items: center; gap: var(--sp-3); margin-bottom: var(--sp-4); }
 .progress {
   flex: 1; height: 6px; border-radius: 999px; background: var(--bg-sunken); overflow: hidden;
 }
@@ -16,20 +16,20 @@
   height: 100%; background: var(--accent); border-radius: 999px;
   transition: width .5s var(--ease);
 }
-/* 2a — прогресс колоды */
+/* прогресс колоды — без glow, только бумага + accent */
 .deck-progress {
-  height: 10px; background: var(--paper-deep);
-  box-shadow: inset 0 1px 2px rgba(44,34,25,.08);
+  height: 8px; background: var(--paper-deep);
+  box-shadow: inset 0 1px 2px color-mix(in srgb, var(--ink) 8%, transparent);
   border: 1px solid color-mix(in srgb, var(--line) 80%, transparent);
 }
 .deck-progress > div {
   background: linear-gradient(90deg, var(--terra-deep), var(--accent-bright));
-  box-shadow: 0 0 8px color-mix(in srgb, var(--accent) 35%, transparent);
   position: relative;
 }
 .deck-progress > div::after {
   content: ''; position: absolute; inset: 0; border-radius: inherit;
-  background: linear-gradient(180deg, rgba(255,255,255,.28), transparent 55%);
+  background: linear-gradient(180deg, color-mix(in srgb, #fff 22%, transparent), transparent 55%);
+  pointer-events: none;
 }
 .review-count {
   font-size: 13px; font-weight: 800; color: var(--ink-soft);
@@ -45,22 +45,20 @@
 .flip-swipe-area {
   position: relative;
   width: 100%;
-  overflow: visible;      /* чтобы слои-«стопка» выглядывали снизу */
-  border-radius: 24px;
-  margin-bottom: 22px;    /* место под выглядывающую стопку */
+  overflow: visible;
+  border-radius: 20px;
+  margin-bottom: var(--sp-5);
 }
-/* Декоративная «стопка» карт позади текущей — ощущение колоды.
-   Слои повторяют форму карточки, смещены вниз и сужены. */
 .flip-stack {
   position: absolute; inset: 0; z-index: 0;
-  border-radius: 24px;
+  border-radius: 20px;
   background: var(--bg-raised);
-  border: 1.5px solid var(--line);
+  border: 1px solid var(--line);
   box-shadow: var(--shadow);
   pointer-events: none;
 }
-.flip-stack-1 { transform: translateY(16px) scale(.965); opacity: 1; }
-.flip-stack-2 { transform: translateY(30px) scale(.93); opacity: .8; }
+.flip-stack-1 { transform: translateY(var(--sp-4)) scale(.965); opacity: 1; }
+.flip-stack-2 { transform: translateY(28px) scale(.93); opacity: .75; }
 /* при вылете карточки стопка чуть «подрастает» на её место */
 .flip-scene.is-card-exiting .flip-stack-1 { transform: translateY(6px) scale(.985); transition: transform .5s var(--ease); }
 .flip-scene.is-card-exiting .flip-stack-2 { transform: translateY(20px) scale(.955); transition: transform .5s var(--ease); }
@@ -78,18 +76,18 @@
 .flip-scene[data-swipe-dir="left"] .swipe-glow-left {
   opacity: var(--swipe-glow, 0.92);
   background: linear-gradient(90deg,
-    rgba(196, 69, 60, 0.72) 0%,
-    rgba(196, 69, 60, 0.42) 42%,
+    color-mix(in srgb, var(--danger) 72%, transparent) 0%,
+    color-mix(in srgb, var(--danger) 42%, transparent) 42%,
     transparent 78%);
-  box-shadow: inset 5px 0 0 rgba(196, 69, 60, 0.95);
+  box-shadow: inset 5px 0 0 color-mix(in srgb, var(--danger) 95%, transparent);
 }
 .flip-scene[data-swipe-dir="right"] .swipe-glow-right {
   opacity: var(--swipe-glow, 0.92);
   background: linear-gradient(270deg,
-    rgba(74, 143, 93, 0.72) 0%,
-    rgba(74, 143, 93, 0.42) 42%,
+    color-mix(in srgb, var(--ok) 72%, transparent) 0%,
+    color-mix(in srgb, var(--ok) 42%, transparent) 42%,
     transparent 78%);
-  box-shadow: inset -5px 0 0 rgba(74, 143, 93, 0.95);
+  box-shadow: inset -5px 0 0 color-mix(in srgb, var(--ok) 95%, transparent);
 }
 .flip-scene.is-exit-left .flip-face {
   border-color: var(--danger);
@@ -176,22 +174,22 @@
 }
 .flip-face {
   position: absolute; inset: 0; backface-visibility: hidden; -webkit-backface-visibility: hidden;
-  background: var(--bg-raised); border: 1.5px solid var(--line); border-radius: 24px;
+  background: var(--bg-raised); border: 1px solid var(--line); border-radius: 20px;
   box-shadow: var(--shadow-lg);
   display: flex; flex-direction: column; align-items: stretch; justify-content: center;
-  padding: 28px; text-align: center; overflow: hidden;
+  padding: var(--sp-6) var(--sp-5); text-align: center; overflow: hidden;
 }
 .flip-face.backside { transform: rotateY(180deg); }
 .flip-face .side-label {
-  position: absolute; top: 14px; left: 0; right: 0;
+  position: absolute; top: var(--sp-3); left: 0; right: 0;
   font-size: 11px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase;
   color: var(--ink-faint);
 }
 .flip-face-scroll {
   flex: 1; min-height: 0; width: 100%;
-  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--sp-3);
   overflow-y: auto; overflow-x: hidden;
-  padding: 6px 4px;
+  padding: var(--sp-2) var(--sp-1);
 }
 .flip-face-scroll::-webkit-scrollbar { width: 6px; }
 .flip-face-scroll::-webkit-scrollbar-thumb { background: var(--line); border-radius: 999px; }
@@ -210,7 +208,7 @@
 .card-definition a { color: var(--accent-text); text-decoration: underline; }
 .card-description {
   font-size: 15px; font-weight: 400; text-align: justify; line-height: 1.5;
-  margin-top: 14px; width: 100%; white-space: pre-wrap; word-break: break-word;
+  margin-top: var(--sp-3); width: 100%; white-space: pre-wrap; word-break: break-word;
   color: var(--ink-soft);
 }
 .card-description a { color: var(--accent-text); text-decoration: underline; }
@@ -230,15 +228,14 @@
 }
 
 .flip-face img { max-width: 100%; max-height: 180px; border-radius: 12px; object-fit: contain; flex: none; }
-.flip-hint { text-align: center; color: var(--ink-faint); font-size: 13px; margin-top: 14px; }
+.flip-hint { text-align: center; color: var(--ink-faint); font-size: 13px; margin-top: var(--sp-3); }
 
 .card-swap-out { animation: swapOut .3s var(--ease) forwards; }
-/* следующая карточка «подрастает» с места, где лежала бы в стопке позади */
 .card-swap-in { animation: swapIn .5s cubic-bezier(.18,1.25,.4,1); }
 @keyframes swapOut { to { opacity: 0; transform: translateX(-48px) rotate(-2deg); } }
-@keyframes swapIn { from { opacity: .5; transform: translateY(16px) scale(.955); } }
+@keyframes swapIn { from { opacity: .5; transform: translateY(var(--sp-4)) scale(.955); } }
 
-.grade-row { display: flex; gap: 10px; margin-top: 20px; }
+.grade-row { display: flex; gap: var(--sp-2); margin-top: var(--sp-5); }
 /* FSRS: четыре оценки в один ряд на планшете и выше */
 @media (min-width: 720px) {
   .grade-row:has(.hard) { flex-wrap: nowrap; }

@@ -28,6 +28,22 @@ const EXCLUDE_ICONS = new Set([
   'icons/star-empty.svg',
 ]);
 
+/** Не precache — кэшируются при первом fetch (runtime). */
+const RUNTIME_PREFIXES = [
+  'js/screens/',
+  'js/vendor/capacitor-speech-recognition.mjs',
+  'js/vendor/ts-fsrs.mjs',
+  'js/lib/fsrs-engine.js',
+  'js/lib/speech-input.js',
+  'js/lib/stock-media.js',
+  'js/lib/cloze.js',
+  'icons/folders/',
+];
+
+function isRuntimeAsset(path) {
+  return RUNTIME_PREFIXES.some(p => path.startsWith(p) || path === p);
+}
+
 const JS_FILES = (await walk(join(ROOT, 'js'))).filter(f => /\.(js|mjs)$/.test(f) && f !== 'js/config.js').sort();
 const ICON_SVG = (await walk(join(ROOT, 'icons')))
   .filter(f => /\.(svg|png)$/.test(f) && !EXCLUDE_ICONS.has(f))
@@ -40,6 +56,7 @@ const CORE_STATIC = [
   'css/style.css', 'css/components/modal.css',
   'css/screens/home.css', 'css/screens/folder.css',
   'css/screens/card-editor.css', 'css/screens/review.css', 'css/screens/settings.css',
+  'css/screens/youtube-import.css',
   'css/fonts/fonts.css',
   'css/fonts/baloo2-latin.woff2',
   'css/fonts/nunito-cyr-ext.woff2', 'css/fonts/nunito-cyr.woff2',
@@ -47,13 +64,14 @@ const CORE_STATIC = [
   'packs/manifest.json',
 ];
 
-const list = [...CORE_STATIC, ...JS_FILES, ...UI_ICONS, ...FOLDER_ICONS];
+const PRECACHE_JS = JS_FILES.filter(f => !isRuntimeAsset(f));
+const list = [...CORE_STATIC, ...PRECACHE_JS, ...UI_ICONS];
 const unique = [...new Set(list)];
 
 const swPath = join(ROOT, 'sw.js');
 const sw = await readFile(swPath, 'utf8');
 const versionMatch = sw.match(/const VERSION = '([^']+)'/);
-const version = versionMatch ? versionMatch[1] : 'kar-v12.0';
+const version = versionMatch ? versionMatch[1] : 'kar-v14.0';
 
 const body = unique.map(f => `  '${f}',`).join('\n');
 const next = `const VERSION = '${version}';
@@ -64,7 +82,18 @@ ${body}
 ];
 
 /** Кэшируются при первом обращении (офлайн после первого использования). */
-const LAZY_PREFIXES = ['audio/', 'packs/en-'];
+const LAZY_PREFIXES = [
+  'audio/',
+  'packs/en-',
+  'js/screens/',
+  'js/vendor/capacitor-speech-recognition.mjs',
+  'js/vendor/ts-fsrs.mjs',
+  'js/lib/fsrs-engine.js',
+  'js/lib/speech-input.js',
+  'js/lib/stock-media.js',
+  'js/lib/cloze.js',
+  'icons/folders/',
+];
 
 function isLazyPath(pathname) {
   return LAZY_PREFIXES.some(p => pathname.includes(p));
@@ -96,13 +125,14 @@ self.addEventListener('fetch', e => {
   const path = url.pathname.replace(/^\\//, '');
   const isAppJs = isSameOrigin && /\\.(js|css|html)$/.test(url.pathname);
   const lazy = isSameOrigin && isLazyPath(path);
+  const hasRange = e.request.headers.has('range');
 
   e.respondWith(
     fetch(isAppJs ? new Request(e.request, { cache: 'no-cache' }) : e.request)
       .then(resp => {
-        if (resp.ok) {
+        if (resp.status === 200 && !hasRange) {
           const copy = resp.clone();
-          caches.open(VERSION).then(c => c.put(e.request, copy));
+          caches.open(VERSION).then(c => c.put(e.request, copy)).catch(() => {});
         }
         return resp;
       })
@@ -117,4 +147,4 @@ self.addEventListener('fetch', e => {
 `;
 
 await writeFile(swPath, next);
-console.log(`Updated sw.js — ${unique.length} core files`);
+console.log(`Updated sw.js — ${unique.length} precache files (${JS_FILES.length - PRECACHE_JS.length} runtime JS, ${FOLDER_ICONS.length} runtime folder icons)`);

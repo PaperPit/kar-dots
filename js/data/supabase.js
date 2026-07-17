@@ -107,7 +107,7 @@ export class MiniSupabase {
     await this.ensureFresh();
     const r = await fetch(this.url + '/rest/v1/' + table, {
       method: 'POST',
-      headers: Object.assign({ 'Content-Type': 'application/json', Prefer: 'return=representation' }, this._authHeaders()),
+      headers: Object.assign({ 'Content-Type': 'application/json', Prefer: 'return=minimal' }, this._authHeaders()),
       body: JSON.stringify(row),
     });
     const rows = await handle(r);
@@ -120,7 +120,7 @@ export class MiniSupabase {
       method: 'POST',
       headers: Object.assign({
         'Content-Type': 'application/json',
-        Prefer: 'return=representation,resolution=merge-duplicates',
+        Prefer: 'return=minimal,resolution=merge-duplicates',
       }, this._authHeaders()),
       body: JSON.stringify(row),
     });
@@ -132,7 +132,7 @@ export class MiniSupabase {
     await this.ensureFresh();
     const r = await fetch(this.url + '/rest/v1/' + table + '?' + filter, {
       method: 'PATCH',
-      headers: Object.assign({ 'Content-Type': 'application/json', Prefer: 'return=representation' }, this._authHeaders()),
+      headers: Object.assign({ 'Content-Type': 'application/json', Prefer: 'return=minimal' }, this._authHeaders()),
       body: JSON.stringify(patch),
     });
     return handle(r);

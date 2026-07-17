@@ -2,6 +2,9 @@
 
 export const SRS_FIELDS = 'id,folder_id,sm2_ef,sm2_reps,sm2_ivl,sm2_due,box,box_due,fsrs_state,fsrs_stability,fsrs_difficulty,fsrs_due,fsrs_scheduled_days,fsrs_elapsed_days,fsrs_reps,fsrs_lapses,fsrs_learning_steps,fsrs_last_review,created_at';
 
+/** Content + SRS — enough for an online review session (no select=*). */
+export const REVIEW_CARD_FIELDS = SRS_FIELDS + ',front,back,description,front_img,back_img';
+
 export function toSrsMeta(card) {
   return {
     id: card.id,

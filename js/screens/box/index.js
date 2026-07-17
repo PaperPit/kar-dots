@@ -6,7 +6,7 @@ import { boxSwatch } from '../../ui/icons.js';
 import { shell, nav, offlineBanner } from '../../ui/shell.js';
 import { backBtn } from '../../ui/navigation.js';
 import { foldersInBox } from '../../data/store-box.js';
-import { folderCardStats, folderCardEl } from '../../ui/folder-cards.js';
+import { folderCardStatsFromHome, folderCardEl } from '../../ui/folder-cards.js';
 import { attachFolderDraggable, createUnboxDropZone } from '../../ui/folder-drag.js';
 import { route } from '../../core/router.js';
 import { boxDialog, boxDeleteConfirm } from '../home/box-dialog.js';
@@ -18,6 +18,7 @@ export async function renderBox(boxId) {
 
   const folders = foldersInBox(store.folders, boxId);
   const budget = newBudget();
+  const homeStats = await store.getHomeStats();
 
   const head = el('div', { class: 'page-head' }, [
     backBtn('#home'),
@@ -39,9 +40,10 @@ export async function renderBox(boxId) {
   ]);
 
   const grid = el('div', { class: 'folder-grid' });
-  const rows = await Promise.all(folders.map(async (f, i) => {
-    const stats = await folderCardStats(store, f, budget);
-    return { f, stats, i };
+  const rows = folders.map((f, i) => ({
+    f,
+    stats: folderCardStatsFromHome(homeStats, f, budget),
+    i,
   }));
   const unboxZone = createUnboxDropZone(async folderId => {
     const folder = store.folders.find(f => f.id === folderId);

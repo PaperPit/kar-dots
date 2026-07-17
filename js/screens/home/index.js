@@ -3,25 +3,23 @@ import { el, plural, toast } from '../../ui/ui.js';
 import { route } from '../../core/router.js';
 import { folderDragEnabled, attachFolderDraggable, attachBoxDropTarget } from '../../ui/folder-drag.js';
 import { ICONS } from '../../ui/constants.js';
-import { crowBox, emptyFoldersBox, scarecrowBox, svgNode } from '../../ui/helpers.js';
-import { shell, nav, offlineBanner, refreshDueBadge } from '../../ui/shell.js';
+import { crowBox, emptyFoldersBox, scarecrowBox, svgNode, newBudget } from '../../ui/helpers.js';
+import { shell, nav, offlineBanner, setDueBadge } from '../../ui/shell.js';
 import { homeCalendarWidget } from '../../ui/activity-calendar.js';
 import { folderDialog } from './folder-dialog.js';
 import { boxDialog } from './box-dialog.js';
 import { studyModePicker } from '../review/mode-picker.js';
 import { vocabPacksDialog } from '../../ui/vocab-packs-dialog.js';
-import { looseFolders, boxFolderStats } from '../../data/store-box.js';
-import { folderCardStats, folderCardEl, boxCardEl } from '../../ui/folder-cards.js';
-import { newBudget } from '../../ui/helpers.js';
+import { looseFolders, boxFolderStatsFromHome } from '../../data/store-box.js';
+import { folderCardStatsFromHome, folderCardEl, boxCardEl } from '../../ui/folder-cards.js';
+import { todayStudyCount } from '../../data/home-stats.js';
 
 export async function renderHome() {
-  const dueAll = await refreshDueBadge();
-  const [newAllRaw, totalCards] = await Promise.all([
-    store.countNew(null),
-    store.countCards(null),
-  ]);
-  const newAll = Math.min(newAllRaw, newBudget());
-  const totalToStudy = dueAll + newAll;
+  const budget = newBudget();
+  const homeStats = await store.getHomeStats();
+  const totalToStudy = todayStudyCount(homeStats, budget);
+  setDueBadge(totalToStudy);
+  const totalCards = homeStats.totalCards;
   const isWelcome = !store.folders.length && totalCards === 0 && !store.boxes.length;
   const hasFoldersNoCards = store.folders.length > 0 && totalCards === 0;
 
@@ -30,7 +28,7 @@ export async function renderHome() {
   if (totalToStudy > 0) {
     heroIcon = crowBox('crow');
     heroCountNode = el('span', { class: 'tnum' }, String(totalToStudy));
-    heroTitle = ['К повторению: ', heroCountNode, ` ${plural(totalToStudy, 'карточка', 'карточки', 'карточек')}`];
+    heroTitle = ['Сегодня к повторению ', heroCountNode, ` ${plural(totalToStudy, 'карточка', 'карточки', 'карточек')}`];
     heroSub = 'Ворона ждёт — пара минут, и память скажет спасибо.';
     heroBtn = el('button', { class: 'btn accent big', onclick: () => studyModePicker({}) }, [svgNode(ICONS.play), 'Повторить']);
   } else if (isWelcome) {
@@ -62,15 +60,12 @@ export async function renderHome() {
     heroBtn,
   ]);
 
-  const budget = newBudget();
   const loose = looseFolders(store.folders);
 
   const boxGrid = el('div', { class: 'folder-grid box-grid' });
-  const boxRows = await Promise.all(store.boxes.map(async (b, i) => {
-    const stats = await boxFolderStats(store, b.id, budget);
-    return { b, stats, i };
-  }));
-  for (const { b, stats, i } of boxRows) {
+  for (let i = 0; i < store.boxes.length; i++) {
+    const b = store.boxes[i];
+    const stats = boxFolderStatsFromHome(homeStats, store.folders, b.id, budget);
     const card = boxCardEl(b, stats, i);
     attachBoxDropTarget(card, b.id, async (folderId, boxId) => {
       const folder = store.folders.find(f => f.id === folderId);
@@ -96,11 +91,9 @@ export async function renderHome() {
   }, '+ Новая коробка'));
 
   const folderGrid = el('div', { class: 'folder-grid' });
-  const folderRows = await Promise.all(loose.map(async (f, i) => {
-    const stats = await folderCardStats(store, f, budget);
-    return { f, stats, i };
-  }));
-  for (const { f, stats, i } of folderRows) {
+  for (let i = 0; i < loose.length; i++) {
+    const f = loose[i];
+    const stats = folderCardStatsFromHome(homeStats, f, budget);
     const card = folderCardEl(f, stats, i);
     attachFolderDraggable(card, f.id);
     folderGrid.append(card);
@@ -111,19 +104,25 @@ export async function renderHome() {
     onclick: () => folderDialog(null),
   }, '+ Новая папка'));
 
+  const calendarPlace = store.settings.calendarPlace
+    ?? (store.settings.showCalendar === false ? 'hidden' : 'left');
+  const calendarAside = calendarPlace !== 'hidden'
+    ? homeCalendarWidget(calendarPlace)
+    : null;
+
   const sections = [hero];
 
   sections.push(
-    el('div', { class: 'page-head' }, el('h2', { class: 'page-title' }, 'Коробки')),
+    el('div', { class: 'home-section-head' }, el('h2', { class: 'home-section-title' }, 'Коробки')),
     el('p', { class: 'section-hint' }, folderDragEnabled()
-      ? 'Объединяют папки по теме. Перетащите папку из списка ниже на коробку.'
-      : 'Объединяют папки по теме — карточки хранятся только в папках.'),
+      ? 'Объединяют папки по теме. Перетащите папку на коробку.'
+      : 'Объединяют папки по теме — карточки только в папках.'),
     boxGrid,
   );
 
   if (loose.length || !store.folders.length) {
     sections.push(
-      el('div', { class: 'page-head section-head-spaced' }, el('h2', { class: 'page-title' }, 'Папки')),
+      el('div', { class: 'home-section-head home-section-spaced' }, el('h2', { class: 'home-section-title' }, 'Папки')),
       folderGrid,
     );
   }
@@ -138,13 +137,8 @@ export async function renderHome() {
     ]));
   }
 
-  const calendarPlace = store.settings.calendarPlace
-    ?? (store.settings.showCalendar === false ? 'hidden' : 'left');
-
-  const calendarAside = calendarPlace !== 'hidden'
-    ? homeCalendarWidget(calendarPlace)
-    : null;
-
+  // Календарь — в main-prepend (вне .view): иначе position:fixed ломается
+  // из‑за transform анимации и calendar уезжает за overflow.
   shell('home', el('div', null, [
     offlineBanner(),
     el('div', { class: 'home-page' }, [mainCol]),

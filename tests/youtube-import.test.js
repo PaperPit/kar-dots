@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   parseYouTubeId, normalizeTerm, stemVariants, isKnownTerm,
   collectKnownTerms, isYoutubeCard, filterNewCandidates,
+  filterTranscriptSegments, filterNewSentences,
   fmtTimestamp, buildYtLink, buildCardDescription,
 } from '../js/lib/youtube-import.js';
 
@@ -116,5 +117,29 @@ describe('таймкоды и description', () => {
     expect(buildCardDescription({ level: 'A2', kind: 'phrase', t: null }, 'abc12345678')).toBe('A2 · phrase');
     expect(buildCardDescription({ level: '', pos: 'сущ.', kind: 'word', t: 5 }, ''))
       .toBe('сущ.');
+  });
+  it('description предложения', () => {
+    const d = buildCardDescription({ level: 'B1', kind: 'sentence', t: 30 }, 'abc12345678');
+    expect(d).toBe('B1 · sentence · <a href="https://www.youtube.com/watch?v=abc12345678&t=28s">▶ 0:30</a>');
+  });
+});
+
+describe('filterTranscriptSegments / filterNewSentences', () => {
+  it('filterTranscriptSegments отсекает короткие и дубли', () => {
+    const out = filterTranscriptSegments([
+      { t: 1, text: 'Hi' },
+      { t: 2, text: 'Hello world again' },
+      { t: 3, text: 'Hello world again' },
+    ], { minWords: 3 });
+    expect(out).toEqual([{ t: 2, text: 'Hello world again' }]);
+  });
+
+  it('filterNewSentences убирает известные', () => {
+    const known = new Set(['hello world']);
+    const out = filterNewSentences([
+      { front: 'Hello world', back: 'x', kind: 'sentence' },
+      { front: 'New sentence here', back: 'y', kind: 'sentence' },
+    ], known);
+    expect(out.map(s => s.front)).toEqual(['New sentence here']);
   });
 });

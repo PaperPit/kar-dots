@@ -131,7 +131,7 @@ export async function studyModePicker({ folderId = null, cram = false } = {}) {
   let cardCount = null;
 
   if (cram && folderId) {
-    cardCount = (await store.getFolderCards(folderId)).length;
+    cardCount = await store.countCards(folderId);
   }
 
   let m;

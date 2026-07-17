@@ -1,6 +1,6 @@
 import { store, sb, cloudConfigured, app, setStore } from '../../core/state.js';
 import { el, toast, spinner } from '../../ui/ui.js';
-import { LocalStore, CloudStore } from '../../data/index.js';
+import { LocalStore } from '../../data/index.js';
 import { FOLDER_COLORS } from '../../ui/constants.js';
 import { brandMark, ghostBox } from '../../ui/helpers.js';
 import { nav } from '../../ui/shell.js';
@@ -99,6 +99,7 @@ export async function enterCloud() {
   localStorage.setItem('kar_mode', 'cloud');
   renderAuth('Загружаю ваши карточки…');
   try {
+    const { CloudStore } = await import('../../data/store-cloud.js');
     const cloud = new CloudStore(sb);
     await cloud.init();
     setStore(cloud);

@@ -1,7 +1,7 @@
 // CloudStore — Supabase + локальное зеркало + офлайн-очередь
 import { isNetworkError } from './supabase.js';
 import {
-  openMirrorDB, getAll, mirrorReplaceAll, mirrorPut, mirrorDelete,
+  openMirrorDB, getAll, mirrorReplaceAll, mirrorPut, mirrorPutMany, mirrorDelete, mirrorDeleteMany,
   mirrorGetKV, mirrorSetKV, indexGetAll, SyncQueue,
 } from './sync-queue.js';
 import { DEFAULT_SETTINGS, uuid } from './store-common.js';
@@ -15,7 +15,7 @@ import {
   buildFolderRecord, buildCardRecord, buildBoxRecord, exportJSONPayload,
 } from './store-contract.js';
 import {
-  countDueForFolder, countDueBetweenForFolder, countNewForFolder, buildReviewQueue,
+  countDueForFolder, countDueBetweenForFolder, countNewForFolder, buildReviewQueue, filterByFolder,
 } from './srs-query.js';
 import {
   findFolderByPackId, importVocabPack as doImportVocabPack,
@@ -23,9 +23,17 @@ import {
 } from './store-vocab.js';
 import { shuffle } from '../lib/shuffle.js';
 import {
-  SRS_FIELDS, upsertSrsMeta, removeSrsMeta, removeSrsMetaForFolder, countSrsMetaByFolder,
+  REVIEW_CARD_FIELDS, upsertSrsMeta, removeSrsMeta, removeSrsMetaForFolder, countSrsMetaByFolder,
 } from './srs-meta.js';
 import { StoreCache } from './store-cache.js';
+import { buildHomeStats } from './home-stats.js';
+import { invalidateDerivedCaches } from './cache-invalidate.js';
+import { getCardsByIds, hydrateReviewQueue } from './card-hydrate.js';
+import { isYoutubeCard } from '../lib/youtube-import.js';
+import {
+  CLOUD_SYNC_KEY, SRS_DELTA_SELECT, shouldUseCardsDelta, mergeSrsDelta,
+  nextCardsWatermark, stampUpdatedAt,
+} from './cloud-delta.js';
 
 export { folderSaveErrorMessage } from '../lib/folder-errors.js';
 
@@ -42,16 +50,68 @@ export class CloudStore {
     this.queue = new SyncQueue();
     this.mirror = null;
     this._onSyncChange = null;
+    this._onDataChange = null;
     this._folderIconCloudUnsupported = false;
     this._boxesCloudUnsupported = false;
     this._boxIdCloudUnsupported = false;
     this._boxIconCloudUnsupported = false;
+    this._homeStatsCache = null;
+    this._homeStatsCacheAlgo = null;
+    this._srsMetaPersistTimer = null;
+    this._bgSyncTail = Promise.resolve();
+  }
+
+  _invalidateHomeStats() {
+    this._homeStatsCache = null;
+    this._homeStatsCacheAlgo = null;
+  }
+
+  _schedulePersistSrsMeta() {
+    if (this._srsMetaPersistTimer) clearTimeout(this._srsMetaPersistTimer);
+    this._srsMetaPersistTimer = setTimeout(() => {
+      this._srsMetaPersistTimer = null;
+      this._persistSrsMeta();
+    }, 200);
+  }
+
+  async _persistSrsMeta() {
+    if (!this.mirror || !this._srsMeta) return;
+    await mirrorSetKV(this.mirror, 'srs_meta', this._srsMeta);
+  }
+
+  async _flushSrsMetaPersist() {
+    if (this._srsMetaPersistTimer) {
+      clearTimeout(this._srsMetaPersistTimer);
+      this._srsMetaPersistTimer = null;
+    }
+    await this._persistSrsMeta();
+  }
+
+  async getHomeStats() {
+    const algo = this.settings.algo;
+    if (this._homeStatsCache && this._homeStatsCacheAlgo === algo) {
+      return this._homeStatsCache;
+    }
+    this._homeStatsCache = buildHomeStats(this._srsMeta || [], algo);
+    this._homeStatsCacheAlgo = algo;
+    return this._homeStatsCache;
   }
 
   onSyncChange(fn) { this._onSyncChange = fn; }
+  /** Колбэк перерисовки текущего экрана после фоновой догрузки данных из облака. */
+  onDataChange(fn) { this._onDataChange = fn; }
+  _emitDataChange() {
+    if (!this._onDataChange) return;
+    try { this._onDataChange(); } catch (e) { console.error('onDataChange failed:', e); }
+  }
 
   async _notifySync() {
-    if (this._onSyncChange) this._onSyncChange(await this.pendingSync(), this._offline);
+    if (!this._onSyncChange) return;
+    this._onSyncChange({
+      pending: await this.pendingSync(),
+      failed: await this.deadLetterCount(),
+      offline: this._offline,
+    });
   }
 
   get offline() { return this._offline; }
@@ -61,11 +121,37 @@ export class CloudStore {
     return this.queue.size();
   }
 
+  async deadLetterCount() {
+    if (!this.queue.db) return 0;
+    return this.queue.deadLetterCount();
+  }
+
+  async deadLetters() {
+    if (!this.queue.db) return [];
+    return this.queue.deadLetters();
+  }
+
+  async retryDeadLetter(id) {
+    if (!this.queue.db) return false;
+    const ok = await this.queue.retryDeadLetter(id);
+    if (ok) await this.flushSync();
+    await this._notifySync();
+    return ok;
+  }
+
+  async discardDeadLetter(id) {
+    if (!this.queue.db) return false;
+    const ok = await this.queue.discardDeadLetter(id);
+    await this._notifySync();
+    return ok;
+  }
+
   async init() {
     this.mirror = await openMirrorDB();
     await this.queue.init(this.mirror);
     await this._loadCloudFlags();
     this.queue.onFlush(item => this._executeSyncItem(item));
+    this.queue.onDeadLetter(() => this._notifySync());
     window.addEventListener('online', () => this._onOnline());
     await this._loadData();
   }
@@ -73,39 +159,73 @@ export class CloudStore {
   async _onOnline() {
     this._offline = false;
     await this.flushSync();
-    try { await this._fetchFromCloud(); this._notifySync(); } catch (e) { /* mirror */ }
+    try { await this._fetchFromCloud(); this._notifySync(); this._emitDataChange(); } catch (e) { /* mirror */ }
   }
 
   async flushSync() {
     const r = await this.queue.flush();
-    if (r.ok > 0) this._notifySync();
+    if (r.ok > 0 || r.fail > 0) this._notifySync();
     return r;
   }
 
   async _loadData() {
+    // Сначала быстрый локальный рендер из зеркала IndexedDB — мгновенно и работает офлайн.
+    await this._loadFromMirror();
+    this._offline = !navigator.onLine;
+    const mirrorEmpty = this.folders.length === 0 && (this._srsMeta || []).length === 0;
+
     if (navigator.onLine) {
+      if (mirrorEmpty) {
+        // Свежее устройство без локальных данных: ждём первую загрузку, чтобы не мигать пустым экраном.
+        try {
+          await this._fetchFromCloud();
+          this._offline = false;
+          await this.flushSync();
+        } catch (e) {
+          if (!isNetworkError(e)) throw e;
+          this._offline = true;
+        }
+      } else {
+        // Есть локальные данные — показываем их сразу, облако догружаем в фоне.
+        this._syncFromCloudInBackground();
+      }
+    }
+
+    this._notifySync();
+    if (this.settings.algo === 'fsrs') {
+      const { preloadFsrs } = await import('../lib/srs.js');
+      preloadFsrs();
+    }
+  }
+
+  /** Догружает данные из облака в фоне и обновляет UI, не блокируя первый экран. */
+  _syncFromCloudInBackground() {
+    Promise.resolve().then(async () => {
       try {
         await this._fetchFromCloud();
         this._offline = false;
         await this.flushSync();
+        this._notifySync();
+        this._emitDataChange();
       } catch (e) {
-        if (isNetworkError(e)) await this._loadFromMirror();
-        else throw e;
+        if (isNetworkError(e)) { this._offline = true; this._notifySync(); }
+        else console.error('Фоновая синхронизация не удалась:', e);
       }
-    } else {
-      await this._loadFromMirror();
-    }
-    this._notifySync();
+    });
   }
 
   async _fetchFromCloud() {
     const uid = this.sb.userId();
-    const [folders, srsMeta, settingsRows, boxesRaw] = await Promise.all([
+    const sync = await mirrorGetKV(this.mirror, CLOUD_SYNC_KEY);
+    const useDelta = shouldUseCardsDelta(sync, uid);
+
+    const [folders, settingsRows, boxesRaw, cardsPull] = await Promise.all([
       this.sb.select('folders', 'select=*&order=created_at.asc'),
-      this.sb.select('cards', 'select=' + SRS_FIELDS),
       this.sb.select('settings', 'select=*&user_id=eq.' + uid),
       this._fetchBoxesFromCloud(),
+      useDelta ? this._pullCardsDelta(uid, sync.cardsAt) : this._pullCardsFull(),
     ]);
+
     this.folders = folders.map(normalizeFolderRecord);
     this.boxes = boxesRaw.map(normalizeBoxRecord).sort((a, b) => (a.created_at || 0) - (b.created_at || 0));
     if (folders.some(f => Object.prototype.hasOwnProperty.call(f, 'icon'))) {
@@ -114,17 +234,59 @@ export class CloudStore {
     }
     await mirrorReplaceAll(this.mirror, 'folders', folders);
     await mirrorReplaceAll(this.mirror, 'boxes', this.boxes);
-    this._srsMeta = srsMeta;
+    this._srsMeta = cardsPull.meta;
     this._cache.clearAll();
-    for (const [fid, n] of countSrsMetaByFolder(srsMeta, folders)) {
+    for (const [fid, n] of countSrsMetaByFolder(cardsPull.meta, folders)) {
       this._cache.setCount(fid, n);
     }
+    invalidateDerivedCaches(this);
     if (settingsRows.length && settingsRows[0].data) {
       this.settings = Object.assign({}, DEFAULT_SETTINGS, settingsRows[0].data);
     }
     await mirrorSetKV(this.mirror, 'settings', this.settings);
-    await mirrorSetKV(this.mirror, 'srs_meta', srsMeta);
+    await mirrorSetKV(this.mirror, 'srs_meta', cardsPull.meta);
+    const now = Date.now();
+    await mirrorSetKV(this.mirror, CLOUD_SYNC_KEY, {
+      userId: uid,
+      cardsAt: cardsPull.cardsAt,
+      fullAt: cardsPull.full ? now : (sync?.fullAt || now),
+    });
     this._offline = false;
+  }
+
+  async _pullCardsFull() {
+    const rows = await this.sb.select('cards', 'select=' + SRS_DELTA_SELECT);
+    const { meta, maxAt } = mergeSrsDelta([], rows);
+    return { meta, cardsAt: nextCardsWatermark(0, maxAt), full: true };
+  }
+
+  /**
+   * Pull only cards with updated_at > since, merge into mirror srs_meta.
+   * Falls back to full when remote count disagrees (deletes) or query fails.
+   */
+  async _pullCardsDelta(uid, since) {
+    try {
+      const base = this._srsMeta
+        || (await mirrorGetKV(this.mirror, 'srs_meta'))
+        || [];
+      const [delta, remoteCount] = await Promise.all([
+        this.sb.select(
+          'cards',
+          'user_id=eq.' + uid + '&updated_at=gt.' + since + '&select=' + SRS_DELTA_SELECT,
+        ),
+        this.sb.count('cards', 'user_id=eq.' + uid),
+      ]);
+      const { meta, maxAt } = mergeSrsDelta(base, delta);
+      if (remoteCount !== meta.length) return this._pullCardsFull();
+      return {
+        meta,
+        cardsAt: nextCardsWatermark(since, maxAt),
+        full: false,
+      };
+    } catch (e) {
+      if (isNetworkError(e)) throw e;
+      return this._pullCardsFull();
+    }
   }
 
   async _fetchBoxesFromCloud() {
@@ -161,12 +323,20 @@ export class CloudStore {
     this._offline = true;
   }
 
-  async _cloudOrQueue(op, payload, localFn) {
+  /**
+   * Apply localFn first. Online: wait for cloud unless `optimistic` (UI returns after
+   * mirror; network runs in a serialized background chain). Offline / network error → queue.
+   */
+  async _cloudOrQueue(op, payload, localFn, { optimistic = false } = {}) {
     const result = await localFn();
     if (!navigator.onLine) {
       this._offline = true;
       await this.queue.enqueue({ op, payload });
       this._notifySync();
+      return result;
+    }
+    if (optimistic) {
+      this._syncInBackground(op, payload);
       return result;
     }
     try {
@@ -182,6 +352,27 @@ export class CloudStore {
       }
       throw e;
     }
+  }
+
+  /** Serialized fire-and-forget cloud op; on failure falls back to SyncQueue. */
+  _syncInBackground(op, payload) {
+    const run = async () => {
+      try {
+        await this._executeSyncItem({ op, payload });
+        this._offline = false;
+      } catch (e) {
+        if (isNetworkError(e)) {
+          this._offline = true;
+          await this.queue.enqueue({ op, payload });
+          this._notifySync();
+          return;
+        }
+        await this.queue.enqueue({ op, payload });
+        this._notifySync();
+        try { await this.flushSync(); } catch (_) { /* dead-letter / still pending */ }
+      }
+    };
+    this._bgSyncTail = this._bgSyncTail.then(run, run);
   }
 
   async _loadCloudFlags() {
@@ -320,12 +511,16 @@ export class CloudStore {
         await this.sb.remove('cards', 'id=eq.' + payload.id);
         break;
       case 'saveSettings':
-        await this.sb.upsert('settings', { user_id: this.sb.userId(), data: payload.settings });
+        await this.sb.upsert('settings', {
+          user_id: this.sb.userId(),
+          data: payload.settings,
+          updated_at: Date.now(),
+        });
         break;
       case 'uploadImage':
         payload.url = await this.sb.uploadFile('card-images', payload.path, payload.blob, payload.contentType);
         if (payload.cardId && payload.side) {
-          await this.sb.update('cards', 'id=eq.' + payload.cardId, { [payload.side]: payload.url });
+          await this.sb.update('cards', 'id=eq.' + payload.cardId, stampUpdatedAt({ [payload.side]: payload.url }));
         }
         break;
       default: throw new Error('Unknown sync op: ' + op);
@@ -335,13 +530,13 @@ export class CloudStore {
   _patchSrsMeta(card) {
     if (!this._srsMeta) this._srsMeta = [];
     upsertSrsMeta(this._srsMeta, card);
-    mirrorSetKV(this.mirror, 'srs_meta', this._srsMeta);
+    this._schedulePersistSrsMeta();
   }
 
   _patchSrsMetaRemoval(id) {
     if (!this._srsMeta) return;
     this._srsMeta = removeSrsMeta(this._srsMeta, id);
-    mirrorSetKV(this.mirror, 'srs_meta', this._srsMeta);
+    this._schedulePersistSrsMeta();
   }
 
   async getFolderCards(folderId) {
@@ -350,7 +545,7 @@ export class CloudStore {
     if (navigator.onLine && !this._offline) {
       try {
         cards = await this.sb.select('cards', 'folder_id=eq.' + folderId + '&order=created_at.desc');
-        for (const c of cards) await mirrorPut(this.mirror, 'cards', c);
+        await mirrorPutMany(this.mirror, 'cards', cards);
       } catch (e) {
         if (isNetworkError(e)) {
           this._offline = true;
@@ -391,36 +586,64 @@ export class CloudStore {
       try {
         const uid = this.sb.userId();
         const prefix = folderId ? 'folder_id=eq.' + folderId + '&user_id=eq.' + uid : 'user_id=eq.' + uid;
+        const sel = '&select=' + REVIEW_CARD_FIELDS;
         const dueQ = algo === 'leitner'
-          ? prefix + '&box=gt.0&box_due=lte.' + now + '&select=*'
+          ? prefix + '&box=gt.0&box_due=lte.' + now + sel
           : algo === 'fsrs'
-            ? prefix + '&fsrs_due=not.is.null&fsrs_due=lte.' + now + '&select=*'
-            : prefix + '&sm2_due=not.is.null&sm2_due=lte.' + now + '&select=*';
+            ? prefix + '&fsrs_due=not.is.null&fsrs_due=lte.' + now + sel
+            : prefix + '&sm2_due=not.is.null&sm2_due=lte.' + now + sel;
         const newQ = algo === 'leitner'
-          ? prefix + '&box=eq.0&select=*&limit=' + newLimit
+          ? prefix + '&box=eq.0' + sel + '&limit=' + newLimit
           : algo === 'fsrs'
-            ? prefix + '&fsrs_reps=is.null&fsrs_due=is.null&select=*&limit=' + newLimit
-            : prefix + '&sm2_reps=eq.0&sm2_due=is.null&select=*&limit=' + newLimit;
+            ? prefix + '&fsrs_reps=is.null&fsrs_due=is.null' + sel + '&limit=' + newLimit
+            : prefix + '&sm2_reps=eq.0&sm2_due=is.null' + sel + '&limit=' + newLimit;
         const [dueCards, newCards] = await Promise.all([
           this.sb.select('cards', dueQ),
           this.sb.select('cards', newQ),
         ]);
-        for (const c of dueCards.concat(newCards)) await mirrorPut(this.mirror, 'cards', c);
+        await mirrorPutMany(this.mirror, 'cards', dueCards.concat(newCards));
         return { due: shuffle(dueCards), fresh: shuffle(newCards).slice(0, newLimit) };
       } catch (e) { if (!isNetworkError(e)) throw e; this._offline = true; }
     }
 
-    const cards = [];
-    const source = folderId ? await this.getFolderCards(folderId) : (this._srsMeta || []);
-    for (const meta of source) {
-      let c = meta;
-      if (!meta.front) {
-        const full = await this._getCardById(meta.id);
-        if (full) c = full;
+    const source = filterByFolder(this._srsMeta || [], folderId);
+    const { due, fresh } = buildReviewQueue(source, algo, newLimit, now);
+    const ids = [...due.map(c => c.id), ...fresh.map(c => c.id)];
+    const byId = await getCardsByIds(this.mirror, this._cache, ids);
+    return {
+      due: hydrateReviewQueue(due, byId),
+      fresh: hydrateReviewQueue(fresh, byId),
+    };
+  }
+
+  async getCramCards(folderId, limit) {
+    const source = filterByFolder(this._srsMeta || [], folderId);
+    const picked = shuffle(source);
+    const slice = limit > 0 ? picked.slice(0, limit) : picked;
+    const byId = await getCardsByIds(this.mirror, this._cache, slice.map(c => c.id));
+    return hydrateReviewQueue(slice, byId);
+  }
+
+  async scanFolderFronts(folderId, { youtubeOnly = false } = {}) {
+    if (navigator.onLine && !this._offline) {
+      try {
+        const rows = await this.sb.select('cards', 'folder_id=eq.' + folderId + '&select=front,description');
+        return rows
+          .filter(c => !youtubeOnly || isYoutubeCard(c))
+          .filter(c => c.front)
+          .map(c => ({ front: c.front }));
+      } catch (e) {
+        if (!isNetworkError(e)) throw e;
+        this._offline = true;
       }
-      cards.push(c);
     }
-    return buildReviewQueue(cards, algo, newLimit, now);
+    const cards = await indexGetAll(this.mirror, 'cards', 'folder_id', folderId);
+    const mini = [];
+    for (const c of cards) {
+      if (youtubeOnly && !isYoutubeCard(c)) continue;
+      if (c.front) mini.push({ front: c.front });
+    }
+    return mini;
   }
 
   async _getCardById(id) {
@@ -447,19 +670,24 @@ export class CloudStore {
   async updateFolder(id, patch) {
     const f = this.folders.find(x => x.id === id);
     if (!f) return null;
-    Object.assign(f, patch);
+    const stamped = stampUpdatedAt(patch);
+    Object.assign(f, stamped);
     await mirrorPut(this.mirror, 'folders', f);
-    return this._cloudOrQueue('updateFolder', { id, patch }, async () => f);
+    return this._cloudOrQueue('updateFolder', { id, patch: stamped }, async () => f);
   }
 
   async deleteFolder(id) {
     const dead = await indexGetAll(this.mirror, 'cards', 'folder_id', id);
-    for (const c of dead) await this._removeCardImages(c);
-    for (const c of dead) await mirrorDelete(this.mirror, 'cards', c.id);
+    await Promise.all(dead.map(c => this._removeCardImages(c)));
+    await mirrorDeleteMany(this.mirror, 'cards', dead.map(c => c.id));
     await mirrorDelete(this.mirror, 'folders', id);
     this.folders = this.folders.filter(f => f.id !== id);
     this._cache.deleteFolder(id);
-    if (this._srsMeta) this._srsMeta = removeSrsMetaForFolder(this._srsMeta, id);
+    if (this._srsMeta) {
+      this._srsMeta = removeSrsMetaForFolder(this._srsMeta, id);
+      await this._flushSrsMetaPersist();
+    }
+    invalidateDerivedCaches(this, { folderId: id });
     return this._cloudOrQueue('deleteFolder', { id }, async () => true);
   }
 
@@ -475,10 +703,11 @@ export class CloudStore {
   async updateBox(id, patch) {
     const b = this.boxes.find(x => x.id === id);
     if (!b) return null;
-    Object.assign(b, patch);
+    const stamped = stampUpdatedAt(patch);
+    Object.assign(b, stamped);
     await mirrorPut(this.mirror, 'boxes', b);
     if (this._boxesCloudUnsupported) return b;
-    return this._cloudOrQueue('updateBox', { id, patch }, async () => b);
+    return this._cloudOrQueue('updateBox', { id, patch: stamped }, async () => b);
   }
 
   async deleteBox(id) {
@@ -496,26 +725,29 @@ export class CloudStore {
     const f = this.folders.find(x => x.id === folderId);
     if (!f) return null;
     if (boxId && !this.boxes.find(b => b.id === boxId)) return null;
-    f.box_id = boxId || null;
+    const stamped = stampUpdatedAt({ box_id: boxId || null });
+    Object.assign(f, stamped);
     await mirrorPut(this.mirror, 'folders', f);
-    return this._cloudOrQueue('updateFolder', { id: folderId, patch: { box_id: f.box_id } }, async () => f);
+    return this._cloudOrQueue('updateFolder', { id: folderId, patch: stamped }, async () => f);
   }
 
   async setBoxFolders(boxId, folderIds) {
     const idSet = new Set(folderIds);
     for (const f of this.folders) {
       if (f.box_id === boxId && !idSet.has(f.id)) {
-        f.box_id = null;
+        const stamped = stampUpdatedAt({ box_id: null });
+        Object.assign(f, stamped);
         await mirrorPut(this.mirror, 'folders', f);
-        await this._cloudOrQueue('updateFolder', { id: f.id, patch: { box_id: null } }, async () => f);
+        await this._cloudOrQueue('updateFolder', { id: f.id, patch: stamped }, async () => f);
       }
     }
     for (const fid of folderIds) {
       const f = this.folders.find(x => x.id === fid);
       if (!f || (f.box_id && f.box_id !== boxId)) continue;
-      f.box_id = boxId;
+      const stamped = stampUpdatedAt({ box_id: boxId });
+      Object.assign(f, stamped);
       await mirrorPut(this.mirror, 'folders', f);
-      await this._cloudOrQueue('updateFolder', { id: fid, patch: { box_id: boxId } }, async () => f);
+      await this._cloudOrQueue('updateFolder', { id: fid, patch: stamped }, async () => f);
     }
   }
 
@@ -537,17 +769,20 @@ export class CloudStore {
     this._patchSrsMeta(row);
     this._cache.prependCard(row.folder_id, row);
     this._cache.bumpCount(row.folder_id, 1);
+    invalidateDerivedCaches(this, { folderId: row.folder_id });
     return this._cloudOrQueue('createCard', { row }, async () => row);
   }
 
   async updateCard(id, patch) {
     let c = await this._getCardById(id);
     if (!c) return null;
-    Object.assign(c, patch);
+    const stamped = stampUpdatedAt(patch);
+    Object.assign(c, stamped);
     await mirrorPut(this.mirror, 'cards', c);
     this._patchSrsMeta(c);
-    this._cache.patchCardInLists(id, patch);
-    return this._cloudOrQueue('updateCard', { id, patch }, async () => c);
+    this._cache.patchCardInLists(id, stamped);
+    invalidateDerivedCaches(this, { folderId: c.folder_id });
+    return this._cloudOrQueue('updateCard', { id, patch: stamped }, async () => c, { optimistic: true });
   }
 
   async deleteCard(id) {
@@ -559,7 +794,9 @@ export class CloudStore {
       this._patchSrsMetaRemoval(id);
       this._cache.removeCard(c.folder_id, id);
       this._cache.bumpCount(c.folder_id, -1);
+      await this._flushSrsMetaPersist();
     }
+    invalidateDerivedCaches(this, { folderId: c?.folder_id });
     return this._cloudOrQueue('deleteCard', { id, urls }, async () => true);
   }
 
@@ -604,6 +841,10 @@ export class CloudStore {
   async saveSettings(s) {
     this.settings = s;
     await mirrorSetKV(this.mirror, 'settings', s);
+    if (s.algo === 'fsrs') {
+      const { preloadFsrs } = await import('../lib/srs.js');
+      await preloadFsrs();
+    }
     return this._cloudOrQueue('saveSettings', { settings: s }, async () => s);
   }
 
@@ -629,6 +870,7 @@ export class CloudStore {
       await mirrorPut(this.mirror, 'folders', row);
       await this._cloudOrQueue('createFolder', { row }, async () => row);
     }
+    const importRows = [];
     for (const c of data.cards) {
       if (c.description == null) c.description = '';
       const row = Object.assign({}, c, { user_id: this.sb.userId() });
@@ -641,7 +883,13 @@ export class CloudStore {
           } catch (e) { row[side] = null; }
         }
       }
-      await mirrorPut(this.mirror, 'cards', row);
+      importRows.push(row);
+    }
+    const BATCH = 100;
+    for (let i = 0; i < importRows.length; i += BATCH) {
+      await mirrorPutMany(this.mirror, 'cards', importRows.slice(i, i + BATCH));
+    }
+    for (const row of importRows) {
       this._patchSrsMeta(row);
       await this._cloudOrQueue('createCard', { row }, async () => row);
     }
@@ -650,5 +898,7 @@ export class CloudStore {
     this.boxes.sort((a, b) => (a.created_at || 0) - (b.created_at || 0));
     this._cache.clearFolderLists();
     this._cache.rebuildCountsFromSrsMeta(this.folders, this._srsMeta || []);
+    await this._flushSrsMetaPersist();
+    invalidateDerivedCaches(this, { allFolders: true });
   }
 }

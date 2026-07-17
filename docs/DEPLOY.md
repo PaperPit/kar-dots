@@ -67,6 +67,7 @@ supabase/migrations/0002_folder_icons.sql
 supabase/migrations/0003_fsrs.sql
 supabase/migrations/0004_boxes.sql
 supabase/migrations/0005_updated_at.sql
+supabase/migrations/0006_cards_updated_at_idx.sql
 ```
 
 **Вариант B — один файл**

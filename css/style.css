@@ -1,13 +1,7 @@
 /* ============================================================
    КАР-точки — 2a: терракота / бумага · Baloo 2 + Nunito
+   Экраны подключаются параллельными <link> в index.html (не через @import).
    ============================================================ */
-
-@import 'components/modal.css';
-@import 'screens/home.css';
-@import 'screens/folder.css';
-@import 'screens/card-editor.css';
-@import 'screens/review.css';
-@import 'screens/settings.css';
 
 :root {
   --bg: #F6F0E6;
@@ -352,14 +346,15 @@ html.motion-ui .auth-wrap { animation: none; }
 }
 
 .input, textarea.input {
-  width: 100%; border: 1.5px solid var(--line); border-radius: var(--radius-sm);
-  background: var(--bg-raised); padding: 11px 14px; outline: none;
-  transition: border-color var(--dur), box-shadow var(--dur);
+  width: 100%; border: 1px solid var(--line); border-radius: var(--radius-sm);
+  background: var(--bg-sunken); color: var(--ink);
+  padding: 12px var(--sp-3); outline: none; font: inherit;
+  transition: border-color var(--dur) var(--ease), box-shadow var(--dur) var(--ease);
 }
-.input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+.input:focus { border-color: var(--accent); box-shadow: var(--focus-ring); }
 textarea.input { resize: vertical; min-height: 72px; }
-.field { margin-bottom: 16px; }
-.field label { display: block; font-size: 13px; font-weight: 600; color: var(--ink-soft); margin-bottom: 6px; }
+.field { margin-bottom: var(--sp-4); }
+.field label { display: block; font-size: 13px; font-weight: 600; color: var(--ink-soft); margin-bottom: var(--sp-2); }
 .field-label-row {
   display: flex;
   align-items: center;
@@ -493,6 +488,32 @@ html.motion-ui .toast.show { opacity: 1; transform: none; }
   border-radius: var(--radius-sm);
   margin-bottom: 14px;
   border: 1px solid var(--line);
+}
+.sync-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  text-align: left;
+}
+.sync-banner[hidden] { display: none; }
+.sync-banner-failed {
+  background: color-mix(in srgb, var(--danger, #B3261E) 12%, var(--bg));
+  border-color: color-mix(in srgb, var(--danger, #B3261E) 28%, var(--line));
+}
+.sync-banner-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+.sync-banner-btn {
+  font-size: 13px;
+  white-space: nowrap;
+}
+@media (max-width: 640px) {
+  .sync-banner { align-items: flex-start; flex-direction: column; }
+  .sync-banner-actions { justify-content: flex-start; }
 }
 
 /* --- Study modes --- */

@@ -30,4 +30,13 @@ describe('service worker: ошибка «Response is a 206 partial»', () => {
     expect(sw).toContain('resp.status === 200');
     expect(sw).toContain('.catch(() => {})');
   });
+
+  it('ts-fsrs и иконки папок — runtime, не install precache', () => {
+    const sw = readFileSync(join(process.cwd(), 'sw.js'), 'utf8');
+    const coreBlock = sw.slice(sw.indexOf('const CORE_FILES'), sw.indexOf('const LAZY_PREFIXES'));
+    expect(coreBlock).not.toContain('icons/folders/');
+    expect(coreBlock).not.toContain('js/vendor/ts-fsrs.mjs');
+    expect(sw).toContain("'js/vendor/ts-fsrs.mjs'");
+    expect(sw).toContain("'icons/folders/'");
+  });
 });

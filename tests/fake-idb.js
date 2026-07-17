@@ -41,8 +41,12 @@ function makeObjectStore(map, indexes = {}, keyPath = 'id') {
   const store = {
     indexNames,
     put(v, key) {
-      const k = key != null ? key : v[keyPath];
-      map.set(k, keyPath === 'id' ? { ...v } : v);
+      if (key != null) {
+        map.set(key, v);
+        return;
+      }
+      const k = v[keyPath];
+      map.set(k, { ...v });
     },
     add(v) {
       const k = v.id != null ? v.id : map.size + 1;
@@ -56,6 +60,9 @@ function makeObjectStore(map, indexes = {}, keyPath = 'id') {
     },
     getAll() {
       return makeRequest(all());
+    },
+    count() {
+      return makeRequest(map.size);
     },
     clear() {
       map.clear();

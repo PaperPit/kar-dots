@@ -1,6 +1,6 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeAll } from 'vitest';
 import { fsrsNext, fsrsIsUntouched, fsrsPreviewLabel, FsrsRating } from '../js/lib/fsrs-engine.js';
-import { isNew, isDue, dueOf, fsrsPreview, srsSnapshot } from '../js/lib/srs.js';
+import { isNew, isDue, dueOf, fsrsPreview, srsSnapshot, preloadFsrs } from '../js/lib/srs.js';
 
 describe('FSRS engine', () => {
   it('untouched card has no fsrs fields', () => {
@@ -33,6 +33,10 @@ describe('FSRS engine', () => {
 });
 
 describe('FSRS in srs.js', () => {
+  beforeAll(async () => {
+    await preloadFsrs();
+  });
+
   it('dueOf returns fsrs_due when set', () => {
     expect(dueOf({ fsrs_due: 500, fsrs_reps: 1 }, 'fsrs')).toBe(500);
     expect(dueOf({}, 'fsrs')).toBeNull();

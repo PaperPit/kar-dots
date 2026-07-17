@@ -1,6 +1,6 @@
 // Netlify Function: генерация карточек из транскрипта. Основной провайдер — Gemini;
 // резерв — Groq (цепочка моделей: gpt-oss-120b → gpt-oss-20b → llama-3.3 …).
-// POST { title, lang, mode: 'words'|'phrases'|'both', segments: [{t, text}] }
+// POST { title, lang, mode: 'words'|'phrases'|'both'|'sentences', segments: [{t, text}] }
 //   → { cards: [{ front, back, pos, level, kind, t }] }
 //
 // Ключи (личный ключ из payload имеет приоритет над серверным из env):
@@ -24,6 +24,7 @@ export { cleanGroqApiKey as cleanApiKey } from '../../js/lib/llm-api-keys.js';
 
 const DEFAULT_GEMINI_MODEL = 'gemini-flash-latest';
 const MAX_TRANSCRIPT_CHARS = 28000;
+const MAX_SENTENCES = 80;
 const LIMITS = { words: 50, phrases: 30, bothWords: 40, bothPhrases: 20 };
 
 function json(body, status = 200) {
@@ -102,6 +103,33 @@ function buildPrompt({ title, lang, mode, transcript }) {
     transcript,
   );
   return parts.join('\n');
+}
+
+/** Строки субтитров для режима «Предложения» — по одной на карточку. */
+export function formatSentenceLines(segments) {
+  return (segments || []).map((s, i) => {
+    const text = String(s.text || '').replace(/\s+/g, ' ').trim();
+    const t = Math.max(0, Math.round(Number(s.t) || 0));
+    return `${i + 1}. [${t}] ${text}`;
+  }).filter(line => !line.endsWith('] '));
+}
+
+export function buildSentencesPrompt({ title, lang, segments }) {
+  const lines = formatSentenceLines(segments);
+  return [
+    'You translate video subtitle lines for a Russian-speaking language learner.',
+    `Video title: ${title || 'unknown'}. Source language: ${lang || 'unknown (detect it)'}.`,
+    '',
+    `Translate EXACTLY ${lines.length} lines below into concise Russian (1–2 variants separated by " / ").`,
+    'Keep the same order and count — one translation per numbered line.',
+    'Optional: level — CEFR estimate A1–C2 for each line.',
+    '',
+    'Return ONLY JSON {"cards": [{front, back, kind: "sentence", level?, t}, ...]} with exactly',
+    `${lines.length} items. front must be the original line text. No markdown fences.`,
+    '',
+    'LINES:',
+    lines.join('\n'),
+  ].join('\n');
 }
 
 const CARD_ITEM_SCHEMA = {
@@ -233,11 +261,33 @@ function normalizeCards(raw) {
     const front = String(c?.front || '').trim();
     const back = String(c?.back || '').trim();
     if (!front || !back) continue;
-    const kind = c.kind === 'phrase' ? 'phrase' : 'word';
+    const kind = c.kind === 'phrase' ? 'phrase' : c.kind === 'sentence' ? 'sentence' : 'word';
     const level = VALID_LEVELS.has(String(c.level || '').toUpperCase()) ? String(c.level).toUpperCase() : '';
     const t = Number.isFinite(Number(c.t)) ? Math.max(0, Math.round(Number(c.t))) : null;
-    const pos = kind === 'phrase' ? 'phrase' : String(c.pos || '').trim().slice(0, 24);
+    const pos = kind === 'phrase' ? 'phrase' : kind === 'sentence' ? 'sentence' : String(c.pos || '').trim().slice(0, 24);
     out.push({ front, back, pos, level, kind, t });
+  }
+  return out;
+}
+
+/** Сверяет переводы LLM с исходными сегментами по индексу (front и t — из субтитров). */
+export function alignSentenceCards(cards, segments) {
+  const segs = Array.isArray(segments) ? segments : [];
+  const list = Array.isArray(cards) ? cards : [];
+  if (list.length !== segs.length) return null;
+  const out = [];
+  for (let i = 0; i < segs.length; i++) {
+    const text = String(segs[i]?.text || '').replace(/\s+/g, ' ').trim();
+    const back = String(list[i]?.back || '').trim();
+    if (!text || !back) return null;
+    out.push({
+      front: text,
+      back,
+      kind: 'sentence',
+      level: VALID_LEVELS.has(String(list[i]?.level || '').toUpperCase()) ? String(list[i].level).toUpperCase() : '',
+      pos: 'sentence',
+      t: Math.max(0, Math.round(Number(segs[i]?.t) || 0)),
+    });
   }
   return out;
 }
@@ -353,8 +403,65 @@ export default async function handler(req) {
     return err('config', 'Нет API-ключа: укажи Gemini или Groq ключ в Настройках → «Карточки из YouTube» (или настрой ключи на сервере)', 401);
   }
 
-  const mode = ['words', 'phrases', 'both'].includes(payload.mode) ? payload.mode : 'both';
+  const mode = ['words', 'phrases', 'both', 'sentences'].includes(payload.mode) ? payload.mode : 'both';
   const segments = Array.isArray(payload.segments) ? payload.segments : [];
+
+  if (mode === 'sentences') {
+    const limited = segments.slice(0, MAX_SENTENCES);
+    if (!limited.length) return err('empty-transcript', 'Нет предложений для перевода');
+    const prompt = buildSentencesPrompt({
+      title: String(payload.title || '').slice(0, 200),
+      lang: String(payload.lang || '').slice(0, 12),
+      segments: limited,
+    });
+
+    let text = null;
+    let lastErr = null;
+    let geminiErr = null;
+
+    if (geminiKey) {
+      const gem = await runGemini(geminiKey, prompt);
+      if (gem.ok) text = gem.text;
+      else {
+        geminiErr = gem.message;
+        if (gem.status === 429) lastErr = { code: 'quota', message: gem.message, status: 429 };
+      }
+    }
+    if (text === null && groqKey) {
+      const groq = await callGroqWithFallback(groqKey, prompt);
+      if (groq.ok) text = groq.text;
+      else if (groq.status === 429) {
+        lastErr = { code: 'quota', message: combineLlmErrors(geminiErr, 'квота Groq исчерпана'), status: 429 };
+      } else {
+        lastErr = { code: 'llm-failed', message: combineLlmErrors(geminiErr, groq.message), status: 502 };
+      }
+    } else if (text === null && geminiErr) {
+      lastErr = { code: 'llm-failed', message: geminiErr, status: 502 };
+    }
+    if (text === null) {
+      const e = lastErr || { code: 'llm-failed', message: 'Не удалось перевести предложения', status: 502 };
+      return err(e.code, e.message, e.status);
+    }
+
+    let rawCards;
+    try { rawCards = normalizeCards(JSON.parse(text)); } catch (e) {
+      return err('llm-bad-json', 'Модель вернула некорректный JSON — попробуй ещё раз', 502);
+    }
+    const cards = alignSentenceCards(rawCards, limited);
+    if (!cards?.length) {
+      return err(
+        'llm-count-mismatch',
+        `Модель вернула ${rawCards.length} переводов вместо ${limited.length} — попробуй ещё раз`,
+        502,
+      );
+    }
+    const body = { cards };
+    if (segments.length > MAX_SENTENCES) {
+      body.truncated = { total: segments.length, used: MAX_SENTENCES };
+    }
+    return json(body);
+  }
+
   const transcript = compactTranscript(segments);
   if (transcript.length < 40) return err('empty-transcript', 'Транскрипт пустой или слишком короткий');
 

@@ -59,6 +59,14 @@ function getOne(db, store, key) {
   });
 }
 
+function idbCount(db, store) {
+  return new Promise((resolve, reject) => {
+    const req = db.transaction(store).objectStore(store).count();
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+
 export { openMirrorDB, getAll, txAll, MIRROR_DB };
 
 export class SyncQueue {
@@ -74,13 +82,11 @@ export class SyncQueue {
   }
 
   async size() {
-    const items = await getAll(this.db, QUEUE_STORE);
-    return items.length;
+    return idbCount(this.db, QUEUE_STORE);
   }
 
   async deadLetterCount() {
-    const items = await getAll(this.db, DEAD_LETTER_STORE);
-    return items.length;
+    return idbCount(this.db, DEAD_LETTER_STORE);
   }
 
   async deadLetters() {
@@ -171,8 +177,24 @@ export async function mirrorPut(db, storeName, row) {
   await txAll(db, storeName, 'readwrite', s => s.put(row));
 }
 
+/** Одна IDB-транзакция для массива строк (вместо N отдельных mirrorPut). */
+export async function mirrorPutMany(db, storeName, rows) {
+  if (!rows?.length) return;
+  await txAll(db, storeName, 'readwrite', s => {
+    for (const row of rows) s.put(row);
+  });
+}
+
 export async function mirrorDelete(db, storeName, id) {
   await txAll(db, storeName, 'readwrite', s => s.delete(id));
+}
+
+/** Одна IDB-транзакция для удаления многих id. */
+export async function mirrorDeleteMany(db, storeName, ids) {
+  if (!ids?.length) return;
+  await txAll(db, storeName, 'readwrite', s => {
+    for (const id of ids) s.delete(id);
+  });
 }
 
 export async function mirrorGetKV(db, key) {

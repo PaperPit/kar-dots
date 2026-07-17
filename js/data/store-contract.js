@@ -30,7 +30,9 @@
  * @property {(folderId?: string|null, algo?: string) => Promise<number>} countDue
  * @property {(folderId?: string|null, algo?: string, from?: number, to?: number) => Promise<number>} countDueBetween
  * @property {(folderId?: string|null, algo?: string) => Promise<number>} countNew
+ * @property {(budget?: number) => Promise<import('./home-stats.js').HomeStats>} getHomeStats
  * @property {(folderId?: string|null, algo?: string, newLimit?: number, now?: number) => Promise<{due: Object[], fresh: Object[]}>} getReviewCards
+ * @property {(folderId: string, limit?: number|null) => Promise<Object[]>} getCramCards
  * @property {(data: Object) => Promise<Object>} createFolder
  * @property {(id: string, patch: Object) => Promise<Object|null>} updateFolder
  * @property {(id: string) => Promise<boolean|void>} deleteFolder
@@ -50,6 +52,10 @@
  * @property {() => Promise<string>} exportJSONFull
  * @property {(text: string) => Promise<void>} importJSON
  * @property {() => Promise<number>} pendingSync
+ * @property {() => Promise<number>} deadLetterCount
+ * @property {() => Promise<Object[]>} deadLetters
+ * @property {(id: number) => Promise<boolean>} retryDeadLetter
+ * @property {(id: number) => Promise<boolean>} discardDeadLetter
  * @property {() => Promise<{ok: number, fail: number}>} flushSync
  */
 
@@ -58,12 +64,14 @@ import { normalizeFolderIcon } from '../lib/folder-icons.js';
 
 /** Поля новой папки — общие для local и cloud. */
 export function buildFolderRecord(data, extras = {}) {
+  const t = Date.now();
   return {
     id: uuid(),
     name: data.name,
     color: data.color || '#7C8DB5',
     icon: normalizeFolderIcon(data.icon),
-    created_at: Date.now(),
+    created_at: t,
+    updated_at: t,
     pack_id: data.pack_id || null,
     pack_version: data.pack_version ?? null,
     box_id: data.box_id || null,
@@ -73,21 +81,25 @@ export function buildFolderRecord(data, extras = {}) {
 
 /** Поля новой коробки — группа папок по теме. */
 export function buildBoxRecord(data, extras = {}) {
+  const t = Date.now();
   return {
     id: uuid(),
     name: data.name,
     color: data.color || '#8F3D18',
     icon: normalizeFolderIcon(data.icon),
-    created_at: Date.now(),
+    created_at: t,
+    updated_at: t,
     ...extras,
   };
 }
 
 /** Поля новой карточки — общие для local и cloud. */
 export function buildCardRecord(data, extras = {}) {
+  const t = Date.now();
   return Object.assign({
     id: uuid(),
-    created_at: Date.now(),
+    created_at: t,
+    updated_at: t,
     front: '',
     back: '',
     description: '',

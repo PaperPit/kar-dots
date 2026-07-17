@@ -3,11 +3,38 @@
 // ============================================================
 
 import { DAY, MIN, fmtDays } from './time-units.js';
-import {
-  fsrsIsUntouched, fsrsNext as runFsrsNext, fsrsPreviewLabel, FsrsRating,
-} from './fsrs-engine.js';
 
 export { DAY, MIN, fmtDays };
+
+/** Без ts-fsrs: нужны для due/new и UI-грейдинга при любом algo. */
+export function fsrsIsUntouched(card) {
+  return card.fsrs_reps == null && card.fsrs_due == null && card.fsrs_state == null;
+}
+
+/** Совпадает с Rating из ts-fsrs. */
+export const FsrsRating = Object.freeze({ Again: 1, Hard: 2, Good: 3, Easy: 4 });
+
+let _fsrs = null;
+let _fsrsPromise = null;
+
+/** Подгрузить fsrs-engine + ts-fsrs (только когда algo === fsrs). */
+export function preloadFsrs() {
+  if (_fsrs) return Promise.resolve(_fsrs);
+  if (!_fsrsPromise) {
+    _fsrsPromise = import('./fsrs-engine.js').then(m => {
+      _fsrs = m;
+      return m;
+    });
+  }
+  return _fsrsPromise;
+}
+
+function needFsrs() {
+  if (!_fsrs) {
+    throw new Error('FSRS не загружен — сначала await preloadFsrs()');
+  }
+  return _fsrs;
+}
 
 export function sm2Next(card, quality, now) {
   now = now || Date.now();
@@ -98,7 +125,7 @@ export function leitnerPreview(card, remembered, intervals) {
 }
 
 export function fsrsPreview(card, rating, now) {
-  return fsrsPreviewLabel(card, rating, now);
+  return needFsrs().fsrsPreviewLabel(card, rating, now);
 }
 
 /** Поля SRS для отката оценки. */
@@ -129,7 +156,5 @@ export function srsSnapshot(card, algo) {
 }
 
 export function fsrsNext(card, rating, now) {
-  return runFsrsNext(card, rating, now);
+  return needFsrs().fsrsNext(card, rating, now);
 }
-
-export { FsrsRating };

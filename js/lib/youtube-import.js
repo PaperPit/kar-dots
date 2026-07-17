@@ -1,6 +1,8 @@
 // Чистые утилиты импорта карточек из YouTube-ролика.
 // Серверная часть — netlify/functions/yt-video.mjs и yt-generate.mjs.
 
+import { countWords } from './yt-segment-merge.js';
+
 const ID_PATTERNS = [
   /(?:youtube\.com\/(?:watch\?(?:.*&)?v=|shorts\/|embed\/|live\/))([\w-]{11})/,
   /youtu\.be\/([\w-]{11})/,
@@ -116,6 +118,39 @@ export function filterNewCandidates(candidates, knownSet) {
   return { phrases, words: newWords };
 }
 
+/** Фильтр сегментов перед режимом «Предложения»: мин. длина, dedupe. */
+export function filterTranscriptSegments(segments, { minWords = 3, dedupe = true } = {}) {
+  const seen = dedupe ? new Set() : null;
+  const out = [];
+  for (const s of segments || []) {
+    const text = String(s?.text || '').replace(/\s+/g, ' ').trim();
+    if (!text) continue;
+    if (minWords > 0 && countWords(text) < minWords) continue;
+    if (seen) {
+      const n = normalizeTerm(text);
+      if (!n || seen.has(n)) continue;
+      seen.add(n);
+    }
+    const t = Math.max(0, Math.round(Number(s.t) || 0));
+    const end = Number.isFinite(Number(s.end)) ? Math.max(0, Math.round(Number(s.end))) : undefined;
+    out.push(end != null ? { t, text, end } : { t, text });
+  }
+  return out;
+}
+
+/** Убирает уже известные предложения и дубли внутри выдачи. */
+export function filterNewSentences(candidates, knownSet) {
+  const seen = new Set();
+  const sentences = [];
+  for (const c of candidates || []) {
+    const n = normalizeTerm(c && c.front);
+    if (!n || seen.has(n)) continue;
+    seen.add(n);
+    if (!knownSet.has(n)) sentences.push(c);
+  }
+  return sentences;
+}
+
 /** 125 → "2:05", 3723 → "1:02:03" */
 export function fmtTimestamp(sec) {
   sec = Math.max(0, Math.floor(Number(sec) || 0));
@@ -142,7 +177,10 @@ export function buildYtLink(videoId, t) {
 export function buildCardDescription(candidate, videoId) {
   const parts = [];
   if (candidate.level) parts.push(candidate.level);
-  parts.push(candidate.kind === 'phrase' ? 'phrase' : (candidate.pos || 'слово'));
+  const kindLabel = candidate.kind === 'phrase' ? 'phrase'
+    : candidate.kind === 'sentence' ? 'sentence'
+      : (candidate.pos || 'слово');
+  parts.push(kindLabel);
   let out = parts.join(' · ');
   if (videoId && candidate.t !== null && candidate.t !== undefined) {
     out += ` · <a href="${buildYtLink(videoId, candidate.t)}">▶ ${fmtTimestamp(candidate.t)}</a>`;

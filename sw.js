@@ -1,4 +1,4 @@
-const VERSION = 'kar-v13.5';
+const VERSION = 'kar-v15.2';
 
 /** AUTO-GENERATED CORE_FILES — node scripts/generate-sw-files.js */
 const CORE_FILES = [
@@ -12,6 +12,7 @@ const CORE_FILES = [
   'css/screens/card-editor.css',
   'css/screens/review.css',
   'css/screens/settings.css',
+  'css/screens/youtube-import.css',
   'css/fonts/fonts.css',
   'css/fonts/baloo2-latin.woff2',
   'css/fonts/nunito-cyr-ext.woff2',
@@ -24,6 +25,10 @@ const CORE_FILES = [
   'js/core/router.js',
   'js/core/state.js',
   'js/core/version.js',
+  'js/data/cache-invalidate.js',
+  'js/data/card-hydrate.js',
+  'js/data/cloud-delta.js',
+  'js/data/home-stats.js',
   'js/data/index.js',
   'js/data/schema-version.js',
   'js/data/srs-meta.js',
@@ -38,13 +43,12 @@ const CORE_FILES = [
   'js/data/supabase.js',
   'js/data/sync-queue.js',
   'js/data/tts-cache.js',
+  'js/data/yt-transcript-cache.js',
   'js/lib/activity.js',
   'js/lib/answer-check.js',
   'js/lib/card-import.js',
-  'js/lib/cloze.js',
   'js/lib/folder-errors.js',
   'js/lib/folder-icons.js',
-  'js/lib/fsrs-engine.js',
   'js/lib/gemini-generate.js',
   'js/lib/groq-generate.js',
   'js/lib/image-utils.js',
@@ -56,12 +60,10 @@ const CORE_FILES = [
   'js/lib/review-progress.js',
   'js/lib/shuffle.js',
   'js/lib/sounds.js',
-  'js/lib/speech-input.js',
   'js/lib/srs.js',
   'js/lib/stats.js',
   'js/lib/stock-media-providers.js',
   'js/lib/stock-media-settings.js',
-  'js/lib/stock-media.js',
   'js/lib/study-keyboard.js',
   'js/lib/study-modes.js',
   'js/lib/theme.js',
@@ -74,41 +76,11 @@ const CORE_FILES = [
   'js/lib/web-speech-tts.js',
   'js/lib/youtube-import-settings.js',
   'js/lib/youtube-import.js',
-  'js/screens/auth/index.js',
-  'js/screens/box/index.js',
-  'js/screens/card-editor/actions.js',
-  'js/screens/card-editor/bulk-dialog.js',
-  'js/screens/card-editor/card-preview.js',
-  'js/screens/card-editor/form.js',
-  'js/screens/card-editor/image-drop.js',
-  'js/screens/card-editor/index.js',
-  'js/screens/card-editor/stock-image-picker.js',
-  'js/screens/folder/index.js',
-  'js/screens/folder/youtube-dialog.js',
-  'js/screens/home/box-dialog.js',
-  'js/screens/home/folder-dialog.js',
-  'js/screens/home/index.js',
-  'js/screens/review/flip-card.js',
-  'js/screens/review/grading.js',
-  'js/screens/review/index.js',
-  'js/screens/review/mode-picker.js',
-  'js/screens/review/modes/cloze.js',
-  'js/screens/review/modes/flip.js',
-  'js/screens/review/modes/match.js',
-  'js/screens/review/modes/type.js',
-  'js/screens/review/modes/voice.js',
-  'js/screens/review/session.js',
-  'js/screens/settings/index.js',
-  'js/screens/settings/sections/account.js',
-  'js/screens/settings/sections/algo.js',
-  'js/screens/settings/sections/calendar.js',
-  'js/screens/settings/sections/data.js',
-  'js/screens/settings/sections/integrations.js',
-  'js/screens/settings/sections/packs.js',
-  'js/screens/settings/sections/sounds.js',
-  'js/screens/settings/sections/stats.js',
-  'js/screens/settings/sections/stock-media.js',
-  'js/screens/settings/shared.js',
+  'js/lib/yt-caption-parsers.js',
+  'js/lib/yt-known-terms-idb.js',
+  'js/lib/yt-known-terms.js',
+  'js/lib/yt-segment-merge.js',
+  'js/lib/yt-transcript.js',
   'js/ui/activity-calendar.js',
   'js/ui/answer-feedback.js',
   'js/ui/brand.js',
@@ -131,9 +103,7 @@ const CORE_FILES = [
   'js/ui/tts.js',
   'js/ui/ui.js',
   'js/ui/vocab-packs-dialog.js',
-  'js/vendor/capacitor-speech-recognition.mjs',
   'js/vendor/motion.mjs',
-  'js/vendor/ts-fsrs.mjs',
   'icons/Bird cage.svg',
   'icons/Scarecrow.svg',
   'icons/The crow with the tombstone.svg',
@@ -150,27 +120,21 @@ const CORE_FILES = [
   'icons/raven.svg',
   'icons/star.png',
   'icons/star.svg',
-  'icons/folders/align-justify.png',
-  'icons/folders/bookmark.png',
-  'icons/folders/books.png',
-  'icons/folders/box-alt.png',
-  'icons/folders/box-open.png',
-  'icons/folders/bulb.png',
-  'icons/folders/dollar.png',
-  'icons/folders/edit.png',
-  'icons/folders/globe.png',
-  'icons/folders/graduation-cap.png',
-  'icons/folders/leaf.png',
-  'icons/folders/pencil.png',
-  'icons/folders/restaurant.png',
-  'icons/folders/rocket.png',
-  'icons/folders/search.png',
-  'icons/folders/stats.png',
-  'icons/folders/stethoscope.png',
 ];
 
 /** Кэшируются при первом обращении (офлайн после первого использования). */
-const LAZY_PREFIXES = ['audio/', 'packs/en-'];
+const LAZY_PREFIXES = [
+  'audio/',
+  'packs/en-',
+  'js/screens/',
+  'js/vendor/capacitor-speech-recognition.mjs',
+  'js/vendor/ts-fsrs.mjs',
+  'js/lib/fsrs-engine.js',
+  'js/lib/speech-input.js',
+  'js/lib/stock-media.js',
+  'js/lib/cloze.js',
+  'icons/folders/',
+];
 
 function isLazyPath(pathname) {
   return LAZY_PREFIXES.some(p => pathname.includes(p));
@@ -202,11 +166,11 @@ self.addEventListener('fetch', e => {
   const path = url.pathname.replace(/^\//, '');
   const isAppJs = isSameOrigin && /\.(js|css|html)$/.test(url.pathname);
   const lazy = isSameOrigin && isLazyPath(path);
+  const hasRange = e.request.headers.has('range');
 
   e.respondWith(
     fetch(isAppJs ? new Request(e.request, { cache: 'no-cache' }) : e.request)
       .then(resp => {
-        const hasRange = e.request.headers.has('range');
         if (resp.status === 200 && !hasRange) {
           const copy = resp.clone();
           caches.open(VERSION).then(c => c.put(e.request, copy)).catch(() => {});

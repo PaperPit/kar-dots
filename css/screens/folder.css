@@ -9,14 +9,14 @@
 .folder-card {
   background: var(--bg-raised);
   border: 1px solid color-mix(in srgb, var(--line) 88%, var(--accent) 12%);
-  border-radius: var(--radius); padding: 16px; cursor: pointer;
+  border-radius: var(--radius); padding: var(--sp-4); cursor: pointer;
   min-height: 128px; display: flex; flex-direction: column;
   box-shadow: var(--shadow); position: relative; overflow: hidden;
   transition: transform var(--dur) var(--ease), box-shadow var(--dur) var(--ease), border-color var(--dur);
   animation: itemIn .4s var(--ease) backwards;
 }
 .folder-card:hover {
-  transform: translateY(-3px);
+  transform: translateY(-2px);
   box-shadow: var(--shadow-lg);
   border-color: color-mix(in srgb, var(--line) 70%, var(--accent) 30%);
 }
@@ -24,17 +24,17 @@
 .swatch {
   display: grid;
   place-items: center;
-  color: #fff;
+  color: var(--btn-ink);
 }
 .folder-card .swatch {
-  width: 34px; height: 34px; border-radius: 10px; margin-bottom: 12px;
+  width: 32px; height: 32px; border-radius: 10px; margin-bottom: var(--sp-3);
 }
 .swatch-compact { margin-bottom: 0; }
-.swatch-compact-size { width: 30px; height: 30px; border-radius: 8px; }
+.swatch-compact-size { width: 28px; height: 28px; border-radius: 8px; }
 .swatch-letter {
   font-weight: 800;
   font-size: 15px;
-  color: #fff;
+  color: var(--btn-ink);
 }
 .swatch-compact.swatch-letter { font-size: 13px; }
 .folder-icon-glyph {
@@ -48,23 +48,24 @@
   filter: brightness(0) invert(1);
   opacity: .95;
 }
-.swatch-compact .folder-icon-glyph { width: 17px; height: 17px; }
+.swatch-compact .folder-icon-glyph { width: 16px; height: 16px; }
 .folder-card h3 {
-  margin: 0 0 4px; font-size: 16.5px; font-weight: 700; letter-spacing: -.01em;
+  margin: 0 0 var(--sp-1); font-size: 16px; font-weight: 700; letter-spacing: -.01em;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font-family: var(--font-display);
 }
 .folder-card .meta { color: var(--ink-faint); font-size: 13px; margin-top: auto; }
 .folder-card .pack-chip { align-self: flex-start; }
 .folder-card .due-chip {
-  position: absolute; top: 14px; right: 14px;
-  background: var(--accent-soft); color: var(--accent);
-  font-size: 12px; font-weight: 700; padding: 3px 9px; border-radius: 999px;
+  position: absolute; top: var(--sp-3); right: var(--sp-3);
+  background: var(--accent-soft); color: var(--terra-deep);
+  font-size: 12px; font-weight: 700; padding: 4px 8px; border-radius: 999px;
 }
-@keyframes itemIn { from { opacity: 0; transform: translateY(14px); } }
+@keyframes itemIn { from { opacity: 0; transform: translateY(var(--sp-3)); } }
 
 .add-tile {
-  border: 1.5px dashed var(--line); border-radius: var(--radius);
-  display: grid; place-items: center; min-height: 118px; cursor: pointer;
+  border: 1px dashed var(--line); border-radius: var(--radius);
+  display: grid; place-items: center; min-height: 120px; cursor: pointer;
   color: var(--ink-faint); font-weight: 600; background: none;
   transition: border-color var(--dur), color var(--dur), background var(--dur), transform .16s var(--ease);
   animation: itemIn .4s var(--ease) backwards;
@@ -72,34 +73,8 @@
 .add-tile:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }
 .add-tile:active { transform: scale(.97); }
 
-/* --- герой-блок «повторить» -------------------------------- */
-.review-hero {
-  background: linear-gradient(135deg, var(--ink) 0%, #3D3028 100%);
-  color: var(--bg-raised); border-radius: 22px;
-  padding: 22px 24px; margin-bottom: 26px; display: flex; align-items: center; gap: 18px;
-  box-shadow: var(--shadow-lg); position: relative; overflow: hidden;
-  animation: itemIn .4s var(--ease) backwards;
-}
-.review-hero::after {
-  content: ''; position: absolute; inset: 0; pointer-events: none;
-  background: radial-gradient(ellipse 80% 60% at 100% 0%, color-mix(in srgb, var(--accent) 22%, transparent), transparent);
-}
-.review-hero h2 .kar { color: var(--accent-bright); }
-.review-hero-icon { width: 56px; height: 56px; flex: none; object-fit: contain; }
-.review-hero h2 { margin: 0 0 2px; font-size: 20px; letter-spacing: -.01em; }
-.review-hero p { margin: 0; opacity: .65; font-size: 14px; }
-.review-hero .btn { margin-left: auto; flex: none; }
-.review-hero .hero-btns { margin-left: auto; flex: none; }
-.review-hero .hero-btns .btn { margin-left: 0; }
-@media (max-width: 560px) {
-  .review-hero { flex-wrap: wrap; padding: 18px; }
-  .review-hero .btn { margin-left: 0; width: 100%; }
-  .review-hero .hero-btns { margin-left: 0; width: 100%; }
-  .review-hero .hero-btns .btn { width: 100%; }
-}
-
 /* --- список карточек --------------------------------------- */
-.card-list { display: flex; flex-direction: column; gap: 10px; }
+.card-list { display: flex; flex-direction: column; gap: var(--sp-2); }
 /* Виртуальный список (js/lib/virtual-list.js): окно абсолютно позиционируется
    поверх спейсера, задающего полную высоту прокрутки. Без этих правил строки
    рендерятся ПОД спейсером и не видны — паки (>48 карточек) «пропадали». */
@@ -107,36 +82,36 @@
 .virtual-list-spacer { width: 1px; flex: none; pointer-events: none; }
 .virtual-list-window {
   position: absolute; top: 0; left: 0; right: 0;
-  display: flex; flex-direction: column; gap: 10px;
+  display: flex; flex-direction: column; gap: var(--sp-2);
 }
 .virtual-list-window .card-row { animation: none; }
 .folder-toolbar {
-  display: flex; flex-wrap: wrap; gap: 10px 12px; align-items: center;
-  margin-bottom: 14px;
+  display: flex; flex-wrap: wrap; gap: var(--sp-2) var(--sp-3); align-items: center;
+  margin-bottom: var(--sp-3);
 }
 .folder-search {
-  flex: 1; min-width: 160px; padding: 10px 14px;
+  flex: 1; min-width: 160px; padding: 10px var(--sp-3);
 }
 .folder-filter-seg { flex: none; }
-.folder-filter-empty { text-align: center; padding: 24px 0 8px; }
+.folder-filter-empty { text-align: center; padding: var(--sp-5) 0 var(--sp-2); }
 .folder-filter-empty.hidden { display: none; }
 .card-row {
-  background: var(--bg-raised); border: 1px solid var(--line); border-radius: 14px;
-  padding: 14px 16px; display: flex; gap: 14px; align-items: center;
+  background: var(--bg-raised); border: 1px solid var(--line); border-radius: var(--radius-sm);
+  padding: var(--sp-3) var(--sp-4); display: flex; gap: var(--sp-3); align-items: center;
   box-shadow: var(--shadow); cursor: pointer;
   transition: transform var(--dur) var(--ease), box-shadow var(--dur) var(--ease), opacity .3s;
   animation: itemIn .35s var(--ease) backwards;
 }
 .card-row:hover { transform: translateY(-2px); box-shadow: var(--shadow-lg); }
 .card-row .thumb {
-  width: 46px; height: 46px; border-radius: 10px; object-fit: cover; flex: none;
+  width: 44px; height: 44px; border-radius: 10px; object-fit: cover; flex: none;
   background: var(--bg-sunken);
 }
 .card-row .texts { flex: 1; min-width: 0; }
 .card-row .front { font-weight: 650; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .card-row .back { color: var(--ink-soft); font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .card-row .srs-chip {
-  flex: none; font-size: 11.5px; font-weight: 750; padding: 3px 8px; border-radius: 999px;
+  flex: none; font-size: 12px; font-weight: 700; padding: 4px 8px; border-radius: 999px;
   background: var(--chip-bg); color: var(--chip-ink);
 }
 .card-row .srs-chip.due { background: var(--chip-due-bg); color: var(--terra-deep); }
@@ -153,7 +128,7 @@
   left: 50%; top: 52%;
   width: min(320px, 78vw); height: min(320px, 78vw);
   transform: translate(-50%, -50%);
-  background: url('../../icons/empty%20cage.svg') center / contain no-repeat;
+  background: url('../../icons/empty cage.svg') center / contain no-repeat;
   opacity: .14;
   pointer-events: none;
   z-index: 0;

@@ -13,6 +13,7 @@ import { studyModePicker } from '../review/mode-picker.js';
 import { isVocabPackFolder } from '../../lib/vocab-packs.js';
 import { route } from '../../core/router.js';
 import { createVirtualList, VIRTUAL_LIST_THRESHOLD } from '../../lib/virtual-list.js';
+import { buildHomeStats, folderStudyDue } from '../../data/home-stats.js';
 
 const CARD_ROW_HEIGHT = 74;
 const CARD_ROW_GAP = 10;
@@ -34,7 +35,7 @@ export async function renderFolder(folderId) {
   const cards = await store.getFolderCards(folderId);
   const algo = store.settings.algo;
   const now = Date.now();
-  const due = (await store.countDue(folderId)) + Math.min(await store.countNew(folderId), newBudget());
+  const due = folderStudyDue(buildHomeStats(cards, algo, now).byFolder[folderId], newBudget());
 
   const isPack = isVocabPackFolder(folder);
 

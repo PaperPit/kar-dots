@@ -1,8 +1,19 @@
 import { el, plural } from './ui.js';
 import { folderSwatch, boxSwatch } from './icons.js';
 import { nav } from './navigation.js';
+import { folderStudyDue } from '../data/home-stats.js';
 
-export async function folderCardStats(store, folder, budget) {
+/** @param {import('../data/home-stats.js').HomeStats} [homeStats] */
+export function folderCardStatsFromHome(homeStats, folder, budget) {
+  const row = homeStats?.byFolder?.[folder.id];
+  return {
+    n: row?.n ?? 0,
+    due: folderStudyDue(row, budget),
+  };
+}
+
+export async function folderCardStats(store, folder, budget, homeStats) {
+  if (homeStats) return folderCardStatsFromHome(homeStats, folder, budget);
   const [n, dueCount, newCount] = await Promise.all([
     store.countCards(folder.id),
     store.countDue(folder.id),

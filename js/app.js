@@ -1,11 +1,10 @@
 import { initConfig, cloudConfigured, setSb, setStore, sb, cfg } from './core/state.js';
 import { toast } from './ui/ui.js';
 import { MiniSupabase } from './data/supabase.js';
-import { CloudStore } from './data/index.js';
 import { renderAuth, enterLocal } from './screens/auth/index.js';
 import { initActivity } from './lib/activity.js';
 import { initUiClicks } from './lib/ui-clicks.js';
-import { initRouter, route } from './core/router.js';
+import { initRouter, route, parseHash } from './core/router.js';
 import { initMotionUi, animateBootSplashOut } from './lib/motion-ui.js';
 import { initSpeechVoices } from './lib/web-speech-tts.js';
 import { initTheme } from './lib/theme.js';
@@ -35,9 +34,15 @@ async function boot() {
     if (mode === 'local') {
       await enterLocal();
     } else if (mode === 'cloud' && sb && await sb.ensureFresh()) {
+      const { CloudStore } = await import('./data/store-cloud.js');
       const cloud = new CloudStore(sb);
       await cloud.init();
       setStore(cloud);
+      // Фоновая догрузка из облака перерисует экран — но не во время сессии повторения.
+      cloud.onDataChange(() => {
+        if (parseHash(location.hash).name === 'review') return;
+        route();
+      });
       await route();
     } else {
       renderAuth();
@@ -58,5 +63,7 @@ boot().catch(e => {
 });
 
 if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) {
-  navigator.serviceWorker.register('sw.js').catch(() => {});
+  navigator.serviceWorker.register('sw.js')
+    .then(() => console.info('[kar] service worker зарегистрирован — офлайн-кэш активен'))
+    .catch((err) => console.warn('[kar] регистрация service worker не удалась:', err));
 }

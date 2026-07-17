@@ -31,6 +31,7 @@
 - SRS-предикаты — `js/data/srs-query.js` + `js/lib/srs.js`
 - Минимальный diff: не рефакторить «заодно»
 - После изменения списка precache: `npm run sw:generate` и bump `VERSION` в `sw.js`
+- `www/` — генерируемый артефакт Capacitor. Не правьте его руками: пересоздайте через `npm run ios:prepare` перед `npm run ios:sync`.
 
 ## Pull request
 

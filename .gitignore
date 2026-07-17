@@ -13,6 +13,15 @@ Thumbs.db
 *.swp
 .idea/
 .vscode/
+.cursor/
+
+# Локальные артефакты AI/дизайн-агентов и аналитики
+.interface-design/
+opencode.json
+outputs/
+
+# Генерируется для Capacitor командой npm run ios:prepare
+www/
 
 # Graphify
 graphify-out/

@@ -27,8 +27,27 @@ export class MiniSupabase {
     return h;
   }
 
+  /** fetch с таймаутом — чтобы старт не висел ~60с, если Supabase недоступен/на паузе. */
+  async _fetch(url, opts = {}, timeoutMs = 12000) {
+    const ctrl = new AbortController();
+    const t = setTimeout(() => ctrl.abort(), timeoutMs);
+    try {
+      return await fetch(url, Object.assign({}, opts, { signal: ctrl.signal }));
+    } catch (e) {
+      if (e && e.name === 'AbortError') {
+        const err = new Error('Превышено время ожидания сети');
+        err.name = 'TimeoutError';
+        err.isTimeout = true;
+        throw err;
+      }
+      throw e;
+    } finally {
+      clearTimeout(t);
+    }
+  }
+
   async signUp(email, password) {
-    const r = await fetch(this.url + '/auth/v1/signup', {
+    const r = await this._fetch(this.url + '/auth/v1/signup', {
       method: 'POST',
       headers: Object.assign({ 'Content-Type': 'application/json' }, { apikey: this.key }),
       body: JSON.stringify({ email, password }),
@@ -40,7 +59,7 @@ export class MiniSupabase {
   }
 
   async signIn(email, password) {
-    const r = await fetch(this.url + '/auth/v1/token?grant_type=password', {
+    const r = await this._fetch(this.url + '/auth/v1/token?grant_type=password', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', apikey: this.key },
       body: JSON.stringify({ email, password }),
@@ -53,14 +72,14 @@ export class MiniSupabase {
 
   async signOut() {
     try {
-      await fetch(this.url + '/auth/v1/logout', { method: 'POST', headers: this._authHeaders() });
+      await this._fetch(this.url + '/auth/v1/logout', { method: 'POST', headers: this._authHeaders() });
     } catch (e) { /* offline */ }
     this._saveSession(null);
   }
 
   async refresh() {
     if (!this.session || !this.session.refresh_token) throw new Error('Нет сессии');
-    const r = await fetch(this.url + '/auth/v1/token?grant_type=refresh_token', {
+    const r = await this._fetch(this.url + '/auth/v1/token?grant_type=refresh_token', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', apikey: this.key },
       body: JSON.stringify({ refresh_token: this.session.refresh_token }),
@@ -74,7 +93,13 @@ export class MiniSupabase {
   async ensureFresh() {
     if (!this.session) return null;
     if (this.session.expires_at_ms && Date.now() > this.session.expires_at_ms - 2 * 60 * 1000) {
-      try { await this.refresh(); } catch (e) { return null; }
+      try {
+        await this.refresh();
+      } catch (e) {
+        // Сеть/таймаут — оставляем сессию и работаем офлайн из зеркала (не выкидываем на вход).
+        if (isNetworkError(e)) return this.session;
+        return null;
+      }
     }
     return this.session;
   }
@@ -85,7 +110,7 @@ export class MiniSupabase {
 
   async select(table, query) {
     await this.ensureFresh();
-    const r = await fetch(this.url + '/rest/v1/' + table + (query ? '?' + query : ''), {
+    const r = await this._fetch(this.url + '/rest/v1/' + table + (query ? '?' + query : ''), {
       headers: this._authHeaders(),
     });
     return handle(r);
@@ -93,7 +118,7 @@ export class MiniSupabase {
 
   async count(table, query) {
     await this.ensureFresh();
-    const r = await fetch(this.url + '/rest/v1/' + table + '?' + query, {
+    const r = await this._fetch(this.url + '/rest/v1/' + table + '?' + query, {
       method: 'HEAD',
       headers: Object.assign({ Prefer: 'count=exact' }, this._authHeaders()),
     });
@@ -105,7 +130,7 @@ export class MiniSupabase {
 
   async insert(table, row) {
     await this.ensureFresh();
-    const r = await fetch(this.url + '/rest/v1/' + table, {
+    const r = await this._fetch(this.url + '/rest/v1/' + table, {
       method: 'POST',
       headers: Object.assign({ 'Content-Type': 'application/json', Prefer: 'return=minimal' }, this._authHeaders()),
       body: JSON.stringify(row),
@@ -116,7 +141,7 @@ export class MiniSupabase {
 
   async upsert(table, row) {
     await this.ensureFresh();
-    const r = await fetch(this.url + '/rest/v1/' + table, {
+    const r = await this._fetch(this.url + '/rest/v1/' + table, {
       method: 'POST',
       headers: Object.assign({
         'Content-Type': 'application/json',
@@ -130,7 +155,7 @@ export class MiniSupabase {
 
   async update(table, filter, patch) {
     await this.ensureFresh();
-    const r = await fetch(this.url + '/rest/v1/' + table + '?' + filter, {
+    const r = await this._fetch(this.url + '/rest/v1/' + table + '?' + filter, {
       method: 'PATCH',
       headers: Object.assign({ 'Content-Type': 'application/json', Prefer: 'return=minimal' }, this._authHeaders()),
       body: JSON.stringify(patch),
@@ -140,7 +165,7 @@ export class MiniSupabase {
 
   async remove(table, filter) {
     await this.ensureFresh();
-    const r = await fetch(this.url + '/rest/v1/' + table + '?' + filter, {
+    const r = await this._fetch(this.url + '/rest/v1/' + table + '?' + filter, {
       method: 'DELETE',
       headers: this._authHeaders(),
     });
@@ -150,7 +175,7 @@ export class MiniSupabase {
 
   async uploadFile(bucket, path, blob, contentType) {
     await this.ensureFresh();
-    const r = await fetch(this.url + '/storage/v1/object/' + bucket + '/' + path, {
+    const r = await this._fetch(this.url + '/storage/v1/object/' + bucket + '/' + path, {
       method: 'POST',
       headers: Object.assign({ 'Content-Type': contentType || 'application/octet-stream', 'x-upsert': 'true' }, this._authHeaders()),
       body: blob,
@@ -165,7 +190,7 @@ export class MiniSupabase {
   async deleteFile(bucket, path) {
     await this.ensureFresh();
     try {
-      await fetch(this.url + '/storage/v1/object/' + bucket + '/' + path, {
+      await this._fetch(this.url + '/storage/v1/object/' + bucket + '/' + path, {
         method: 'DELETE',
         headers: this._authHeaders(),
       });
@@ -206,7 +231,7 @@ function authError(data) {
 
 export function isNetworkError(err) {
   if (!navigator.onLine) return true;
-  if (err && err.name === 'TypeError') return true;
+  if (err && (err.name === 'TypeError' || err.name === 'AbortError' || err.name === 'TimeoutError' || err.isTimeout)) return true;
   const msg = String(err && err.message || '');
   return /failed to fetch|network|load failed/i.test(msg);
 }

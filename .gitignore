@@ -23,6 +23,10 @@ outputs/
 # Генерируется для Capacitor командой npm run ios:prepare
 www/
 
+# Артефакты E2E-тестов
+test-results/
+playwright-report/
+
 # Graphify
 graphify-out/
 

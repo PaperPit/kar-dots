@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { translateText, getTranslateDir, setTranslateDir, translateDirLabel, flipTranslateDir } from '../js/lib/translate.js';
+import { translateText, getTranslateDir, setTranslateDir, translateDirLabel, flipTranslateDir } from '../js/lib/translate.ts';
 
 const ls = {};
 beforeEach(() => {

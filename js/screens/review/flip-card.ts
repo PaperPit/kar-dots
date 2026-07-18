@@ -1,9 +1,19 @@
+import type { SrsCard } from "../../lib/srs.js";
 import { el } from '../../ui/ui.js';
 import { buildFlipFace } from '../../ui/card-face.js';
 import { haptic } from '../../ui/helpers.js';
 
-function isTextEntryTarget(node) {
-  if (!node || !(node instanceof Element)) return false;
+
+interface FlipCardOpts {
+  stageContains?: (n: Node) => boolean;
+  onFirstFlip?: () => void;
+  onFlip?: (side: string) => void;
+  onGradeKey?: (key: string, gradeRow: HTMLElement) => void;
+  onGradeDir?: (dir: 'left' | 'right', gradeRow: HTMLElement) => void;
+}
+
+function isTextEntryTarget(node: EventTarget | null): boolean {
+  if (!node || !(node instanceof HTMLElement)) return false;
   if (node.closest('.modal-overlay')) return true;
   const tag = node.tagName;
   if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return true;
@@ -14,7 +24,7 @@ function isTextEntryTarget(node) {
 /**
  * Интерактивная карточка повторения: бесконечное переворачивание по клику/тапу.
  */
-export function createFlipCard(card, firstSide, opts) {
+export function createFlipCard(card: SrsCard, firstSide: 'front' | 'back', opts: FlipCardOpts = {}) {
   opts = opts || {};
   const backSide = firstSide === 'front' ? 'back' : 'front';
   let gradesShown = false;
@@ -28,7 +38,7 @@ export function createFlipCard(card, firstSide, opts) {
   ]);
 
   const hint = el('div', { class: 'flip-hint' }, 'Нажмите на карточку, чтобы перевернуть');
-  const grades = el('div', { class: 'grade-row' });
+  const grades = el('div', { class: 'grade-row' }, undefined);
   const swipeWrap = el('div', { class: 'flip-swipe-wrap' }, [flip]);
   // декоративные слои-«стопка» позади карточки: создают ощущение колоды
   const swipeArea = el('div', { class: 'flip-swipe-area' }, [
@@ -71,7 +81,7 @@ export function createFlipCard(card, firstSide, opts) {
   });
 
   box.tabIndex = -1;
-  const onKey = e => {
+  const onKey = (e: KeyboardEvent) => {
     if (!opts.stageContains || !opts.stageContains(box)) {
       document.removeEventListener('keydown', onKey);
       return;
@@ -99,7 +109,7 @@ export function createFlipCard(card, firstSide, opts) {
   return { box, flip, swipeWrap, grades, hint, getVisibleSide: () => (flip.classList.contains('flipped') ? backSide : firstSide) };
 }
 
-export function sizeFlipCard(flipEl) {
+export function sizeFlipCard(flipEl: HTMLElement) {
   const isDesktop = window.matchMedia('(min-width: 720px)').matches;
   const padY = isDesktop ? 39 : 28;
   const minBase = isDesktop ? 448 : 320;

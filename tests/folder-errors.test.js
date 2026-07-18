@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { folderSaveErrorMessage, isMissingFolderIconColumnError, isMissingBoxesTableError } from '../js/lib/folder-errors.js';
+import { folderSaveErrorMessage, isMissingFolderIconColumnError, isMissingBoxesTableError } from '../js/lib/folder-errors.ts';
 
 describe('folder-errors', () => {
   it('detects missing icon column', () => {

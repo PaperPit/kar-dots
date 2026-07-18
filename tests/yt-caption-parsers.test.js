@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   parseCueTime, parseSrt, parseVtt, parseCaptionFile,
-} from '../js/lib/yt-caption-parsers.js';
+} from '../js/lib/yt-caption-parsers.ts';
 
 describe('parseCueTime', () => {
   it('понимает SRT и VTT форматы', () => {

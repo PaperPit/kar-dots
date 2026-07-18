@@ -8,7 +8,7 @@ import {
   formatSpeechVoiceLabel,
   listSpeechVoicesForLang,
   clampSpeechRate,
-} from '../js/lib/web-speech-tts.js';
+} from '../js/lib/web-speech-tts.ts';
 
 const VOICES = [
   { name: 'Milena', lang: 'ru-RU', voiceURI: 'ru-milena', localService: true },

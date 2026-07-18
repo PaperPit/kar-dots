@@ -7,7 +7,7 @@ import {
   normalizeFolderIcon,
   normalizeFolderRecord,
   folderIconSrc,
-} from '../js/lib/folder-icons.js';
+} from '../js/lib/folder-icons.ts';
 
 describe('folder-icons', () => {
   it('has 12 stock icons and 4 bottom-row icons', () => {

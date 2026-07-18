@@ -1,16 +1,21 @@
 import { el } from '../../ui/ui.js';
 
-export function segControl(value, options, onChange) {
-  const seg = el('div', { class: 'seg', role: 'group' });
-  options.forEach(o => {
+interface SegOption {
+  v: string;
+  label: string;
+}
+
+export function segControl(value: string | undefined, options: SegOption[], onChange: (v: string) => void) {
+  const seg = el('div', { class: 'seg', role: 'group' }, []);
+  options.forEach((o: SegOption) => {
     const active = o.v === value;
     const b = el('button', {
       type: 'button',
       class: active ? 'active' : '',
       'aria-pressed': active ? 'true' : 'false',
-    }, o.label);
+    }, o.label) as HTMLButtonElement;
     b.addEventListener('click', () => {
-      seg.querySelectorAll('button').forEach(x => {
+      seg.querySelectorAll('button').forEach((x: Element) => {
         x.classList.remove('active');
         x.setAttribute('aria-pressed', 'false');
       });
@@ -23,7 +28,7 @@ export function segControl(value, options, onChange) {
   return seg;
 }
 
-export function statTile(label, value) {
+export function statTile(label: string, value: unknown) {
   return el('div', { class: 'stat-tile' }, [
     el('div', { class: 'stat-tile-val tnum' }, String(value)),
     el('div', { class: 'stat-tile-lab' }, label),

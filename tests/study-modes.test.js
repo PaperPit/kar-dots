@@ -5,7 +5,7 @@ import {
   buildReviewHash,
   isStudyMode,
   resolveStudyMode,
-} from '../js/lib/study-modes.js';
+} from '../js/lib/study-modes.ts';
 
 describe('parseReviewRoute', () => {
   it('defaults for bare review', () => {

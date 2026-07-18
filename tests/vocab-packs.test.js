@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { isVocabPackFolder } from '../js/lib/vocab-packs.js';
+import { isVocabPackFolder } from '../js/lib/vocab-packs.ts';
 
 const packsDir = resolve(import.meta.dirname, '../packs');
 

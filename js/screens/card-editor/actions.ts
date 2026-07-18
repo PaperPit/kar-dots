@@ -2,10 +2,45 @@ import { store } from '../../core/state.js';
 import { toast, stripHtml, confirmDialog } from '../../ui/ui.js';
 import { crowTombIcon, textPreview } from '../../ui/helpers.js';
 import { route } from '../../core/router.js';
+import type { Card } from '../../data/types.js';
+import type { ModalHandle } from '../../ui/ui.js';
+
+interface RichTextEditor {
+  getHTML(): string;
+  isEmpty(): boolean;
+}
+
+interface CardEditorState {
+  front_img?: string | null;
+  back_img?: string | null;
+  [key: string]: unknown;
+}
+
+interface SaveCardOpts {
+  onSaved?: (patch: Record<string, unknown>) => void;
+}
+
+interface DeleteCardOpts {
+  onDeleted?: () => void;
+}
 
 export async function saveCard({
   folderId, card, state, frontRich, defRich, descRich,
   fromLesson, opts, m, andContinue, saveBtn, saveMoreBtn, openNewDialog,
+}: {
+  folderId: string;
+  card: Card | null;
+  state: CardEditorState;
+  frontRich: RichTextEditor;
+  defRich: RichTextEditor;
+  descRich: RichTextEditor;
+  fromLesson: boolean;
+  opts: SaveCardOpts;
+  m: ModalHandle;
+  andContinue: boolean;
+  saveBtn: HTMLButtonElement;
+  saveMoreBtn: HTMLButtonElement | null;
+  openNewDialog: () => void;
 }) {
   const front = stripHtml(frontRich.getHTML()).trim();
   const back = stripHtml(defRich.getHTML()).trim();
@@ -40,13 +75,14 @@ export async function saveCard({
       toast('Карточка добавлена', 'ok');
     }
   } catch (e) {
-    toast(e.message, 'error');
+    const err = e as Error;
+    toast(err.message, 'error');
     saveBtn.disabled = false;
     if (saveMoreBtn) saveMoreBtn.disabled = false;
   }
 }
 
-export async function deleteCardAction(card, opts, m) {
+export async function deleteCardAction(card: Card | null, opts: DeleteCardOpts, m: ModalHandle) {
   if (!card) return;
   const yes = await confirmDialog(
     'Удалить карточку?',
@@ -66,6 +102,7 @@ export async function deleteCardAction(card, opts, m) {
     await route();
     toast('Карточка удалена', 'ok');
   } catch (e) {
-    toast(e.message, 'error');
+    const err = e as Error;
+    toast(err.message, 'error');
   }
 }

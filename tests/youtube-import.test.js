@@ -4,7 +4,7 @@ import {
   collectKnownTerms, isYoutubeCard, filterNewCandidates,
   filterTranscriptSegments, filterNewSentences,
   fmtTimestamp, buildYtLink, buildCardDescription,
-} from '../js/lib/youtube-import.js';
+} from '../js/lib/youtube-import.ts';
 
 describe('parseYouTubeId', () => {
   it('понимает все формы ссылок', () => {

@@ -1,0 +1,33 @@
+module.exports = [
+  {
+    languageOptions: {
+      ecmaVersion: 'latest',
+      sourceType: 'module',
+      globals: {
+        window: true,
+        document: true,
+        localStorage: true,
+        sessionStorage: true,
+        console: true,
+        setTimeout: true,
+        clearTimeout: true,
+        setInterval: true,
+        clearInterval: true,
+        requestAnimationFrame: true,
+        cancelAnimationFrame: true,
+        performance: true,
+        fetch: true,
+        indexedDB: true,
+        File: true,
+        URL: true,
+        URLSearchParams: true,
+        DOMParser: true,
+        Node: true,
+        Element: true,
+        SpeechSynthesisUtterance: true,
+        speechSynthesis: true,
+      },
+    },
+    ignores: ['js/vendor/', 'www/', '*.min.js', '*.bundle.js'],
+  },
+];

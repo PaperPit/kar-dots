@@ -1,13 +1,25 @@
 import { el, toast, confirmDialog } from '../../../ui/ui.js';
 import { nav } from '../../../ui/shell.js';
+import type { LocalStore } from '../../../data/store-local.js';
 
-export function buildAccountGroup(store, sb, setStore, renderAuth, route) {
+interface SbLike {
+  getSession(): import('../../../data/supabase.js').AuthSession | null;
+  signOut(): Promise<unknown>;
+}
+
+export function buildAccountGroup(
+  store: LocalStore,
+  sb: SbLike | null,
+  setStore: (s: LocalStore | null) => void,
+  renderAuth: () => void,
+  route: () => void | Promise<void>,
+) {
   const isCloud = store.kind === 'cloud';
   const accGroup = el('div', { class: 'settings-group' }, [
     el('h4', null, 'Режим работы'),
     el('div', { class: 'setting-row' }, [
       el('div', { class: 'lab' }, [
-        el('b', null, isCloud ? 'Облако: ' + (sb.session && sb.session.user ? sb.session.user.email : '') : 'Демо-режим'),
+        el('b', null, isCloud ? 'Облако: ' + String(sb?.getSession()?.user?.email ?? '') : 'Демо-режим'),
         el('span', null, isCloud
           ? (store.offline ? 'Сейчас офлайн — данные синхронизируются при появлении сети.' : 'Карточки синхронизируются между устройствами.')
           : 'Данные хранятся только в этом браузере. Настройте Supabase (см. README) для синхронизации.'),
@@ -19,7 +31,7 @@ export function buildAccountGroup(store, sb, setStore, renderAuth, route) {
             isCloud ? 'Карточки останутся в облаке.' : 'Данные останутся в этом браузере — вы сможете вернуться.',
             'Выйти');
           if (!yes) return;
-          if (isCloud) await sb.signOut();
+          if (isCloud) await sb?.signOut();
           localStorage.removeItem('kar_mode');
           setStore(null);
           nav('#home');
@@ -42,7 +54,7 @@ export function buildAccountGroup(store, sb, setStore, renderAuth, route) {
             const r = await store.flushSync();
             toast(r.ok ? `Синхронизировано: ${r.ok}` : 'Нечего синхронизировать', 'ok');
             await route();
-          } catch (e) { toast(e.message, 'error'); }
+          }           catch (e) { toast(e instanceof Error ? e.message : String(e), 'error'); }
         },
       }, 'Синхронизировать'),
     ]));

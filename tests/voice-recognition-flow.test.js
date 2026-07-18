@@ -5,7 +5,7 @@
  */
 
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
-import { checkCardAnswer, answersMatch } from '../js/lib/answer-check.js';
+import { checkCardAnswer, answersMatch } from '../js/lib/answer-check.ts';
 
 const CARD_LAST = { front: 'last', back: 'последний', description: '' };
 const CARD_BABY = { front: 'baby', back: 'малыш', description: '' };
@@ -93,7 +93,7 @@ function setupCapacitorNative() {
 async function loadSpeechInput() {
   vi.resetModules();
   setupCapacitorNative();
-  return import('../js/lib/speech-input.js');
+  return import('../js/lib/speech-input.ts');
 }
 
 async function listenAndStop({ lang = 'ru-RU', emitDuringListen, lastPartialOnStop } = {}) {

@@ -21,7 +21,7 @@ export async function renderSettings() {
   async function save() {
     if (s.tts === false) s.ttsAuto = false;
     try { await store.saveSettings(s); }
-    catch (e) { toast('Не сохранилось: ' + e.message, 'error'); }
+    catch (e) { toast('Не сохранилось: ' + (e instanceof Error ? e.message : String(e)), 'error'); }
   }
 
   const statsGroup = await buildStatsGroup(store);

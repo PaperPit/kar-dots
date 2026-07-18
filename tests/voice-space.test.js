@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
 
 import { describe, it, expect } from 'vitest';
-import { shouldStartVoiceFromSpace } from '../js/lib/voice-keyboard.js';
+import { shouldStartVoiceFromSpace } from '../js/lib/voice-keyboard.ts';
 
 function spaceEvent(target, { repeat = false } = {}) {
   return { key: ' ', code: 'Space', repeat, target };

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { syncRavenEggScreen, tryRavenEggClick } from '../js/lib/raven-easter-egg.js';
+import { syncRavenEggScreen, tryRavenEggClick } from '../js/lib/raven-easter-egg.ts';
 
 describe('raven-easter-egg', () => {
   beforeEach(() => {

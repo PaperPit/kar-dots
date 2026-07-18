@@ -4,7 +4,7 @@ import {
   getGeminiApiKey, hasGeminiApiKey,
   getGroqApiKey, hasGroqApiKey,
   withApiKeys, integrationsKeySummary,
-} from '../js/lib/youtube-import-settings.js';
+} from '../js/lib/youtube-import-settings.ts';
 
 const SUPA = 'sd_0123456789abcd';
 const GEMINI = 'AQ.FakeTestKeyForKarDotsUnitTestsOnly001';

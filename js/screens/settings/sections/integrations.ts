@@ -1,8 +1,20 @@
 import { el, modal } from '../../../ui/ui.js';
 import { integrationsKeySummary } from '../../../lib/youtube-import-settings.js';
 import { cleanGeminiApiKey, cleanGroqApiKey, cleanSupadataApiKey } from '../../../lib/llm-api-keys.js';
+import type { Settings } from '../../../data/types.js';
 
-const KEY_DEFS = [
+type KeyProp = 'supadataApiKey' | 'geminiApiKey' | 'groqApiKey';
+
+interface KeyDef {
+  prop: KeyProp;
+  title: string;
+  placeholder: string;
+  required?: boolean;
+  lead: string;
+  help: { linkText: string; linkHref: string; steps: string[] };
+}
+
+const KEY_DEFS: KeyDef[] = [
   {
     prop: 'supadataApiKey',
     title: 'Supadata API ключ',
@@ -52,7 +64,7 @@ const KEY_DEFS = [
   },
 ];
 
-function validateKey(prop, value) {
+function validateKey(prop: KeyProp, value: unknown) {
   const v = String(value || '').trim();
   if (!v) return { ok: true, message: '' };
   if (prop === 'geminiApiKey' && !cleanGeminiApiKey(v)) {
@@ -67,7 +79,7 @@ function validateKey(prop, value) {
   return { ok: true, message: '' };
 }
 
-function updateKeyStatus(statusEl, def, value) {
+function updateKeyStatus(statusEl: HTMLElement, def: KeyDef, value: unknown) {
   const next = String(value || '').trim();
   if (!next) {
     statusEl.textContent = def.required ? 'Не указан — импорт недоступен' : 'Не указан — серверный (если есть)';
@@ -86,7 +98,7 @@ function updateKeyStatus(statusEl, def, value) {
   statusEl.classList.remove('is-invalid');
 }
 
-function buildKeyField(def, s, save) {
+function buildKeyField(def: KeyDef, s: Settings, save: (patch?: Partial<Settings>) => void) {
   let visible = false;
 
   const keyInput = el('input', {
@@ -96,7 +108,7 @@ function buildKeyField(def, s, save) {
     autocomplete: 'off',
     spellcheck: false,
     value: s[def.prop] || '',
-  });
+  }, []) as HTMLInputElement;
 
   const statusEl = el('span', { class: 'api-key-status' }, '');
   updateKeyStatus(statusEl, def, s[def.prop]);
@@ -109,7 +121,7 @@ function buildKeyField(def, s, save) {
       keyInput.type = visible ? 'text' : 'password';
       toggleBtn.textContent = visible ? 'Скрыть' : 'Показать';
     },
-  }, 'Показать');
+  }, 'Показать') as HTMLButtonElement;
 
   function flush() {
     const next = keyInput.value.trim();
@@ -153,7 +165,7 @@ function buildKeyField(def, s, save) {
             el('a', { href: def.help.linkHref, target: '_blank', rel: 'noopener noreferrer' }, def.help.linkText),
             '.',
           ]),
-          ...def.help.steps.map(step => el('li', null, step)),
+           ...def.help.steps.map((step: string) => el('li', null, step)),
         ]),
         el('p', { class: 'muted api-key-note' },
           'Ключ сохраняется при нажатии «Готово». Передаётся на сервер только при импорте.'),
@@ -165,7 +177,7 @@ function buildKeyField(def, s, save) {
   return { node, flush };
 }
 
-function openKeysModal(s, save, onClose) {
+function openKeysModal(s: Settings, save: (patch?: Partial<Settings>) => void, onClose: () => void) {
   const fields = KEY_DEFS.map(def => buildKeyField(def, s, save));
   const body = el('div', { class: 'integrations-keys-modal' }, fields.map(f => f.node));
 
@@ -193,7 +205,7 @@ function openKeysModal(s, save, onClose) {
   };
 }
 
-export function buildIntegrationsGroup(s, save) {
+export function buildIntegrationsGroup(s: Settings, save: (patch?: Partial<Settings>) => void) {
   const statusEl = el('span', { class: 'integrations-status muted' }, integrationsKeySummary(s));
 
   const refreshStatus = () => {

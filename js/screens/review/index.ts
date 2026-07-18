@@ -9,11 +9,23 @@ import {
   consumeSessionPromptSide, getLastPromptSide, consumeSessionCramLimit, getLastCramLimit,
 } from '../../lib/study-modes.js';
 import { studyModePicker } from './mode-picker.js';
-import { runReviewSession } from './session.js';
+import { runReviewSession, type ReviewSessionContext, type ReviewMode } from './session.js';
+import type { Folder } from '../../data/types.js';
 
 let reviewSession = 0;
 
-export async function renderReview(folderId, opts = {}) {
+interface ReviewOpts {
+  cram?: boolean;
+  mode?: string;
+  cramLimit?: number;
+  review?: boolean;
+  fromLesson?: boolean;
+  onSaved?: unknown;
+  onDeleted?: unknown;
+  box_id?: string | null;
+}
+
+export async function renderReview(folderId: string | null, opts: ReviewOpts = {}) {
   const session = ++reviewSession;
   const cram = !!opts.cram && !!folderId;
   const cramPromptSide = cram
@@ -27,15 +39,15 @@ export async function renderReview(folderId, opts = {}) {
   await refreshDueBadge();
   if (session !== reviewSession) return;
 
-  const mode = resolveStudyMode(opts.mode);
+  const mode = resolveStudyMode(opts.mode ?? '') as ReviewMode;
   const cramLimit = cram ? (
-    opts.cramLimit > 0 ? opts.cramLimit
+    (opts.cramLimit ?? 0) > 0 ? opts.cramLimit
       : (consumeSessionCramLimit() ?? getLastCramLimit())
   ) : null;
   const algo = store.settings.algo;
   const now = Date.now();
   const budget = newBudget();
-  const folder = folderId ? store.folders.find(f => f.id === folderId) : null;
+  const folder = folderId ? store.folders.find((f: Folder) => f.id === folderId) : null;
 
   if (algo === 'fsrs') {
     const { preloadFsrs } = await import('../../lib/srs.js');
@@ -45,7 +57,7 @@ export async function renderReview(folderId, opts = {}) {
 
   let queue;
   if (cram) {
-    const limit = cramLimit > 0 ? cramLimit : null;
+    const limit = (cramLimit ?? 0) > 0 ? cramLimit : null;
     queue = typeof store.getCramCards === 'function'
       ? await store.getCramCards(folderId, limit)
       : shuffle([...(await store.getFolderCards(folderId))]).slice(0, limit || undefined);
@@ -82,7 +94,7 @@ export async function renderReview(folderId, opts = {}) {
   const modeLabel = studyModeLabel(mode);
   const intro = cram
     ? el('p', { class: 'review-intro review-intro-cram' }, [
-      'Закрепление · ', promptSideLabel(cramPromptSide), ' · ', modeLabel, ' — ',
+      'Закрепление · ', promptSideLabel(cramPromptSide ?? 'front'), ' · ', modeLabel, ' — ',
       String(sessionTotal), ' ',
       plural(sessionTotal, 'карточка', 'карточки', 'карточек'),
       folder ? ' из «' + folder.name + '»' : '',
@@ -94,12 +106,12 @@ export async function renderReview(folderId, opts = {}) {
       folder ? ' · «' + folder.name + '»' : '',
     ]);
 
-  const bar = el('div', null);
+  const bar = el('div', null, undefined);
   const counter = el('span', { class: 'review-count' }, '');
   const speakBtn = el('button', { class: 'icon-btn', title: 'Озвучить текущую сторону' }, svgNode(ICONS.speaker));
   const editBtn = el('button', { class: 'icon-btn', title: 'Редактировать карточку' }, featherIcon());
-  const stage = el('div', null);
-  const wrap = el('div', { class: 'review-wrap' });
+  const stage = el('div', null, undefined);
+  const wrap = el('div', { class: 'review-wrap' }, undefined);
   const top = el('div', { class: 'review-top' }, [
     backBtn(folderId ? '#folder/' + folderId : '#home'),
     el('div', { class: 'progress deck-progress' }, bar),
@@ -109,19 +121,18 @@ export async function renderReview(folderId, opts = {}) {
   ]);
   wrap.append(top, stage);
 
-  const ctx = {
-    folderId,
-    folder,
+  const ctx: ReviewSessionContext = {
+    folderId: folderId ?? undefined,
     mode,
     cram,
-    cramPromptSide,
+    cramPromptSide: cramPromptSide ?? undefined,
     algo,
     queue,
     sessionTotal,
     total: sessionTotal,
     done: 0,
     answered: 0,
-    sessionFirstTry: new Set(),
+    sessionFirstTry: new Set<string>(),
     currentIsNew: false,
     gradesVisible: false,
     pendingUndo: null,
@@ -133,12 +144,15 @@ export async function renderReview(folderId, opts = {}) {
     currentBox: null,
     currentDestroy: null,
     stats: { attempted: 0, firstTryOk: 0 },
-    reshowAfterEdit: null,
+    reshowAfterEdit: undefined,
     bar,
     counter,
     speakBtn,
     editBtn,
     stage,
+    showNext: () => {},
+    trackFlipFirstTry: () => false,
+    updateBar: () => {},
   };
 
   shell('review', el('div', null, [

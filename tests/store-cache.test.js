@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { StoreCache } from '../js/data/store-cache.js';
+import { StoreCache } from '../js/data/store-cache.ts';
 
 describe('StoreCache', () => {
   it('bumpCount and countCards', () => {

@@ -6,7 +6,7 @@ import {
   removeSrsMetaForFolder,
   countSrsMetaByFolder,
   SRS_FIELDS,
-} from '../js/data/srs-meta.js';
+} from '../js/data/srs-meta.ts';
 
 const fullCard = {
   id: 'c1',

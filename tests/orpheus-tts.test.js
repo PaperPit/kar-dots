@@ -8,8 +8,8 @@ import {
   isEnglishLang,
   formatOrpheusError,
   isOrpheusTermsError,
-} from '../js/lib/orpheus-tts.js';
-import { ttsCacheKey } from '../js/data/tts-cache.js';
+} from '../js/lib/orpheus-tts.ts';
+import { ttsCacheKey } from '../js/data/tts-cache.ts';
 
 describe('orpheus-tts', () => {
   it('normalizeOrpheusVoice принимает только известные голоса', () => {

@@ -1,8 +1,19 @@
 import { el, modal } from '../../../ui/ui.js';
 import { stockMediaKeySummary } from '../../../lib/stock-media-settings.js';
 import { cleanGiphyApiKey, cleanPixabayApiKey } from '../../../lib/llm-api-keys.js';
+import type { Settings } from '../../../data/types.js';
 
-const KEY_DEFS = [
+type KeyProp = 'pixabayApiKey' | 'giphyApiKey';
+
+interface KeyDef {
+  prop: KeyProp;
+  title: string;
+  placeholder: string;
+  lead: string;
+  help: { linkText: string; linkHref: string; steps: string[] };
+}
+
+const KEY_DEFS: KeyDef[] = [
   {
     prop: 'pixabayApiKey',
     title: 'Pixabay API ключ',
@@ -35,7 +46,7 @@ const KEY_DEFS = [
   },
 ];
 
-function validateKey(prop, value) {
+function validateKey(prop: KeyProp, value: unknown) {
   const v = String(value || '').trim();
   if (!v) return { ok: true, message: '' };
   if (prop === 'pixabayApiKey' && !cleanPixabayApiKey(v)) {
@@ -47,7 +58,7 @@ function validateKey(prop, value) {
   return { ok: true, message: '' };
 }
 
-function updateKeyStatus(statusEl, def, value) {
+function updateKeyStatus(statusEl: HTMLElement, def: KeyDef, value: unknown) {
   const next = String(value || '').trim();
   if (!next) {
     statusEl.textContent = 'Не указан — базовый поиск Openverse';
@@ -66,7 +77,7 @@ function updateKeyStatus(statusEl, def, value) {
   statusEl.classList.remove('is-invalid');
 }
 
-function buildKeyField(def, s, save) {
+function buildKeyField(def: KeyDef, s: Settings, save: (patch?: Partial<Settings>) => void) {
   let visible = false;
   const keyInput = el('input', {
     type: 'password',
@@ -75,7 +86,7 @@ function buildKeyField(def, s, save) {
     autocomplete: 'off',
     spellcheck: false,
     value: s[def.prop] || '',
-  });
+  }, []) as HTMLInputElement;
   const statusEl = el('span', { class: 'api-key-status' }, '');
   updateKeyStatus(statusEl, def, s[def.prop]);
 
@@ -87,7 +98,7 @@ function buildKeyField(def, s, save) {
       keyInput.type = visible ? 'text' : 'password';
       toggleBtn.textContent = visible ? 'Скрыть' : 'Показать';
     },
-  }, 'Показать');
+  }, 'Показать') as HTMLButtonElement;
 
   function flush() {
     const next = keyInput.value.trim();
@@ -125,7 +136,7 @@ function buildKeyField(def, s, save) {
             el('a', { href: def.help.linkHref, target: '_blank', rel: 'noopener noreferrer' }, def.help.linkText),
             '.',
           ]),
-          ...def.help.steps.map(step => el('li', null, step)),
+           ...def.help.steps.map((step: string) => el('li', null, step)),
         ]),
         el('p', { class: 'muted api-key-note' },
           'Ключ сохраняется локально и передаётся на сервер только при поиске картинок.'),
@@ -137,7 +148,7 @@ function buildKeyField(def, s, save) {
   return { node, flush };
 }
 
-function openKeysModal(s, save, onClose) {
+function openKeysModal(s: Settings, save: (patch?: Partial<Settings>) => void, onClose: () => void) {
   const fields = KEY_DEFS.map(def => buildKeyField(def, s, save));
   const m = modal(el('div', null, [
     el('h3', { class: 'modal-title' }, 'API-ключи для картинок'),
@@ -160,7 +171,7 @@ function openKeysModal(s, save, onClose) {
   };
 }
 
-export function buildStockMediaGroup(s, save) {
+export function buildStockMediaGroup(s: Settings, save: (patch?: Partial<Settings>) => void) {
   const statusEl = el('span', { class: 'integrations-status muted' }, stockMediaKeySummary(s));
   const refreshStatus = () => { statusEl.textContent = stockMediaKeySummary(s); };
 

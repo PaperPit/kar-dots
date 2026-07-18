@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { MiniSupabase } from '../js/data/supabase.js';
+import { MiniSupabase } from '../js/data/supabase.ts';
 
 describe('MiniSupabase Prefer: return=minimal', () => {
   let sb;

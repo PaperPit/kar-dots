@@ -1,449 +1,478 @@
-import { detectSpeechLang } from './web-speech-tts.js';
+import { detectSpeechLang } from "./web-speech-tts.js"
+import type {
+  NativeSpeechEvent,
+  NativeSpeechHandle,
+  NativeSpeechRecognition as NativeSpeechRecognitionType
+} from "../vendor/capacitor-speech-recognition.mjs"
 
-let nativePlugin = null;
-let nativePluginLoading = null;
+let nativePlugin: NativeSpeechRecognitionType | null = null
+let nativePluginLoading: Promise<void> | null = null
 
-const STOP_TIMEOUT_MS = 6000;
-const POLL_MS = 300;
-const WEB_SESSION_COOLDOWN_MS = 500;
-const NATIVE_SESSION_COOLDOWN_MS = 450;
+const STOP_TIMEOUT_MS = 6000
+const POLL_MS = 300
+const WEB_SESSION_COOLDOWN_MS = 500
+const NATIVE_SESSION_COOLDOWN_MS = 450
 
-let lastWebSpeechEndAt = 0;
-let lastNativeSpeechEndAt = 0;
-let speechDrain = Promise.resolve();
+let lastWebSpeechEndAt = 0
+let lastNativeSpeechEndAt = 0
+let speechDrain: Promise<void> = Promise.resolve()
 
-async function waitSpeechCooldown(lastEndAt, ms) {
-  const wait = lastEndAt + ms - Date.now();
-  if (wait > 0) await sleep(wait);
+async function waitSpeechCooldown(lastEndAt: number, ms: number): Promise<void> {
+  const wait = lastEndAt + ms - Date.now()
+  if (wait > 0) await sleep(wait)
 }
 
-function markWebSpeechEnded() {
-  lastWebSpeechEndAt = Date.now();
+function markWebSpeechEnded(): void {
+  lastWebSpeechEndAt = Date.now()
 }
 
-function markNativeSpeechEnded() {
-  lastNativeSpeechEndAt = Date.now();
+function markNativeSpeechEnded(): void {
+  lastNativeSpeechEndAt = Date.now()
 }
 
 /** Очередь остановки — следующая карточка ждёт закрытия предыдущей сессии. */
-export function releaseSpeechSession(stopFn) {
-  if (!stopFn) return speechDrain;
-  speechDrain = speechDrain.then(() => stopFn({ cancel: true })).catch(() => {});
-  return speechDrain;
+export function releaseSpeechSession(
+  stopFn?: (opts?: { cancel: boolean }) => unknown
+): Promise<void> {
+  if (!stopFn) return speechDrain
+  speechDrain = speechDrain
+    .then(() => {
+      stopFn({ cancel: true })
+    })
+    .catch(() => {})
+  return speechDrain
 }
 
 /** Дождаться освобождения микрофона перед новой сессией. */
-export async function prepareSpeechSession() {
-  await speechDrain;
-  await waitSpeechCooldown(lastWebSpeechEndAt, WEB_SESSION_COOLDOWN_MS);
-  await waitSpeechCooldown(lastNativeSpeechEndAt, NATIVE_SESSION_COOLDOWN_MS);
+export async function prepareSpeechSession(): Promise<void> {
+  await speechDrain
+  await waitSpeechCooldown(lastWebSpeechEndAt, WEB_SESSION_COOLDOWN_MS)
+  await waitSpeechCooldown(lastNativeSpeechEndAt, NATIVE_SESSION_COOLDOWN_MS)
 }
 
-export function pickSpeechBackend() {
-  if (isNativeSpeechPlatform()) return 'native';
-  if (webSpeechRecognitionSupported()) return 'web';
-  return 'none';
+export function pickSpeechBackend(): "native" | "web" | "none" {
+  if (isNativeSpeechPlatform()) return "native"
+  if (webSpeechRecognitionSupported()) return "web"
+  return "none"
 }
 
-export function isNativeSpeechPlatform() {
-  return typeof window !== 'undefined'
-    && !!window.Capacitor?.isNativePlatform?.();
+export function isNativeSpeechPlatform(): boolean {
+  return typeof window !== "undefined" && !!window.Capacitor?.isNativePlatform?.()
 }
 
-export function webSpeechRecognitionSupported() {
-  return typeof window !== 'undefined'
-    && !!(window.SpeechRecognition || window.webkitSpeechRecognition);
+export function webSpeechRecognitionSupported(): boolean {
+  return (
+    typeof window !== "undefined" && !!(window.SpeechRecognition || window.webkitSpeechRecognition)
+  )
 }
 
-export function speechRecognitionSupported() {
-  if (typeof window === 'undefined') return false;
-  return webSpeechRecognitionSupported() || isNativeSpeechPlatform();
+export function speechRecognitionSupported(): boolean {
+  if (typeof window === "undefined") return false
+  return webSpeechRecognitionSupported() || isNativeSpeechPlatform()
 }
 
 /** Язык и подсказка для режима «Голос». */
-export function resolveVoiceSpeechLang(expected) {
-  const lang = detectSpeechLang(expected);
-  const hint = lang.startsWith('en')
-    ? 'Скажите ответ по-английски'
-    : 'Скажите перевод по-русски';
-  return { lang, hint };
+export function resolveVoiceSpeechLang(expected?: string): { lang: string; hint: string } {
+  const lang = detectSpeechLang(expected ?? "")
+  const hint = lang.startsWith("en") ? "Скажите ответ по-английски" : "Скажите перевод по-русски"
+  return { lang, hint }
 }
 
 /** Дождаться загрузки нативного плагина. Возвращает boolean — не сам плагин (Capacitor-прокси ломает Promise через .then). */
-async function loadNativePlugin() {
-  if (!isNativeSpeechPlatform()) return false;
-  if (nativePlugin) return true;
+async function loadNativePlugin(): Promise<boolean> {
+  if (!isNativeSpeechPlatform()) return false
+  if (nativePlugin) return true
   if (!nativePluginLoading) {
-    nativePluginLoading = import('../vendor/capacitor-speech-recognition.mjs')
+    nativePluginLoading = import("../vendor/capacitor-speech-recognition.mjs")
       .then((mod) => {
-        nativePlugin = mod.SpeechRecognition;
+        nativePlugin = mod.SpeechRecognition
       })
       .catch(() => {
-        nativePlugin = null;
-      });
+        nativePlugin = null
+      })
   }
-  await nativePluginLoading;
-  return !!nativePlugin;
+  await nativePluginLoading
+  return !!nativePlugin
 }
 
-function withTimeout(promise, ms, label) {
+function withTimeout(promise: Promise<unknown>, ms: number, label: string): Promise<unknown> {
   return Promise.race([
     promise,
-    new Promise((_, reject) => {
-      setTimeout(() => reject(new Error(label || 'timeout')), ms);
-    }),
-  ]);
+    new Promise((_resolve, reject) => {
+      setTimeout(() => reject(new Error(label || "timeout")), ms)
+    })
+  ])
 }
 
-function sleep(ms) {
-  return new Promise((resolve) => setTimeout(resolve, ms));
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms))
 }
 
-export function pickNativeTranscript(event) {
+export function pickNativeTranscript(event: NativeSpeechEvent | undefined): string {
+  const raw: NativeSpeechEvent = event ?? {}
+  const matches: unknown[] = Array.isArray(raw.matches) ? raw.matches : []
   const parts = [
-    event?.accumulatedText,
-    event?.accumulated,
-    ...(Array.isArray(event?.matches) ? event.matches : []),
-    event?.text,
+    raw.accumulatedText,
+    raw.accumulated,
+    ...matches,
+    raw.text
   ]
-    .map((s) => String(s || '').trim())
-    .filter(Boolean);
-  return parts[0] || '';
+    .map((s) => String(s || "").trim())
+    .filter(Boolean)
+  return parts[0] || ""
 }
 
-function mapNativeError(event) {
-  const code = event?.code || '';
-  if (code === 'not-allowed' || code === 'permission') return 'Нет доступа к микрофону';
-  if (code === 'no-speech') return 'Речь не распознана';
-  return event?.message || code || 'Ошибка распознавания';
+function mapNativeError(event: NativeSpeechEvent | undefined): string {
+  const code = String(event?.code ?? "")
+  if (code === "not-allowed" || code === "permission") return "Нет доступа к микрофону"
+  if (code === "no-speech") return "Речь не распознана"
+  return String((event?.message ?? code) || "Ошибка распознавания")
 }
 
-function pickBestAlternative(result) {
-  let best = '';
-  let bestConf = -1;
+function pickBestAlternative(result: SpeechRecognitionResult): string {
+  let best = ""
+  let bestConf = -1
   for (let i = 0; i < result.length; i++) {
-    const alt = result[i]?.transcript?.trim();
-    if (!alt) continue;
-    const conf = result[i].confidence ?? (i === 0 ? 1 : 0);
+    const alt = result[i]?.transcript?.trim()
+    if (!alt) continue
+    const conf = result[i]?.confidence ?? (i === 0 ? 1 : 0)
     if (conf >= bestConf) {
-      bestConf = conf;
-      best = alt;
+      bestConf = conf
+      best = alt
     }
   }
-  return best;
+  return best
 }
 
-async function ensureNativePermissions(SR) {
-  const current = await SR.checkPermissions();
-  if (current.speechRecognition === 'granted') return true;
-  const requested = await SR.requestPermissions();
-  return requested.speechRecognition === 'granted';
+async function ensureNativePermissions(SR: NativeSpeechRecognitionType): Promise<boolean> {
+  const current = await SR.checkPermissions()
+  if (current.speechRecognition === "granted") return true
+  const requested = await SR.requestPermissions()
+  return requested.speechRecognition === "granted"
 }
 
-async function isLangAvailable(SR, lang) {
+async function isLangAvailable(SR: NativeSpeechRecognitionType, lang: string): Promise<boolean> {
   try {
-    const { available } = await SR.available({ language: lang });
-    return !!available;
+    const res = await SR.available({ language: lang })
+    return !!res.available
   } catch (e) {
-    return false;
+    return false
   }
 }
 
-function listenOnceNative({
-  lang,
-  onResult,
-  onInterim,
-  onError,
-  onEnd,
-  manualStop = false,
-  contextualStrings = [],
-} = {}) {
-  let stopped = false;
-  let cancelled = false;
-  let delivered = false;
-  let sessionActive = false;
-  let transcript = '';
-  let pollTimer = null;
-  const handles = [];
-  let SR = null;
+interface ListenOptions {
+  lang?: string
+  onResult?: (text: string) => void
+  onInterim?: (text: string) => void
+  onError?: (err: Error) => void
+  onEnd?: () => void
+  manualStop?: boolean
+  contextualStrings?: string[]
+}
 
-  function stopPolling() {
-    if (pollTimer) clearInterval(pollTimer);
-    pollTimer = null;
+function listenOnceNative(options: ListenOptions = {}): () => Promise<void> {
+  const {
+    lang,
+    onResult,
+    onInterim,
+    onError,
+    onEnd,
+    contextualStrings = []
+  } = options
+  let stopped = false
+  let cancelled = false
+  let delivered = false
+  let sessionActive = false
+  let transcript = ""
+  let pollTimer: ReturnType<typeof setInterval> | null = null
+  const handles: NativeSpeechHandle[] = []
+  let SR: NativeSpeechRecognitionType | null = null
+
+  function stopPolling(): void {
+    if (pollTimer) clearInterval(pollTimer)
+    pollTimer = null
   }
 
-  function pushTranscript(text) {
-    const t = String(text || '').trim();
-    if (!t) return;
-    transcript = t;
-    onInterim?.(t);
+  function pushTranscript(text: string): void {
+    const t = String(text || "").trim()
+    if (!t) return
+    transcript = t
+    onInterim?.(t)
   }
 
-  async function teardown() {
-    stopPolling();
-    await Promise.all(handles.splice(0).map((h) => h.remove().catch(() => {})));
+  async function teardown(): Promise<void> {
+    stopPolling()
+    await Promise.all(handles.splice(0).map((h) => h.remove().catch(() => {})))
   }
 
-  function finish(onResultArg) {
-    if (delivered) return;
-    delivered = true;
-    if (!cancelled) onResult?.(onResultArg ?? transcript);
-    onEnd?.();
+  function finish(onResultArg?: string): void {
+    if (delivered) return
+    delivered = true
+    if (!cancelled) onResult?.(onResultArg ?? transcript)
+    onEnd?.()
   }
 
-  async function refreshTranscript() {
-    if (!SR?.getLastPartialResult) return;
+  async function refreshTranscript(): Promise<void> {
+    if (!SR?.getLastPartialResult) return
     try {
-      const last = await withTimeout(
-        SR.getLastPartialResult(),
-        1500,
-        'partial timeout',
-      );
-      const text = pickNativeTranscript(last);
-      if (text) transcript = text;
+      const last = await withTimeout(SR.getLastPartialResult(), 1500, "partial timeout")
+      const text = pickNativeTranscript(last as NativeSpeechEvent)
+      if (text) transcript = text
     } catch (e) {}
   }
 
-  function startPolling() {
-    stopPolling();
+  function startPolling(): void {
+    stopPolling()
     pollTimer = setInterval(() => {
-      if (stopped || !sessionActive) return;
-      refreshTranscript().then(() => {
-        if (transcript) onInterim?.(transcript);
-      }).catch(() => {});
-    }, POLL_MS);
+      if (stopped || !sessionActive) return
+      refreshTranscript()
+        .then(() => {
+          if (transcript) onInterim?.(transcript)
+        })
+        .catch(() => {})
+    }, POLL_MS)
   }
 
-  async function haltRecognition() {
-    stopPolling();
+  async function haltRecognition(): Promise<void> {
+    stopPolling()
     if (!SR) {
-      markNativeSpeechEnded();
-      finish('');
-      return;
+      markNativeSpeechEnded()
+      finish("")
+      return
     }
-    sessionActive = false;
+    sessionActive = false
     try {
       await withTimeout(
         (async () => {
           try {
-            await SR.stop();
+            await SR.stop()
           } catch (e) {
-            await SR.forceStop().catch(() => {});
+            await SR.forceStop().catch(() => {})
           }
         })(),
         STOP_TIMEOUT_MS,
-        'stop timeout',
-      );
+        "stop timeout"
+      )
     } catch (e) {
-      try { await SR.forceStop().catch(() => SR.stop()); } catch (e2) {}
+      try {
+        const sr = SR;
+        if (sr) await sr.forceStop().catch(() => sr.stop())
+      } catch (e2) {}
     }
-    await sleep(250);
-    await refreshTranscript();
-    await teardown();
-    markNativeSpeechEnded();
-    finish(transcript);
+    await sleep(250)
+    await refreshTranscript()
+    await teardown()
+    markNativeSpeechEnded()
+    finish(transcript)
   }
 
-  async function begin() {
+  async function begin(): Promise<void> {
     try {
-      await prepareSpeechSession();
-      if (!(await loadNativePlugin())) throw new Error('Нативное распознавание недоступно');
-      SR = nativePlugin;
-      if (!SR) throw new Error('Нативное распознавание недоступно');
-      if (stopped) return;
+      await prepareSpeechSession()
+      if (!(await loadNativePlugin())) throw new Error("Нативное распознавание недоступно")
+      SR = nativePlugin
+      if (!SR) throw new Error("Нативное распознавание недоступно")
+      if (stopped) return
 
-      try { await SR.forceStop?.().catch(() => SR.stop?.()); } catch (e) {}
+      try {
+        const sr = SR;
+        if (sr) await sr.forceStop().catch(() => sr.stop())
+      } catch (e) {}
 
       if (!(await ensureNativePermissions(SR))) {
-        if (!stopped) onError?.(new Error('Нет доступа к микрофону'));
-        return;
+        if (!stopped) onError?.(new Error("Нет доступа к микрофону"))
+        return
       }
-      if (stopped) return;
+      if (stopped) return
 
-      let speechLang = lang || 'ru-RU';
+      let speechLang = lang || "ru-RU"
       if (!(await isLangAvailable(SR, speechLang))) {
-        const fallback = speechLang.startsWith('en') ? 'ru-RU' : 'en-US';
-        if (await isLangAvailable(SR, fallback)) speechLang = fallback;
+        const fallback = speechLang.startsWith("en") ? "ru-RU" : "en-US"
+        if (await isLangAvailable(SR, fallback)) speechLang = fallback
         else if (!(await isLangAvailable(SR, speechLang))) {
-          if (!stopped) onError?.(new Error('Распознавание речи недоступно на этом устройстве'));
-          return;
+          if (!stopped) onError?.(new Error("Распознавание речи недоступно на этом устройстве"))
+          return
         }
       }
-      if (stopped) return;
+      if (stopped) return
 
-      handles.push(await SR.addListener('partialResults', (event) => {
-        pushTranscript(pickNativeTranscript(event));
-      }));
+      handles.push(
+        await SR.addListener("partialResults", (event) => {
+          pushTranscript(pickNativeTranscript(event))
+        })
+      )
 
-      handles.push(await SR.addListener('error', (event) => {
-        if (stopped || delivered) return;
-        onError?.(new Error(mapNativeError(event)));
-      }));
+      handles.push(
+        await SR.addListener("error", (event) => {
+          if (stopped || delivered) return
+          onError?.(new Error(mapNativeError(event)))
+        })
+      )
 
       const hints = contextualStrings
-        .map((s) => String(s || '').trim())
+        .map((s) => String(s || "").trim())
         .filter(Boolean)
-        .slice(0, 12);
+        .slice(0, 12)
 
       await withTimeout(
         SR.start({
           language: speechLang,
           partialResults: true,
           maxResults: 5,
-          contextualStrings: hints.length ? hints : undefined,
+          contextualStrings: hints.length ? hints : undefined
         }),
         STOP_TIMEOUT_MS,
-        'start timeout',
-      );
-      sessionActive = true;
-      startPolling();
+        "start timeout"
+      )
+      sessionActive = true
+      startPolling()
 
-      if (stopped) await haltRecognition();
+      if (stopped) await haltRecognition()
     } catch (e) {
-      sessionActive = false;
-      markNativeSpeechEnded();
-      await teardown();
-      if (!stopped) onError?.(e instanceof Error ? e : new Error(String(e)));
+      sessionActive = false
+      markNativeSpeechEnded()
+      await teardown()
+      if (!stopped) onError?.(e instanceof Error ? e : new Error(String(e)))
     }
   }
 
-  begin();
+  begin()
 
-  return async ({ cancel = false } = {}) => {
-    if (stopped) return;
-    stopped = true;
-    cancelled = !!cancel;
-    await haltRecognition();
-  };
+  return async ({ cancel = false }: { cancel?: boolean } = {}): Promise<void> => {
+    if (stopped) return
+    stopped = true
+    cancelled = !!cancel
+    await haltRecognition()
+  }
 }
 
-function listenOnceWeb({
-  lang,
-  onResult,
-  onInterim,
-  onError,
-  onEnd,
-  manualStop = false,
-} = {}) {
-  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+function listenOnceWeb(options: ListenOptions = {}): () => Promise<void> {
+  const { lang, onResult, onInterim, onError, onEnd, manualStop = false } = options
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition
   if (!SR) {
-    onError?.(new Error('Распознавание речи недоступно в этом браузере'));
-    return async () => {};
+    onError?.(new Error("Распознавание речи недоступно в этом браузере"))
+    return async () => {}
   }
-  const rec = new SR();
-  rec.lang = lang || 'ru-RU';
-  rec.interimResults = manualStop;
-  rec.maxAlternatives = manualStop ? 5 : 1;
-  rec.continuous = manualStop;
+  const rec = new SR()
+  rec.lang = lang || "ru-RU"
+  rec.interimResults = manualStop
+  rec.maxAlternatives = manualStop ? 5 : 1
+  rec.continuous = manualStop
 
-  let stopped = false;
-  let cancelled = false;
-  let delivered = false;
-  let started = false;
-  let aborted = false;
-  let endResolve = null;
-  const endPromise = new Promise((resolve) => { endResolve = resolve; });
-  const finals = [];
-  let interim = '';
+  let stopped = false
+  let cancelled = false
+  let delivered = false
+  let started = false
+  let endResolve: (() => void) | null = null
+  const endPromise = new Promise<void>((resolve) => {
+    endResolve = resolve
+  })
+  const finals: string[] = []
+  let interim = ""
 
-  function transcriptText() {
-    return [...finals, interim].filter(Boolean).join(' ').trim();
-  }
-
-  function signalEnded() {
-    markWebSpeechEnded();
-    endResolve?.();
-    endResolve = null;
+  function transcriptText(): string {
+    return [...finals, interim].filter(Boolean).join(" ").trim()
   }
 
-  function finish(text) {
-    if (delivered) return;
-    delivered = true;
-    if (!cancelled) onResult?.(text ?? transcriptText());
-    onEnd?.();
-    signalEnded();
+  function signalEnded(): void {
+    markWebSpeechEnded()
+    endResolve?.()
+    endResolve = null
   }
 
-  rec.onresult = (e) => {
-    interim = '';
+  function finish(text: string): void {
+    if (delivered) return
+    delivered = true
+    if (!cancelled) onResult?.(text ?? transcriptText())
+    onEnd?.()
+    signalEnded()
+  }
+
+  rec.onresult = (e: SpeechRecognitionEventLike) => {
+    interim = ""
     for (let i = e.resultIndex; i < e.results.length; i++) {
-      const r = e.results[i];
-      const t = pickBestAlternative(r);
-      if (!t) continue;
-      if (r.isFinal) finals.push(t);
-      else interim = interim ? `${interim} ${t}` : t;
+      const r = e.results[i]
+      if (!r) continue
+      const t = pickBestAlternative(r)
+      if (!t) continue
+      if (r.isFinal) finals.push(t)
+      else interim = interim ? `${interim} ${t}` : t
     }
-    const current = transcriptText();
-    if (current) onInterim?.(current);
+    const current = transcriptText()
+    if (current) onInterim?.(current)
     if (!manualStop && finals.length) {
-      stopped = true;
-      finish(current);
+      stopped = true
+      finish(current)
     }
-  };
+  }
 
-  rec.onerror = (e) => {
-    if (stopped || delivered || cancelled) return;
-    if (e.error === 'aborted') return;
-    const msg = e.error === 'not-allowed'
-      ? 'Нет доступа к микрофону'
-      : (e.error === 'no-speech' ? 'Речь не распознана' : (e.error || 'Ошибка распознавания'));
-    signalEnded();
-    onError?.(new Error(msg));
-  };
+  rec.onerror = (e: SpeechRecognitionErrorLike) => {
+    if (stopped || delivered || cancelled) return
+    if (e.error === "aborted") return
+    const msg =
+      e.error === "not-allowed"
+        ? "Нет доступа к микрофону"
+        : e.error === "no-speech"
+          ? "Речь не распознана"
+          : e.error || "Ошибка распознавания"
+    signalEnded()
+    onError?.(new Error(msg))
+  }
 
   rec.onend = () => {
-    started = false;
+    started = false
     if (manualStop) {
       if (!stopped) {
-        onEnd?.();
-        signalEnded();
-        return;
+        onEnd?.()
+        signalEnded()
+        return
       }
-      finish(transcriptText());
-      return;
+      finish(transcriptText())
+      return
     }
-    if (!stopped) onEnd?.();
-    signalEnded();
-  };
+    if (!stopped) onEnd?.()
+    signalEnded()
+  }
 
-  const cooldownLeft = lastWebSpeechEndAt + WEB_SESSION_COOLDOWN_MS - Date.now();
+  const cooldownLeft = lastWebSpeechEndAt + WEB_SESSION_COOLDOWN_MS - Date.now()
   if (cooldownLeft > 0) {
-    signalEnded();
-    onError?.(new Error('Подождите секунду и нажмите снова'));
-    return async () => {};
+    signalEnded()
+    onError?.(new Error("Подождите секунду и нажмите снова"))
+    return async () => {}
   }
 
   try {
-    rec.start();
-    started = true;
+    rec.start()
+    started = true
   } catch (e) {
-    signalEnded();
-    onError?.(e instanceof Error ? e : new Error(String(e)));
-    return async () => {};
+    signalEnded()
+    onError?.(e instanceof Error ? e : new Error(String(e)))
+    return async () => {}
   }
 
-  return async ({ cancel = false } = {}) => {
-    if (stopped && delivered) return;
-    aborted = true;
-    stopped = true;
-    cancelled = !!cancel;
+  return async ({ cancel = false }: { cancel?: boolean } = {}): Promise<void> => {
+    if (stopped && delivered) return
+    stopped = true
+    cancelled = !!cancel
     if (!started) {
-      finish('');
-      await endPromise;
-      return;
+      finish("")
+      await endPromise
+      return
     }
-    try { rec.stop(); } catch (e) {}
-    await Promise.race([endPromise, sleep(4000)]);
-    if (!delivered) finish('');
-  };
+    try {
+      rec.stop()
+    } catch (e) {}
+    await Promise.race([endPromise, sleep(4000)])
+    if (!delivered) finish("")
+  }
 }
 
 /**
  * Распознавание речи. Возвращает async stop({ cancel }).
  * На Capacitor iOS — нативный плагин (много карточек); в браузере — Web Speech API.
  */
-export function listenOnce(options = {}) {
-  if (isNativeSpeechPlatform()) return listenOnceNative(options);
-  if (webSpeechRecognitionSupported()) return listenOnceWeb(options);
-  return listenOnceWeb(options);
+export function listenOnce(options: ListenOptions = {}): () => Promise<void> {
+  if (isNativeSpeechPlatform()) return listenOnceNative(options)
+  if (webSpeechRecognitionSupported()) return listenOnceWeb(options)
+  return listenOnceWeb(options)
 }

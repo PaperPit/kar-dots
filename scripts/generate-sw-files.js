@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Генерирует фрагмент CORE_FILES для sw.js из файлов проекта.
+ * Генерирует фрагмент CORE_FILES для sw.js из собранных файлов проекта (js/, скомпилированный TS на месте).
  * Запуск: node scripts/generate-sw-files.js
  */
 import { readdir, readFile, writeFile } from 'fs/promises';
@@ -28,7 +28,7 @@ const EXCLUDE_ICONS = new Set([
   'icons/star-empty.svg',
 ]);
 
-/** Не precache — кэшируются при первом fetch (runtime). */
+/** Не precache — кэшируются при первом fetch (runtime). Пути в js/ (скомпилированный TS на месте). */
 const RUNTIME_PREFIXES = [
   'js/screens/',
   'js/vendor/capacitor-speech-recognition.mjs',
@@ -44,7 +44,9 @@ function isRuntimeAsset(path) {
   return RUNTIME_PREFIXES.some(p => path.startsWith(p) || path === p);
 }
 
-const JS_FILES = (await walk(join(ROOT, 'js'))).filter(f => /\.(js|mjs)$/.test(f) && f !== 'js/config.js').sort();
+const JS_FILES = (await walk(join(ROOT, 'js')))
+  .filter(f => /\.(js|mjs)$/.test(f) && f !== 'js/config.js' && f !== 'js/config.example.js')
+  .sort();
 const ICON_SVG = (await walk(join(ROOT, 'icons')))
   .filter(f => /\.(svg|png)$/.test(f) && !EXCLUDE_ICONS.has(f))
   .sort();
@@ -85,13 +87,13 @@ ${body}
 const LAZY_PREFIXES = [
   'audio/',
   'packs/en-',
-  'js/screens/',
-  'js/vendor/capacitor-speech-recognition.mjs',
-  'js/vendor/ts-fsrs.mjs',
-  'js/lib/fsrs-engine.js',
-  'js/lib/speech-input.js',
-  'js/lib/stock-media.js',
-  'js/lib/cloze.js',
+  'dist/screens/',
+  'dist/vendor/capacitor-speech-recognition.mjs',
+  'dist/vendor/ts-fsrs.mjs',
+  'dist/lib/fsrs-engine.js',
+  'dist/lib/speech-input.js',
+  'dist/lib/stock-media.js',
+  'dist/lib/cloze.js',
   'icons/folders/',
 ];
 

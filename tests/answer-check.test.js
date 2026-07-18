@@ -7,7 +7,7 @@ import {
   expectedVariants,
   cardHasCheckableBack,
   checkCardAnswer,
-} from '../js/lib/answer-check.js';
+} from '../js/lib/answer-check.ts';
 
 describe('normalizeAnswer', () => {
   it('убирает пунктуацию и регистр', () => {
@@ -74,7 +74,7 @@ describe('card answer', () => {
 
 describe('study-modes routes', () => {
   it('parseReviewRoute', async () => {
-    const { parseReviewRoute, buildReviewHash, resolveStudyMode, setSessionStudyMode, setLastStudyMode } = await import('../js/lib/study-modes.js');
+    const { parseReviewRoute, buildReviewHash, resolveStudyMode, setSessionStudyMode, setLastStudyMode } = await import('../js/lib/study-modes.ts');
     expect(parseReviewRoute(['review'])).toEqual({ folderId: null, cram: false, mode: 'flip', cramLimit: null });
     expect(parseReviewRoute(['review', 'type'])).toEqual({ folderId: null, cram: false, mode: 'type', cramLimit: null });
     expect(parseReviewRoute(['review', 'voice'])).toEqual({ folderId: null, cram: false, mode: 'voice', cramLimit: null });

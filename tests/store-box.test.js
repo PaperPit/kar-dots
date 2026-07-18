@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { installFakeIDB } from './fake-idb.js';
-import { foldersInBox, looseFolders, boxFolderStats } from '../js/data/store-box.js';
+import { foldersInBox, looseFolders, boxFolderStats } from '../js/data/store-box.ts';
 
 const folderA = { id: 'fa', name: 'A', color: '#000', created_at: 1, box_id: null };
 const folderB = { id: 'fb', name: 'B', color: '#111', created_at: 2, box_id: 'bx1' };
@@ -33,7 +33,7 @@ describe('LocalStore boxes', () => {
       getItem: () => null,
       setItem: vi.fn(),
     });
-    ({ LocalStore } = await import('../js/data/store-local.js'));
+    ({ LocalStore } = await import('../js/data/store-local.ts'));
     store = new LocalStore();
     await store.init();
   });

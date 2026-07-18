@@ -1,11 +1,11 @@
 // @vitest-environment happy-dom
 
 import { describe, expect, it } from 'vitest';
-import { pickNativeTranscript } from '../js/lib/speech-input.js';
+import { pickNativeTranscript } from '../js/lib/speech-input.ts';
 
 describe('resolveVoiceSpeechLang', () => {
   it('uses Russian for Cyrillic answers', async () => {
-    const { resolveVoiceSpeechLang } = await import('../js/lib/speech-input.js');
+    const { resolveVoiceSpeechLang } = await import('../js/lib/speech-input.ts');
     expect(resolveVoiceSpeechLang('малыш')).toEqual({
       lang: 'ru-RU',
       hint: 'Скажите перевод по-русски',
@@ -13,7 +13,7 @@ describe('resolveVoiceSpeechLang', () => {
   });
 
   it('uses English for Latin answers', async () => {
-    const { resolveVoiceSpeechLang } = await import('../js/lib/speech-input.js');
+    const { resolveVoiceSpeechLang } = await import('../js/lib/speech-input.ts');
     expect(resolveVoiceSpeechLang('baby')).toEqual({
       lang: 'en-US',
       hint: 'Скажите ответ по-английски',
@@ -23,7 +23,7 @@ describe('resolveVoiceSpeechLang', () => {
 
 describe('pickSpeechBackend', () => {
   it('prefers native on Capacitor iOS', async () => {
-    const { pickSpeechBackend } = await import('../js/lib/speech-input.js');
+    const { pickSpeechBackend } = await import('../js/lib/speech-input.ts');
     window.Capacitor = { isNativePlatform: () => true };
     window.webkitSpeechRecognition = function MockRec() {};
     expect(pickSpeechBackend()).toBe('native');
@@ -34,7 +34,7 @@ describe('pickSpeechBackend', () => {
 
 describe('listenOnce routing', () => {
   it('starts web speech synchronously when available in browser', async () => {
-    const { listenOnce, webSpeechRecognitionSupported } = await import('../js/lib/speech-input.js');
+    const { listenOnce, webSpeechRecognitionSupported } = await import('../js/lib/speech-input.ts');
     if (!webSpeechRecognitionSupported()) return;
 
     class MockRec {
@@ -67,7 +67,7 @@ describe('listenOnce routing', () => {
 
 describe('prepareSpeechSession', () => {
   it('waits for web speech cooldown', async () => {
-    const { prepareSpeechSession } = await import('../js/lib/speech-input.js');
+    const { prepareSpeechSession } = await import('../js/lib/speech-input.ts');
     const t0 = Date.now();
     await prepareSpeechSession();
     await prepareSpeechSession();

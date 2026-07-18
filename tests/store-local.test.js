@@ -29,7 +29,7 @@ describe('LocalStore SRS counts', () => {
       }
       static now() { return now; }
     });
-    ({ LocalStore } = await import('../js/data/store-local.js'));
+    ({ LocalStore } = await import('../js/data/store-local.ts'));
     store = new LocalStore();
     await store.init();
   });

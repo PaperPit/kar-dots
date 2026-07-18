@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { cleanGeminiApiKey, cleanGroqApiKey } from '../js/lib/llm-api-keys.js';
-import { combineLlmErrors, formatGeminiGenerateError } from '../js/lib/gemini-generate.js';
+import { cleanGeminiApiKey, cleanGroqApiKey } from '../js/lib/llm-api-keys.ts';
+import { combineLlmErrors, formatGeminiGenerateError } from '../js/lib/gemini-generate.ts';
 
 describe('llm-api-keys', () => {
   it('cleanGeminiApiKey принимает AIza…', () => {

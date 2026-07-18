@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { computeLessonStars, lessonStarsLabel, lessonFinishTitle } from '../js/lib/lesson-stars.js';
+import { computeLessonStars, lessonStarsLabel, lessonFinishTitle } from '../js/lib/lesson-stars.ts';
 
 describe('computeLessonStars', () => {
   it('by first try ratio for all modes', () => {

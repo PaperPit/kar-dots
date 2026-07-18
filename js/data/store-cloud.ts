@@ -8,7 +8,7 @@ import { DEFAULT_SETTINGS, uuid } from './store-common.js';
 import { normalizeFolderRecord, normalizeBoxRecord } from '../lib/folder-icons.js';
 import { resizeImage, blobToDataURL } from '../lib/image-utils.js';
 import {
-  folderSaveErrorMessage, isMissingFolderIconColumnError, isMissingBoxIdColumnError,
+  isMissingFolderIconColumnError, isMissingBoxIdColumnError,
   isMissingBoxesTableError, isMissingBoxIconColumnError, withoutFolderIcon, withoutBoxId,
 } from '../lib/folder-errors.js';
 import {
@@ -20,16 +20,22 @@ import {
 import {
   findFolderByPackId, importVocabPack as doImportVocabPack,
   deleteVocabPack as doDeleteVocabPack,
+  type VocabImportStore,
 } from './store-vocab.js';
 import { shuffle } from '../lib/shuffle.js';
 import {
   REVIEW_CARD_FIELDS, upsertSrsMeta, removeSrsMeta, removeSrsMetaForFolder, countSrsMetaByFolder,
 } from './srs-meta.js';
 import { StoreCache } from './store-cache.js';
-import { buildHomeStats } from './home-stats.js';
+import { buildHomeStats, type HomeStats } from './home-stats.js';
 import { invalidateDerivedCaches } from './cache-invalidate.js';
 import { getCardsByIds, hydrateReviewQueue } from './card-hydrate.js';
 import { isYoutubeCard } from '../lib/youtube-import.js';
+import type { Card, Folder, Box, Settings } from './types.js';
+import type { SrsMeta } from './srs-meta.js';
+import type { Algo } from '../lib/srs.js';
+import type { ProgressInfo } from './store-vocab.js';
+import type { MiniSupabase } from './supabase.js';
 import {
   CLOUD_SYNC_KEY, SRS_DELTA_SELECT, shouldUseCardsDelta, mergeSrsDelta,
   nextCardsWatermark, stampUpdatedAt,
@@ -37,8 +43,50 @@ import {
 
 export { folderSaveErrorMessage } from '../lib/folder-errors.js';
 
+export interface SyncState {
+  pending: number
+  failed: number
+  offline: boolean
+}
+
+export interface SyncPayload {
+  row?: unknown
+  id?: string
+  patch?: unknown
+  urls?: string[]
+  settings?: unknown
+  url?: string
+  path?: string
+  blob?: Blob
+  contentType?: string
+  cardId?: string
+  side?: string
+  [key: string]: unknown
+}
+
 export class CloudStore {
-  constructor(sb) {
+  sb: MiniSupabase
+  kind: string
+  folders: Folder[]
+  boxes: Box[]
+  settings: Settings
+  _cache: StoreCache
+  _srsMeta: SrsMeta[] | null
+  _offline: boolean
+  queue: SyncQueue
+  mirror!: IDBDatabase
+  _onSyncChange: ((state: SyncState) => void) | null
+  _onDataChange: (() => void) | null
+  _folderIconCloudUnsupported: boolean
+  _boxesCloudUnsupported: boolean
+  _boxIdCloudUnsupported: boolean
+  _boxIconCloudUnsupported: boolean
+  _homeStatsCache: HomeStats | null
+  _homeStatsCacheAlgo: Algo | null
+  _srsMetaPersistTimer: ReturnType<typeof setTimeout> | null
+  _bgSyncTail: Promise<void>
+
+  constructor(sb: MiniSupabase) {
     this.kind = 'cloud';
     this.sb = sb;
     this.folders = [];
@@ -48,7 +96,6 @@ export class CloudStore {
     this._srsMeta = null;
     this._offline = false;
     this.queue = new SyncQueue();
-    this.mirror = null;
     this._onSyncChange = null;
     this._onDataChange = null;
     this._folderIconCloudUnsupported = false;
@@ -92,14 +139,14 @@ export class CloudStore {
     if (this._homeStatsCache && this._homeStatsCacheAlgo === algo) {
       return this._homeStatsCache;
     }
-    this._homeStatsCache = buildHomeStats(this._srsMeta || [], algo);
-    this._homeStatsCacheAlgo = algo;
+    this._homeStatsCache = buildHomeStats(this._srsMeta || [], algo as Algo);
+    this._homeStatsCacheAlgo = algo as Algo;
     return this._homeStatsCache;
   }
 
-  onSyncChange(fn) { this._onSyncChange = fn; }
+  onSyncChange(fn: (state: SyncState) => void) { this._onSyncChange = fn; }
   /** Колбэк перерисовки текущего экрана после фоновой догрузки данных из облака. */
-  onDataChange(fn) { this._onDataChange = fn; }
+  onDataChange(fn: () => void) { this._onDataChange = fn; }
   _emitDataChange() {
     if (!this._onDataChange) return;
     try { this._onDataChange(); } catch (e) { console.error('onDataChange failed:', e); }
@@ -131,7 +178,7 @@ export class CloudStore {
     return this.queue.deadLetters();
   }
 
-  async retryDeadLetter(id) {
+  async retryDeadLetter(id: number) {
     if (!this.queue.db) return false;
     const ok = await this.queue.retryDeadLetter(id);
     if (ok) await this.flushSync();
@@ -139,7 +186,7 @@ export class CloudStore {
     return ok;
   }
 
-  async discardDeadLetter(id) {
+  async discardDeadLetter(id: number) {
     if (!this.queue.db) return false;
     const ok = await this.queue.discardDeadLetter(id);
     await this._notifySync();
@@ -202,19 +249,21 @@ export class CloudStore {
 
   async _fetchFromCloud() {
     const uid = this.sb.userId();
-    const sync = await mirrorGetKV(this.mirror, CLOUD_SYNC_KEY);
+    if (!uid) throw new Error('Нет активной сессии');
+    const sync = (await mirrorGetKV(this.mirror, CLOUD_SYNC_KEY)) as { fullAt?: number; cardsAt?: number } | null;
     const useDelta = shouldUseCardsDelta(sync, uid);
 
     const [folders, settingsRows, boxesRaw, cardsPull] = await Promise.all([
-      this.sb.select('folders', 'select=*&order=created_at.asc'),
-      this.sb.select('settings', 'select=*&user_id=eq.' + uid),
+      this.sb.select<Folder>('folders', 'select=*&order=created_at.asc'),
+      this.sb.select<{ data?: Settings }>('settings', 'select=*&user_id=eq.' + uid),
       this._fetchBoxesFromCloud(),
-      useDelta ? this._pullCardsDelta(uid, sync.cardsAt) : this._pullCardsFull(),
+      useDelta ? this._pullCardsDelta(uid, sync?.cardsAt ?? Date.now()) : this._pullCardsFull(),
     ]);
 
-    this.folders = folders.map(normalizeFolderRecord);
-    this.boxes = boxesRaw.map(normalizeBoxRecord).sort((a, b) => (a.created_at || 0) - (b.created_at || 0));
-    if (folders.some(f => Object.prototype.hasOwnProperty.call(f, 'icon'))) {
+    this.folders = folders.map(normalizeFolderRecord).filter((f): f is Folder => !!f);
+    this.boxes = boxesRaw.map(normalizeBoxRecord).filter((b): b is Box => !!b)
+      .sort((a: Box, b: Box) => (a.created_at || 0) - (b.created_at || 0));
+    if (folders.some((f: Folder) => Object.prototype.hasOwnProperty.call(f, 'icon'))) {
       this._folderIconCloudUnsupported = false;
       await this._saveCloudFlags();
     }
@@ -226,8 +275,9 @@ export class CloudStore {
       this._cache.setCount(fid, n);
     }
     invalidateDerivedCaches(this);
-    if (settingsRows.length && settingsRows[0].data) {
-      this.settings = Object.assign({}, DEFAULT_SETTINGS, settingsRows[0].data);
+    const settingsRow = settingsRows[0];
+    if (settingsRow?.data) {
+      this.settings = Object.assign({}, DEFAULT_SETTINGS, settingsRow.data);
     }
     await mirrorSetKV(this.mirror, 'settings', this.settings);
     await mirrorSetKV(this.mirror, 'srs_meta', cardsPull.meta);
@@ -235,7 +285,7 @@ export class CloudStore {
     await mirrorSetKV(this.mirror, CLOUD_SYNC_KEY, {
       userId: uid,
       cardsAt: cardsPull.cardsAt,
-      fullAt: cardsPull.full ? now : (sync?.fullAt || now),
+      fullAt: cardsPull.full ? now : (sync?.fullAt ?? now),
     });
     this._offline = false;
   }
@@ -250,7 +300,7 @@ export class CloudStore {
    * Pull only cards with updated_at > since, merge into mirror srs_meta.
    * Falls back to full when remote count disagrees (deletes) or query fails.
    */
-  async _pullCardsDelta(uid, since) {
+  async _pullCardsDelta(uid: string, since: number) {
     try {
       const base = this._srsMeta
         || (await mirrorGetKV(this.mirror, 'srs_meta'))
@@ -262,7 +312,7 @@ export class CloudStore {
         ),
         this.sb.count('cards', 'user_id=eq.' + uid),
       ]);
-      const { meta, maxAt } = mergeSrsDelta(base, delta);
+      const { meta, maxAt } = mergeSrsDelta(base as SrsMeta[] | null | undefined, delta);
       if (remoteCount !== meta.length) return this._pullCardsFull();
       return {
         meta,
@@ -277,7 +327,7 @@ export class CloudStore {
 
   async _fetchBoxesFromCloud() {
     try {
-      const rows = await this.sb.select('boxes', 'select=*&order=created_at.asc');
+      const rows = await this.sb.select<Box>('boxes', 'select=*&order=created_at.asc');
       if (this._boxesCloudUnsupported) {
         this._boxesCloudUnsupported = false;
         await this._saveCloudFlags();
@@ -289,21 +339,21 @@ export class CloudStore {
         await this._saveCloudFlags();
       }
       try {
-        if (this.mirror) return await getAll(this.mirror, 'boxes');
+        if (this.mirror) return await getAll<Box>(this.mirror, 'boxes');
       } catch (e2) { /* mirror empty */ }
       return [];
     }
   }
 
   async _loadFromMirror() {
-    this.folders = (await getAll(this.mirror, 'folders')).map(normalizeFolderRecord);
-    this.folders.sort((a, b) => (a.created_at || 0) - (b.created_at || 0));
-    this.boxes = (await getAll(this.mirror, 'boxes')).map(normalizeBoxRecord);
+    this.folders = ((await getAll(this.mirror, 'folders')) as (Folder | null | undefined)[]).map(normalizeFolderRecord).filter((f): f is Folder => !!f);
+    this.folders.sort((a: Folder, b: Folder) => (a.created_at || 0) - (b.created_at || 0));
+    this.boxes = ((await getAll(this.mirror, 'boxes')) as (Box | null | undefined)[]).map(normalizeBoxRecord).filter((b): b is Box => !!b);
     this.boxes.sort((a, b) => (a.created_at || 0) - (b.created_at || 0));
     const settings = await mirrorGetKV(this.mirror, 'settings');
-    if (settings) this.settings = Object.assign({}, DEFAULT_SETTINGS, settings);
+    if (settings) this.settings = Object.assign({}, DEFAULT_SETTINGS, settings as Partial<Settings>);
     const meta = await mirrorGetKV(this.mirror, 'srs_meta');
-    this._srsMeta = meta || [];
+    this._srsMeta = (meta as SrsMeta[] | null) || [];
     this._cache.clearAll();
     this._cache.rebuildCountsFromSrsMeta(this.folders, this._srsMeta);
     this._offline = true;
@@ -313,7 +363,7 @@ export class CloudStore {
    * Apply localFn first. Online: wait for cloud unless `optimistic` (UI returns after
    * mirror; network runs in a serialized background chain). Offline / network error → queue.
    */
-  async _cloudOrQueue(op, payload, localFn, { optimistic = false } = {}) {
+  async _cloudOrQueue(op: string, payload: unknown, localFn: () => Promise<unknown>, { optimistic = false }: { optimistic?: boolean } = {}) {
     const result = await localFn();
     if (!navigator.onLine) {
       this._offline = true;
@@ -341,7 +391,7 @@ export class CloudStore {
   }
 
   /** Serialized fire-and-forget cloud op; on failure falls back to SyncQueue. */
-  _syncInBackground(op, payload) {
+  _syncInBackground(op: string, payload: unknown) {
     const run = async () => {
       try {
         await this._executeSyncItem({ op, payload });
@@ -363,7 +413,7 @@ export class CloudStore {
 
   async _loadCloudFlags() {
     if (!this.mirror) return;
-    const flags = await mirrorGetKV(this.mirror, 'cloud_flags');
+    const flags = (await mirrorGetKV(this.mirror, 'cloud_flags')) as { folderIconCloudUnsupported?: boolean; boxesCloudUnsupported?: boolean; boxIdCloudUnsupported?: boolean; boxIconCloudUnsupported?: boolean } | null;
     this._folderIconCloudUnsupported = !!flags?.folderIconCloudUnsupported;
     this._boxesCloudUnsupported = !!flags?.boxesCloudUnsupported;
     this._boxIdCloudUnsupported = !!flags?.boxIdCloudUnsupported;
@@ -380,7 +430,7 @@ export class CloudStore {
     });
   }
 
-  async _cloudInsertFolder(row) {
+  async _cloudInsertFolder(row: Folder) {
     let payload = row;
     if (this._folderIconCloudUnsupported) payload = withoutFolderIcon(row);
     try {
@@ -396,7 +446,7 @@ export class CloudStore {
     }
   }
 
-  async _cloudPatchFolder(id, patch) {
+  async _cloudPatchFolder(id: string, patch: Partial<Folder>) {
     let payload = Object.assign({}, patch);
     if (this._folderIconCloudUnsupported) payload = withoutFolderIcon(payload);
     if (this._boxIdCloudUnsupported) payload = withoutBoxId(payload);
@@ -420,7 +470,7 @@ export class CloudStore {
     }
   }
 
-  async _cloudInsertBox(row) {
+  async _cloudInsertBox(row: Box) {
     if (this._boxesCloudUnsupported) return;
     let payload = row;
     if (this._boxIconCloudUnsupported) payload = withoutFolderIcon(row);
@@ -442,7 +492,7 @@ export class CloudStore {
     }
   }
 
-  async _cloudUpdateBox(id, patch) {
+  async _cloudUpdateBox(id: string, patch: Partial<Box>) {
     if (this._boxesCloudUnsupported) return;
     let payload = Object.assign({}, patch);
     if (this._boxIconCloudUnsupported) payload = withoutFolderIcon(payload);
@@ -465,7 +515,7 @@ export class CloudStore {
     }
   }
 
-  async _cloudDeleteBox(id) {
+  async _cloudDeleteBox(id: string) {
     if (this._boxesCloudUnsupported) return;
     try {
       await this.sb.remove('boxes', 'id=eq.' + id);
@@ -479,7 +529,7 @@ export class CloudStore {
     }
   }
 
-  async _executeSyncItem({ op, payload }) {
+  async _executeSyncItem({ op, payload }: { op: string; payload: any }) {
     switch (op) {
       case 'createFolder': await this._cloudInsertFolder(payload.row); break;
       case 'updateFolder': await this._cloudPatchFolder(payload.id, payload.patch); break;
@@ -513,59 +563,59 @@ export class CloudStore {
     }
   }
 
-  _patchSrsMeta(card) {
+  _patchSrsMeta(card: Card) {
     if (!this._srsMeta) this._srsMeta = [];
     upsertSrsMeta(this._srsMeta, card);
     this._schedulePersistSrsMeta();
   }
 
-  _patchSrsMetaRemoval(id) {
+  _patchSrsMetaRemoval(id: string) {
     if (!this._srsMeta) return;
     this._srsMeta = removeSrsMeta(this._srsMeta, id);
     this._schedulePersistSrsMeta();
   }
 
-  async getFolderCards(folderId) {
+  async getFolderCards(folderId: string) {
     if (this._cache.folderCache.has(folderId)) return this._cache.folderCache.get(folderId);
     let cards;
     if (navigator.onLine && !this._offline) {
       try {
-        cards = await this.sb.select('cards', 'folder_id=eq.' + folderId + '&order=created_at.desc');
+        cards = await this.sb.select<Card>('cards', 'folder_id=eq.' + folderId + '&order=created_at.desc');
         await mirrorPutMany(this.mirror, 'cards', cards);
       } catch (e) {
         if (isNetworkError(e)) {
           this._offline = true;
-          cards = await indexGetAll(this.mirror, 'cards', 'folder_id', folderId);
+          cards = await indexGetAll<Card>(this.mirror, 'cards', 'folder_id', folderId ?? '');
         } else throw e;
       }
     } else {
-      cards = await indexGetAll(this.mirror, 'cards', 'folder_id', folderId);
+      cards = await indexGetAll<Card>(this.mirror, 'cards', 'folder_id', folderId);
     }
-    cards.sort((a, b) => (b.created_at || 0) - (a.created_at || 0));
+    cards.sort((a: Card, b: Card) => (b.created_at || 0) - (a.created_at || 0));
     this._cache.folderCache.set(folderId, cards);
     return cards;
   }
 
-  async countCards(folderId) {
-    return this._cache.countCards(folderId);
+  async countCards(folderId?: string | null) {
+    return this._cache.countCards(folderId ?? undefined);
   }
 
-  async countDue(folderId, algo) {
+  async countDue(folderId: string | null, algo: Algo) {
     algo = algo || this.settings.algo;
     return countDueForFolder(this._srsMeta ?? [], folderId, algo, Date.now());
   }
 
-  async countDueBetween(folderId, algo, from, to) {
+  async countDueBetween(folderId: string | null, algo: Algo, from: number, to: number) {
     algo = algo || this.settings.algo;
     return countDueBetweenForFolder(this._srsMeta ?? [], folderId, algo, from, to);
   }
 
-  async countNew(folderId, algo) {
+  async countNew(folderId: string | null, algo: Algo) {
     algo = algo || this.settings.algo;
     return countNewForFolder(this._srsMeta ?? [], folderId, algo);
   }
 
-  async getReviewCards(folderId, algo, newLimit, now) {
+  async getReviewCards(folderId: string | null, algo: Algo, newLimit: number, now: number) {
     algo = algo || this.settings.algo;
     now = now || Date.now();
     if (navigator.onLine && !this._offline) {
@@ -602,7 +652,7 @@ export class CloudStore {
     };
   }
 
-  async getCramCards(folderId, limit) {
+  async getCramCards(folderId: string | null, limit: number) {
     const source = filterByFolder(this._srsMeta || [], folderId);
     const picked = shuffle(source);
     const slice = limit > 0 ? picked.slice(0, limit) : picked;
@@ -610,10 +660,10 @@ export class CloudStore {
     return hydrateReviewQueue(slice, byId);
   }
 
-  async scanFolderFronts(folderId, { youtubeOnly = false } = {}) {
+  async scanFolderFronts(folderId: string | null, { youtubeOnly = false }: { youtubeOnly?: boolean } = {}) {
     if (navigator.onLine && !this._offline) {
       try {
-        const rows = await this.sb.select('cards', 'folder_id=eq.' + folderId + '&select=front,description');
+        const rows = (await this.sb.select('cards', 'folder_id=eq.' + folderId + '&select=front,description')) as Card[];
         return rows
           .filter(c => !youtubeOnly || isYoutubeCard(c))
           .filter(c => c.front)
@@ -623,7 +673,7 @@ export class CloudStore {
         this._offline = true;
       }
     }
-    const cards = await indexGetAll(this.mirror, 'cards', 'folder_id', folderId);
+    const cards = (await indexGetAll(this.mirror, 'cards', 'folder_id', folderId ?? '')) as Card[];
     const mini = [];
     for (const c of cards) {
       if (youtubeOnly && !isYoutubeCard(c)) continue;
@@ -632,19 +682,19 @@ export class CloudStore {
     return mini;
   }
 
-  async _getCardById(id) {
+  async _getCardById(id: string): Promise<Card | null> {
     for (const list of this._cache.folderCache.values()) {
       const c = list.find(x => x.id === id);
       if (c) return c;
     }
     return new Promise((resolve, reject) => {
       const req = this.mirror.transaction('cards').objectStore('cards').get(id);
-      req.onsuccess = () => resolve(req.result || null);
+      req.onsuccess = () => resolve((req.result as Card | null) || null);
       req.onerror = () => reject(req.error);
     });
   }
 
-  async createFolder(data) {
+  async createFolder(data: Partial<Folder>) {
     const row = buildFolderRecord(data, { user_id: this.sb.userId() });
     this.folders.push(row);
     this.folders.sort((a, b) => (a.created_at || 0) - (b.created_at || 0));
@@ -653,7 +703,7 @@ export class CloudStore {
     return this._cloudOrQueue('createFolder', { row }, async () => row);
   }
 
-  async updateFolder(id, patch) {
+  async updateFolder(id: string, patch: Partial<Folder>) {
     const f = this.folders.find(x => x.id === id);
     if (!f) return null;
     const stamped = stampUpdatedAt(patch);
@@ -662,10 +712,10 @@ export class CloudStore {
     return this._cloudOrQueue('updateFolder', { id, patch: stamped }, async () => f);
   }
 
-  async deleteFolder(id) {
-    const dead = await indexGetAll(this.mirror, 'cards', 'folder_id', id);
+  async deleteFolder(id: string) {
+    const dead = (await indexGetAll(this.mirror, 'cards', 'folder_id', id)) as Card[];
     await Promise.all(dead.map(c => this._removeCardImages(c)));
-    await mirrorDeleteMany(this.mirror, 'cards', dead.map(c => c.id));
+    await mirrorDeleteMany(this.mirror, 'cards', dead.map(c => c.id!));
     await mirrorDelete(this.mirror, 'folders', id);
     this.folders = this.folders.filter(f => f.id !== id);
     this._cache.deleteFolder(id);
@@ -677,7 +727,7 @@ export class CloudStore {
     return this._cloudOrQueue('deleteFolder', { id }, async () => true);
   }
 
-  async createBox(data) {
+  async createBox(data: Partial<Box>) {
     const row = buildBoxRecord(data, { user_id: this.sb.userId() });
     this.boxes.push(row);
     this.boxes.sort((a, b) => (a.created_at || 0) - (b.created_at || 0));
@@ -686,7 +736,7 @@ export class CloudStore {
     return this._cloudOrQueue('createBox', { row }, async () => row);
   }
 
-  async updateBox(id, patch) {
+  async updateBox(id: string, patch: Partial<Box>) {
     const b = this.boxes.find(x => x.id === id);
     if (!b) return null;
     const stamped = stampUpdatedAt(patch);
@@ -696,9 +746,9 @@ export class CloudStore {
     return this._cloudOrQueue('updateBox', { id, patch: stamped }, async () => b);
   }
 
-  async deleteBox(id) {
+  async deleteBox(id: string) {
     for (const f of this.folders.filter(x => x.box_id === id)) {
-      f.box_id = null;
+      f.box_id = undefined;
       await mirrorPut(this.mirror, 'folders', f);
     }
     await mirrorDelete(this.mirror, 'boxes', id);
@@ -707,7 +757,7 @@ export class CloudStore {
     return this._cloudOrQueue('deleteBox', { id }, async () => true);
   }
 
-  async assignFolderToBox(folderId, boxId) {
+  async assignFolderToBox(folderId: string, boxId?: string | null) {
     const f = this.folders.find(x => x.id === folderId);
     if (!f) return null;
     if (boxId && !this.boxes.find(b => b.id === boxId)) return null;
@@ -717,7 +767,7 @@ export class CloudStore {
     return this._cloudOrQueue('updateFolder', { id: folderId, patch: stamped }, async () => f);
   }
 
-  async setBoxFolders(boxId, folderIds) {
+  async setBoxFolders(boxId: string, folderIds: string[]) {
     const idSet = new Set(folderIds);
     for (const f of this.folders) {
       if (f.box_id === boxId && !idSet.has(f.id)) {
@@ -737,62 +787,62 @@ export class CloudStore {
     }
   }
 
-  findFolderByPackId(packId) {
+  findFolderByPackId(packId: string) {
     return findFolderByPackId(this.folders, packId);
   }
 
-  async importVocabPack(pack, onProgress) {
-    return doImportVocabPack(this, pack, onProgress);
+  async importVocabPack(pack: any, onProgress?: (n: number) => void) {
+    return doImportVocabPack(this as unknown as VocabImportStore, pack, onProgress as ((info: ProgressInfo) => void) | undefined);
   }
 
-  async deleteVocabPack(packId) {
-    return doDeleteVocabPack(this, packId);
+  async deleteVocabPack(packId: string) {
+    return doDeleteVocabPack(this as unknown as VocabImportStore, packId);
   }
 
-  async createCard(data) {
+  async createCard(data: Partial<Card>) {
     const row = buildCardRecord(data, { user_id: this.sb.userId() });
     await mirrorPut(this.mirror, 'cards', row);
     this._patchSrsMeta(row);
-    this._cache.prependCard(row.folder_id, row);
-    this._cache.bumpCount(row.folder_id, 1);
+    this._cache.prependCard(row.folder_id ?? "", row);
+    this._cache.bumpCount(row.folder_id ?? "", 1);
     invalidateDerivedCaches(this, { folderId: row.folder_id });
     return this._cloudOrQueue('createCard', { row }, async () => row);
   }
 
-  async updateCard(id, patch) {
+  async updateCard(id: string, patch: Partial<Card>) {
     let c = await this._getCardById(id);
     if (!c) return null;
     const stamped = stampUpdatedAt(patch);
-    Object.assign(c, stamped);
+    Object.assign(c, stamped as Partial<Card>);
     await mirrorPut(this.mirror, 'cards', c);
     this._patchSrsMeta(c);
-    this._cache.patchCardInLists(id, stamped);
+    this._cache.patchCardInLists(id, stamped as Partial<Card>);
     invalidateDerivedCaches(this, { folderId: c.folder_id });
     return this._cloudOrQueue('updateCard', { id, patch: stamped }, async () => c, { optimistic: true });
   }
 
-  async deleteCard(id) {
+  async deleteCard(id: string) {
     const c = await this._getCardById(id);
     const urls = c ? [c.front_img, c.back_img].filter(Boolean) : [];
     if (c) {
       await this._removeCardImages(c);
       await mirrorDelete(this.mirror, 'cards', id);
       this._patchSrsMetaRemoval(id);
-      this._cache.removeCard(c.folder_id, id);
-      this._cache.bumpCount(c.folder_id, -1);
+      this._cache.removeCard(c.folder_id!, id);
+      this._cache.bumpCount(c.folder_id!, -1);
       await this._flushSrsMetaPersist();
     }
     invalidateDerivedCaches(this, { folderId: c?.folder_id });
     return this._cloudOrQueue('deleteCard', { id, urls }, async () => true);
   }
 
-  async _removeCardImages(card) {
+  async _removeCardImages(card: Card) {
     for (const url of [card.front_img, card.back_img]) {
       if (url) await this.deleteImage(url);
     }
   }
 
-  async uploadImage(file) {
+  async uploadImage(file: Blob) {
     const blob = await resizeImage(file);
     const ext = blob.type === 'image/png' ? 'png' : 'jpg';
     const path = this.sb.userId() + '/' + uuid() + '.' + ext;
@@ -817,14 +867,14 @@ export class CloudStore {
     }
   }
 
-  async deleteImage(url) {
+  async deleteImage(url: string) {
     const marker = '/object/public/card-images/';
     const i = url.indexOf(marker);
     if (i === -1) return;
     try { await this.sb.deleteFile('card-images', url.slice(i + marker.length)); } catch (e) {}
   }
 
-  async saveSettings(s) {
+  async saveSettings(s: Settings) {
     this.settings = s;
     await mirrorSetKV(this.mirror, 'settings', s);
     if (s.algo === 'fsrs') {
@@ -839,22 +889,26 @@ export class CloudStore {
     return exportJSONPayload(this.folders, cards, this.settings, this.boxes);
   }
 
-  async importJSON(text) {
+  async importJSON(text: string) {
     const data = JSON.parse(text);
     if (!data.folders || !data.cards) throw new Error('Неверный формат файла');
     for (const b of (data.boxes || [])) {
       if (this.boxes.find(x => x.id === b.id)) continue;
       const row = normalizeBoxRecord(Object.assign({}, b, { user_id: this.sb.userId() }));
-      this.boxes.push(row);
-      await mirrorPut(this.mirror, 'boxes', row);
-      await this._cloudOrQueue('createBox', { row }, async () => row);
+      if (row) {
+        this.boxes.push(row);
+        await mirrorPut(this.mirror, 'boxes', row);
+        await this._cloudOrQueue('createBox', { row }, async () => row);
+      }
     }
     for (const f of data.folders) {
       if (this.folders.find(x => x.id === f.id)) continue;
       const row = normalizeFolderRecord(Object.assign({}, f, { user_id: this.sb.userId() }));
-      this.folders.push(row);
-      await mirrorPut(this.mirror, 'folders', row);
-      await this._cloudOrQueue('createFolder', { row }, async () => row);
+      if (row) {
+        this.folders.push(row);
+        await mirrorPut(this.mirror, 'folders', row);
+        await this._cloudOrQueue('createFolder', { row }, async () => row);
+      }
     }
     const importRows = [];
     for (const c of data.cards) {

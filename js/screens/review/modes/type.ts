@@ -1,3 +1,5 @@
+import type { SrsCard } from "../../../lib/srs.js";
+import type { Settings } from "../../../lib/sounds.js";
 import { el } from '../../../ui/ui.js';
 import { buildFaceScroll } from '../../../ui/card-face.js';
 import { checkCardAnswer, formatExpectedDisplay } from '../../../lib/answer-check.js';
@@ -6,13 +8,21 @@ import { flashStudyCard, showStudyFeedback, pulseStudyInput } from '../../../ui/
 import { haptic } from '../../../ui/helpers.js';
 import { focusWithoutScroll } from '../../../lib/study-keyboard.js';
 
-function buildPrompt(card, promptSide) {
+
+interface TypeModeCtx {
+  promptSide: 'front' | 'back';
+  onSuccess: (r: { firstTry: boolean }) => void;
+  onFail: (r?: { firstTry?: boolean }) => void;
+  getSettings: () => Settings | null;
+}
+
+function buildPrompt(card: SrsCard, promptSide: 'front' | 'back') {
   return el('div', { class: 'study-prompt-card' }, [
     buildFaceScroll(promptSide, card),
   ]);
 }
 
-export function createTypeModeCard(card, ctx) {
+export function createTypeModeCard(card: SrsCard, ctx: TypeModeCtx) {
   const { promptSide, onSuccess, onFail, getSettings } = ctx;
   let answered = false;
   let attempts = 0;
@@ -25,23 +35,23 @@ export function createTypeModeCard(card, ctx) {
     autocomplete: 'off',
     autocapitalize: 'off',
     spellcheck: 'false',
-  });
+  }, undefined) as HTMLInputElement;
 
-  const feedback = el('div', { class: 'study-feedback', hidden: true });
-  const actions = el('div', { class: 'study-actions' });
-  const checkBtn = el('button', { type: 'button', class: 'btn primary study-check-btn' }, 'Проверить');
+  const feedback = el('div', { class: 'study-feedback', hidden: true }, undefined);
+  const actions = el('div', { class: 'study-actions' }, undefined);
+  const checkBtn = el('button', { type: 'button', class: 'btn primary study-check-btn' }, 'Проверить') as HTMLButtonElement;
 
-  function playFeedback(isCorrect) {
+  function playFeedback(isCorrect: boolean) {
     playAnswerFeedback(isCorrect, getSettings?.());
   }
 
-  function setState(state) {
+  function setState(state: string) {
     input.classList.remove('is-correct', 'is-wrong', 'is-animating');
     if (state === 'correct') input.classList.add('is-correct');
     if (state === 'wrong') input.classList.add('is-wrong');
   }
 
-  function showWrong(expected) {
+  function showWrong(expected: string) {
     showStudyFeedback(feedback, false, 'Неверно');
     actions.innerHTML = '';
     const revealBtn = el('button', {
@@ -92,7 +102,7 @@ export function createTypeModeCard(card, ctx) {
   }
 
   checkBtn.addEventListener('click', check);
-  input.addEventListener('keydown', e => {
+  input.addEventListener('keydown', (e: KeyboardEvent) => {
     if (e.key === 'Enter') { e.preventDefault(); check(); }
   });
   input.addEventListener('input', () => {

@@ -10,7 +10,7 @@ describe('SyncQueue — честная синхронизация: dead letter �
   beforeEach(async () => {
     installFakeIDB({});
     vi.stubGlobal('navigator', { onLine: true });
-    ({ SyncQueue, openMirrorDB } = await import('../js/data/sync-queue.js'));
+    ({ SyncQueue, openMirrorDB } = await import('../js/data/sync-queue.ts'));
     db = await openMirrorDB();
   });
 

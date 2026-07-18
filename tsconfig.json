@@ -1,0 +1,57 @@
+{
+  "compilerOptions": {
+    "target": "ES2024",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "skipLibCheck": true,
+    "noEmitOnError": true,
+    "declaration": false,
+    "declarationMap": false,
+
+    "strict": true,
+    "noImplicitAny": true,
+    "noImplicitThis": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noImplicitReturns": true,
+
+    "noUncheckedIndexedAccess": true,
+
+    "pretty": true,
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true,
+    "allowSyntheticDefaultImports": true,
+
+    "resolveJsonModule": true,
+    "types": ["@types/node"],
+
+    "jsx": "preserve",
+    "jsxFactory": "el",
+
+    "noFallthroughCasesInSwitch": true,
+    "noImplicitOverride": true,
+    "allowUnusedLabels": false,
+    "allowUnreachableCode": false,
+    "noErrorTruncation": true
+  },
+
+  "include": [
+    "js/**/*.ts",
+    "cli/**/*.ts"
+  ],
+
+  "exclude": [
+    "node_modules",
+    "dist",
+    "www",
+    "js/config.example.js",
+    "scripts"
+  ],
+
+  "ts-node": {
+    "files": true,
+    "compilerOptions": {
+      "module": "commonjs"
+    }
+  }
+}

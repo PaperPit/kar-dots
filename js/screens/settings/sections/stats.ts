@@ -1,8 +1,9 @@
 import { el, plural } from '../../../ui/ui.js';
 import { loadStudyStats } from '../../../lib/stats.js';
 import { statTile } from '../shared.js';
+import type { LocalStore } from '../../../data/store-local.js';
 
-export async function buildStatsGroup(store) {
+export async function buildStatsGroup(store: LocalStore) {
   let stats = { reviewsToday: 0, dueToday: 0, dueTomorrow: 0, streak: 0 };
   try {
     stats = await loadStudyStats(store);

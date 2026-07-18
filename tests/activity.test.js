@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { calcVisitStreak, dayHasActivity } from '../js/lib/activity.js';
+import { calcVisitStreak, dayHasActivity } from '../js/lib/activity.ts';
 
 describe('activity streak', () => {
   it('dayHasActivity учитывает повторения без флага visit', () => {

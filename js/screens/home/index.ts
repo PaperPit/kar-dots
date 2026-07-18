@@ -4,13 +4,14 @@ import { route } from '../../core/router.js';
 import { folderDragEnabled, attachFolderDraggable, attachBoxDropTarget } from '../../ui/folder-drag.js';
 import { ICONS } from '../../ui/constants.js';
 import { crowBox, emptyFoldersBox, scarecrowBox, svgNode, newBudget } from '../../ui/helpers.js';
-import { shell, nav, offlineBanner, setDueBadge } from '../../ui/shell.js';
+import { shell, offlineBanner, setDueBadge } from '../../ui/shell.js';
 import { homeCalendarWidget } from '../../ui/activity-calendar.js';
 import { folderDialog } from './folder-dialog.js';
 import { boxDialog } from './box-dialog.js';
 import { studyModePicker } from '../review/mode-picker.js';
 import { vocabPacksDialog } from '../../ui/vocab-packs-dialog.js';
 import { looseFolders, boxFolderStatsFromHome } from '../../data/store-box.js';
+import type { Folder } from '../../data/types.js';
 import { folderCardStatsFromHome, folderCardEl, boxCardEl } from '../../ui/folder-cards.js';
 import { todayStudyCount } from '../../data/home-stats.js';
 
@@ -30,7 +31,7 @@ export async function renderHome() {
     heroCountNode = el('span', { class: 'tnum' }, String(totalToStudy));
     heroTitle = ['Сегодня к повторению ', heroCountNode, ` ${plural(totalToStudy, 'карточка', 'карточки', 'карточек')}`];
     heroSub = 'Ворона ждёт — пара минут, и память скажет спасибо.';
-    heroBtn = el('button', { class: 'btn accent big', onclick: () => studyModePicker({}) }, [svgNode(ICONS.play), 'Повторить']);
+    heroBtn = el('button', { class: 'btn accent big', onclick: () => studyModePicker({}) }, [svgNode(ICONS.play), 'Повторить']) as HTMLButtonElement;
   } else if (isWelcome) {
     heroIcon = crowBox('crow');
     heroTitle = 'Кар! Рада знакомству';
@@ -62,13 +63,13 @@ export async function renderHome() {
 
   const loose = looseFolders(store.folders);
 
-  const boxGrid = el('div', { class: 'folder-grid box-grid' });
+  const boxGrid = el('div', { class: 'folder-grid box-grid' }, []);
   for (let i = 0; i < store.boxes.length; i++) {
     const b = store.boxes[i];
     const stats = boxFolderStatsFromHome(homeStats, store.folders, b.id, budget);
     const card = boxCardEl(b, stats, i);
     attachBoxDropTarget(card, b.id, async (folderId, boxId) => {
-      const folder = store.folders.find(f => f.id === folderId);
+      const folder = store.folders.find((f: Folder) => f.id === folderId);
       if (!folder) return;
       if (folder.box_id === boxId) {
         toast('Папка уже в этой коробке');
@@ -88,11 +89,11 @@ export async function renderHome() {
     class: 'add-tile add-tile-box stagger-in',
     style: { '--stagger-delay': (store.boxes.length * 40) + 'ms' },
     onclick: () => boxDialog(null),
-  }, '+ Новая коробка'));
+  }, '+ Новая коробка') as HTMLButtonElement);
 
-  const folderGrid = el('div', { class: 'folder-grid' });
+  const folderGrid = el('div', { class: 'folder-grid' }, []);
   for (let i = 0; i < loose.length; i++) {
-    const f = loose[i];
+    const f = loose[i]!;
     const stats = folderCardStatsFromHome(homeStats, f, budget);
     const card = folderCardEl(f, stats, i);
     attachFolderDraggable(card, f.id);
@@ -102,7 +103,7 @@ export async function renderHome() {
     class: 'add-tile stagger-in',
     style: { '--stagger-delay': (loose.length * 40) + 'ms' },
     onclick: () => folderDialog(null),
-  }, '+ Новая папка'));
+  }, '+ Новая папка') as HTMLButtonElement);
 
   const calendarPlace = store.settings.calendarPlace
     ?? (store.settings.showCalendar === false ? 'hidden' : 'left');

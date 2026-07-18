@@ -6,7 +6,7 @@ import {
   stampUpdatedAt,
   FULL_RESYNC_MS,
   SRS_DELTA_SELECT,
-} from '../js/data/cloud-delta.js';
+} from '../js/data/cloud-delta.ts';
 
 describe('cloud-delta', () => {
   it('SRS_DELTA_SELECT includes updated_at', () => {

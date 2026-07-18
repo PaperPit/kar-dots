@@ -1,16 +1,23 @@
 import { el, modal, spinner, toast } from '../../ui/ui.js';
-import { searchStockMedia, downloadStockMedia } from '../../lib/stock-media.js';
+import { searchStockMedia, downloadStockMedia, type StockItem, type StockSearchResult } from '../../lib/stock-media.js';
 import { hasGiphyApiKey, hasPixabayApiKey } from '../../lib/stock-media-settings.js';
+import type { Settings } from '../../data/types.js';
 
-function debounce(fn, ms) {
-  let t;
-  return (...args) => {
-    clearTimeout(t);
+interface StockPickerOpts {
+  initialQuery?: string;
+  onSelect?: (file: File, item: StockItem) => void;
+  getSettings?: () => Settings | null;
+}
+
+function debounce(fn: (...args: any[]) => void, ms: number): (...args: any[]) => void {
+  let t: ReturnType<typeof setTimeout> | null = null;
+  return (...args: any[]) => {
+    if (t) clearTimeout(t);
     t = setTimeout(() => fn(...args), ms);
   };
 }
 
-function providerLabel(meta) {
+function providerLabel(meta: StockSearchResult['searchMeta'] | null | undefined): string {
   if (meta?.provider === 'pixabay') return 'Pixabay';
   if (meta?.provider === 'giphy') return 'Giphy';
   if (meta?.fallback) return 'Openverse (базовый)';
@@ -24,7 +31,7 @@ const TAB_DEFS = [
   { type: 'sticker', label: 'Стикеры' },
 ];
 
-export function openStockImagePicker({ initialQuery = '', onSelect, getSettings } = {}) {
+export function openStockImagePicker({ initialQuery = '', onSelect, getSettings }: StockPickerOpts = {}) {
   let page = 1;
   let type = 'photo';
   let lastQuery = '';
@@ -38,7 +45,7 @@ export function openStockImagePicker({ initialQuery = '', onSelect, getSettings 
     placeholder: 'Слово на русском или английском…',
     autocomplete: 'off',
     value: initialQuery,
-  });
+  }, undefined);
 
   const tabBtns = TAB_DEFS.map(def => el('button', {
     type: 'button',
@@ -47,18 +54,18 @@ export function openStockImagePicker({ initialQuery = '', onSelect, getSettings 
   }, def.label));
   const tabs = el('div', { class: 'stock-tabs' }, tabBtns);
 
-  const statusEl = el('p', { class: 'stock-status', hidden: true });
-  const translateHintEl = el('p', { class: 'stock-translate-hint', hidden: true });
-  const providerHintEl = el('p', { class: 'stock-provider-hint muted', hidden: true });
-  const grid = el('div', { class: 'stock-grid', role: 'list' });
-  const attrEl = el('p', { class: 'stock-attribution', hidden: true });
+  const statusEl = el('p', { class: 'stock-status', hidden: true }, undefined);
+  const translateHintEl = el('p', { class: 'stock-translate-hint', hidden: true }, undefined);
+  const providerHintEl = el('p', { class: 'stock-provider-hint muted', hidden: true }, undefined);
+  const grid = el('div', { class: 'stock-grid', role: 'list' }, undefined);
+  const attrEl = el('p', { class: 'stock-attribution', hidden: true }, undefined);
   const prevBtn = el('button', { type: 'button', class: 'btn secondary stock-page-btn', disabled: true }, '←');
   const nextBtn = el('button', { type: 'button', class: 'btn secondary stock-page-btn', disabled: true }, '→');
   const pageInfo = el('span', { class: 'stock-page-info' }, '');
   const pager = el('div', { class: 'stock-pager', hidden: true }, [prevBtn, pageInfo, nextBtn]);
 
-  function settings() {
-    return getSettings?.() || {};
+  function settings(): Settings | null {
+    return getSettings?.() || null;
   }
 
   function updateProviderHint() {
@@ -74,7 +81,7 @@ export function openStockImagePicker({ initialQuery = '', onSelect, getSettings 
     }
   }
 
-  function setTab(nextType) {
+  function setTab(nextType: string) {
     if (type === nextType) return;
     type = nextType;
     page = 1;
@@ -87,7 +94,7 @@ export function openStockImagePicker({ initialQuery = '', onSelect, getSettings 
     runSearch();
   }
 
-  function setLoading(on, message = 'Ищем…') {
+  function setLoading(on: boolean, message = 'Ищем…') {
     loading = on;
     searchInput.disabled = on;
     tabBtns.forEach(btn => { btn.disabled = on; });
@@ -101,13 +108,13 @@ export function openStockImagePicker({ initialQuery = '', onSelect, getSettings 
     }
   }
 
-  function badgeFor(item) {
-    if (item.isSticker) return el('span', { class: 'stock-thumb-badge' }, 'ST');
+  function badgeFor(item: StockItem) {
+    if ('isSticker' in item && item.isSticker) return el('span', { class: 'stock-thumb-badge' }, 'ST');
     if (item.isGif) return el('span', { class: 'stock-thumb-badge' }, 'GIF');
     return null;
   }
 
-  function renderItems(items) {
+  function renderItems(items: StockItem[]) {
     grid.innerHTML = '';
     if (!items.length) {
       statusEl.hidden = false;
@@ -130,7 +137,7 @@ export function openStockImagePicker({ initialQuery = '', onSelect, getSettings 
         loading: 'lazy',
         decoding: 'async',
         referrerpolicy: 'no-referrer',
-      });
+      }, undefined);
       img.addEventListener('error', () => {
         if (img.dataset.fallback !== '1') {
           img.dataset.fallback = '1';
@@ -154,7 +161,7 @@ export function openStockImagePicker({ initialQuery = '', onSelect, getSettings 
           onSelect?.(file, item);
           m.close();
         } catch (e) {
-          toast(e.message, 'error');
+          toast(e instanceof Error ? e.message : String(e), 'error');
           btn.disabled = false;
           grid.removeAttribute('aria-busy');
           renderItems(items);
@@ -225,7 +232,7 @@ export function openStockImagePicker({ initialQuery = '', onSelect, getSettings 
     } catch (e) {
       grid.innerHTML = '';
       statusEl.hidden = false;
-      statusEl.textContent = e.message;
+      statusEl.textContent = e instanceof Error ? e.message : String(e);
       pager.hidden = true;
     } finally {
       loading = false;
@@ -241,7 +248,7 @@ export function openStockImagePicker({ initialQuery = '', onSelect, getSettings 
     if (e.key === 'Enter') { e.preventDefault(); page = 1; runSearch(); }
   });
   tabBtns.forEach(btn => {
-    btn.addEventListener('click', () => setTab(btn.dataset.type));
+    btn.addEventListener('click', () => setTab(btn.dataset.type ?? ''));
   });
   prevBtn.addEventListener('click', () => { if (page > 1) { page--; runSearch(); } });
   nextBtn.addEventListener('click', () => { if (page < pageCount) { page++; runSearch(); } });

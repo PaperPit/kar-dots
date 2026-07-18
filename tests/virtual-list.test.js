@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { computeVisibleRange, VIRTUAL_LIST_THRESHOLD } from '../js/lib/virtual-list.js';
+import { computeVisibleRange, VIRTUAL_LIST_THRESHOLD } from '../js/lib/virtual-list.ts';
 
 describe('computeVisibleRange', () => {
   const base = {

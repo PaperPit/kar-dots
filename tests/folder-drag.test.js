@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { folderDragEnabled } from '../js/ui/folder-drag.js';
+import { folderDragEnabled } from '../js/ui/folder-drag.ts';
 
 describe('folderDragEnabled', () => {
   afterEach(() => {

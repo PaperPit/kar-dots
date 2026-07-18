@@ -1,7 +1,7 @@
 import { el } from '../../../ui/ui.js';
 import { vocabPacksDialog } from '../../../ui/vocab-packs-dialog.js';
 
-export function buildPacksGroup() {
+export function buildPacksGroup(): HTMLElement {
   return el('div', { class: 'settings-group' }, [
     el('h4', null, 'Лексические паки'),
     el('div', { class: 'setting-row' }, [

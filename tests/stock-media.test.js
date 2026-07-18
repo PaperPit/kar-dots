@@ -8,7 +8,7 @@ import {
   enrichVocabStockQuery,
   rankStockResults,
   scoreStockRelevance,
-} from '../js/lib/stock-media.js';
+} from '../js/lib/stock-media.ts';
 
 describe('hasCyrillic', () => {
   it('определяет кириллицу', () => {

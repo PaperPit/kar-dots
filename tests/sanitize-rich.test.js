@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
 
 import { describe, it, expect } from 'vitest';
-import { sanitizeRich } from '../js/ui/ui.js';
+import { sanitizeRich } from '../js/ui/ui.ts';
 
 describe('sanitizeRich formatting', () => {
   it('keeps underline and highlight marks', () => {

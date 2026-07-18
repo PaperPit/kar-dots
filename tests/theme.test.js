@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { resolveTheme } from '../js/lib/theme.js';
+import { resolveTheme } from '../js/lib/theme.ts';
 
 describe('resolveTheme', () => {
   let matchMedia;

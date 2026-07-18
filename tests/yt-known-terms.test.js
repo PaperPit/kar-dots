@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { bumpKnownTermsCache, loadKnownTermsForImport } from '../js/lib/yt-known-terms.js';
+import { bumpKnownTermsCache, loadKnownTermsForImport } from '../js/lib/yt-known-terms.ts';
 
 function mockStore(front = 'hello') {
   return {

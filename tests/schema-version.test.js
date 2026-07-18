@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import {
   REQUIRED_SCHEMA_VERSION, fetchSchemaVersion, schemaOutdatedMessage,
-} from '../js/data/schema-version.js';
+} from '../js/data/schema-version.ts';
 
 afterEach(() => { vi.unstubAllGlobals(); });
 

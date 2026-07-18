@@ -5,7 +5,7 @@ vi.mock('../js/core/state.js', () => ({
   store: { settings: { leitnerIntervals: [1, 2, 4, 8, 16] } },
 }));
 
-import { gradePayload } from '../js/screens/review/grading.js';
+import { gradePayload } from '../js/screens/review/grading.ts';
 
 describe('gradePayload', () => {
   it('sm2 know / again', () => {

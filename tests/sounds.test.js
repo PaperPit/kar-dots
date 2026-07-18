@@ -5,7 +5,7 @@ import {
   normalizeCupMelodyId, normalizeUiClickSoundId,
   successSoundLabel, failSoundLabel, cupMelodyLabel, uiClickSoundLabel,
   playLessonCompleteFromStore, playSuccessSound, playFailSound,
-} from '../js/lib/sounds.js';
+} from '../js/lib/sounds.ts';
 
 describe('sounds', () => {
   it('5 MP3-мелодий для верного ответа', () => {

@@ -1,8 +1,14 @@
 import { el } from '../../../ui/ui.js';
 import { segControl } from '../shared.js';
 
-export function buildCalendarGroup(s, save) {
-  const calendarPlace = s.calendarPlace ?? (s.showCalendar === false ? 'hidden' : 'left');
+interface SettingsLike {
+  showCalendar?: string;
+  calendarPlace?: string;
+  streakRingDays?: number;
+}
+
+export function buildCalendarGroup(s: SettingsLike, save: () => void) {
+  const calendarPlace = s.calendarPlace ?? (s.showCalendar === 'hidden' ? 'hidden' : s.calendarPlace ?? 'left');
   return el('div', { class: 'settings-group' }, [
     el('h4', null, 'Календарь'),
     el('div', { class: 'setting-row' }, [

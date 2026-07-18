@@ -8,7 +8,7 @@ import {
   clozeSeed,
   isClozePhrase,
   formatClozeReveal,
-} from '../js/lib/cloze.js';
+} from '../js/lib/cloze.ts';
 
 describe('clozeLettersToHide', () => {
   it('1 буква для коротких слов, 2 для длинных', () => {

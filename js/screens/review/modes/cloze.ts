@@ -1,3 +1,5 @@
+import type { SrsCard } from "../../../lib/srs.js";
+import type { Settings } from "../../../lib/sounds.js";
 import { el } from '../../../ui/ui.js';
 import { buildFaceScroll } from '../../../ui/card-face.js';
 import { getExpectedAnswer } from '../../../lib/answer-check.js';
@@ -12,18 +14,48 @@ import { flashStudyCard, showStudyFeedback, pulseStudyInput } from '../../../ui/
 import { haptic } from '../../../ui/helpers.js';
 import { focusWithoutScroll } from '../../../lib/study-keyboard.js';
 
-function focusClozeInput(inp) {
+
+interface ClozeInput {
+  inp: HTMLInputElement;
+  kind: 'word' | 'letter';
+}
+
+interface ClozeSegment {
+  type: string;
+  text?: string;
+  ch?: string;
+  answer?: string;
+  hidden?: boolean;
+}
+
+interface ClozeData {
+  mode: 'words' | 'letters';
+  segments: ClozeSegment[];
+  plain: string;
+  hasBlanks: boolean;
+  hiddenWords?: string[];
+  hiddenLetters?: string[];
+}
+
+interface ClozeCtx {
+  promptSide: 'front' | 'back';
+  onSuccess: (r: { firstTry: boolean }) => void;
+  onFail: (r?: { firstTry?: boolean }) => void;
+  getSettings: () => Settings | null;
+}
+
+function focusClozeInput(inp: HTMLInputElement | null | undefined) {
   if (inp) focusWithoutScroll(inp);
 }
 
-function buildPrompt(card, promptSide) {
+function buildPrompt(card: SrsCard, promptSide: 'front' | 'back') {
   return el('div', { class: 'study-prompt-card' }, [
     buildFaceScroll(promptSide, card),
   ]);
 }
 
-function renderClozeSegments(cloze) {
-  const inputs = [];
+function renderClozeSegments(cloze: ClozeData) {
+  const inputs: ClozeInput[] = [];
   const label = cloze.mode === 'words' ? 'Фраза с пропусками' : 'Слово с пропусками';
 
   const children = cloze.segments.map(seg => {
@@ -35,8 +67,8 @@ function renderClozeSegments(cloze) {
         autocomplete: 'off',
         autocapitalize: 'off',
         spellcheck: 'false',
-        size: String(Math.max(seg.answer.length, 3)),
-      });
+        size: String(Math.max(seg.answer?.length ?? 0, 3)),
+      }, undefined) as HTMLInputElement;
       inputs.push({ inp, kind: 'word' });
       return inp;
     }
@@ -50,12 +82,12 @@ function renderClozeSegments(cloze) {
         autocapitalize: 'off',
         spellcheck: 'false',
         size: '1',
-      });
+      }, undefined) as HTMLInputElement;
       inputs.push({ inp, kind: 'letter' });
       return inp;
     }
-    if (seg.type === 'text') return document.createTextNode(seg.text);
-    return document.createTextNode(seg.ch);
+    if (seg.type === 'text') return document.createTextNode(seg.text ?? '');
+    return document.createTextNode(seg.ch ?? "");
   });
 
   return {
@@ -64,7 +96,7 @@ function renderClozeSegments(cloze) {
   };
 }
 
-function collectClozeInputValue(inputs, cloze) {
+function collectClozeInputValue(inputs: ClozeInput[], cloze: ClozeData): string {
   if (cloze.mode === 'words') {
     return inputs
       .filter(i => i.kind === 'word')
@@ -77,56 +109,56 @@ function collectClozeInputValue(inputs, cloze) {
     .join('');
 }
 
-function wireClozeInputs(inputs, { onSubmit, onEdit }) {
+function wireClozeInputs(inputs: ClozeInput[], opts: { onSubmit?: () => void; onEdit?: () => void }) {
   const list = inputs.map(i => i.inp);
 
   list.forEach((inp, idx) => {
     inp.addEventListener('input', () => {
-      onEdit?.();
+      opts.onEdit?.();
 
-      if (inputs[idx].kind !== 'letter') return;
+      if (inputs[idx]!.kind !== 'letter') return;
 
       const chars = [...inp.value];
       if (chars.length <= 1) {
-        if (chars[0] && idx < list.length - 1) focusClozeInput(list[idx + 1]);
+        if (chars[0] && idx < list.length - 1) focusClozeInput(list[idx + 1]!);
         return;
       }
 
-      inp.value = chars[0];
+      inp.value = chars[0] ?? "";
       let charIdx = 1;
       let pos = idx + 1;
       while (charIdx < chars.length && pos < list.length) {
-        if (inputs[pos].kind === 'letter') list[pos].value = chars[charIdx++];
+        if (inputs[pos]!.kind === 'letter') list[pos]!.value = chars[charIdx++] ?? '';
         pos++;
       }
-      const nextEmpty = list.findIndex((node, i) => i > idx && inputs[i].kind === 'letter' && !node.value);
-      if (nextEmpty >= 0) focusClozeInput(list[nextEmpty]);
-      else focusClozeInput(list[Math.min(pos, list.length - 1)]);
+      const nextEmpty = list.findIndex((node, i) => i > idx && inputs[i]!.kind === 'letter' && !node.value);
+      if (nextEmpty >= 0) focusClozeInput(list[nextEmpty]!);
+      else focusClozeInput(list[Math.min(pos, list.length - 1)]!);
     });
 
-    inp.addEventListener('keydown', e => {
+    inp.addEventListener('keydown', (e: KeyboardEvent) => {
       if (e.key === 'Backspace' && !inp.value && idx > 0) {
         e.preventDefault();
-        focusClozeInput(list[idx - 1]);
+        focusClozeInput(list[idx - 1]!);
         return;
       }
-      if (e.key === 'Enter') {
+      if (e.key === "Enter") {
         e.preventDefault();
-        onSubmit();
+        opts.onSubmit?.();
       }
     });
   });
 }
 
-function setClozeInputsDisabled(inputs, disabled) {
+function setClozeInputsDisabled(inputs: ClozeInput[], disabled: boolean) {
   for (const { inp } of inputs) inp.disabled = disabled;
 }
 
-function pulseClozeInputs(inputs, isCorrect) {
+function pulseClozeInputs(inputs: ClozeInput[], isCorrect: boolean) {
   for (const { inp } of inputs) pulseStudyInput(inp, isCorrect);
 }
 
-export function createClozeModeCard(card, ctx) {
+export function createClozeModeCard(card: SrsCard, ctx: ClozeCtx) {
   const { promptSide, onSuccess, onFail, getSettings } = ctx;
   let answered = false;
   let attempts = 0;
@@ -140,9 +172,9 @@ export function createClozeModeCard(card, ctx) {
   const prompt = buildPrompt(card, promptSide);
   const { el: clozeEl, inputs: clozeInputs } = renderClozeSegments(cloze);
 
-  const feedback = el('div', { class: 'study-feedback', hidden: true });
-  const actions = el('div', { class: 'study-actions' });
-  const checkBtn = el('button', { type: 'button', class: 'btn primary study-check-btn' }, 'Проверить');
+  const feedback = el('div', { class: 'study-feedback', hidden: true }, undefined);
+  const actions = el('div', { class: 'study-actions' }, undefined);
+  const checkBtn = el('button', { type: 'button', class: 'btn primary study-check-btn' }, 'Проверить') as HTMLButtonElement;
 
   function clearWrongState() {
     for (const { inp } of clozeInputs) {
@@ -151,7 +183,7 @@ export function createClozeModeCard(card, ctx) {
     feedback.hidden = true;
   }
 
-  function playFeedback(isCorrect) {
+  function playFeedback(isCorrect: boolean) {
     playAnswerFeedback(isCorrect, getSettings?.());
   }
 

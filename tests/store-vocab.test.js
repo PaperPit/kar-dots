@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { findFolderByPackId, importVocabPack, deleteVocabPack } from '../js/data/store-vocab.js';
+import { findFolderByPackId, importVocabPack, deleteVocabPack } from '../js/data/store-vocab.ts';
 
 function mockStore() {
   const folders = [];

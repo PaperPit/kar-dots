@@ -8,21 +8,25 @@ import {
   getLastCramLimit, setSessionCramLimit,
 } from '../../lib/study-modes.js';
 import { speechRecognitionSupported } from '../../lib/speech-input.js';
+import type { PromptSideMeta, StudyModeMeta } from '../../lib/study-modes.js';
+import type { ModalHandle } from '../../ui/ui.js';
 
-function sidePickerBlock(initialSide, onChange) {
+type LimitBlock = HTMLElement & { getLimit: () => number | null };
+
+function sidePickerBlock(initialSide: 'front' | 'back', onChange: (side: 'front' | 'back') => void) {
   let side = normalizePromptSide(initialSide);
   const hint = el('p', { class: 'mode-pick-side-hint' }, '');
-  const seg = el('div', { class: 'seg mode-pick-side-seg' });
-  const btns = [];
+  const seg = el('div', { class: 'seg mode-pick-side-seg' }, undefined);
+  const btns: HTMLElement[] = [];
 
   function refresh() {
-    const meta = PROMPT_SIDE_META.find(s => s.id === side) || PROMPT_SIDE_META[0];
+    const meta = PROMPT_SIDE_META.find(s => s.id === side) || PROMPT_SIDE_META[0]!;
     hint.textContent = meta.desc;
     btns.forEach(b => b.classList.toggle('active', b.dataset.side === side));
     onChange(side);
   }
 
-  PROMPT_SIDE_META.forEach(meta => {
+  PROMPT_SIDE_META.forEach((meta: PromptSideMeta) => {
     const btn = el('button', {
       type: 'button',
       'data-side': meta.id,
@@ -40,21 +44,21 @@ function sidePickerBlock(initialSide, onChange) {
   ]);
 }
 
-function limitPickerBlock(totalCards, initialLimit, onChange) {
+function limitPickerBlock(totalCards: number, initialLimit: number | null, onChange: (limit: number | null) => void) {
   const presets = [
-    { label: 'Все', value: 'all' },
+    { label: 'Все', value: 'all' as const },
     { label: '10', value: 10 },
     { label: '20', value: 20 },
     { label: '50', value: 50 },
-  ].filter(p => p.value === 'all' || p.value <= totalCards);
+  ].filter(p => p.value === 'all' || (typeof p.value === 'number' && p.value <= totalCards));
 
-  let choice = initialLimit == null ? 'all'
+  let choice: 'all' | number | 'custom' = initialLimit == null ? 'all'
     : presets.some(p => p.value === initialLimit) ? initialLimit
       : 'custom';
   let customN = choice === 'custom' && initialLimit ? String(initialLimit) : '';
 
-  const seg = el('div', { class: 'seg mode-pick-side-seg mode-pick-limit-seg' });
-  const customCell = el('div', { class: 'mode-pick-limit-other' });
+  const seg = el('div', { class: 'seg mode-pick-side-seg mode-pick-limit-seg' }, undefined);
+  const customCell = el('div', { class: 'mode-pick-limit-other' }, undefined);
   const customInput = el('input', {
     type: 'number',
     class: 'mode-pick-limit-input',
@@ -63,16 +67,16 @@ function limitPickerBlock(totalCards, initialLimit, onChange) {
     placeholder: 'Другое',
     inputmode: 'numeric',
     'aria-label': `Другое количество, от 1 до ${totalCards}`,
-  });
+  }) as HTMLInputElement;
 
-  function resolveLimit() {
+  function resolveLimit(): number | null {
     if (choice === 'all') return null;
     if (choice === 'custom') {
       const n = parseInt(customInput.value || customN, 10);
       if (!Number.isFinite(n) || n < 1) return null;
       return Math.min(n, totalCards);
     }
-    return choice;
+    return typeof choice === 'number' ? choice : null;
   }
 
   function refresh() {
@@ -84,7 +88,7 @@ function limitPickerBlock(totalCards, initialLimit, onChange) {
     onChange(resolveLimit());
   }
 
-  const btns = [];
+  const btns: HTMLElement[] = [];
   presets.forEach(p => {
     const btn = el('button', {
       type: 'button',
@@ -113,34 +117,33 @@ function limitPickerBlock(totalCards, initialLimit, onChange) {
   if (choice === 'custom' && customN) customInput.value = customN;
 
   refresh();
-  const block = el('div', { class: 'mode-pick-side-block mode-pick-limit-block' }, [
+  const block: LimitBlock = Object.assign(el('div', { class: 'mode-pick-side-block mode-pick-limit-block' }, [
     el('p', { class: 'modal-text mode-pick-side-label' }, [
       'Сколько слов за раз? ',
       el('span', { class: 'muted' }, `(в папке ${totalCards})`),
     ]),
     seg,
-  ]);
-  block.getLimit = resolveLimit;
+  ]), { getLimit: resolveLimit });
   return block;
 }
 
-export async function studyModePicker({ folderId = null, cram = false } = {}) {
+export async function studyModePicker({ folderId = null, cram = false }: { folderId?: string | null; cram?: boolean } = {}) {
   const last = getLastStudyMode();
-  let chosenSide = getLastPromptSide();
-  let chosenLimit = getLastCramLimit();
-  let cardCount = null;
+  let chosenSide: 'front' | 'back' = getLastPromptSide();
+  let chosenLimit: number | null = getLastCramLimit();
+  let cardCount: number | null = null;
 
   if (cram && folderId) {
     cardCount = await store.countCards(folderId);
   }
 
-  let m;
+  let m: ModalHandle | null = null;
   const sideBlock = cram ? sidePickerBlock(chosenSide, s => { chosenSide = s; }) : null;
   const limitBlock = cram && cardCount
     ? limitPickerBlock(cardCount, chosenLimit, l => { chosenLimit = l; })
     : null;
 
-  const items = STUDY_MODE_META.map(meta => {
+  const items = STUDY_MODE_META.map((meta: StudyModeMeta) => {
     const needsSpeech = meta.id === 'voice';
     const disabled = needsSpeech && !speechRecognitionSupported();
     const btn = el('button', {
@@ -151,13 +154,13 @@ export async function studyModePicker({ folderId = null, cram = false } = {}) {
         if (limitBlock?.getLimit) chosenLimit = limitBlock.getLimit();
         if (cram && limitBlock && chosenLimit == null
           && limitBlock.querySelector('.mode-pick-limit-other')?.classList.contains('active')) {
-          const inp = limitBlock.querySelector('.mode-pick-limit-input');
-          const n = parseInt(inp?.value, 10);
+          const inp = limitBlock.querySelector<HTMLInputElement>('.mode-pick-limit-input');
+          const n = parseInt(inp?.value ?? '', 10);
           if (!Number.isFinite(n) || n < 1) {
             inp?.focus();
             return;
           }
-          chosenLimit = Math.min(n, cardCount);
+          chosenLimit = Math.min(n, cardCount ?? 0);
         }
         setLastStudyMode(meta.id);
         setSessionStudyMode(meta.id);
@@ -166,7 +169,7 @@ export async function studyModePicker({ folderId = null, cram = false } = {}) {
           setSessionCramLimit(chosenLimit);
         }
         const hash = buildReviewHash(folderId, { cram, mode: meta.id, cramLimit: chosenLimit });
-        m.close();
+        m!.close();
         requestAnimationFrame(() => nav(hash));
       },
     }, [
@@ -188,7 +191,7 @@ export async function studyModePicker({ folderId = null, cram = false } = {}) {
     cram ? el('p', { class: 'modal-text mode-pick-modes-label' }, 'Способ закрепления') : null,
     el('div', { class: 'mode-pick-grid' }, items),
     el('div', { class: 'modal-actions' }, [
-      el('button', { class: 'btn ghost', onclick: () => m.close() }, 'Отмена'),
+      el('button', { class: 'btn ghost', onclick: () => m!.close() }, 'Отмена'),
     ]),
   ]));
 }

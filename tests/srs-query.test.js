@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   buildReviewQueue, countDueInList, countNewInList, countDueBetweenInList,
   countDueForFolder, filterByFolder,
-} from '../js/data/srs-query.js';
+} from '../js/data/srs-query.ts';
 
 const now = Date.now();
 const cards = [

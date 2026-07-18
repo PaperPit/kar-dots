@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { mergeCaptionSegments, countWords } from '../js/lib/yt-segment-merge.js';
+import { mergeCaptionSegments, countWords } from '../js/lib/yt-segment-merge.ts';
 
 describe('countWords', () => {
   it('считает слова', () => {

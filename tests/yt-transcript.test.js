@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { isTranscriptCacheFresh, CACHE_TTL_MS } from '../js/data/yt-transcript-cache.js';
-import { createYoutubeCardsBatch, prepareTranscriptForMode } from '../js/lib/yt-transcript.js';
+import { isTranscriptCacheFresh, CACHE_TTL_MS } from '../js/data/yt-transcript-cache.ts';
+import { createYoutubeCardsBatch, prepareTranscriptForMode } from '../js/lib/yt-transcript.ts';
 
 describe('isTranscriptCacheFresh', () => {
   beforeEach(() => { vi.useFakeTimers(); vi.setSystemTime(new Date('2026-07-01T12:00:00Z')); });

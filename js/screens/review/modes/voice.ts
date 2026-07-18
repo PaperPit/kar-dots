@@ -1,3 +1,5 @@
+import type { SrsCard } from "../../../lib/srs.js";
+import type { Settings } from "../../../lib/sounds.js";
 import { el } from '../../../ui/ui.js';
 import { buildFaceScroll } from '../../../ui/card-face.js';
 import { haptic } from '../../../ui/helpers.js';
@@ -8,20 +10,28 @@ import { checkCardAnswer, getExpectedAnswer, formatExpectedDisplay, expectedVari
 import { listenOnce, speechRecognitionSupported, resolveVoiceSpeechLang, releaseSpeechSession } from '../../../lib/speech-input.js';
 import { isSpaceKey, shouldStartVoiceFromSpace } from '../../../lib/voice-keyboard.js';
 
+
+interface VoiceCtx {
+  promptSide: 'front' | 'back';
+  onSuccess: (r: { firstTry: boolean }) => void;
+  onFail: (r?: { firstTry?: boolean }) => void;
+  getSettings: () => Settings | null;
+}
+
 const LABEL_START = '🎤 Сказать ответ';
 const LABEL_CHECK = '✓ Проверить';
 
-function buildPrompt(card, promptSide) {
+function buildPrompt(card: SrsCard, promptSide: 'front' | 'back') {
   return el('div', { class: 'study-prompt-card' }, [
     buildFaceScroll(promptSide, card),
   ]);
 }
 
-export function createVoiceModeCard(card, ctx) {
+export function createVoiceModeCard(card: SrsCard, ctx: VoiceCtx) {
   const { promptSide, onSuccess, onFail, getSettings } = ctx;
   let answered = false;
   let listens = 0;
-  let stopListen = null;
+  let stopListen: ((o?: { cancel: boolean }) => Promise<void>) | null = null;
   let listening = false;
   let stopping = false;
   let autoCheckTriggered = false;
@@ -29,7 +39,7 @@ export function createVoiceModeCard(card, ctx) {
   const answerOpts = { fuzzy: true, fuzzyThreshold: 0.68 };
 
   /** iOS шлёт один и тот же partial каждые ~300 ms — debounce сбрасывал таймер бесконечно. */
-  function maybeAutoCheck(transcript) {
+  function maybeAutoCheck(transcript: string) {
     if (autoCheckTriggered || !listening || stopping || answered) return;
     const t = String(transcript || '').trim();
     if (!t || !checkCardAnswer(t, card, promptSide, answerOpts).ok) return;
@@ -39,20 +49,20 @@ export function createVoiceModeCard(card, ctx) {
 
   const prompt = buildPrompt(card, promptSide);
   const status = el('p', { class: 'study-voice-status muted' }, 'Пробел или кнопка — начать запись');
-  const heard = el('div', { class: 'study-feedback', hidden: true });
-  const actions = el('div', { class: 'study-actions study-voice-actions' });
+  const heard = el('div', { class: 'study-feedback', hidden: true }, undefined);
+  const actions = el('div', { class: 'study-actions study-voice-actions' }, undefined);
 
   const startBtn = el('button', {
     type: 'button',
     class: 'btn accent study-mic-btn',
     disabled: !speechRecognitionSupported(),
-  }, LABEL_START);
+  }, LABEL_START) as HTMLButtonElement;
 
   const checkBtn = el('button', {
     type: 'button',
     class: 'btn primary study-check-btn',
     hidden: true,
-  }, LABEL_CHECK);
+  }, LABEL_CHECK) as HTMLButtonElement;
 
   function setUiIdle() {
     listening = false;
@@ -95,7 +105,7 @@ export function createVoiceModeCard(card, ctx) {
     checkBtn.removeAttribute('disabled');
   }
 
-  function playFeedback(isCorrect) {
+  function playFeedback(isCorrect: boolean) {
     const settings = getSettings?.();
     if (!settings) return;
     const run = () => playAnswerFeedback(isCorrect, settings);
@@ -103,14 +113,14 @@ export function createVoiceModeCard(card, ctx) {
     else setTimeout(run, 120);
   }
 
-  async function cleanupListen(silent = true) {
+  async function cleanupListen(silent: boolean = true) {
     const fn = stopListen;
     stopListen = null;
     if (fn) await fn({ cancel: silent }).catch(() => {});
     setUiIdle();
   }
 
-  function evaluateTranscript(transcript) {
+  function evaluateTranscript(transcript: string) {
     stopListen = null;
     stopping = false;
     listening = false;
@@ -143,7 +153,7 @@ export function createVoiceModeCard(card, ctx) {
     }
   }
 
-  function showWrong(transcript, expected) {
+  function showWrong(transcript: string, expected: string) {
     flashStudyCard(prompt, false);
     showStudyFeedback(heard, false, transcript ? `Услышано: «${transcript}»` : 'Неверно');
     actions.innerHTML = '';
@@ -242,16 +252,16 @@ export function createVoiceModeCard(card, ctx) {
     });
   }
 
-  startBtn.addEventListener('click', (e) => {
+  startBtn.addEventListener('click', (e: MouseEvent) => {
     e.preventDefault();
     startListen();
   });
-  checkBtn.addEventListener('click', (e) => {
+  checkBtn.addEventListener('click', (e: MouseEvent) => {
     e.preventDefault();
     finishListen();
   });
 
-  const onVoiceKey = (e) => {
+  const onVoiceKey = (e: KeyboardEvent) => {
     if (!isSpaceKey(e)) return;
     e.preventDefault();
     if (listening) finishListen();
@@ -270,7 +280,7 @@ export function createVoiceModeCard(card, ctx) {
     actions,
   ]);
 
-  const onKey = (e) => {
+  const onKey = (e: KeyboardEvent) => {
     if (!document.body.contains(box)) {
       document.removeEventListener('keydown', onKey, true);
       return;

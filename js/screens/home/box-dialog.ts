@@ -6,36 +6,37 @@ import { route } from '../../core/router.js';
 import { foldersInBox } from '../../data/store-box.js';
 import { folderSaveErrorMessage } from '../../lib/folder-errors.js';
 import { normalizeFolderIcon } from '../../lib/folder-icons.js';
+import type { Box, Folder } from '../../data/types.js';
 
-export function boxDialog(box) {
+export function boxDialog(box: Box | null) {
   let color = box ? box.color : FOLDER_COLORS[Math.floor(Math.random() * FOLDER_COLORS.length)];
   const name = el('input', {
     class: 'input',
     value: box ? box.name : '',
     placeholder: 'Например, Английский',
-  });
+  }, []) as HTMLInputElement;
 
   const dots = el('div', { class: 'color-row' }, FOLDER_COLORS.map(c =>
     el('button', {
       type: 'button',
       class: 'color-dot' + (c === color ? ' sel' : ''),
       style: { background: c },
-      onclick: e => {
+      onclick: (e: Event) => {
         color = c;
         dots.querySelectorAll('.color-dot').forEach(d => d.classList.remove('sel'));
-        e.currentTarget.classList.add('sel');
+        (e.currentTarget as HTMLElement).classList.add('sel');
       },
     })
   ));
 
-  const iconPicker = createIconPicker(box?.icon);
+  const iconPicker = createIconPicker(box?.icon ?? undefined);
 
   const selected = new Set(box ? foldersInBox(store.folders, box.id).map(f => f.id) : []);
-  const folderList = el('div', { class: 'box-folder-pick' });
+  const folderList = el('div', { class: 'box-folder-pick' }, []);
 
   function paintFolderPick() {
     folderList.innerHTML = '';
-    const candidates = store.folders.filter(f =>
+    const candidates = store.folders.filter((f: Folder) =>
       !f.box_id || (box && f.box_id === box.id)
     );
     if (!candidates.length) {
@@ -52,7 +53,7 @@ export function boxDialog(box) {
           if (chk.checked) selected.add(f.id);
           else selected.delete(f.id);
         },
-      });
+      }, []) as HTMLInputElement;
       folderList.append(el('label', { class: 'box-folder-pick-row', for: id }, [
         chk,
         el('span', { class: 'box-folder-pick-name' }, f.name),
@@ -61,7 +62,7 @@ export function boxDialog(box) {
   }
   paintFolderPick();
 
-  let m;
+  let m: ReturnType<typeof modal>;
   const titleId = 'box-dialog-title';
   const save = el('button', {
     type: 'button',
@@ -86,7 +87,7 @@ export function boxDialog(box) {
         save.disabled = false;
       }
     },
-  }, box ? 'Сохранить' : 'Создать');
+  }, box ? 'Сохранить' : 'Создать') as HTMLButtonElement;
 
   m = modal(el('div', null, [
     el('h3', { class: 'modal-title', id: titleId }, box ? 'Коробка' : 'Новая коробка'),
@@ -110,7 +111,7 @@ export function boxDialog(box) {
   setTimeout(() => name.focus(), 260);
 }
 
-export function boxDeleteConfirm(box) {
+export function boxDeleteConfirm(box: Box) {
   const n = foldersInBox(store.folders, box.id).length;
   return {
     title: 'Удалить коробку?',

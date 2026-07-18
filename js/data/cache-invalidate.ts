@@ -1,7 +1,19 @@
-import { bumpKnownTermsCache } from '../lib/yt-known-terms.js';
+import { bumpKnownTermsCache } from "../lib/yt-known-terms.js"
 
-export function invalidateDerivedCaches(store, opts = {}) {
-  if (store?._invalidateHomeStats) store._invalidateHomeStats();
-  if (opts.allFolders) bumpKnownTermsCache(null);
-  else bumpKnownTermsCache(opts.folderId);
+interface InvalidateOpts {
+  allFolders?: boolean
+  folderId?: string
+}
+
+export interface InvalidatableStore {
+  _invalidateHomeStats?: () => void
+}
+
+export function invalidateDerivedCaches(
+  store: InvalidatableStore | null | undefined,
+  opts: InvalidateOpts = {}
+) {
+  if (store?._invalidateHomeStats) store._invalidateHomeStats()
+  if (opts.allFolders) bumpKnownTermsCache(null)
+  else bumpKnownTermsCache(opts.folderId ?? null)
 }

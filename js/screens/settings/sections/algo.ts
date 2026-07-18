@@ -2,6 +2,19 @@ import { el } from '../../../ui/ui.js';
 import { route } from '../../../core/router.js';
 import { DEFAULT_SETTINGS } from '../../../data/store-common.js';
 import { segControl } from '../shared.js';
+import type { SpeechVoiceLike } from '../../../lib/web-speech-tts.js';
+
+interface SettingsLike {
+  algo: string;
+  direction?: string;
+  newPerDay?: number;
+  tts?: boolean;
+  ttsAuto?: boolean;
+  ttsRate?: number;
+  ttsVoiceRu?: string;
+  ttsVoiceEn?: string;
+  leitnerIntervals: number[];
+}
 import {
   getSpeechVoices,
   waitForSpeechVoices,
@@ -19,7 +32,12 @@ const ALGO_DESCRIPTIONS = {
 
 const ALGO_FOOTNOTE = 'При переключении алгоритма старый прогресс не теряется — у SM-2, FSRS и Лейтнера он хранится отдельно.';
 
-function fillVoiceSelect(select, voices, prefix, savedUri) {
+function fillVoiceSelect(
+  select: HTMLSelectElement,
+  voices: SpeechVoiceLike[],
+  prefix: string,
+  savedUri: string | undefined,
+) {
   select.replaceChildren();
   select.append(el('option', { value: '' }, 'Авто (лучший доступный)'));
   listSpeechVoicesForLang(voices, prefix).forEach(v => {
@@ -31,21 +49,21 @@ function fillVoiceSelect(select, voices, prefix, savedUri) {
   select.value = uri && [...select.options].some(o => o.value === uri) ? uri : '';
 }
 
-function buildSpeechVoiceRow(s, save, ttsEnabled) {
-  const ruSelect = el('select', { class: 'input speech-voice-select', disabled: !ttsEnabled });
-  const enSelect = el('select', { class: 'input speech-voice-select', disabled: !ttsEnabled });
+function buildSpeechVoiceRow(s: SettingsLike, save: () => void, ttsEnabled: boolean) {
+  const ruSelect = el('select', { class: 'input speech-voice-select', disabled: !ttsEnabled }, []) as HTMLSelectElement;
+  const enSelect = el('select', { class: 'input speech-voice-select', disabled: !ttsEnabled }, []) as HTMLSelectElement;
   const ruPreview = el('button', {
     type: 'button',
     class: 'btn ghost speech-preview-btn',
     title: 'Прослушать «Привет»',
     onclick: () => previewSpeechVoice('ru-RU'),
-  }, '▶ Привет');
+  }, '▶ Привет') as HTMLButtonElement;
   const enPreview = el('button', {
     type: 'button',
     class: 'btn ghost speech-preview-btn',
     title: 'Прослушать «Hello»',
     onclick: () => previewSpeechVoice('en-US'),
-  }, '▶ Hello');
+  }, '▶ Hello') as HTMLButtonElement;
   const hintEl = el('div', { class: 'speech-voice-hint muted' }, '');
 
   function refreshHint() {
@@ -121,18 +139,18 @@ function buildSpeechVoiceRow(s, save, ttsEnabled) {
 
   return {
     node,
-    setTtsEnabled(on) {
+    setTtsEnabled(on: boolean) {
       ttsOn = on;
       syncUi();
     },
   };
 }
 
-export function buildAlgoGroup(s, save) {
+export function buildAlgoGroup(s: SettingsLike, save: () => void) {
   let ttsAutoInput;
   const ttsEnabled = s.tts !== false;
 
-  ttsAutoInput = el('input', { type: 'checkbox', class: 'chk' });
+  ttsAutoInput = el('input', { type: 'checkbox', class: 'chk' }, []) as HTMLInputElement;
   ttsAutoInput.checked = ttsEnabled && !!s.ttsAuto;
   ttsAutoInput.disabled = !ttsEnabled;
   ttsAutoInput.addEventListener('change', () => {
@@ -142,7 +160,7 @@ export function buildAlgoGroup(s, save) {
 
   const speechVoiceBlock = buildSpeechVoiceRow(s, save, ttsEnabled);
 
-  const ttsInput = el('input', { type: 'checkbox', class: 'chk' });
+  const ttsInput = el('input', { type: 'checkbox', class: 'chk' }, []) as HTMLInputElement;
   ttsInput.checked = ttsEnabled;
   ttsInput.addEventListener('change', () => {
     s.tts = ttsInput.checked;
@@ -155,7 +173,7 @@ export function buildAlgoGroup(s, save) {
     save();
   });
 
-  const algoDesc = el('span', { class: 'algo-desc' }, ALGO_DESCRIPTIONS[s.algo] || ALGO_DESCRIPTIONS.sm2);
+  const algoDesc = el('span', { class: 'algo-desc' }, ALGO_DESCRIPTIONS[s.algo as keyof typeof ALGO_DESCRIPTIONS] || ALGO_DESCRIPTIONS.sm2);
   const algoFootnote = el('span', { class: 'algo-footnote muted' }, ALGO_FOOTNOTE);
 
   const algoGroup = el('div', { class: 'settings-group' }, [
@@ -172,7 +190,7 @@ export function buildAlgoGroup(s, save) {
         { v: 'leitner', label: 'Лейтнер' },
       ], v => {
         s.algo = v;
-        algoDesc.textContent = ALGO_DESCRIPTIONS[v] || ALGO_DESCRIPTIONS.sm2;
+        algoDesc.textContent = ALGO_DESCRIPTIONS[v as keyof typeof ALGO_DESCRIPTIONS] || ALGO_DESCRIPTIONS.sm2;
         save();
         route();
       }),
@@ -239,10 +257,10 @@ export function buildAlgoGroup(s, save) {
   ]);
 
   if (s.algo === 'leitner') {
-    const row = el('div', { class: 'row leitner-intervals-row' });
+    const row = el('div', { class: 'row leitner-intervals-row' }, []);
     const intervals = s.leitnerIntervals || DEFAULT_SETTINGS.leitnerIntervals;
-    intervals.forEach((d, i) => {
-      const inp = el('input', { type: 'number', min: 1, max: 365, value: d, class: 'input leitner-interval-input' });
+    intervals.forEach((d: number, i: number) => {
+      const inp = el('input', { type: 'number', min: 1, max: 365, value: d, class: 'input leitner-interval-input' }, []) as HTMLInputElement;
       inp.addEventListener('change', () => {
         s.leitnerIntervals[i] = Math.max(1, Number(inp.value) || 1);
         save();

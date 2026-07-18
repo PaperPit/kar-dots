@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { parseBulkLines, countReadyRows } from '../js/lib/card-import.js';
+import { parseBulkLines, countReadyRows } from '../js/lib/card-import.ts';
 
 describe('parseBulkLines', () => {
   it('парсит em dash и дефис', () => {

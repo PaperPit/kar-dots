@@ -6,26 +6,27 @@ import { createIconPicker } from '../../ui/icon-picker.js';
 import { route } from '../../core/router.js';
 import { folderSaveErrorMessage } from '../../lib/folder-errors.js';
 import { normalizeFolderIcon } from '../../lib/folder-icons.js';
+import type { Folder } from '../../data/types.js';
 
-export function folderDialog(folder, opts = {}) {
+export function folderDialog(folder: Folder | null, opts: { box_id?: string | null } = {}) {
   let color = folder ? folder.color : FOLDER_COLORS[Math.floor(Math.random() * FOLDER_COLORS.length)];
-  const name = el('input', { class: 'input', value: folder ? folder.name : '', placeholder: 'Например, Английский' });
+  const name = el('input', { class: 'input', value: folder ? folder.name : '', placeholder: 'Например, Английский' }, []) as HTMLInputElement;
 
   const dots = el('div', { class: 'color-row' }, FOLDER_COLORS.map(c =>
     el('button', {
       type: 'button',
       class: 'color-dot' + (c === color ? ' sel' : ''), style: { background: c },
-      onclick: e => {
+      onclick: (e: Event) => {
         color = c;
         dots.querySelectorAll('.color-dot').forEach(d => d.classList.remove('sel'));
-        e.currentTarget.classList.add('sel');
+        (e.currentTarget as HTMLElement).classList.add('sel');
       },
     })
   ));
 
-  const iconPicker = createIconPicker(folder?.icon);
+  const iconPicker = createIconPicker(folder?.icon ?? undefined);
 
-  let m;
+  let m: ReturnType<typeof modal>;
   const save = el('button', {
     class: 'btn primary',
     onclick: async () => {
@@ -39,7 +40,7 @@ export function folderDialog(folder, opts = {}) {
         m.close(); await route();
       } catch (e) { toast(folderSaveErrorMessage(e), 'error'); save.disabled = false; }
     },
-  }, folder ? 'Сохранить' : 'Создать');
+  }, folder ? 'Сохранить' : 'Создать') as HTMLButtonElement;
 
   m = modal(el('div', null, [
     folder ? modalHead('Папка', featherIcon('modal-head-icon')) : el('h3', { class: 'modal-title' }, 'Новая папка'),

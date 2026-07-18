@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { comboMatchBatchProgress, finishProgressAnswered } from '../js/lib/review-progress.js';
+import { comboMatchBatchProgress, finishProgressAnswered } from '../js/lib/review-progress.ts';
 
 describe('comboMatchBatchProgress', () => {
   it('counts each card toward answered and successes toward done', () => {

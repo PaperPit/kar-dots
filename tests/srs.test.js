@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   sm2Next, leitnerNext, isNew, isDue, dueOf, fmtDays, DAY, MIN,
-} from '../js/lib/srs.js';
+} from '../js/lib/srs.ts';
 
 describe('SM-2', () => {
   it('новая карточка с оценкой «снова» — повтор через 10 минут', () => {

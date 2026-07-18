@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { parseHash, initRouter } from '../js/core/router.js';
-import { parseReviewRoute } from '../js/lib/study-modes.js';
+import { parseHash, initRouter } from '../js/core/router.ts';
+import { parseReviewRoute } from '../js/lib/study-modes.ts';
 
 describe('parseHash', () => {
   it('defaults to home', () => {

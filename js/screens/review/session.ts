@@ -3,6 +3,7 @@ import * as SRS from '../../lib/srs.js';
 import { el, toast } from '../../ui/ui.js';
 import { speakCardSide, lessonRewardBox } from '../../ui/helpers.js';
 import { computeLessonStars, lessonFinishTitle } from '../../lib/lesson-stars.js';
+import type { LessonStats } from '../../lib/lesson-stars.js';
 import { playLessonCompleteFromStore } from '../../lib/sounds.js';
 import { nav } from '../../ui/navigation.js';
 import { cardDialog } from '../card-editor/index.js';
@@ -20,14 +21,36 @@ import {
   gradePayload, renderGrades, gradeMatchResults, submitGrade, dismissUndoToast,
 } from './grading.js';
 
-export function runReviewSession(ctx) {
-  function syncCardInQueue(id, patch) {
+import type { GradeContext } from "./grading.js";
+import type { Card } from "../../data/types.js";
+import type { SrsCard } from "../../lib/srs.js";
+
+export type ReviewMode = "flip" | "type" | "cloze" | "voice" | "match" | "combo";
+
+export interface ReviewSessionContext extends GradeContext {
+  total: number;
+  sessionTotal: number;
+  bar: HTMLElement;
+  counter: HTMLElement;
+  reshowAfterEdit?: () => void;
+  currentDestroy: (() => void) | null;
+  mode: ReviewMode;
+  cramPromptSide?: "front" | "back";
+  gradesVisible: boolean;
+  editBtn: HTMLElement;
+  speakBtn: HTMLElement;
+  folderId?: string;
+}
+
+export function runReviewSession(ctx: ReviewSessionContext) {
+  function syncCardInQueue(id: string, patch: Partial<SrsCard>) {
     for (let i = 0; i < ctx.queue.length; i++) {
-      if (ctx.queue[i].id === id) Object.assign(ctx.queue[i], patch);
+      const item = ctx.queue[i];
+      if (item && item.id === id) Object.assign(item, patch);
     }
   }
 
-  function removeCardFromSession(cardId) {
+  function removeCardFromSession(cardId: string) {
     if (ctx.undoToastDismiss) { ctx.undoToastDismiss(); ctx.undoToastDismiss = null; }
     ctx.pendingUndo = null;
     if (ctx.showNextTimer) { clearTimeout(ctx.showNextTimer); ctx.showNextTimer = null; }
@@ -45,15 +68,15 @@ export function runReviewSession(ctx) {
     else if (wasCurrent) showNext(false);
   }
 
-  function reviewCardDialogOpts(card) {
+  function reviewCardDialogOpts(card: SrsCard) {
     return {
       review: true,
-      onSaved: patch => {
-        syncCardInQueue(card.id, patch);
+      onSaved: (patch: Partial<Card>) => {
+        syncCardInQueue(card.id ?? "", patch as Partial<SrsCard>);
         toast('Карточка сохранена', 'ok');
         ctx.reshowAfterEdit?.();
       },
-      onDeleted: () => removeCardFromSession(card.id),
+      onDeleted: () => removeCardFromSession(card.id ?? ""),
     };
   }
 
@@ -63,15 +86,15 @@ export function runReviewSession(ctx) {
     ctx.counter.textContent = shown + ' / ' + ctx.sessionTotal;
   }
 
-  function trackFlipFirstTry(card, know) {
-    if (ctx.sessionFirstTry.has(card.id)) return false;
-    ctx.sessionFirstTry.add(card.id);
+  function trackFlipFirstTry(card: SrsCard, know: boolean) {
+    if (ctx.sessionFirstTry.has(card.id ?? "")) return false;
+    ctx.sessionFirstTry.add(card.id ?? "");
     ctx.stats.attempted++;
     if (know) ctx.stats.firstTryOk++;
     return true;
   }
 
-  function pickSide() {
+  function pickSide(): "front" | "back" {
     if (ctx.cramPromptSide) return ctx.cramPromptSide;
     const dir = store.settings.direction;
     if (dir === 'btf') return 'back';
@@ -85,7 +108,7 @@ export function runReviewSession(ctx) {
     ctx.currentBox = null;
   }
 
-  function mountStage(box, first, { destroy } = {}) {
+  function mountStage(box: HTMLElement, first: boolean, { destroy }: { destroy?: () => void } = {}) {
     clearStage();
     ctx.currentBox = box;
     ctx.currentDestroy = destroy || null;
@@ -94,7 +117,7 @@ export function runReviewSession(ctx) {
     ctx.stage.append(box);
   }
 
-  function cardWorksInMode(card, side) {
+  function cardWorksInMode(card: SrsCard, side: "front" | "back") {
     if (!cardHasCheckableAnswer(card, side)) return false;
     if (ctx.mode === 'cloze') {
       const answer = getExpectedAnswer(card, side);
@@ -106,7 +129,7 @@ export function runReviewSession(ctx) {
 
   function skipUncheckableFromHead() {
     const side = pickSide();
-    while (ctx.queue.length && !cardWorksInMode(ctx.queue[0], side)) {
+    while (ctx.queue.length && !cardWorksInMode(ctx.queue[0]!, side)) {
       const msg = ctx.mode === 'cloze'
         ? 'Слишком короткий ответ для пропусков — пропуск'
         : (side === 'front' ? 'Нет перевода для проверки — пропуск' : 'Нет термина для проверки — пропуск');
@@ -117,22 +140,22 @@ export function runReviewSession(ctx) {
 
   function canComboMatchRound() {
     const side = pickSide();
-    const { batch } = pickMatchBatch(ctx.queue, COMBO_MATCH_BATCH, COMBO_MATCH_BATCH, side);
+    const { batch } = pickMatchBatch(ctx.queue as Card[], COMBO_MATCH_BATCH, COMBO_MATCH_BATCH, side);
     return batch.length >= COMBO_MATCH_BATCH;
   }
 
-  function pickComboSubMode() {
+  function pickComboSubMode(): ReviewMode {
     if (canComboMatchRound() && Math.random() < 0.33) return 'match';
     if (speechRecognitionSupported()) return Math.random() < 0.5 ? 'type' : 'voice';
     return 'type';
   }
 
-  function recordFirstTryResult({ success, firstTry }) {
+  function recordFirstTryResult({ success, firstTry }: { success: boolean; firstTry: boolean }) {
     ctx.stats.attempted++;
     if (success && firstTry) ctx.stats.firstTryOk++;
   }
 
-  function showNext(first) {
+  function showNext(first: boolean) {
     ctx.grading = false;
     if (!ctx.undoHoldUntilFlip) dismissUndoToast(ctx);
     updateBar();
@@ -159,15 +182,16 @@ export function runReviewSession(ctx) {
     showStudyCard(first);
   }
 
-  function resolveActiveMode(forceMode) {
+  function resolveActiveMode(forceMode?: ReviewMode) {
     if (forceMode) return forceMode;
     if (ctx.mode === 'combo') return pickComboSubMode();
     return ctx.mode;
   }
 
-  function showStudyCard(first, forceMode) {
+  function showStudyCard(first: boolean, forceMode?: ReviewMode) {
     ctx.gradesVisible = false;
     const card = ctx.queue[0];
+    if (!card) return;
     const activeMode = resolveActiveMode(forceMode);
     if (activeMode === 'match') {
       showMatchRound(first, { batchSize: COMBO_MATCH_BATCH, countAsOne: true });
@@ -175,12 +199,12 @@ export function runReviewSession(ctx) {
     }
     ctx.reshowAfterEdit = () => showStudyCard(true, ctx.mode === 'combo' ? activeMode : forceMode);
     ctx.editBtn.style.visibility = '';
-    ctx.editBtn.onclick = () => cardDialog(card.folder_id, card, reviewCardDialogOpts(card));
+    ctx.editBtn.onclick = () => cardDialog(card.folder_id ?? "", card, reviewCardDialogOpts(card));
     ctx.currentIsNew = SRS.isNew(card, ctx.algo);
 
     const promptSide = pickSide();
     const gradeOpts = { quiet: true };
-    const onSuccess = ({ firstTry } = {}) => {
+    const onSuccess = ({ firstTry }: { firstTry?: boolean } = {}) => {
       recordFirstTryResult({ success: true, firstTry: !!firstTry });
       submitGrade(ctx, card, gradePayload(ctx.algo, true), null, gradeOpts);
     };
@@ -216,12 +240,12 @@ export function runReviewSession(ctx) {
     mountStage(widget.box, first, { destroy: widget.destroy });
   }
 
-  function showFlipCard(card, first, promptSide) {
+  function showFlipCard(card: SrsCard, first: boolean, promptSide: "front" | "back") {
     ctx.speakBtn.style.display = store.settings.tts !== false ? '' : 'none';
     const side = promptSide || pickSide();
     ctx.reshowAfterEdit = () => showStudyCard(true, 'flip');
     ctx.editBtn.style.visibility = '';
-    ctx.editBtn.onclick = () => cardDialog(card.folder_id, card, reviewCardDialogOpts(card));
+    ctx.editBtn.onclick = () => cardDialog(card.folder_id ?? "", card, reviewCardDialogOpts(card));
     const { box, swipeWrap, grades, getVisibleSide } = createFlipModeCard(card, {
       promptSide: side,
       stageContains: node => ctx.stage.contains(node),
@@ -231,12 +255,12 @@ export function runReviewSession(ctx) {
         renderGrades(ctx, card, grades);
       },
       onFlip: flipSide => {
-        if (store.settings.tts !== false && store.settings.ttsAuto) void speakCardSide(card, flipSide);
+        if (store.settings.tts !== false && store.settings.ttsAuto) void speakCardSide(card, flipSide as "front" | "back");
       },
       onGradeKey: (key, gradeRow) => {
         const btns = gradeRow.querySelectorAll('.grade-btn');
         const i = Number(key) - 1;
-        if (btns[i]) btns[i].click();
+        if (btns[i]) (btns[i] as HTMLElement).click();
       },
       onGradeDir: dir => submitGrade(ctx, card, gradePayload(ctx.algo, dir === 'right'), dir, { flipGrade: true }),
     });
@@ -252,12 +276,12 @@ export function runReviewSession(ctx) {
     ctx.currentSwipeWrap = swipeWrap;
   }
 
-  function showMatchRound(first, { batchSize = BATCH_SIZE, countAsOne = false } = {}) {
+  function showMatchRound(first: boolean, { batchSize = BATCH_SIZE, countAsOne = false }: { batchSize?: number; countAsOne?: boolean } = {}) {
     skipUncheckableFromHead();
     if (!ctx.queue.length) { finish(); return; }
 
     const minBatch = countAsOne ? batchSize : MIN_BATCH;
-    const { batch, single } = pickMatchBatch(ctx.queue, minBatch, batchSize, pickSide());
+    const { batch, single } = pickMatchBatch(ctx.queue as Card[], minBatch, batchSize, pickSide());
     if (single && batch.length === 1) {
       showStudyCard(first, 'type');
       return;
@@ -281,7 +305,7 @@ export function runReviewSession(ctx) {
     mountStage(widget.box, first, { destroy: widget.destroy });
   }
 
-  function finishSummaryLine() {
+  function finishSummaryLine(): string | null {
     if (ctx.mode === 'match') {
       return `Пары с первой попытки: ${ctx.stats.firstTryOk} из ${ctx.sessionTotal}`;
     }
@@ -300,10 +324,10 @@ export function runReviewSession(ctx) {
     ctx.speakBtn.style.display = 'none';
     ctx.stage.innerHTML = '';
     const introEl = ctx.stage.closest('.view')?.querySelector('.review-intro');
-    if (introEl) introEl.hidden = true;
+    if (introEl) (introEl as HTMLElement).hidden = true;
     ctx.stage.parentElement?.classList.add('review-wrap--done');
     const summaryLine = finishSummaryLine();
-    const stars = computeLessonStars({ mode: ctx.mode, stats: ctx.stats, sessionCards: ctx.sessionTotal });
+    const stars = computeLessonStars({ stats: ctx.stats as unknown as LessonStats, sessionCards: ctx.sessionTotal });
     const statTiles = [
       summaryLine ? el('div', { class: 'stat-tile' }, [
         el('div', { class: 'stat-tile-val' }, `${ctx.stats.firstTryOk}/${ctx.sessionTotal}`),

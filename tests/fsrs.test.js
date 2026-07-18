@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeAll } from 'vitest';
-import { fsrsNext, fsrsIsUntouched, fsrsPreviewLabel, FsrsRating } from '../js/lib/fsrs-engine.js';
-import { isNew, isDue, dueOf, fsrsPreview, srsSnapshot, preloadFsrs } from '../js/lib/srs.js';
+import { fsrsNext, fsrsIsUntouched, fsrsPreviewLabel, FsrsRating } from '../js/lib/fsrs-engine.ts';
+import { isNew, isDue, dueOf, fsrsPreview, srsSnapshot, preloadFsrs } from '../js/lib/srs.ts';
 
 describe('FSRS engine', () => {
   it('untouched card has no fsrs fields', () => {

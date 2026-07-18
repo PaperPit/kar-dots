@@ -1,8 +1,15 @@
 import { el } from '../../ui/ui.js';
 import { richEditor } from '../../ui/rich-editor.js';
 import { imgDrop } from './image-drop.js';
+import type { Card } from '../../data/types.js';
 
-export function buildCardEditorForm(card, state, translateRow) {
+interface CardEditorState {
+  front_img?: string | null;
+  back_img?: string | null;
+  [key: string]: unknown;
+}
+
+export function buildCardEditorForm(card: Card | null, state: CardEditorState, translateRow: HTMLElement) {
   const frontRich = richEditor({
     placeholder: 'Слово или термин',
     value: card ? card.front : '',

@@ -5,7 +5,7 @@ import {
   shouldTryNextGroqModel,
   formatGroqGenerateError,
   GROQ_GENERATE_MODELS,
-} from '../js/lib/groq-generate.js';
+} from '../js/lib/groq-generate.ts';
 
 describe('groq-generate', () => {
   it('groqModelsToTry ставит env-модель первой', () => {

@@ -11,9 +11,10 @@ import { attachFolderDraggable, createUnboxDropZone } from '../../ui/folder-drag
 import { route } from '../../core/router.js';
 import { boxDialog, boxDeleteConfirm } from '../home/box-dialog.js';
 import { folderDialog } from '../home/folder-dialog.js';
+import type { Box, Folder } from '../../data/types.js';
 
-export async function renderBox(boxId) {
-  const box = store.boxes.find(b => b.id === boxId);
+export async function renderBox(boxId: string) {
+  const box = store.boxes.find((b: Box) => b.id === boxId);
   if (!box) { nav('#home'); return; }
 
   const folders = foldersInBox(store.folders, boxId);
@@ -39,14 +40,14 @@ export async function renderBox(boxId) {
     }, svgNode(ICONS.trash)),
   ]);
 
-  const grid = el('div', { class: 'folder-grid' });
+  const grid = el('div', { class: 'folder-grid' }, []);
   const rows = folders.map((f, i) => ({
     f,
     stats: folderCardStatsFromHome(homeStats, f, budget),
     i,
   }));
-  const unboxZone = createUnboxDropZone(async folderId => {
-    const folder = store.folders.find(f => f.id === folderId);
+  const unboxZone = createUnboxDropZone(async (folderId: string) => {
+    const folder = store.folders.find((f: Folder) => f.id === folderId);
     if (!folder || folder.box_id !== boxId) return;
     const ok = await store.assignFolderToBox(folderId, null);
     if (!ok) {
@@ -66,7 +67,7 @@ export async function renderBox(boxId) {
     class: 'add-tile stagger-in',
     style: { '--stagger-delay': (folders.length * 40) + 'ms' },
     onclick: () => folderDialog(null, { box_id: boxId }),
-  }, '+ Новая папка'));
+  }, '+ Новая папка') as HTMLButtonElement);
 
   const empty = !folders.length
     ? el('div', { class: 'empty box-empty' }, [

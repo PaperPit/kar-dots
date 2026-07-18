@@ -1,6 +1,25 @@
 import { el, modal, toast, stripHtml } from '../../ui/ui.js';
+import type { ModalHandle } from '../../ui/ui.js';
 import { store } from '../../core/state.js';
 import { createFlipCard } from '../review/flip-card.js';
+
+interface RichTextEditor {
+  getHTML(): string;
+  isEmpty(): boolean;
+}
+
+interface CardEditorState {
+  front_img?: string | null;
+  back_img?: string | null;
+  [key: string]: unknown;
+}
+
+interface PreviewCtx {
+  frontRich: RichTextEditor;
+  defRich: RichTextEditor;
+  descRich: RichTextEditor;
+  state: CardEditorState;
+}
 
 function previewPromptSide() {
   const dir = store.settings?.direction || 'ftb';
@@ -8,18 +27,18 @@ function previewPromptSide() {
   return 'front';
 }
 
-function buildPreviewCard({ frontRich, defRich, descRich, state }) {
+function buildPreviewCard({ frontRich, defRich, descRich, state }: PreviewCtx) {
   return {
     id: 'preview-draft',
     front: frontRich.getHTML(),
     back: defRich.getHTML(),
     description: descRich.isEmpty() ? '' : descRich.getHTML(),
-    front_img: state.front_img || null,
-    back_img: state.back_img || null,
+    front_img: state.front_img ?? undefined,
+    back_img: state.back_img ?? undefined,
   };
 }
 
-export function openCardPreview(ctx) {
+export function openCardPreview(ctx: PreviewCtx) {
   const { frontRich, defRich, descRich, state } = ctx;
   const frontText = stripHtml(frontRich.getHTML()).trim();
   const backText = stripHtml(defRich.getHTML()).trim();
@@ -43,7 +62,7 @@ export function openCardPreview(ctx) {
 
   const wrap = el('div', { class: 'card-preview-wrap' }, [box]);
 
-  let pm;
+  let pm: ModalHandle;
   pm = modal(el('div', null, [
     el('h3', { class: 'modal-title' }, 'Просмотр карточки'),
     el('p', { class: 'modal-text muted card-preview-lead' },

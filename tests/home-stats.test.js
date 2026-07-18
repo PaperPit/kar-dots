@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { buildHomeStats, folderStudyDue, todayStudyCount, boxStudyDue } from '../js/data/home-stats.js';
+import { buildHomeStats, folderStudyDue, todayStudyCount, boxStudyDue } from '../js/data/home-stats.ts';
 
 describe('buildHomeStats', () => {
   const now = 1_700_000_000_000;

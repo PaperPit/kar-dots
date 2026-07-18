@@ -1,20 +1,40 @@
-import { fsrs, Rating, State, createEmptyCard } from '../vendor/ts-fsrs.mjs';
-import { DAY, MIN, fmtDays } from './time-units.js';
+import {
+  fsrs,
+  Rating,
+  State,
+  createEmptyCard,
+  type FSRSCard,
+  type FSRSScheduler
+} from "../vendor/ts-fsrs.mjs"
+import { DAY, MIN, fmtDays } from "./time-units.js"
 
-let scheduler = null;
+interface StoredFsrsCard {
+  fsrs_reps?: number | null
+  fsrs_due?: number | null
+  fsrs_state?: number | null
+  fsrs_stability?: number | null
+  fsrs_difficulty?: number | null
+  fsrs_elapsed_days?: number | null
+  fsrs_scheduled_days?: number | null
+  fsrs_learning_steps?: number | null
+  fsrs_lapses?: number | null
+  fsrs_last_review?: number | null
+}
 
-function getScheduler() {
-  if (!scheduler) scheduler = fsrs();
-  return scheduler;
+let scheduler: FSRSScheduler | null = null
+
+function getScheduler(): FSRSScheduler {
+  if (!scheduler) scheduler = fsrs()
+  return scheduler
 }
 
 /** Карточка ещё не изучалась алгоритмом FSRS. */
-export function fsrsIsUntouched(card) {
-  return card.fsrs_reps == null && card.fsrs_due == null && card.fsrs_state == null;
+export function fsrsIsUntouched(card: StoredFsrsCard): boolean {
+  return card.fsrs_reps == null && card.fsrs_due == null && card.fsrs_state == null
 }
 
-export function cardToFsrs(card, now = Date.now()) {
-  if (fsrsIsUntouched(card)) return createEmptyCard(new Date(now));
+export function cardToFsrs(card: StoredFsrsCard, now = Date.now()): FSRSCard {
+  if (fsrsIsUntouched(card)) return createEmptyCard(new Date(now))
   return {
     due: new Date(card.fsrs_due ?? now),
     stability: card.fsrs_stability ?? 0,
@@ -25,11 +45,11 @@ export function cardToFsrs(card, now = Date.now()) {
     reps: card.fsrs_reps ?? 0,
     lapses: card.fsrs_lapses ?? 0,
     state: card.fsrs_state ?? State.New,
-    last_review: card.fsrs_last_review ? new Date(card.fsrs_last_review) : undefined,
-  };
+    last_review: card.fsrs_last_review ? new Date(card.fsrs_last_review) : undefined
+  }
 }
 
-export function fsrsToPatch(fsrsCard) {
+export function fsrsToPatch(fsrsCard: FSRSCard): Record<string, number | null> {
   return {
     fsrs_state: fsrsCard.state,
     fsrs_stability: fsrsCard.stability,
@@ -40,34 +60,34 @@ export function fsrsToPatch(fsrsCard) {
     fsrs_reps: fsrsCard.reps,
     fsrs_lapses: fsrsCard.lapses,
     fsrs_learning_steps: fsrsCard.learning_steps,
-    fsrs_last_review: fsrsCard.last_review ? fsrsCard.last_review.getTime() : null,
-  };
+    fsrs_last_review: fsrsCard.last_review ? fsrsCard.last_review.getTime() : null
+  }
 }
 
-export function fsrsNext(card, rating, now = Date.now()) {
-  const result = getScheduler().next(cardToFsrs(card, now), new Date(now), rating);
-  return fsrsToPatch(result.card);
+export function fsrsNext(card: StoredFsrsCard, rating: number, now = Date.now()): Record<string, number | null> {
+  const result = getScheduler().next(cardToFsrs(card, now), new Date(now), rating)
+  return fsrsToPatch(result.card)
 }
 
-export function fsrsPreviewLabel(card, rating, now = Date.now()) {
-  const preview = getScheduler().repeat(cardToFsrs(card, now), new Date(now));
-  return formatFsrsDue(preview[rating].card.due, now);
+export function fsrsPreviewLabel(card: StoredFsrsCard, rating: number, now = Date.now()): string {
+  const preview = getScheduler().repeat(cardToFsrs(card, now), new Date(now))
+  return formatFsrsDue(preview[rating]!.card.due, now)
 }
 
-export function formatFsrsDue(dueDate, now = Date.now()) {
-  const due = dueDate instanceof Date ? dueDate.getTime() : Number(dueDate);
-  const ms = due - now;
-  if (ms <= 0) return 'сейчас';
-  if (ms < MIN) return '< 1 мин';
+export function formatFsrsDue(dueDate: Date | number, now = Date.now()): string {
+  const due = dueDate instanceof Date ? dueDate.getTime() : Number(dueDate)
+  const ms = due - now
+  if (ms <= 0) return "сейчас"
+  if (ms < MIN) return "< 1 мин"
   if (ms < 60 * MIN) {
-    const min = Math.max(1, Math.round(ms / MIN));
-    return min + ' мин';
+    const min = Math.max(1, Math.round(ms / MIN))
+    return min + " мин"
   }
   if (ms < DAY) {
-    const h = Math.round(ms / (60 * MIN));
-    return h + ' ч';
+    const h = Math.round(ms / (60 * MIN))
+    return h + " ч"
   }
-  return fmtDays(ms / DAY);
+  return fmtDays(ms / DAY)
 }
 
-export { Rating as FsrsRating, State as FsrsState };
+export { Rating as FsrsRating, State as FsrsState }

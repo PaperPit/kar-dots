@@ -1,12 +1,22 @@
 import { el, toast, modal } from '../../ui/ui.js';
+import type { ModalHandle } from '../../ui/ui.js';
 import { featherIcon } from '../../ui/helpers.js';
 import { getTranslateDir, translateText } from '../../lib/translate.js';
 import { createTranslateDirToggle } from '../../ui/translate-dir-toggle.js';
 import { buildCardEditorForm } from './form.js';
 import { saveCard, deleteCardAction } from './actions.js';
 import { openCardPreview } from './card-preview.js';
+import type { Card } from '../../data/types.js';
 
-export function cardDialog(folderId, card, opts = {}) {
+interface CardDialogOpts {
+  review?: boolean;
+  fromLesson?: boolean;
+  onSaved?: (patch: Record<string, unknown>) => void;
+  onDeleted?: () => void;
+  [key: string]: unknown;
+}
+
+export function cardDialog(folderId: string, card?: Card | null, opts: CardDialogOpts = {}) {
   const isEditing = !!card;
   const fromLesson = !!(opts.review || opts.fromLesson || opts.onSaved || opts.onDeleted);
   const titleId = 'card-dialog-title';
@@ -15,9 +25,9 @@ export function cardDialog(folderId, card, opts = {}) {
     back_img: card ? card.back_img : null,
   };
 
-  let m;
-  let saveBtn;
-  let saveMoreBtn = null;
+  let m: ModalHandle;
+  let saveBtn: HTMLButtonElement;
+  let saveMoreBtn: HTMLButtonElement | null = null;
   const { btn: dirToggleBtn, getDir: getTranslateDirLocal } = createTranslateDirToggle(getTranslateDir());
 
   const translateBtn = el('button', { type: 'button', class: 'btn translate-btn' }, 'Перевести');
@@ -26,7 +36,7 @@ export function cardDialog(folderId, card, opts = {}) {
     translateBtn,
   ]);
 
-  const { body, frontRich, defRich, descRich } = buildCardEditorForm(card, state, translateRow);
+  const { body, frontRich, defRich, descRich } = buildCardEditorForm(card ?? null, state, translateRow);
 
   translateBtn.addEventListener('click', async () => {
     const src = frontRich.getPlain();
@@ -42,7 +52,7 @@ export function cardDialog(folderId, card, opts = {}) {
       defRich.setPlain(out);
       toast('Перевод подставлен', 'ok');
     } catch (e) {
-      toast(e.message, 'error');
+      toast(e instanceof Error ? e.message : String(e), 'error');
     } finally {
       translateBtn.disabled = false;
       translateBtn.textContent = prev;
@@ -53,9 +63,9 @@ export function cardDialog(folderId, card, opts = {}) {
     cardDialog(folderId);
   }
 
-  async function submit(andContinue) {
+  async function submit(andContinue: boolean) {
     await saveCard({
-      folderId, card, state, frontRich, defRich, descRich,
+      folderId, card: card ?? null, state, frontRich, defRich, descRich,
       fromLesson, opts, m, andContinue, saveBtn, saveMoreBtn, openNewDialog,
     });
   }
@@ -82,7 +92,7 @@ export function cardDialog(folderId, card, opts = {}) {
     ? el('button', {
       type: 'button',
       class: 'btn danger modal-delete-btn',
-      onclick: () => deleteCardAction(card, opts, m),
+      onclick: () => deleteCardAction(card ?? null, opts, m),
     }, 'Удалить')
     : null;
 

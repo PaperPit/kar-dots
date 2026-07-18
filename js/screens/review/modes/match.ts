@@ -1,45 +1,52 @@
+import type { SrsCard } from "../../../lib/srs.js";
 import { el, stripHtml } from '../../../ui/ui.js';
 import { shuffle, haptic } from '../../../ui/helpers.js';
 import { playAnswerFeedbackFromStore } from '../../../lib/sounds.js';
 import { flashMatchPair, flashMatchHint } from '../../../ui/answer-feedback.js';
+
+
+interface MatchCtx {
+  promptSide: 'front' | 'back';
+  onRoundComplete: (results: { card: SrsCard; know: boolean }[]) => void;
+}
 
 const BATCH_SIZE = 4;
 const MIN_BATCH = 2;
 /** Размер раунда «пары» в режиме «Микс» (считается за 1 шаг прогресса). */
 const COMBO_MATCH_BATCH = 5;
 
-function cardSideText(card, side) {
+function cardSideText(card: SrsCard, side: 'front' | 'back') {
   return stripHtml(side === 'front' ? card.front : card.back).trim();
 }
 
 /**
  * Раунд «пары»: слева — показываемая сторона, справа — ответ.
  */
-export function createMatchRound(cards, ctx) {
+export function createMatchRound(cards: SrsCard[], ctx: MatchCtx) {
   const promptSide = ctx.promptSide === 'back' ? 'back' : 'front';
   const answerSide = promptSide === 'front' ? 'back' : 'front';
-  const mistakes = new Set();
-  let selectedTerm = null;
-  let selectedDef = null;
-  const paired = new Map();
+  const mistakes = new Set<string>();
+  let selectedTerm: string | null = null;
+  let selectedDef: string | null = null;
+  const paired = new Map<string, string>();
 
   const promptColClass = promptSide === 'front' ? 'match-col-terms' : 'match-col-defs';
   const answerColClass = promptSide === 'front' ? 'match-col-defs' : 'match-col-terms';
-  const termsCol = el('div', { class: `match-col ${promptColClass}` });
-  const defsCol = el('div', { class: `match-col ${answerColClass}` });
+  const termsCol = el('div', { class: `match-col ${promptColClass}` }, undefined);
+  const defsCol = el('div', { class: `match-col ${answerColClass}` }, undefined);
   const hint = el('p', {
     class: 'study-hint match-hint',
   }, promptSide === 'front'
     ? 'Нажмите термин, затем перевод'
     : 'Нажмите перевод, затем термин');
 
-  const answers = shuffle(cards.map(c => ({
-    cardId: c.id,
-    text: cardSideText(c, answerSide) || '(пусто)',
+  const answers: { cardId: string; text: string }[] = shuffle(cards.map(c => ({
+    cardId: c.id ?? "",
+    text: cardSideText(c, answerSide) || "(пусто)",
   })));
 
-  function promptBtn(card) {
-    const isPaired = paired.has(card.id);
+  function promptBtn(card: SrsCard) {
+    const isPaired = paired.has(card.id ?? "");
     return el('button', {
       type: 'button',
       'data-id': card.id,
@@ -47,11 +54,11 @@ export function createMatchRound(cards, ctx) {
         + (selectedTerm === card.id ? ' is-selected' : '')
         + (isPaired ? ' is-paired' : ''),
       disabled: isPaired,
-      onclick: () => selectTerm(card.id),
+      onclick: () => selectTerm(card.id ?? ""),
     }, cardSideText(card, promptSide) || '(пусто)');
   }
 
-  function answerBtn(item) {
+  function answerBtn(item: { cardId: string; text: string }) {
     const isPaired = [...paired.values()].includes(item.cardId);
     return el('button', {
       type: 'button',
@@ -73,13 +80,13 @@ export function createMatchRound(cards, ctx) {
 
   function tryPair() {
     if (!selectedTerm || !selectedDef) return;
-    const termEl = termsCol.querySelector(`[data-id="${selectedTerm}"]`);
-    const defEl = defsCol.querySelector(`[data-id="${selectedDef}"]`);
+    const termEl = termsCol.querySelector(`[data-id="${selectedTerm}"]`) as HTMLElement;
+    const defEl = defsCol.querySelector(`[data-id="${selectedDef}"]`) as HTMLElement;
     if (selectedTerm === selectedDef) {
       playAnswerFeedbackFromStore(true);
       haptic(8);
       flashMatchPair(termEl, defEl, true, () => {
-        paired.set(selectedTerm, selectedDef);
+        paired.set(selectedTerm ?? "", selectedDef ?? "");
         selectedTerm = null;
         selectedDef = null;
         hint.textContent = paired.size === cards.length
@@ -91,7 +98,7 @@ export function createMatchRound(cards, ctx) {
           setTimeout(() => {
             const results = cards.map(c => ({
               card: c,
-              know: !mistakes.has(c.id),
+              know: !mistakes.has(c.id ?? ""),
             }));
             ctx.onRoundComplete(results);
           }, 480);
@@ -111,14 +118,14 @@ export function createMatchRound(cards, ctx) {
     });
   }
 
-  function selectTerm(id) {
+  function selectTerm(id: string) {
     if (paired.has(id)) return;
     selectedTerm = selectedTerm === id ? null : id;
     selectedDef = null;
     renderBoard();
   }
 
-  function selectDef(id) {
+  function selectDef(id: string) {
     if ([...paired.values()].includes(id)) return;
     selectedDef = selectedDef === id ? null : id;
     if (selectedTerm) tryPair();
@@ -136,12 +143,12 @@ export function createMatchRound(cards, ctx) {
   return { box, destroy() {} };
 }
 
-export function pickMatchBatch(queue, minSize = MIN_BATCH, batchSize = BATCH_SIZE, promptSide = 'front') {
+export function pickMatchBatch(queue: SrsCard[], minSize: number = MIN_BATCH, batchSize: number = BATCH_SIZE, promptSide: 'front' | 'back' = 'front') {
   const answerSide = promptSide === 'back' ? 'front' : 'back';
-  const batch = [];
+  const batch: SrsCard[] = [];
   const skipped = [];
   for (let i = 0; i < queue.length && batch.length < batchSize; i++) {
-    const c = queue[i];
+    const c = queue[i]!;
     if (cardSideText(c, answerSide)) batch.push(c);
     else skipped.push(c);
   }

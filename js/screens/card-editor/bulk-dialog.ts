@@ -1,22 +1,23 @@
 import { store } from '../../core/state.js';
 import { el, toast, modal, spinner } from '../../ui/ui.js';
+import type { ModalHandle } from '../../ui/ui.js';
 import { parseBulkLines, countReadyRows } from '../../lib/card-import.js';
 import { getTranslateDir, translateBatch, sleep } from '../../lib/translate.js';
 import { createTranslateDirToggle } from '../../ui/translate-dir-toggle.js';
 import { route } from '../../core/router.js';
 
-export function bulkCardDialog(folderId) {
-  let m;
-  let addBtn;
-  let previewEl;
+export function bulkCardDialog(folderId: string) {
+  let m: ModalHandle;
+  let addBtn: HTMLButtonElement;
+  let previewEl: HTMLElement;
 
   const textarea = el('textarea', {
     class: 'input bulk-textarea',
     rows: 12,
     placeholder: 'слово — перевод\nhello — привет\n# комментарии игнорируются',
-  });
+  }, undefined);
 
-  const translateMissingChk = el('input', { type: 'checkbox', class: 'chk' });
+  const translateMissingChk = el('input', { type: 'checkbox', class: 'chk' }, undefined);
   const { btn: dirToggleBtn, getDir: getTranslateDirLocal } = createTranslateDirToggle(getTranslateDir());
 
   function updatePreview() {
@@ -75,7 +76,7 @@ export function bulkCardDialog(folderId) {
       await route();
       toast(`Добавлено карточек: ${ok}`, 'ok');
     } catch (e) {
-      toast(e.message, 'error');
+      toast(e instanceof Error ? e.message : String(e), 'error');
     } finally {
       addBtn.disabled = false;
       addBtn.textContent = 'Добавить';

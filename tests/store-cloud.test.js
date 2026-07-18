@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { installFakeIDB } from './fake-idb.js';
-import { DEFAULT_SETTINGS } from '../js/data/store-common.js';
+import { DEFAULT_SETTINGS } from '../js/data/store-common.ts';
 
 const now = 1_700_000_000_000;
 const folderA = { id: 'fa', name: 'A', color: '#000', created_at: 1 };
@@ -37,7 +37,7 @@ describe('CloudStore SRS counts (mirror / offline)', () => {
       }
       static now() { return now; }
     });
-    ({ CloudStore } = await import('../js/data/store-cloud.js'));
+    ({ CloudStore } = await import('../js/data/store-cloud.ts'));
     store = new CloudStore({ userId: () => 'user-1' });
     await store.init();
   });
@@ -113,7 +113,7 @@ describe('CloudStore online fetch', () => {
     ];
     installFakeIDB({ folders: [], cards: [], kv: {} });
     vi.stubGlobal('navigator', { onLine: true, addEventListener: vi.fn() });
-    const { CloudStore } = await import('../js/data/store-cloud.js');
+    const { CloudStore } = await import('../js/data/store-cloud.ts');
     const sb = {
       userId: () => 'user-1',
       select: vi.fn(async (table, query) => {
@@ -125,13 +125,13 @@ describe('CloudStore online fetch', () => {
       count: vi.fn(async () => cloudSrsMeta.length),
     };
     const store = new CloudStore(sb);
-    store.mirror = await (await import('../js/data/sync-queue.js')).openMirrorDB();
+    store.mirror = await (await import('../js/data/sync-queue.ts')).openMirrorDB();
     await store._fetchFromCloud();
     expect(await store.countCards('fa')).toBe(4);
     expect(await store.countCards('fb')).toBe(2);
     expect(await store.countCards(null)).toBe(6);
-    const { mirrorGetKV } = await import('../js/data/sync-queue.js');
-    const { CLOUD_SYNC_KEY } = await import('../js/data/cloud-delta.js');
+    const { mirrorGetKV } = await import('../js/data/sync-queue.ts');
+    const { CLOUD_SYNC_KEY } = await import('../js/data/cloud-delta.ts');
     const sync = await mirrorGetKV(store.mirror, CLOUD_SYNC_KEY);
     expect(sync.userId).toBe('user-1');
     expect(sync.cardsAt).toBeGreaterThan(0);
@@ -143,7 +143,7 @@ describe('CloudStore online fetch', () => {
       { id: 'n1', folder_id: 'fa', sm2_reps: 0, sm2_due: null, box: 0, created_at: 1, updated_at: 10 },
       { id: 'd1', folder_id: 'fa', sm2_reps: 2, sm2_due: now - 1, box: 1, box_due: now - 1, created_at: 2, updated_at: 20 },
     ];
-    const { CLOUD_SYNC_KEY } = await import('../js/data/cloud-delta.js');
+    const { CLOUD_SYNC_KEY } = await import('../js/data/cloud-delta.ts');
     installFakeIDB({
       folders: [folderA],
       cards: [],
@@ -169,9 +169,9 @@ describe('CloudStore online fetch', () => {
       return [];
     });
     const count = vi.fn(async () => 2);
-    const { CloudStore } = await import('../js/data/store-cloud.js');
+    const { CloudStore } = await import('../js/data/store-cloud.ts');
     const store = new CloudStore({ userId: () => 'user-1', select, count });
-    store.mirror = await (await import('../js/data/sync-queue.js')).openMirrorDB();
+    store.mirror = await (await import('../js/data/sync-queue.ts')).openMirrorDB();
     store._srsMeta = baseMeta.slice();
     await store._fetchFromCloud();
     expect(store._srsMeta.find(c => c.id === 'd1').sm2_reps).toBe(9);
@@ -191,7 +191,7 @@ describe('CloudStore online fetch', () => {
     const remaining = [
       { id: 'n1', folder_id: 'fa', sm2_reps: 0, sm2_due: null, box: 0, created_at: 1, updated_at: 10 },
     ];
-    const { CLOUD_SYNC_KEY } = await import('../js/data/cloud-delta.js');
+    const { CLOUD_SYNC_KEY } = await import('../js/data/cloud-delta.ts');
     installFakeIDB({
       folders: [folderA],
       cards: [],
@@ -213,9 +213,9 @@ describe('CloudStore online fetch', () => {
       return [];
     });
     const count = vi.fn(async () => 1);
-    const { CloudStore } = await import('../js/data/store-cloud.js');
+    const { CloudStore } = await import('../js/data/store-cloud.ts');
     const store = new CloudStore({ userId: () => 'user-1', select, count });
-    store.mirror = await (await import('../js/data/sync-queue.js')).openMirrorDB();
+    store.mirror = await (await import('../js/data/sync-queue.ts')).openMirrorDB();
     store._srsMeta = baseMeta.slice();
     await store._fetchFromCloud();
     expect(store._srsMeta).toHaveLength(1);
@@ -238,9 +238,9 @@ describe('CloudStore online fetch', () => {
       update: vi.fn(async () => true),
       remove: vi.fn(async () => true),
     };
-    const { CloudStore } = await import('../js/data/store-cloud.js');
+    const { CloudStore } = await import('../js/data/store-cloud.ts');
     const store = new CloudStore(sb);
-    store.mirror = await (await import('../js/data/sync-queue.js')).openMirrorDB();
+    store.mirror = await (await import('../js/data/sync-queue.ts')).openMirrorDB();
     await store._loadCloudFlags();
     const box = await store.createBox({ name: 'English', color: '#C45528' });
     expect(box.name).toBe('English');
@@ -258,7 +258,7 @@ describe('CloudStore _patchSrsMetaRemoval', () => {
       kv: { settings: DEFAULT_SETTINGS, srs_meta: [srsMeta[0]] },
     });
     vi.stubGlobal('navigator', { onLine: false, addEventListener: vi.fn() });
-    const { CloudStore } = await import('../js/data/store-cloud.js');
+    const { CloudStore } = await import('../js/data/store-cloud.ts');
     const store = new CloudStore({ userId: () => 'u1' });
     await store.init();
     await store.deleteCard('n1');
@@ -274,7 +274,7 @@ describe('CloudStore online review + optimistic updateCard', () => {
   });
 
   it('getReviewCards online uses REVIEW_CARD_FIELDS (not select=*)', async () => {
-    const { REVIEW_CARD_FIELDS } = await import('../js/data/srs-meta.js');
+    const { REVIEW_CARD_FIELDS } = await import('../js/data/srs-meta.ts');
     installFakeIDB({
       folders: [folderA],
       cards: [],
@@ -290,9 +290,9 @@ describe('CloudStore online review + optimistic updateCard', () => {
       if (query.includes('sm2_reps=eq.0')) return [];
       return [];
     });
-    const { CloudStore } = await import('../js/data/store-cloud.js');
+    const { CloudStore } = await import('../js/data/store-cloud.ts');
     const store = new CloudStore({ userId: () => 'user-1', select });
-    store.mirror = await (await import('../js/data/sync-queue.js')).openMirrorDB();
+    store.mirror = await (await import('../js/data/sync-queue.ts')).openMirrorDB();
     store._offline = false;
     store.settings = { ...DEFAULT_SETTINGS };
     const { due } = await store.getReviewCards('fa', 'sm2', 5, now);
@@ -325,8 +325,8 @@ describe('CloudStore online review + optimistic updateCard', () => {
       cloudDone = true;
       return true;
     });
-    const { CloudStore } = await import('../js/data/store-cloud.js');
-    const { openMirrorDB } = await import('../js/data/sync-queue.js');
+    const { CloudStore } = await import('../js/data/store-cloud.ts');
+    const { openMirrorDB } = await import('../js/data/sync-queue.ts');
     const store = new CloudStore({
       userId: () => 'user-1',
       update,
@@ -359,8 +359,8 @@ describe('CloudStore deleteFolder + srs_meta debounce', () => {
       kv: { settings: DEFAULT_SETTINGS, srs_meta: srsMeta },
     });
     vi.stubGlobal('navigator', { onLine: false, addEventListener: vi.fn() });
-    const { CloudStore } = await import('../js/data/store-cloud.js');
-    const { mirrorGetKV } = await import('../js/data/sync-queue.js');
+    const { CloudStore } = await import('../js/data/store-cloud.ts');
+    const { mirrorGetKV } = await import('../js/data/sync-queue.ts');
     const store = new CloudStore({ userId: () => 'u1' });
     await store.init();
     await store.deleteFolder('fa');
@@ -380,16 +380,16 @@ describe('CloudStore deleteFolder + srs_meta debounce', () => {
       kv: { settings: DEFAULT_SETTINGS, srs_meta: [srsMeta[0]] },
     });
     vi.stubGlobal('navigator', { onLine: false, addEventListener: vi.fn() });
-    const sq = await import('../js/data/sync-queue.js');
+    const sq = await import('../js/data/sync-queue.ts');
     const spy = vi.spyOn(sq, 'mirrorSetKV');
-    const { CloudStore } = await import('../js/data/store-cloud.js');
+    const { CloudStore } = await import('../js/data/store-cloud.ts');
     const store = new CloudStore({ userId: () => 'u1' });
     await store.init();
     spy.mockClear();
     store._patchSrsMeta({ id: 'n1', folder_id: 'fa', sm2_reps: 1, sm2_due: now + 1000 });
     store._patchSrsMeta({ id: 'n1', folder_id: 'fa', sm2_reps: 2, sm2_due: now + 2000 });
     expect(spy).not.toHaveBeenCalled();
-    await vi.advanceTimersByTimeAsync(250);
+    await vi.runAllTimersAsync();
     expect(spy).toHaveBeenCalledTimes(1);
     vi.useRealTimers();
     vi.unstubAllGlobals();

@@ -1,71 +1,78 @@
 /** Shared in-memory folder card list cache and per-folder card counts. */
 
+import type { Card } from "./types.js"
+import type { SrsMeta } from "./srs-meta.js"
+
 export class StoreCache {
+  folderCache: Map<string, Card[]>
+  cardCounts: Map<string, number>
+
   constructor() {
-    this.folderCache = new Map();
-    this.cardCounts = new Map();
+    this.folderCache = new Map()
+    this.cardCounts = new Map()
   }
 
   clearFolderLists() {
-    this.folderCache.clear();
+    this.folderCache.clear()
   }
 
   clearAll() {
-    this.folderCache.clear();
-    this.cardCounts.clear();
+    this.folderCache.clear()
+    this.cardCounts.clear()
   }
 
-  deleteFolder(folderId) {
-    this.folderCache.delete(folderId);
-    this.cardCounts.delete(folderId);
+  deleteFolder(folderId: string) {
+    this.folderCache.delete(folderId)
+    this.cardCounts.delete(folderId)
   }
 
-  setCount(folderId, n) {
-    this.cardCounts.set(folderId, n);
+  setCount(folderId: string, n: number) {
+    this.cardCounts.set(folderId, n)
   }
 
-  bumpCount(folderId, delta) {
-    this.cardCounts.set(folderId, Math.max(0, (this.cardCounts.get(folderId) || 0) + delta));
+  bumpCount(folderId: string, delta: number) {
+    this.cardCounts.set(folderId, Math.max(0, (this.cardCounts.get(folderId) || 0) + delta))
   }
 
-  countCards(folderId) {
-    if (folderId) return this.cardCounts.get(folderId) ?? 0;
-    let n = 0;
-    for (const c of this.cardCounts.values()) n += c;
-    return n;
+  countCards(folderId?: string) {
+    if (folderId) return this.cardCounts.get(folderId) ?? 0
+    let n = 0
+    for (const c of this.cardCounts.values()) n += c
+    return n
   }
 
-  hasCount(folderId) {
-    return this.cardCounts.has(folderId);
+  hasCount(folderId: string) {
+    return this.cardCounts.has(folderId)
   }
 
-  getCount(folderId) {
-    return this.cardCounts.get(folderId);
+  getCount(folderId: string) {
+    return this.cardCounts.get(folderId)
   }
 
-  rebuildCountsFromSrsMeta(folders, srsMeta) {
-    this.cardCounts.clear();
+  rebuildCountsFromSrsMeta(folders: { id: string }[], srsMeta: SrsMeta[]) {
+    this.cardCounts.clear()
     for (const f of folders) {
-      this.cardCounts.set(f.id, srsMeta.filter(c => c.folder_id === f.id).length);
+      this.cardCounts.set(f.id, srsMeta.filter((c) => c.folder_id === f.id).length)
     }
   }
 
-  prependCard(folderId, card) {
-    const cached = this.folderCache.get(folderId);
-    if (cached) cached.unshift(card);
+  prependCard(folderId: string, card: Card) {
+    const cached = this.folderCache.get(folderId)
+    if (cached) cached.unshift(card)
   }
 
-  removeCard(folderId, cardId) {
-    const list = this.folderCache.get(folderId);
-    if (!list) return;
-    const idx = list.findIndex(x => x.id === cardId);
-    if (idx >= 0) list.splice(idx, 1);
+  removeCard(folderId: string, cardId: string) {
+    const list = this.folderCache.get(folderId)
+    if (!list) return
+    const idx = list.findIndex((x) => x.id === cardId)
+    if (idx >= 0) list.splice(idx, 1)
   }
 
-  patchCardInLists(cardId, patch) {
+  patchCardInLists(cardId: string, patch: Partial<Card>) {
     for (const list of this.folderCache.values()) {
-      const idx = list.findIndex(x => x.id === cardId);
-      if (idx >= 0) Object.assign(list[idx], patch);
+      const idx = list.findIndex((x) => x.id === cardId)
+      const card = idx >= 0 ? list[idx] : undefined
+      if (card) Object.assign(card, patch)
     }
   }
 }

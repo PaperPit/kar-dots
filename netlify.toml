@@ -1,6 +1,6 @@
 [build]
-  publish = "."
-  command = "node scripts/generate-config.js"
+  publish = "dist"
+  command = "node scripts/generate-config.js && npm run build:bundle"
 
 [build.environment]
   # Ключи Supabase — публичные по дизайну (anon key уезжает в браузер, данные

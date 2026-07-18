@@ -3,7 +3,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "node scripts/dev-server.mjs",
+    "dev": "tsc && node scripts/copy-assets.mjs && node scripts/generate-config.js && node scripts/dev-server.mjs",
     "test": "vitest run",
     "test:e2e": "playwright test",
     "test:e2e:install": "playwright install chromium",
@@ -11,12 +11,21 @@
     "sw:generate": "node scripts/generate-sw-files.js",
     "vendor:motion": "esbuild node_modules/motion/dist/es/mini.mjs --bundle --format=esm --outfile=js/vendor/motion.mjs",
     "vendor:cap-speech": "esbuild node_modules/@capgo/capacitor-speech-recognition/dist/esm/index.js --bundle --format=esm --outfile=js/vendor/capacitor-speech-recognition.mjs",
-    "ios:prepare": "node scripts/prepare-ios-www.js && npm run vendor:cap-speech",
+    "ios:prepare": "npm run build && node scripts/generate-config.js && node scripts/prepare-ios-www.js && npm run vendor:cap-speech",
     "ios:sync": "npm run ios:prepare && npx cap sync ios && node scripts/patch-ios-plist.js",
     "ios:open": "open ios/App/App.xcodeproj",
     "db:status": "supabase migration list --linked",
     "db:push": "supabase db push --linked",
-    "db:repair-init": "supabase migration repair --status applied --linked 0001 0002 0003 0004 0005 0006"
+    "db:repair-init": "supabase migration repair --status applied --linked 0001 0002 0003 0004 0005 0006",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint js/**/*.ts",
+    "lint:fix": "eslint js/**/*.ts --fix",
+    "format": "prettier js/**/*.ts --write",
+    "check:format": "prettier js/**/*.ts --check",
+    "precommit": "npm run lint && npm run format",
+    "prepush": "npm run typecheck && npm run lint && npm run test",
+    "build": "tsc && node scripts/copy-assets.mjs",
+    "build:bundle": "tsc && node scripts/bundle.mjs"
   },
   "dependencies": {
     "@capacitor/keyboard": "^8.0.5",
@@ -29,10 +38,19 @@
     "@capacitor/ios": "^8.4.1",
     "@capacitor/status-bar": "^8.0.2",
     "@capgo/capacitor-speech-recognition": "^8.1.10",
+    "@eslint/js": "^10.0.1",
     "@playwright/test": "^1.54.2",
+    "@types/node": "^26.1.1",
+    "@typescript-eslint/eslint-plugin": "^8.64.0",
+    "@typescript-eslint/parser": "^8.64.0",
     "esbuild": "^0.28.1",
+    "eslint": "^10.7.0",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-prettier": "^5.5.6",
     "happy-dom": "^20.10.6",
+    "prettier": "^3.9.5",
     "ts-fsrs": "^5.4.1",
+    "typescript": "^6.0.3",
     "vitest": "^3.2.4"
   }
 }

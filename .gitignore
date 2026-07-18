@@ -36,3 +36,14 @@ scripts/data/
 # Резервная копия альтернативной реализации YouTube-импорта (можно удалить после ревью)
 _backup_alt_youtube_impl/
 _to_delete/
+
+# Сборка TypeScript: компилируется на место в js/ — игнорируем .js рядом с .ts,
+# но оставляем исходники vendor (.mjs) и config.example.js
+js/**/*.js
+!js/vendor/
+!js/vendor/*.mjs
+!js/config.example.js
+*.tsbuildinfo
+
+# Прод-бандл (esbuild -> dist/). Локальные ключи config.js уже игнорируются выше.
+dist/

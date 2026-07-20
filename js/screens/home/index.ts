@@ -1,11 +1,11 @@
 import { store } from '../../core/state.js';
-import { el, plural, toast } from '../../ui/ui.js';
+import { el, toast } from '../../ui/ui.js';
 import { route } from '../../core/router.js';
 import { folderDragEnabled, attachFolderDraggable, attachBoxDropTarget } from '../../ui/folder-drag.js';
-import { ICONS } from '../../ui/constants.js';
-import { crowBox, emptyFoldersBox, scarecrowBox, svgNode, newBudget } from '../../ui/helpers.js';
+import { emptyFoldersBox, newBudget } from '../../ui/helpers.js';
 import { shell, offlineBanner, setDueBadge } from '../../ui/shell.js';
-import { homeCalendarWidget } from '../../ui/activity-calendar.js';
+import { homeStreakCalendarCard } from '../../ui/activity-calendar.js';
+import { homeGreeting, homeDayCard } from '../../ui/home-day-card.js';
 import { folderDialog } from './folder-dialog.js';
 import { boxDialog } from './box-dialog.js';
 import { studyModePicker } from '../review/mode-picker.js';
@@ -22,48 +22,32 @@ export async function renderHome() {
   setDueBadge(totalToStudy);
   const totalCards = homeStats.totalCards;
   const isWelcome = !store.folders.length && totalCards === 0 && !store.boxes.length;
-  const hasFoldersNoCards = store.folders.length > 0 && totalCards === 0;
 
-  let heroIcon, heroTitle, heroSub, heroBtn;
-  let heroCountNode = null;
-  if (totalToStudy > 0) {
-    heroIcon = crowBox('crow');
-    heroCountNode = el('span', { class: 'tnum' }, String(totalToStudy));
-    heroTitle = ['Сегодня к повторению ', heroCountNode, ` ${plural(totalToStudy, 'карточка', 'карточки', 'карточек')}`];
-    heroSub = 'Ворона ждёт — пара минут, и память скажет спасибо.';
-    heroBtn = el('button', { class: 'btn accent big', onclick: () => studyModePicker({}) }, [svgNode(ICONS.play), 'Повторить']) as HTMLButtonElement;
-  } else if (isWelcome) {
-    heroIcon = crowBox('crow');
-    heroTitle = 'Кар! Рада знакомству';
-    heroSub = 'Я — ворона вашей памяти. Создайте папку или коробку, добавьте слова — или установите готовый пак English A0–A2.';
-    heroBtn = el('div', { class: 'hero-btns' }, [
-      el('button', { class: 'btn accent big', onclick: () => folderDialog(null) }, 'Создать первую папку'),
-      el('button', { class: 'btn big', onclick: () => vocabPacksDialog() }, 'Лексические паки'),
-    ]);
-  } else if (hasFoldersNoCards) {
-    heroIcon = scarecrowBox();
-    heroTitle = 'Поля ждут семена';
-    heroSub = 'Папки уже есть, а слов пока нет. Откройте любую папку и посадите первые карточки — пугало прогонит лень.';
-    heroBtn = null;
+  const calendarPlace = store.settings.calendarPlace
+    ?? (store.settings.showCalendar === false || store.settings.showCalendar === 'hidden'
+      ? 'hidden'
+      : (store.settings.showCalendar === 'right' ? 'right' : 'left'));
+  const isNarrow = typeof window !== 'undefined'
+    && window.matchMedia('(max-width: 719px)').matches;
+  // На телефоне календарь всегда доступен (свёрнутая полоска); left/right/hide — только десктоп
+  const showCalendar = isNarrow || calendarPlace !== 'hidden';
+
+  const dayCard = homeDayCard(totalToStudy, () => studyModePicker({}));
+  const heroRowKids: HTMLElement[] = [];
+  if (showCalendar) {
+    const calCard = homeStreakCalendarCard();
+    if (!isNarrow && calendarPlace === 'left') {
+      heroRowKids.push(calCard, dayCard);
+    } else {
+      heroRowKids.push(dayCard, calCard);
+    }
   } else {
-    heroIcon = crowBox('crow');
-    heroTitle = 'КАР-р-р! Сегодня ты был великолепен!!!';
-    heroSub = 'Добавьте новые слова или загляните позже.';
-    heroBtn = null;
+    heroRowKids.push(dayCard);
   }
 
-  const hero = el('div', { class: 'review-hero' }, [
-    heroIcon,
-    el('div', { class: 'grow' }, [
-      el('h2', null, heroTitle),
-      el('p', null, heroSub),
-    ]),
-    heroBtn,
-  ]);
-
   const loose = looseFolders(store.folders);
+  const libraryGrid = el('div', { class: 'folder-grid library-grid' }, []);
 
-  const boxGrid = el('div', { class: 'folder-grid box-grid' }, []);
   for (let i = 0; i < store.boxes.length; i++) {
     const b = store.boxes[i];
     const stats = boxFolderStatsFromHome(homeStats, store.folders, b.id, budget);
@@ -83,65 +67,68 @@ export async function renderHome() {
       toast(`«${folder.name}» → «${b.name}»`);
       await route();
     });
-    boxGrid.append(card);
+    libraryGrid.append(card);
   }
-  boxGrid.append(el('button', {
-    class: 'add-tile add-tile-box stagger-in',
-    style: { '--stagger-delay': (store.boxes.length * 40) + 'ms' },
-    onclick: () => boxDialog(null),
-  }, '+ Новая коробка') as HTMLButtonElement);
 
-  const folderGrid = el('div', { class: 'folder-grid' }, []);
   for (let i = 0; i < loose.length; i++) {
     const f = loose[i]!;
     const stats = folderCardStatsFromHome(homeStats, f, budget);
-    const card = folderCardEl(f, stats, i);
+    const card = folderCardEl(f, stats, store.boxes.length + i);
     attachFolderDraggable(card, f.id);
-    folderGrid.append(card);
+    libraryGrid.append(card);
   }
-  folderGrid.append(el('button', {
+
+  libraryGrid.append(el('button', {
+    class: 'add-tile add-tile-box stagger-in',
+    style: { '--stagger-delay': ((store.boxes.length + loose.length) * 40) + 'ms' },
+    onclick: () => boxDialog(null),
+  }, '+ Новая коробка') as HTMLButtonElement);
+
+  libraryGrid.append(el('button', {
     class: 'add-tile stagger-in',
-    style: { '--stagger-delay': (loose.length * 40) + 'ms' },
+    style: { '--stagger-delay': ((store.boxes.length + loose.length + 1) * 40) + 'ms' },
     onclick: () => folderDialog(null),
   }, '+ Новая папка') as HTMLButtonElement);
 
-  const calendarPlace = store.settings.calendarPlace
-    ?? (store.settings.showCalendar === false ? 'hidden' : 'left');
-  const calendarAside = calendarPlace !== 'hidden'
-    ? homeCalendarWidget(calendarPlace)
-    : null;
+  const sections: HTMLElement[] = [
+    homeGreeting(totalToStudy),
+    el('div', { class: 'home-hero-row' + (showCalendar ? '' : ' home-hero-row--solo') }, heroRowKids),
+  ];
 
-  const sections = [hero];
-
-  sections.push(
-    el('div', { class: 'home-section-head' }, el('h2', { class: 'home-section-title' }, 'Коробки')),
-    el('p', { class: 'section-hint' }, folderDragEnabled()
-      ? 'Объединяют папки по теме. Перетащите папку на коробку.'
-      : 'Объединяют папки по теме — карточки только в папках.'),
-    boxGrid,
-  );
-
-  if (loose.length || !store.folders.length) {
-    sections.push(
-      el('div', { class: 'home-section-head home-section-spaced' }, el('h2', { class: 'home-section-title' }, 'Папки')),
-      folderGrid,
-    );
+  if (isWelcome) {
+    sections.push(el('div', { class: 'home-welcome' }, [
+      el('p', { class: 'home-welcome-text' },
+        'Я — ворона вашей памяти. Создайте папку или коробку, добавьте слова — или установите готовый пак English A0–A2.'),
+      el('div', { class: 'home-welcome-btns' }, [
+        el('button', { class: 'btn accent big', onclick: () => folderDialog(null) }, 'Создать первую папку'),
+        el('button', { class: 'btn big', onclick: () => vocabPacksDialog() }, 'Лексические паки'),
+      ]),
+    ]));
   }
 
-  const mainCol = el('div', { class: 'home-main' }, sections);
+  sections.push(
+    el('div', { class: 'home-section-head home-library-head' }, [
+      el('h2', { class: 'home-section-title' }, 'Библиотека'),
+      el('span', { class: 'home-section-aside' }, 'коробки и папки'),
+    ]),
+  );
+
+  if (folderDragEnabled() && store.boxes.length) {
+    sections.push(el('p', { class: 'section-hint' }, 'Перетащите папку на коробку, чтобы объединить.'));
+  }
+
+  sections.push(libraryGrid);
 
   if (!store.folders.length && !store.boxes.length) {
-    mainCol.append(el('div', { class: 'empty' }, [
+    sections.push(el('div', { class: 'empty' }, [
       emptyFoldersBox(),
       el('h3', null, 'Пока пусто'),
       el('p', null, 'Создайте коробку или папку — например, «Английский» или «Философия».'),
     ]));
   }
 
-  // Календарь — в main-prepend (вне .view): иначе position:fixed ломается
-  // из‑за transform анимации и calendar уезжает за overflow.
   shell('home', el('div', null, [
     offlineBanner(),
-    el('div', { class: 'home-page' }, [mainCol]),
-  ]), calendarAside);
+    el('div', { class: 'home-page' }, sections),
+  ]), null);
 }

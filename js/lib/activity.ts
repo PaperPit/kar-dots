@@ -1,12 +1,22 @@
-interface ActivityData {
-  days: { [key: string]: { visit?: boolean; reviews?: number } };
+export interface DayRecord {
+  visit?: boolean
+  reviews?: number
+  known?: number
+  failed?: number
+}
+
+export interface ActivityData {
+  days: { [key: string]: DayRecord }
+}
+
+export interface ReviewSplit {
+  known?: number
+  failed?: number
 }
 
 const LS_KEY = "kar_activity";
 const IDB_NAME = "kartochki_activity";
 const IDB_KEY = "data";
-
-type DayRecord = { visit?: boolean; reviews?: number };
 
 let cache: ActivityData | null = null;
 let idbReady: Promise<IDBDatabase | null> | null = null;
@@ -26,13 +36,19 @@ function readLegacyStores(): ActivityData | null {
 }
 
 function mergeDay(a: DayRecord | undefined, b: DayRecord | undefined): DayRecord {
-  return {
+  const out: DayRecord = {
     visit: !!(a?.visit || b?.visit),
     reviews: Math.max(a?.reviews || 0, b?.reviews || 0)
-  };
+  }
+  const known = Math.max(a?.known || 0, b?.known || 0)
+  const failed = Math.max(a?.failed || 0, b?.failed || 0)
+  if (known) out.known = known
+  if (failed) out.failed = failed
+  return out
 }
 
-function mergeActivity(a: ActivityData | null, b: ActivityData | null): ActivityData {
+/** Слить два снимка активности (по дням берём максимумы — для синка устройств). */
+export function mergeActivity(a: ActivityData | null, b: ActivityData | null): ActivityData {
   if (!a) return b ? { days: { ...b.days } } : { days: {} };
   if (!b) return { days: { ...a.days } };
   const days = { ...a.days };
@@ -97,15 +113,22 @@ function ensureCacheFromLegacy() {
   if (!cache) cache = readLegacyStores() || { days: {} };
 }
 
+type ActivityCloudSyncFn = (data: ActivityData) => void
+let cloudSyncFn: ActivityCloudSyncFn | null = null
+/** CloudStore вешает сюда отправку activity в settings; LocalStore — null. */
+export function setActivityCloudSync(fn: ActivityCloudSyncFn | null): void {
+  cloudSyncFn = fn
+}
+
 /** Загрузить и слить активность из IndexedDB и localStorage. Вызывается при старте. */
 export async function initActivity(): Promise<ActivityData> {
   const [idb, legacy] = await Promise.all([idbLoad(), Promise.resolve(readLegacyStores())]);
   cache = mergeActivity(idb, legacy);
-  await persistActivity(cache);
+  await persistActivity(cache, { skipCloud: true });
   return cache;
 }
 
-async function persistActivity(data: ActivityData): Promise<void> {
+async function persistActivity(data: ActivityData, opts: { skipCloud?: boolean } = {}): Promise<void> {
   cache = data;
   const json = JSON.stringify(data);
   try {
@@ -117,6 +140,9 @@ async function persistActivity(data: ActivityData): Promise<void> {
     sessionStorage.setItem(LS_KEY, json);
   } catch (e) {}
   await idbSave(data);
+  if (!opts.skipCloud && cloudSyncFn) {
+    try { cloudSyncFn(data); } catch (e) { console.warn("activity cloud sync", e); }
+  }
 }
 
 export function loadActivity(): ActivityData {
@@ -126,6 +152,17 @@ export function loadActivity(): ActivityData {
 
 export async function saveActivity(data: ActivityData): Promise<void> {
   await persistActivity(data);
+}
+
+/** Применить activity из облака (merge) без обратной отправки. */
+export async function applyRemoteActivity(remote: ActivityData | null | undefined): Promise<boolean> {
+  if (!remote || typeof remote.days !== "object") return false;
+  ensureCacheFromLegacy();
+  const before = JSON.stringify(cache);
+  cache = mergeActivity(cache, remote);
+  if (JSON.stringify(cache) === before) return false;
+  await persistActivity(cache, { skipCloud: true });
+  return true;
 }
 
 export function dayKey(date: Date = new Date()): string {
@@ -154,24 +191,52 @@ export async function recordVisit(): Promise<ActivityData> {
   return data;
 }
 
-export async function recordReview(count: number = 1): Promise<ActivityData> {
+export async function recordReview(count: number = 1, split?: ReviewSplit): Promise<ActivityData> {
   const data = loadActivity();
   const k = dayKey();
   touchDay(data, k);
   const dayRecord = data.days[k]!;
   dayRecord.reviews = (dayRecord.reviews || 0) + count;
+  const knownAdd = split?.known ?? 0;
+  const failedAdd = split?.failed ?? 0;
+  if (knownAdd) dayRecord.known = (dayRecord.known || 0) + knownAdd;
+  if (failedAdd) dayRecord.failed = (dayRecord.failed || 0) + failedAdd;
   await saveActivity(data);
   return data;
 }
 
-export async function undoReview(count: number = 1): Promise<ActivityData> {
+export async function undoReview(count: number = 1, split?: ReviewSplit): Promise<ActivityData> {
   const data = loadActivity();
   const k = dayKey();
   if (data.days[k]) {
     data.days[k].reviews = Math.max(0, (data.days[k].reviews || 0) - count);
+    if (split?.known) {
+      data.days[k].known = Math.max(0, (data.days[k].known || 0) - split.known);
+    }
+    if (split?.failed) {
+      data.days[k].failed = Math.max(0, (data.days[k].failed || 0) - split.failed);
+    }
   }
   await saveActivity(data);
   return data;
+}
+
+/** Известные / проваленные за день. Legacy без split: все reviews → known. */
+export function dayKnownFailed(day: DayRecord | undefined): { known: number; failed: number } {
+  if (!day) return { known: 0, failed: 0 };
+  const hasSplit = day.known != null || day.failed != null;
+  if (hasSplit) {
+    return { known: day.known || 0, failed: day.failed || 0 };
+  }
+  return { known: day.reviews || 0, failed: 0 };
+}
+
+/** Уровень «жара» 0–3 по числу повторений за день. */
+export function dayHeatLevel(reviews: number): 0 | 1 | 2 | 3 {
+  if (reviews <= 0) return 0;
+  if (reviews <= 5) return 1;
+  if (reviews <= 15) return 2;
+  return 3;
 }
 
 export function calcVisitStreak(data: ActivityData): number {

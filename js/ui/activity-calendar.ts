@@ -5,6 +5,7 @@ import {
   calcVisitStreak,
   getMonthGrid,
   dayKey,
+  dayHeatLevel,
   MONTH_NAMES,
   WEEKDAY_NAMES
 } from "../lib/activity.js"
@@ -162,4 +163,100 @@ export function homeCalendarWidget(place: string): HTMLElement {
   aside.append(toggle, expand)
   refreshStrip()
   return aside
+}
+
+/** Inline-карточка серии + календарь месяца (редизайн 1b).
+ *  На узких экранах — сверху, свёрнута до стрика, по тапу раскрывается. */
+export function homeStreakCalendarCard(): HTMLElement {
+  const data = loadActivity()
+  const streak = calcVisitStreak(data)
+  const now = new Date()
+  const year = now.getFullYear()
+  const month = now.getMonth()
+  const todayK = dayKey(now)
+  const monthName = (MONTH_NAMES[month] || "").toLowerCase()
+
+  const weekdays = el(
+    "div",
+    { class: "home-cal-weekdays" },
+    WEEKDAY_NAMES.map((w) => el("div", null, w.toLowerCase()))
+  )
+
+  const grid = el("div", { class: "home-cal-grid" })
+  getMonthGrid(year, month).forEach((cell) => {
+    if (cell.outside) {
+      grid.append(el("div", { class: "home-cal-day is-outside" }))
+      return
+    }
+    const info = data.days[cell.key]
+    const reviews = info?.reviews || 0
+    const heat = dayHeatLevel(reviews)
+    const tip =
+      reviews > 0
+        ? `${cell.day} ${monthName} · ${reviews} ${plural(reviews, "карточка", "карточки", "карточек")}`
+        : `${cell.day} ${monthName}`
+    const cls = ["home-cal-day", `heat-${heat}`]
+    if (cell.key === todayK) cls.push("is-today")
+    grid.append(
+      el("div", { class: cls.join(" "), title: tip }, String(cell.day))
+    )
+  })
+
+  const head = el(
+    "button",
+    {
+      type: "button",
+      class: "streak-cal-head",
+      "aria-expanded": "false",
+      "aria-label": "Открыть календарь активности"
+    },
+    [
+      el("span", { class: "streak-cal-num" }, String(streak)),
+      el(
+        "span",
+        { class: "streak-cal-label" },
+        plural(streak, "день подряд", "дня подряд", "дней подряд")
+      ),
+      el("img", {
+        class: "streak-cal-cup",
+        src: "icons/cup.svg",
+        alt: "",
+        draggable: "false"
+      }),
+      el("span", { class: "streak-cal-chevron", "aria-hidden": "true" })
+    ]
+  )
+
+  const expand = el("div", { class: "streak-cal-expand" }, [
+    weekdays,
+    grid,
+    el(
+      "div",
+      { class: "streak-cal-foot" },
+      `${monthName} ${year} · активность повторений`
+    )
+  ])
+
+  const card = el("div", { class: "streak-cal-card streak-cal-collapsible" }, [
+    head,
+    expand
+  ])
+
+  let open = false
+  function isMobile(): boolean {
+    return window.matchMedia("(max-width: 719px)").matches
+  }
+
+  head.addEventListener("click", () => {
+    if (!isMobile()) return
+    open = !open
+    card.classList.toggle("is-open", open)
+    head.setAttribute("aria-expanded", String(open))
+    head.setAttribute(
+      "aria-label",
+      open ? "Свернуть календарь" : "Открыть календарь активности"
+    )
+  })
+
+  return card
 }

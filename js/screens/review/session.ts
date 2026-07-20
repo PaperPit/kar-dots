@@ -2,7 +2,7 @@ import { store } from '../../core/state.js';
 import * as SRS from '../../lib/srs.js';
 import { el, toast } from '../../ui/ui.js';
 import { speakCardSide, lessonRewardBox } from '../../ui/helpers.js';
-import { computeLessonStars, lessonFinishTitle } from '../../lib/lesson-stars.js';
+import { computeLessonStars } from '../../lib/lesson-stars.js';
 import type { LessonStats } from '../../lib/lesson-stars.js';
 import { playLessonCompleteFromStore } from '../../lib/sounds.js';
 import { nav } from '../../ui/navigation.js';
@@ -20,6 +20,7 @@ import { finishProgressAnswered } from '../../lib/review-progress.js';
 import {
   gradePayload, renderGrades, gradeMatchResults, submitGrade, dismissUndoToast,
 } from './grading.js';
+import { studyModePicker } from './mode-picker.js';
 
 import type { GradeContext } from "./grading.js";
 import type { Card } from "../../data/types.js";
@@ -82,7 +83,16 @@ export function runReviewSession(ctx: ReviewSessionContext) {
 
   function updateBar() {
     const shown = Math.min(ctx.answered, ctx.sessionTotal);
-    ctx.bar.style.width = Math.round(shown / ctx.sessionTotal * 100) + '%';
+    const segs = ctx.bar.querySelectorAll('.progress-seg');
+    if (segs.length) {
+      segs.forEach((seg, i) => {
+        seg.classList.remove('is-done', 'is-current');
+        if (i < shown) seg.classList.add('is-done');
+        else if (i === shown && shown < ctx.sessionTotal) seg.classList.add('is-current');
+      });
+    } else {
+      ctx.bar.style.width = Math.round(shown / ctx.sessionTotal * 100) + '%';
+    }
     ctx.counter.textContent = shown + ' / ' + ctx.sessionTotal;
   }
 
@@ -305,16 +315,6 @@ export function runReviewSession(ctx: ReviewSessionContext) {
     mountStage(widget.box, first, { destroy: widget.destroy });
   }
 
-  function finishSummaryLine(): string | null {
-    if (ctx.mode === 'match') {
-      return `Пары с первой попытки: ${ctx.stats.firstTryOk} из ${ctx.sessionTotal}`;
-    }
-    if (ctx.mode === 'flip' || ctx.mode === 'type' || ctx.mode === 'cloze' || ctx.mode === 'voice' || ctx.mode === 'combo') {
-      return `Верно с первой попытки: ${ctx.stats.firstTryOk} из ${ctx.sessionTotal}`;
-    }
-    return null;
-  }
-
   function finish() {
     if (ctx.undoToastDismiss) { ctx.undoToastDismiss(); ctx.undoToastDismiss = null; }
     clearStage();
@@ -326,27 +326,38 @@ export function runReviewSession(ctx: ReviewSessionContext) {
     const introEl = ctx.stage.closest('.view')?.querySelector('.review-intro');
     if (introEl) (introEl as HTMLElement).hidden = true;
     ctx.stage.parentElement?.classList.add('review-wrap--done');
-    const summaryLine = finishSummaryLine();
     const stars = computeLessonStars({ stats: ctx.stats as unknown as LessonStats, sessionCards: ctx.sessionTotal });
-    const statTiles = [
-      summaryLine ? el('div', { class: 'stat-tile' }, [
-        el('div', { class: 'stat-tile-val' }, `${ctx.stats.firstTryOk}/${ctx.sessionTotal}`),
-        el('div', { class: 'stat-tile-lab' }, 'с первой попытки'),
-      ]) : null,
-      el('div', { class: 'stat-tile' }, [
-        el('div', { class: 'stat-tile-val' }, String(ctx.sessionTotal)),
-        el('div', { class: 'stat-tile-lab' }, ctx.cram ? 'закреплено' : 'повторено'),
-      ]),
-    ].filter(Boolean);
+    const known = ctx.stats.known;
+    const failed = ctx.stats.failed;
+    const homeHash = ctx.folderId ? '#folder/' + ctx.folderId : '#home';
     ctx.stage.append(el('div', { class: 'review-done' }, [
+      el('img', { class: 'review-done-raven', src: 'icons/raven.svg', alt: '', draggable: 'false' }),
+      el('h2', null, 'Сессия завершена!'),
+      el('p', { class: 'review-done-sub' }, 'Ворона довольна. Возвращайтесь завтра — память любит ритм.'),
       lessonRewardBox(stars),
-      el('h2', null, lessonFinishTitle(stars)),
-      el('div', { class: 'stats-grid' }, statTiles),
-      ctx.cram ? null : el('p', { class: 'muted' }, 'Следующие появятся по расписанию.'),
-      el('button', {
-        class: 'btn primary big',
-        onclick: () => nav(ctx.folderId ? '#folder/' + ctx.folderId : '#home'),
-      }, ctx.folderId ? 'К папке' : 'К папкам'),
+      el('div', { class: 'review-done-stats' }, [
+        el('div', { class: 'review-done-stat is-ok' }, [
+          el('div', { class: 'review-done-stat-val' }, String(known)),
+          el('div', { class: 'review-done-stat-lab' }, 'знаю'),
+        ]),
+        el('div', { class: 'review-done-stat is-fail' }, [
+          el('div', { class: 'review-done-stat-val' }, String(failed)),
+          el('div', { class: 'review-done-stat-lab' }, 'повторить ещё'),
+        ]),
+      ]),
+      el('div', { class: 'review-done-actions' }, [
+        el('button', {
+          class: 'btn accent review-done-again',
+          onclick: () => studyModePicker({
+            folderId: ctx.folderId || undefined,
+            cram: ctx.cram || undefined,
+          }),
+        }, 'Ещё раз'),
+        el('button', {
+          class: 'btn review-done-home',
+          onclick: () => nav(homeHash),
+        }, ctx.folderId ? 'К папке' : 'На главную'),
+      ]),
     ]));
     playLessonCompleteFromStore(stars);
   }

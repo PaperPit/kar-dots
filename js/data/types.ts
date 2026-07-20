@@ -60,7 +60,7 @@ export interface Settings {
   theme: "light" | "dark";
   direction?: "ftb" | "btf";
   showCalendar?: "left" | "right" | "hidden";
-  calendarPlace?: "left" | "right";
+  calendarPlace?: "left" | "right" | "hidden";
   dateLocale?: string;
   importTagMode?: "new" | "existing" | "merge";
   importConfirm?: boolean;
@@ -97,4 +97,15 @@ export interface Settings {
   groqApiKey?: string;
   pixabayApiKey?: string;
   giphyApiKey?: string;
+  /** Календарь/серия повторений — синхронизируется между устройствами через settings. */
+  activity?: {
+    days: {
+      [key: string]: {
+        visit?: boolean
+        reviews?: number
+        known?: number
+        failed?: number
+      }
+    }
+  };
 }

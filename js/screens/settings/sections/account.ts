@@ -31,7 +31,11 @@ export function buildAccountGroup(
             isCloud ? 'Карточки останутся в облаке.' : 'Данные останутся в этом браузере — вы сможете вернуться.',
             'Выйти');
           if (!yes) return;
-          if (isCloud) await sb?.signOut();
+          if (isCloud) {
+            const { setActivityCloudSync } = await import('../../../lib/activity.js');
+            setActivityCloudSync(null);
+            await sb?.signOut();
+          }
           localStorage.removeItem('kar_mode');
           setStore(null);
           nav('#home');
@@ -51,8 +55,12 @@ export function buildAccountGroup(
         class: 'btn',
         onclick: async () => {
           try {
+            const cloudish = store as unknown as { syncActivityNow?: () => Promise<unknown> };
+            if (typeof cloudish.syncActivityNow === 'function') {
+              await cloudish.syncActivityNow();
+            }
             const r = await store.flushSync();
-            toast(r.ok ? `Синхронизировано: ${r.ok}` : 'Нечего синхронизировать', 'ok');
+            toast(r.ok ? `Синхронизировано: ${r.ok}` : 'Статистика и очередь обновлены', 'ok');
             await route();
           }           catch (e) { toast(e instanceof Error ? e.message : String(e), 'error'); }
         },

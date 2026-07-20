@@ -8,17 +8,16 @@
 
 .folder-card {
   background: var(--bg-raised);
-  border: 1px solid color-mix(in srgb, var(--line) 88%, var(--accent) 12%);
-  border-radius: var(--radius); padding: var(--sp-4); cursor: pointer;
+  border: none;
+  border-radius: var(--radius-md); padding: var(--sp-4); cursor: pointer;
   min-height: 128px; display: flex; flex-direction: column;
-  box-shadow: var(--shadow); position: relative; overflow: hidden;
-  transition: transform var(--dur) var(--ease), box-shadow var(--dur) var(--ease), border-color var(--dur);
+  box-shadow: var(--shadow-sm); position: relative; overflow: hidden;
+  transition: transform var(--dur) var(--ease), box-shadow var(--dur) var(--ease);
   animation: itemIn .4s var(--ease) backwards;
 }
 .folder-card:hover {
   transform: translateY(-2px);
-  box-shadow: var(--shadow-lg);
-  border-color: color-mix(in srgb, var(--line) 70%, var(--accent) 30%);
+  box-shadow: 0 8px 24px rgba(44,34,25,.1);
 }
 .folder-card:active { transform: scale(.97); }
 .swatch {
@@ -58,19 +57,19 @@
 .folder-card .pack-chip { align-self: flex-start; }
 .folder-card .due-chip {
   position: absolute; top: var(--sp-3); right: var(--sp-3);
-  background: var(--accent-soft); color: var(--terra-deep);
-  font-size: 12px; font-weight: 700; padding: 4px 8px; border-radius: 999px;
+  background: var(--accent); color: #fff;
+  font-size: 11px; font-weight: 700; padding: 2px 9px; border-radius: 999px;
 }
 @keyframes itemIn { from { opacity: 0; transform: translateY(var(--sp-3)); } }
 
 .add-tile {
-  border: 1px dashed var(--line); border-radius: var(--radius);
+  border: 1.5px dashed var(--line); border-radius: var(--radius-md);
   display: grid; place-items: center; min-height: 120px; cursor: pointer;
-  color: var(--ink-faint); font-weight: 600; background: none;
+  color: var(--ink-muted); font-weight: 600; background: none;
   transition: border-color var(--dur), color var(--dur), background var(--dur), transform .16s var(--ease);
   animation: itemIn .4s var(--ease) backwards;
 }
-.add-tile:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }
+.add-tile:hover { border-color: var(--accent); color: var(--accent-text); background: transparent; }
 .add-tile:active { transform: scale(.97); }
 
 /* --- список карточек --------------------------------------- */

@@ -1,14 +1,27 @@
 
-/* --- экран повторения -------------------------------------- */
-.review-wrap { max-width: 560px; margin: 0 auto; }
+/* --- экран повторения — 1b --------------------------------- */
+.review-wrap { max-width: 520px; margin: 0 auto; }
 .review-intro {
   text-align: center; color: var(--ink-soft); font-size: 16px; font-weight: 500;
-  margin: 0 auto var(--sp-5); max-width: 560px; letter-spacing: -.01em;
+  margin: 0 auto var(--sp-5); max-width: 520px; letter-spacing: -.01em;
   animation: itemIn .45s var(--ease) backwards;
 }
 .review-intro .kar { color: var(--accent); font-weight: 800; }
 .review-intro-cram { font-size: 15px; line-height: 1.45; }
-.review-top { display: flex; align-items: center; gap: var(--sp-3); margin-bottom: var(--sp-4); }
+.review-top { display: flex; align-items: center; gap: 12px; margin-bottom: 20px; }
+
+.progress-segs {
+  display: flex; gap: 4px; flex: 1; min-width: 0;
+}
+.progress-seg {
+  flex: 1; height: 4px; border-radius: 99px;
+  background: var(--paper-deep);
+  transition: background .3s var(--ease);
+}
+.progress-seg.is-done { background: var(--accent); }
+.progress-seg.is-current { background: #E8B79C; }
+
+/* legacy solid bar (fallback) */
 .progress {
   flex: 1; height: 6px; border-radius: 999px; background: var(--bg-sunken); overflow: hidden;
 }
@@ -16,7 +29,6 @@
   height: 100%; background: var(--accent); border-radius: 999px;
   transition: width .5s var(--ease);
 }
-/* прогресс колоды — без glow, только бумага + accent */
 .deck-progress {
   height: 8px; background: var(--paper-deep);
   box-shadow: inset 0 1px 2px color-mix(in srgb, var(--ink) 8%, transparent);
@@ -32,8 +44,8 @@
   pointer-events: none;
 }
 .review-count {
-  font-size: 13px; font-weight: 800; color: var(--ink-soft);
-  font-family: var(--font-display); font-variant-numeric: tabular-nums;
+  font-size: 13px; font-weight: 800; color: var(--ink-faint);
+  font-family: var(--font-body); font-variant-numeric: tabular-nums;
   font-style: normal; font-synthesis: none;
 }
 
@@ -46,15 +58,15 @@
   position: relative;
   width: 100%;
   overflow: visible;
-  border-radius: 20px;
+  border-radius: 26px;
   margin-bottom: var(--sp-5);
 }
 .flip-stack {
   position: absolute; inset: 0; z-index: 0;
-  border-radius: 20px;
+  border-radius: 26px;
   background: var(--bg-raised);
-  border: 1px solid var(--line);
-  box-shadow: var(--shadow);
+  border: none;
+  box-shadow: var(--shadow-sm);
   pointer-events: none;
 }
 .flip-stack-1 { transform: translateY(var(--sp-4)) scale(.965); opacity: 1; }
@@ -152,18 +164,18 @@
   transition: transform .64s cubic-bezier(0.22, 1, 0.36, 1), opacity .52s var(--ease);
 }
 .flip-card {
-  position: relative; width: 100%; min-height: 320px; max-height: 72vh;
+  position: relative; width: 100%; min-height: 280px; max-height: 72vh;
   transform-style: preserve-3d;
-  transition: transform .62s cubic-bezier(.3,.08,.16,1), height .3s var(--ease);
+  transition: transform .6s cubic-bezier(.3,.08,.16,1), height .3s var(--ease);
   cursor: pointer;
+  outline: none;
+}
+.flip-card:focus,
+.flip-card:focus-visible {
+  outline: none;
 }
 .flip-card.flipped { transform: rotateY(180deg); }
-/* «нырок»: лёгкое отдаление в середине переворота + расплывающаяся тень.
-   Применяется к НЕ-3D обёртке (.flip-swipe-wrap), а не к самой .flip-card:
-   независимое свойство scale на preserve-3d элементе в Safari вызывало
-   мигание/исчезновение карты при перевороте. Явные 0%/100% — чтобы движок
-   не синтезировал границы неверно. */
-.flip-swipe-wrap.flip-dip { animation: flipDip .62s cubic-bezier(.3,.08,.16,1); }
+.flip-swipe-wrap.flip-dip { animation: flipDip .6s cubic-bezier(.3,.08,.16,1); }
 @keyframes flipDip { 0%, 100% { scale: 1; } 45% { scale: .95; } }
 .flip-face { transition: box-shadow .3s ease; }
 .flip-swipe-wrap.flip-dip .flip-face {
@@ -174,12 +186,23 @@
 }
 .flip-face {
   position: absolute; inset: 0; backface-visibility: hidden; -webkit-backface-visibility: hidden;
-  background: var(--bg-raised); border: 1px solid var(--line); border-radius: 20px;
+  background: var(--bg-raised); border: none; border-radius: 26px;
   box-shadow: var(--shadow-lg);
   display: flex; flex-direction: column; align-items: stretch; justify-content: center;
-  padding: var(--sp-6) var(--sp-5); text-align: center; overflow: hidden;
+  padding: 32px; text-align: center; overflow: hidden;
 }
 .flip-face.backside { transform: rotateY(180deg); }
+.flip-side-chip {
+  align-self: center;
+  font-size: 11px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase;
+  padding: 4px 12px; border-radius: 999px; margin-bottom: 4px;
+}
+.flip-side-chip.is-front {
+  color: var(--accent); background: var(--accent-soft);
+}
+.flip-side-chip.is-back {
+  color: var(--ink-faint); background: var(--bg-sunken);
+}
 .flip-face .side-label {
   position: absolute; top: var(--sp-3); left: 0; right: 0;
   font-size: 11px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase;
@@ -193,23 +216,24 @@
 }
 .flip-face-scroll::-webkit-scrollbar { width: 6px; }
 .flip-face-scroll::-webkit-scrollbar-thumb { background: var(--line); border-radius: 999px; }
-.flip-face-scroll .word { font-size: 52px; font-weight: 750; letter-spacing: -.01em; white-space: pre-wrap; word-break: break-word; }
-.flip-face-scroll .word.small { font-size: 38px; font-weight: 600; }
-.flip-face-scroll .word.long { font-size: 32px; font-weight: 500; text-align: left; }
+.flip-face-scroll .word { font-size: 40px; font-weight: 750; letter-spacing: -.01em; white-space: pre-wrap; word-break: break-word; font-family: var(--font-display); }
+.flip-face-scroll .word.small { font-size: 34px; font-weight: 600; }
+.flip-face-scroll .word.long { font-size: 28px; font-weight: 500; text-align: left; }
 .flip-face-scroll .word b, .flip-face-scroll .word strong { font-weight: 800; }
 .flip-face-scroll .word a { color: var(--accent-text); text-decoration: underline; word-break: break-all; }
 
 /* Оборот: определение + описание */
 .card-definition {
-  font-size: 22px; font-weight: 800; text-align: center;
+  font-size: 34px; font-weight: 750; text-align: center;
   line-height: 1.35; white-space: pre-wrap; word-break: break-word; width: 100%;
+  font-family: var(--font-display); letter-spacing: -.01em;
 }
-.card-definition.long { font-size: 17px; }
+.card-definition.long { font-size: 24px; }
 .card-definition a { color: var(--accent-text); text-decoration: underline; }
 .card-description {
-  font-size: 15px; font-weight: 400; text-align: justify; line-height: 1.5;
-  margin-top: var(--sp-3); width: 100%; white-space: pre-wrap; word-break: break-word;
-  color: var(--ink-soft);
+  font-size: 14px; font-weight: 500; text-align: center; line-height: 1.5;
+  margin-top: var(--sp-3); width: 100%; max-width: 360px; white-space: pre-wrap; word-break: break-word;
+  color: var(--ink-faint); font-style: italic;
 }
 .card-description a { color: var(--accent-text); text-decoration: underline; }
 .card-description b, .card-description strong { font-weight: 700; }
@@ -228,14 +252,14 @@
 }
 
 .flip-face img { max-width: 100%; max-height: 180px; border-radius: 12px; object-fit: contain; flex: none; }
-.flip-hint { text-align: center; color: var(--ink-faint); font-size: 13px; margin-top: var(--sp-3); }
+.flip-hint { text-align: center; color: var(--ink-muted); font-size: 13.5px; font-weight: 500; margin-top: var(--sp-3); }
 
 .card-swap-out { animation: swapOut .3s var(--ease) forwards; }
 .card-swap-in { animation: swapIn .5s cubic-bezier(.18,1.25,.4,1); }
 @keyframes swapOut { to { opacity: 0; transform: translateX(-48px) rotate(-2deg); } }
 @keyframes swapIn { from { opacity: .5; transform: translateY(var(--sp-4)) scale(.955); } }
 
-.grade-row { display: flex; gap: var(--sp-2); margin-top: var(--sp-5); }
+.grade-row { display: flex; gap: 12px; margin-top: 26px; }
 /* FSRS: четыре оценки в один ряд на планшете и выше */
 @media (min-width: 720px) {
   .grade-row:has(.hard) { flex-wrap: nowrap; }
@@ -243,11 +267,11 @@
 }
 @media (max-width: 719px) {
   .grade-row { flex-wrap: wrap; }
-  .grade-row .grade-btn { flex: 1 1 calc(50% - 5px); min-width: 0; }
+  .grade-row .grade-btn { flex: 1 1 calc(50% - 6px); min-width: 0; }
 }
 .swipe-hint {
-  display: none; text-align: center; font-size: 12px; color: var(--ink-faint);
-  margin-top: 10px; line-height: 1.35;
+  display: none; text-align: center; font-size: 12px; color: var(--ink-muted);
+  margin-top: 14px; line-height: 1.35;
 }
 @media (pointer: coarse) {
   .swipe-hint.visible { display: block; }
@@ -256,9 +280,10 @@
   display: none;
   text-align: center;
   font-size: 12px;
-  color: var(--ink-faint);
-  margin-top: 10px;
+  color: var(--ink-muted);
+  margin-top: 14px;
   line-height: 1.35;
+  font-weight: 500;
 }
 @media (pointer: fine) {
   .keyboard-hint { display: block; }
@@ -283,31 +308,128 @@
   .stats-grid { grid-template-columns: repeat(4, 1fr); }
 }
 .grade-btn {
-  flex: 1; border: 0; cursor: pointer; border-radius: 16px; padding: 13px 6px 11px;
+  flex: 1; border: 0; cursor: pointer; border-radius: 999px; padding: 15px 12px;
   display: flex; flex-direction: column; align-items: center; gap: 2px;
+  font-family: var(--font-body);
   font-weight: 700; font-size: 15px;
-  transition: transform .16s var(--ease), opacity var(--dur), filter var(--dur), box-shadow var(--dur);
+  transition: transform .15s var(--ease), box-shadow .15s var(--ease), opacity var(--dur), filter var(--dur);
   animation: itemIn .3s var(--ease) backwards;
-  box-shadow: 0 2px 0 color-mix(in srgb, var(--ink) 8%, transparent);
+  box-shadow: 0 1px 6px rgba(44,34,25,.08);
 }
-.grade-btn:hover { filter: brightness(1.05); transform: translateY(-1px); }
-.grade-btn:active { transform: scale(.94) translateY(0); box-shadow: none; }
+.grade-btn:hover { transform: translateY(-1px); }
+.grade-btn:active { transform: translateY(0); }
 .grade-btn small { font-family: var(--font-body); font-weight: 700; font-size: 11px; opacity: .78; }
-.grade-btn.again { background: var(--danger); color: var(--btn-ink); }
-.grade-btn.hard { background: var(--paper-deep); color: var(--ink-soft); }
-.grade-btn.good { background: var(--ok); color: var(--btn-ink); }
-.grade-btn.easy { background: var(--accent); color: var(--btn-ink); }
+/* 2-grade (leitner/sm2): белая «не знаю» + ink «знаю» */
+.grade-row:not(:has(.hard)) .grade-btn.again {
+  background: var(--bg-raised); color: var(--danger-text);
+  box-shadow: 0 1px 6px rgba(44,34,25,.08);
+}
+.grade-row:not(:has(.hard)) .grade-btn.again:hover {
+  box-shadow: 0 6px 16px rgba(166,58,50,.18);
+}
+.grade-row:not(:has(.hard)) .grade-btn.good {
+  background: var(--ink); color: #fff;
+  box-shadow: none;
+}
+.grade-row:not(:has(.hard)) .grade-btn.good:hover {
+  box-shadow: 0 6px 16px rgba(28,22,17,.28);
+}
+[data-theme="dark"] .grade-row:not(:has(.hard)) .grade-btn.good { color: var(--bg); }
+/* FSRS 4-grade */
+.grade-row:has(.hard) .grade-btn.again { background: var(--danger-soft); color: var(--danger-text); }
+.grade-row:has(.hard) .grade-btn.hard { background: var(--bg-sunken); color: var(--ink-soft); }
+.grade-row:has(.hard) .grade-btn.good { background: var(--ok-soft); color: var(--ok-text); }
+.grade-row:has(.hard) .grade-btn.easy { background: var(--accent); color: #fff; }
 .grade-btn small { opacity: .82; }
-/* стрелки направления свайпа на кнопках «не знаю» (←) и «знаю» (→) */
+/* стрелки направления свайпа */
 .grade-btn.again, .grade-btn.good { position: relative; }
 .grade-btn.again::before, .grade-btn.good::after {
   position: absolute; top: 50%; transform: translateY(-50%);
-  font-size: 17px; font-weight: 800; opacity: .55; line-height: 1;
+  font-size: 17px; font-weight: 800; opacity: .45; line-height: 1;
 }
-.grade-btn.again::before { content: '\2190'; left: 12px; }
-.grade-btn.good::after  { content: '\2192'; right: 12px; }
+.grade-btn.again::before { content: '\2190'; left: 14px; }
+.grade-btn.good::after  { content: '\2192'; right: 14px; }
 
-.review-done { text-align: center; padding: 28px 16px 40px; animation: itemIn .45s var(--ease); overflow: hidden; }
+.review-done {
+  text-align: center;
+  padding: 44px 32px;
+  background: var(--bg-raised);
+  border-radius: 26px;
+  box-shadow: var(--shadow-lg);
+  animation: cardIn .4s var(--ease);
+  overflow: hidden;
+}
+@keyframes cardIn {
+  from { opacity: 0; transform: translateY(16px) scale(.97); }
+}
+.review-done-raven {
+  width: 64px; height: 64px; margin: 0 auto;
+  object-fit: contain; display: block;
+}
+.review-done h2 {
+  margin: 10px 0 0;
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 26px;
+  letter-spacing: -.02em;
+}
+.review-done-sub {
+  font-weight: 500;
+  font-size: 14px;
+  color: var(--ink-faint);
+  margin: 4px 0 0;
+}
+.review-done-stats {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  margin-top: 24px;
+}
+.review-done-stat {
+  border-radius: 16px;
+  padding: 14px 24px;
+  min-width: 100px;
+}
+.review-done-stat.is-ok { background: var(--ok-soft); }
+.review-done-stat.is-fail { background: var(--danger-soft); }
+.review-done-stat-val {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 22px;
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+}
+.review-done-stat.is-ok .review-done-stat-val,
+.review-done-stat.is-ok .review-done-stat-lab { color: var(--ok-text); }
+.review-done-stat.is-fail .review-done-stat-val,
+.review-done-stat.is-fail .review-done-stat-lab { color: var(--danger-text); }
+.review-done-stat-lab {
+  font-weight: 600;
+  font-size: 11.5px;
+  margin-top: 2px;
+}
+.review-done-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  flex-wrap: wrap;
+  margin-top: 26px;
+}
+.review-done-again {
+  border-radius: 999px !important;
+  padding: 12px 24px !important;
+  box-shadow: 0 6px 16px rgba(196,85,40,.28);
+}
+.review-done-home {
+  border-radius: 999px !important;
+  padding: 12px 24px !important;
+  background: color-mix(in srgb, var(--ink) 6%, transparent) !important;
+  color: var(--ink) !important;
+  border: 0 !important;
+}
+.review-done-home:hover {
+  background: color-mix(in srgb, var(--ink) 10%, transparent) !important;
+}
 .review-wrap--done {
   display: flex;
   flex-direction: column;
@@ -325,10 +447,12 @@
 }
 .review-wrap--done .review-done {
   overflow: visible;
-  padding: 8px 16px 12px;
+  padding: 44px 32px;
 }
 .review-wrap--done .review-done .btn {
-  margin-top: 10px;
+  margin-top: 0;
+  width: auto;
+  min-width: 0;
 }
 .review-done .stats-grid { grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); max-width: 360px; margin: 18px auto 22px; }
 .review-done .crow { width: 96px; height: 96px; margin: 0 auto 18px; color: var(--accent); }
@@ -398,28 +522,27 @@
 .review-done .btn { width: auto; min-width: 160px; }
 
 @media (min-width: 720px) {
-  .review-wrap { max-width: 784px; }
-  .review-intro { max-width: 784px; font-size: 18px; margin-bottom: 24px; }
-  .review-top { gap: 18px; margin-bottom: 22px; }
-  .review-count { font-size: 14px; }
-  .deck-progress { height: 12px; }
-  .flip-swipe-area { border-radius: 28px; }
-  .flip-card { min-height: 448px; max-height: 80vh; }
+  .review-wrap { max-width: 520px; }
+  .review-intro { max-width: 520px; font-size: 16px; margin-bottom: 24px; }
+  .review-top { gap: 12px; margin-bottom: 20px; }
+  .review-count { font-size: 13px; }
+  .flip-swipe-area { border-radius: 26px; }
+  .flip-card { min-height: 320px; max-height: 80vh; }
   .flip-face {
-    padding: 39px 36px;
-    border-radius: 28px;
+    padding: 36px 32px;
+    border-radius: 26px;
   }
-  .flip-face-scroll { gap: 20px; }
-  .flip-face-scroll .word { font-size: 73px; }
-  .flip-face-scroll .word.small { font-size: 53px; }
-  .flip-face-scroll .word.long { font-size: 45px; }
-  .card-definition { font-size: 31px; }
+  .flip-face-scroll { gap: 16px; }
+  .flip-face-scroll .word { font-size: 40px; }
+  .flip-face-scroll .word.small { font-size: 34px; }
+  .flip-face-scroll .word.long { font-size: 28px; }
+  .card-definition { font-size: 34px; }
   .card-definition.long { font-size: 24px; }
-  .card-description { font-size: 21px; margin-top: 18px; }
-  .flip-face img { max-height: 252px; border-radius: 14px; }
-  .flip-hint { font-size: 14px; margin-top: 18px; }
-  .grade-row { gap: 12px; margin-top: 24px; }
-  .grade-btn { padding: 16px 8px 14px; font-size: 16px; border-radius: 18px; }
+  .card-description { font-size: 14px; margin-top: 12px; }
+  .flip-face img { max-height: 200px; border-radius: 14px; }
+  .flip-hint { font-size: 13.5px; margin-top: 14px; }
+  .grade-row { gap: 12px; margin-top: 26px; }
+  .grade-btn { padding: 15px 12px; font-size: 15px; border-radius: 999px; }
 }
 
 @media (max-width: 520px) {

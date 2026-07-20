@@ -106,7 +106,10 @@ export async function renderReview(folderId: string | null, opts: ReviewOpts = {
       folder ? ' · «' + folder.name + '»' : '',
     ]);
 
-  const bar = el('div', null, undefined);
+  const segs = el('div', { class: 'progress-segs' }, undefined);
+  for (let i = 0; i < sessionTotal; i++) {
+    segs.append(el('div', { class: 'progress-seg' + (i === 0 ? ' is-current' : '') }));
+  }
   const counter = el('span', { class: 'review-count' }, '');
   const speakBtn = el('button', { class: 'icon-btn', title: 'Озвучить текущую сторону' }, svgNode(ICONS.speaker));
   const editBtn = el('button', { class: 'icon-btn', title: 'Редактировать карточку' }, featherIcon());
@@ -114,7 +117,7 @@ export async function renderReview(folderId: string | null, opts: ReviewOpts = {
   const wrap = el('div', { class: 'review-wrap' }, undefined);
   const top = el('div', { class: 'review-top' }, [
     backBtn(folderId ? '#folder/' + folderId : '#home'),
-    el('div', { class: 'progress deck-progress' }, bar),
+    segs,
     counter,
     speakBtn,
     editBtn,
@@ -143,9 +146,9 @@ export async function renderReview(folderId: string | null, opts: ReviewOpts = {
     currentSwipeWrap: null,
     currentBox: null,
     currentDestroy: null,
-    stats: { attempted: 0, firstTryOk: 0 },
+    stats: { attempted: 0, firstTryOk: 0, known: 0, failed: 0 },
     reshowAfterEdit: undefined,
-    bar,
+    bar: segs,
     counter,
     speakBtn,
     editBtn,

@@ -3,7 +3,7 @@ import * as SRS from '../../lib/srs.js';
 import type { Algo, SrsCard } from '../../lib/srs.js';
 import { el, toast, toastAction } from '../../ui/ui.js';
 import { spendNewBudget, refundNewBudget } from '../../ui/helpers.js';
-import { recordReview, undoReview } from '../../lib/activity.js';
+import { recordReview, undoReview, type ReviewSplit } from '../../lib/activity.js';
 import { animateCardExit } from '../../ui/swipe-grades.js';
 import { comboMatchBatchProgress } from '../../lib/review-progress.js';
 
@@ -24,11 +24,14 @@ export interface PendingUndo {
   spentNewBudget: boolean
   firstTryRecorded: boolean
   firstTryOk: boolean
+  reviewSplit?: ReviewSplit
 }
 
 export interface ReviewStats {
   attempted: number
   firstTryOk: number
+  known: number
+  failed: number
 }
 
 export interface GradeContext {
@@ -170,7 +173,7 @@ export function renderGrades(ctx: GradeContext, card: SrsCard, grades: HTMLEleme
   if (parent && !parent.querySelector('.swipe-hint')) {
     const swipeHint = el('div', { class: 'swipe-hint' }, '← не знаю · → знаю');
     const keyboardHint = el('div', { class: 'keyboard-hint' },
-      '← не знаю · → знаю · пробел — перевернуть · 1–2 — оценки');
+      'клавиши: пробел — перевернуть · ← не знаю · → знаю');
     parent.append(swipeHint, keyboardHint);
     requestAnimationFrame(() => swipeHint.classList.add('visible'));
   }
@@ -204,6 +207,8 @@ export async function applyGrade(ctx: GradeContext, card: SrsCard, g: Grade, opt
   }
   if (!opts.skipProgress) {
     ctx.answered++;
+    if (failed) ctx.stats.failed++;
+    else ctx.stats.known++;
     ctx.updateBar();
   }
   const cur = ctx.stage.firstChild as HTMLElement | null;
@@ -220,7 +225,8 @@ export async function applyGrade(ctx: GradeContext, card: SrsCard, g: Grade, opt
 
   try { await store.updateCard(card.id ?? '', patch); }
   catch (e) { toast('Не сохранилось: ' + (e instanceof Error ? e.message : String(e)), 'error'); }
-  await recordReview();
+  const reviewSplit = failed ? { failed: 1 } : { known: 1 };
+  await recordReview(1, reviewSplit);
 
   ctx.pendingUndo = {
     card: Object.assign({}, card),
@@ -231,6 +237,7 @@ export async function applyGrade(ctx: GradeContext, card: SrsCard, g: Grade, opt
     spentNewBudget,
     firstTryRecorded: !!opts.firstTryRecorded,
     firstTryOk: !!opts.firstTryOk,
+    reviewSplit,
   };
   const showUndoToast = opts.flipGrade && !opts.quiet;
   if (!showUndoToast) {
@@ -269,10 +276,12 @@ export async function undoLastGrade(ctx: GradeContext) {
     if (u.firstTryOk) ctx.stats.firstTryOk--;
   }
   if (ctx.answered > 0) ctx.answered--;
+  if (u.failed) ctx.stats.failed = Math.max(0, ctx.stats.failed - 1);
+  else ctx.stats.known = Math.max(0, ctx.stats.known - 1);
 
   try { await store.updateCard(u.card.id ?? '', u.prevSnap); }
   catch (e) { toast('Не удалось отменить: ' + (e instanceof Error ? e.message : String(e)), 'error'); return; }
-  await undoReview();
+  await undoReview(1, u.reviewSplit);
   ctx.updateBar();
   if (ctx.showNextTimer) { clearTimeout(ctx.showNextTimer); ctx.showNextTimer = null; }
   ctx.showNext(true);

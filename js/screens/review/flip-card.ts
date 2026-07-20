@@ -37,7 +37,7 @@ export function createFlipCard(card: SrsCard, firstSide: 'front' | 'back', opts:
     buildFlipFace(backSide, card, true),
   ]);
 
-  const hint = el('div', { class: 'flip-hint' }, 'Нажмите на карточку, чтобы перевернуть');
+  const hint = el('div', { class: 'flip-hint' }, 'коснитесь, чтобы увидеть перевод');
   const grades = el('div', { class: 'grade-row' }, undefined);
   const swipeWrap = el('div', { class: 'flip-swipe-wrap' }, [flip]);
   // декоративные слои-«стопка» позади карточки: создают ощущение колоды
@@ -111,8 +111,8 @@ export function createFlipCard(card: SrsCard, firstSide: 'front' | 'back', opts:
 
 export function sizeFlipCard(flipEl: HTMLElement) {
   const isDesktop = window.matchMedia('(min-width: 720px)').matches;
-  const padY = isDesktop ? 39 : 28;
-  const minBase = isDesktop ? 448 : 320;
+  const padY = isDesktop ? 36 : 28;
+  const minBase = isDesktop ? 320 : 280;
   const vhFactor = isDesktop ? 0.8 : 0.72;
   const faces = flipEl.querySelectorAll('.flip-face');
   let maxNeeded = minBase;

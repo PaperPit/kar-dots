@@ -1,35 +1,41 @@
 /* ============================================================
-   КАР-точки — 2a: терракота / бумага · Baloo 2 + Nunito
+   КАР-точки — 1b iOS-минимализм · терракота · Baloo 2 + Nunito
    Экраны подключаются параллельными <link> в index.html (не через @import).
    ============================================================ */
 
 :root {
-  --bg: #F6F0E6;
-  --bg-raised: #FFFCF8;
-  --bg-sunken: #EBE2D6;
-  --paper-deep: #E3D9CC;
-  --ink: #2C2219;
+  /* 1b iOS-минимализм: светлее фон, белые карточки, глубина тенями */
+  --bg: #FBFAF7;
+  --bg-raised: #FFFFFF;
+  --bg-sunken: #F1EBE1;
+  --paper-deep: #EBE2D6;
+  --ink: #1C1611;
   --ink-soft: #6E6052;
-  --ink-faint: #857260; /* контраст 4.49 на bg-raised (было #A59484 — 2.86) */
+  --ink-faint: #857260;
+  --ink-muted: #A08D77; /* подписи / вторичные метки */
+  --ink-muted-soft: #B9AB98;
   --line: #DDD2C4;
   --accent: #C45528;
   --accent-bright: #E06F38;
   --accent-soft: #FAEBE0;
   --terra-deep: #8F3D18;
-  --accent-text: #B04A1F; /* акцент как мелкий текст/ссылки: 5.34 AA */
-  --danger: #C4453C;
+  --accent-text: #B04A1F;
+  --danger: #E06D64;
   --danger-soft: #FBE4E1;
+  --danger-text: #A63A32;
   --ok: #4A8F5D;
   --ok-soft: #E0F0E5;
-  --ok-text: #3E7A4F;     /* зелёный как текст: 5.01 AA */
-  --btn-ink: #fff;        /* текст на залитых акцентом/цветом кнопках */
-  --hl-sky: #E3EEF8;      /* подсветка «небо» в rich-тексте */
-  --shadow: 0 1px 3px rgba(44,34,25,.06), 0 6px 20px rgba(44,34,25,.07);
-  --shadow-lg: 0 4px 14px rgba(44,34,25,.08), 0 18px 44px rgba(44,34,25,.12);
-  --radius: 18px;
+  --ok-text: #3E7A4F;
+  --btn-ink: #fff;
+  --hl-sky: #E3EEF8;
+  --shadow: 0 2px 10px rgba(44,34,25,.06), 0 16px 40px rgba(44,34,25,.06);
+  --shadow-sm: 0 1px 6px rgba(44,34,25,.06);
+  --shadow-lg: 0 2px 10px rgba(44,34,25,.07), 0 24px 56px rgba(44,34,25,.1);
+  --radius: 24px;
   --radius-sm: 12px;
+  --radius-md: 20px;
   --folder-gap: 14px;
-  --main-pad-y: 24px;
+  --main-pad-y: 32px;
   --header-h: 67px;
   --sidebar-gutter: 5px;
   --sidebar-scale: 0.9;
@@ -77,15 +83,19 @@
     --accent-soft: #3D2A1C;
     --terra-deep: #C45528;
     --accent-text: #F09058;
+    --ink-muted: #948875;
+    --ink-muted-soft: #7A6E62;
     --danger: #E06D64;
     --danger-soft: #3B2422;
+    --danger-text: #E06D64;
     --ok: #6FBB84;
     --ok-soft: #1F3326;
     --ok-text: #6FBB84;
     --btn-ink: #1A1612;   /* тёмный текст на оранжевом: 5.9 против 3.0 у белого */
     --hl-sky: #263441;
-    --shadow: 0 1px 3px rgba(0,0,0,.35), 0 6px 20px rgba(0,0,0,.35);
-    --shadow-lg: 0 4px 14px rgba(0,0,0,.45), 0 18px 44px rgba(0,0,0,.5);
+    --shadow: 0 2px 10px rgba(0,0,0,.35), 0 16px 40px rgba(0,0,0,.35);
+    --shadow-sm: 0 1px 6px rgba(0,0,0,.3);
+    --shadow-lg: 0 2px 10px rgba(0,0,0,.4), 0 24px 56px rgba(0,0,0,.5);
     --chip-bg:     color-mix(in srgb, var(--ink) 8%, var(--bg-raised));
     --chip-due-bg: color-mix(in srgb, var(--accent) 22%, var(--bg-raised));
     --chip-new-bg: color-mix(in srgb, var(--ok) 22%, var(--bg-raised));
@@ -143,20 +153,21 @@ input, textarea, select { font: inherit; color: inherit; }
   position: sticky; top: 0; z-index: 20;
   background: color-mix(in srgb, var(--bg) 85%, transparent);
   backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
-  border-bottom: 1px solid var(--line);
+  border-bottom: 1px solid color-mix(in srgb, var(--ink) 6%, transparent);
 }
 .header-in {
-  max-width: 980px; margin: 0 auto;
-  padding: calc(12px + env(safe-area-inset-top, 0px)) 20px 12px;
-  display: flex; align-items: center; gap: 12px;
+  max-width: 1200px; margin: 0 auto;
+  padding: calc(14px + env(safe-area-inset-top, 0px)) 24px 14px;
+  display: flex; align-items: center; gap: 10px;
 }
 .brand {
   display: flex; align-items: center; gap: 10px;
+  font-family: var(--font-display);
   font-weight: 700; font-size: 18px; letter-spacing: -.01em;
   cursor: pointer; user-select: none; border: 0; background: none; padding: 0;
 }
 .brand-logo {
-  width: 42px; height: 42px; flex: none; display: block;
+  width: 34px; height: 34px; flex: none; display: block;
   object-fit: contain;
   transition: transform .5s var(--ease), opacity .7s var(--ease), visibility .7s var(--ease);
 }
@@ -165,7 +176,11 @@ input, textarea, select { font: inherit; color: inherit; }
 [data-theme="dark"] .brand-logo { filter: brightness(1.25) contrast(1.05); }
 
 .header-actions { margin-left: auto; display: flex; align-items: center; gap: 12px; }
-.nav-desktop { display: flex; gap: 4px; }
+.nav-desktop {
+  display: flex; align-items: center; gap: 0;
+  background: color-mix(in srgb, var(--ink) 5%, transparent);
+  border-radius: 999px; padding: 3px;
+}
 
 /* Переключатель светлой / тёмной темы (js/ui/theme-toggle.js) */
 .theme-toggle {
@@ -200,26 +215,36 @@ input, textarea, select { font: inherit; color: inherit; }
 }
 .theme-toggle.is-dark .theme-toggle-knob { transform: translate(28px, -50%); }
 .nav-btn {
-  border: 0; background: none; padding: 8px 14px; border-radius: 999px;
-  color: var(--ink-soft); font-weight: 500; cursor: pointer;
-  transition: background var(--dur) var(--ease), color var(--dur) var(--ease);
-  display: flex; align-items: center; gap: 7px;
+  border: 0; background: none; padding: 7px 16px; border-radius: 999px;
+  color: var(--ink-soft); font-family: var(--font-body);
+  font-weight: 600; font-size: 13.5px; cursor: pointer;
+  transition: background var(--dur) var(--ease), color var(--dur) var(--ease), box-shadow var(--dur) var(--ease);
+  display: flex; align-items: center; gap: 6px;
 }
-.nav-btn:hover { background: var(--bg-sunken); color: var(--ink); }
-.nav-btn.active { background: var(--ink); color: var(--bg); }
+.nav-btn:hover { color: var(--ink); }
+.nav-btn.active {
+  background: var(--bg-raised); color: var(--ink); font-weight: 700;
+  box-shadow: 0 1px 4px rgba(44,34,25,.12);
+}
+[data-theme="dark"] .nav-btn.active {
+  box-shadow: 0 1px 4px rgba(0,0,0,.35);
+}
 .nav-btn .badge {
-  background: var(--accent); color: var(--btn-ink); font-size: 12px; font-weight: 700;
+  background: var(--accent); color: #fff; font-size: 11px; font-weight: 800;
   border-radius: 999px; padding: 1px 7px; line-height: 1.4;
 }
-.nav-btn.active .badge { background: var(--accent); }
+.nav-btn.active .badge { background: var(--accent); color: #fff; }
 
 .main {
-  flex: 1; min-height: 0; width: 100%; max-width: 980px; margin: 0 auto;
+  flex: 1; min-height: 0; width: 100%; max-width: 1200px; margin: 0 auto;
   overflow-y: auto; overflow-x: hidden;
   -webkit-overflow-scrolling: touch;
   overscroll-behavior-y: contain;
-  padding: var(--main-pad-y) 20px calc(68px + env(safe-area-inset-bottom));
+  padding: var(--main-pad-y) 24px calc(68px + env(safe-area-inset-bottom));
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* старый Edge */
 }
+.main::-webkit-scrollbar { display: none; width: 0; height: 0; } /* Chrome, Safari */
 @media (min-width: 720px) { .main { padding-bottom: 48px; } }
 @media (max-width: 719px) {
   .app--study-session .main {

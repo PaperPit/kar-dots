@@ -4,11 +4,20 @@ import { LocalStore } from '../../data/index.js';
 import { FOLDER_COLORS } from '../../ui/constants.js';
 import { brandMark, ghostBox } from '../../ui/helpers.js';
 import { nav } from '../../ui/shell.js';
-import { route } from '../../core/router.js';
+import { route, parseHash } from '../../core/router.js';
 import { animateFadeIn } from '../../lib/motion-ui.js';
+import type { CloudStore } from '../../data/store-cloud.js';
 
 function errMsg(e: unknown): string {
   return e instanceof Error ? e.message : String(e);
+}
+
+/** После фоновой синхронизации перерисовать экран (кроме активной сессии повторения). */
+export function attachCloudDataReload(cloud: CloudStore) {
+  cloud.onDataChange(() => {
+    if (parseHash(location.hash).name === 'review') return;
+    route();
+  });
 }
 
 export function renderAuth(busyMsg?: string) {
@@ -110,6 +119,15 @@ export async function enterCloud() {
     const cloud = new CloudStore(sb);
     await cloud.init();
     setStore(cloud);
+    attachCloudDataReload(cloud);
+    // Первое устройство / пустое зеркало: не уходим на пустой home, пока облако не ответит.
+    if (navigator.onLine && !cloud.folders.length && !cloud.boxes.length) {
+      await cloud.whenCloudReady();
+    }
+    if (navigator.onLine) {
+      await cloud.whenCloudReady();
+      await cloud.syncActivityNow();
+    }
     nav('#home');
     await route();
     } catch (e) {

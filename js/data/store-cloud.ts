@@ -40,6 +40,10 @@ import {
   CLOUD_SYNC_KEY, SRS_DELTA_SELECT, shouldUseCardsDelta, mergeSrsDelta,
   nextCardsWatermark, stampUpdatedAt,
 } from './cloud-delta.js';
+import {
+  setActivityCloudSync, applyRemoteActivity, loadActivity,
+  type ActivityData,
+} from '../lib/activity.js';
 
 export { folderSaveErrorMessage } from '../lib/folder-errors.js';
 
@@ -84,7 +88,10 @@ export class CloudStore {
   _homeStatsCache: HomeStats | null
   _homeStatsCacheAlgo: Algo | null
   _srsMetaPersistTimer: ReturnType<typeof setTimeout> | null
+  _activityPushTimer: ReturnType<typeof setTimeout> | null
   _bgSyncTail: Promise<void>
+  /** Промис текущей фоновой синхронизации с облаком (если идёт). */
+  _cloudSyncPromise: Promise<void> | null
 
   constructor(sb: MiniSupabase) {
     this.kind = 'cloud';
@@ -105,7 +112,9 @@ export class CloudStore {
     this._homeStatsCache = null;
     this._homeStatsCacheAlgo = null;
     this._srsMetaPersistTimer = null;
+    this._activityPushTimer = null;
     this._bgSyncTail = Promise.resolve();
+    this._cloudSyncPromise = null;
   }
 
   _invalidateHomeStats() {
@@ -200,7 +209,50 @@ export class CloudStore {
     this.queue.onFlush(item => this._executeSyncItem(item));
     this.queue.onDeadLetter(() => this._notifySync());
     window.addEventListener('online', () => this._onOnline());
+    this._bindActivityCloudSync();
     await this._loadData();
+  }
+
+  /** Активность (календарь/серия) пишется в settings.data и едет между устройствами. */
+  _bindActivityCloudSync() {
+    setActivityCloudSync((data) => {
+      if (this._activityPushTimer) clearTimeout(this._activityPushTimer);
+      this._activityPushTimer = setTimeout(() => {
+        this._activityPushTimer = null;
+        void this._pushActivityToCloud(data);
+      }, 1000);
+    });
+  }
+
+  async _pushActivityToCloud(data: ActivityData) {
+    try {
+      this.settings.activity = data;
+      await this.saveSettings(this.settings);
+    } catch (e) {
+      console.warn('activity cloud push', e);
+    }
+  }
+
+  /** Слить activity из settings с локальной; если на устройстве больше — отправить в облако. */
+  async _ingestRemoteActivity() {
+    const remote = this.settings.activity;
+    const changed = await applyRemoteActivity(remote);
+    const local = loadActivity();
+    if (JSON.stringify(local) !== JSON.stringify(remote || { days: {} })) {
+      await this._pushActivityToCloud(local);
+    }
+    return changed;
+  }
+
+  /** Явно слить/отправить статистику дня (Знаю/Не знаю/серия). Вызывать после входа и с кнопки «Синхронизировать». */
+  async syncActivityNow() {
+    if (this._activityPushTimer) {
+      clearTimeout(this._activityPushTimer);
+      this._activityPushTimer = null;
+    }
+    const changed = await this._ingestRemoteActivity();
+    if (changed) this._emitDataChange();
+    return changed;
   }
 
   async _onOnline() {
@@ -233,7 +285,7 @@ export class CloudStore {
 
   /** Догружает данные из облака в фоне и обновляет UI, не блокируя первый экран. */
   _syncFromCloudInBackground() {
-    Promise.resolve().then(async () => {
+    const run = (async () => {
       try {
         await this._fetchFromCloud();
         this._offline = false;
@@ -244,7 +296,24 @@ export class CloudStore {
         if (isNetworkError(e)) { this._offline = true; this._notifySync(); }
         else console.error('Фоновая синхронизация не удалась:', e);
       }
+    })();
+    this._cloudSyncPromise = run.finally(() => {
+      if (this._cloudSyncPromise === run) this._cloudSyncPromise = null;
     });
+  }
+
+  /**
+   * Дождаться текущей (или только что запущенной) синхронизации с облаком.
+   * Нужно при первом входе, когда зеркало пустое — иначе home рисуется без папок.
+   */
+  async whenCloudReady() {
+    if (this._cloudSyncPromise) {
+      await this._cloudSyncPromise;
+      return;
+    }
+    if (!navigator.onLine) return;
+    this._syncFromCloudInBackground();
+    if (this._cloudSyncPromise) await this._cloudSyncPromise;
   }
 
   async _fetchFromCloud() {
@@ -280,6 +349,7 @@ export class CloudStore {
       this.settings = Object.assign({}, DEFAULT_SETTINGS, settingsRow.data);
     }
     await mirrorSetKV(this.mirror, 'settings', this.settings);
+    await this._ingestRemoteActivity();
     await mirrorSetKV(this.mirror, 'srs_meta', cardsPull.meta);
     const now = Date.now();
     await mirrorSetKV(this.mirror, CLOUD_SYNC_KEY, {
@@ -352,6 +422,7 @@ export class CloudStore {
     this.boxes.sort((a, b) => (a.created_at || 0) - (b.created_at || 0));
     const settings = await mirrorGetKV(this.mirror, 'settings');
     if (settings) this.settings = Object.assign({}, DEFAULT_SETTINGS, settings as Partial<Settings>);
+    await this._ingestRemoteActivity();
     const meta = await mirrorGetKV(this.mirror, 'srs_meta');
     this._srsMeta = (meta as SrsMeta[] | null) || [];
     this._cache.clearAll();

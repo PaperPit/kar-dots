@@ -47,7 +47,13 @@ export function buildFaceScroll(side: "front" | "back", card: Card): HTMLElement
 }
 
 export function buildFlipFace(side: "front" | "back", card: Card, isBackFace: boolean): HTMLElement {
+  const chip = el(
+    "div",
+    { class: "flip-side-chip" + (isBackFace ? " is-back" : " is-front") },
+    isBackFace ? "Перевод" : "Слово"
+  )
   return el("div", { class: "flip-face" + (isBackFace ? " backside" : "") }, [
+    chip,
     buildFaceScroll(side, card)
   ])
 }

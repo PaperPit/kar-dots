@@ -44,9 +44,9 @@ export function folderCardEl(folder: Folder, stats: { n: number; due: number }, 
     [
       folderSwatch(folder),
       el("h3", null, folder.name),
-      el("div", { class: "meta" }, n + " " + plural(n, "карточка", "карточки", "карточек")),
+      el("div", { class: "meta" }, "папка · " + n + " " + plural(n, "карточка", "карточки", "карточек")),
       folder.pack_id ? el("div", { class: "pack-chip" }, "Лексический пак") : null,
-      due > 0 ? el("div", { class: "due-chip" }, due + " к повторению") : null
+      due > 0 ? el("div", { class: "due-chip" }, String(due)) : null
     ]
   )
 }
@@ -54,6 +54,7 @@ export function folderCardEl(folder: Folder, stats: { n: number; due: number }, 
 export function boxCardEl(box: Box, stats: { folders: number; cards: number; due: number }, i: number) {
   const { folders, cards, due } = stats
   const metaParts = [
+    "коробка",
     folders + " " + plural(folders, "папка", "папки", "папок"),
     cards + " " + plural(cards, "карточка", "карточки", "карточек")
   ]
@@ -68,7 +69,7 @@ export function boxCardEl(box: Box, stats: { folders: number; cards: number; due
       boxSwatch(box),
       el("h3", null, box.name),
       el("div", { class: "meta" }, metaParts.join(" · ")),
-      due > 0 ? el("div", { class: "due-chip" }, due + " к повторению") : null
+      due > 0 ? el("div", { class: "due-chip" }, String(due)) : null
     ]
   )
 }

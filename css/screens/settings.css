@@ -198,3 +198,8 @@ input[type="range"].tts-rate { width: 100%; margin: 0; accent-color: var(--accen
 }
 .api-key-status.is-set { color: var(--ok); }
 .api-key-status.is-invalid { color: var(--danger); }
+
+/* Позиция календаря left/right/hide — только на широких экранах */
+@media (max-width: 719px) {
+  .settings-desktop-only { display: none !important; }
+}

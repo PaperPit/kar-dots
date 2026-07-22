@@ -25,7 +25,9 @@
     "precommit": "npm run lint && npm run format",
     "prepush": "npm run typecheck && npm run lint && npm run test",
     "build": "tsc && node scripts/copy-assets.mjs",
-    "build:bundle": "tsc && node scripts/bundle.mjs"
+    "build:bundle": "tsc && node scripts/bundle.mjs",
+    "pages:dev": "npm run build:bundle && wrangler pages dev dist --kv YT_JOBS",
+    "pages:deploy": "npm run build:bundle && wrangler pages deploy dist"
   },
   "dependencies": {
     "@capacitor/keyboard": "^8.0.5",
@@ -43,7 +45,6 @@
     "@types/node": "^26.1.1",
     "@typescript-eslint/eslint-plugin": "^8.64.0",
     "@typescript-eslint/parser": "^8.64.0",
-    "esbuild": "^0.28.1",
     "eslint": "^10.7.0",
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-prettier": "^5.5.6",
@@ -51,6 +52,7 @@
     "prettier": "^3.9.5",
     "ts-fsrs": "^5.4.1",
     "typescript": "^6.0.3",
-    "vitest": "^3.2.4"
+    "vitest": "^3.2.4",
+    "wrangler": "^4.113.0"
   }
 }

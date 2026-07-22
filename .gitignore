@@ -3,6 +3,8 @@ js/config.js
 
 # Локальные переменные окружения (API-ключи) — не коммитить!
 .env
+.dev.vars
+.wrangler/
 
 # Зависимости и сборка
 node_modules/

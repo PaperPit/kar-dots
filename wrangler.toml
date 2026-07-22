@@ -1,0 +1,11 @@
+name = "kar-tochki"
+compatibility_date = "2025-07-01"
+compatibility_flags = ["nodejs_compat"]
+pages_build_output_dir = "dist"
+
+# KV: состояние YouTube-джобов (замена Netlify Blobs).
+# Создайте namespace: npx wrangler kv namespace create YT_JOBS
+# и подставьте id ниже (и в Dashboard → Functions → KV bindings).
+[[kv_namespaces]]
+binding = "YT_JOBS"
+id = "5e57b0e230ad4fc5bf23fde74ac6d625"

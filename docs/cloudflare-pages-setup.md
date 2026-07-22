@@ -1,80 +1,62 @@
 # Cloudflare Pages — настройка
 
 Репозиторий: `https://github.com/PaperPit/kar-dots`  
-Проект Pages: `kar-tochki` → URL будет `https://kar-tochki.pages.dev`
+Прод upstream: **[https://kar-tochki.pages.dev](https://kar-tochki.pages.dev)**  
+Проект Pages: `kar-tochki`
 
-> **Важно:** привязать GitHub к Pages «Connect to Git» **через CLI нельзя** — только в [Dashboard](https://dash.cloudflare.com).  
-> Через терминал: создать проект + KV + деплой; для автодеплоя по `git push` — GitHub Action (уже в репо).
+> Привязать GitHub к Pages «Connect to Git» через CLI нельзя — только в Dashboard.  
+> Через терминал: проект + KV + деплой; автодеплой по `git push` — GitHub Action (уже в репо и работает).
 
 ---
 
-## A. Один раз в терминале (Mac)
+## A. Один раз в терминале
 
 ```bash
-cd "/Users/lustinaleksej/Claude/Projects/Веб приложение Карточки"
+cd kar-dots   # или путь к клону
 
-# 1) Войти в Cloudflare (откроется браузер)
 npx wrangler login
-
-# 2) Создать проект Pages (если ещё нет)
 npx wrangler pages project create kar-tochki --production-branch=main
 
-# 3) KV для YouTube-джобов (если id ещё не в wrangler.toml)
+# KV для YouTube-джобов (подставьте id в wrangler.toml)
 npx wrangler kv namespace create YT_JOBS
-# → вставьте id в wrangler.toml → [[kv_namespaces]] id = "..."
 
-# 4) Первый деплой (получите глобальный URL)
 npm run pages:deploy
 ```
 
-После шага 4 wrangler напечатает ссылку вида `https://….pages.dev`.
-
-### Секреты рантайма функций (CLI)
+### Секреты рантайма функций
 
 ```bash
-# интерактивно спросит значение
 npx wrangler pages secret put GEMINI_API_KEY --project-name=kar-tochki
 npx wrangler pages secret put GROQ_API_KEY --project-name=kar-tochki
 npx wrangler pages secret put SUPADATA_API_KEY --project-name=kar-tochki
 ```
 
-Обычные (не secret) переменные для **сборки** `config.js` удобнее в Dashboard:  
-Workers & Pages → `kar-tochki` → Settings → Environment variables →  
-`SUPABASE_URL`, `SUPABASE_ANON_KEY` (+ при желании PIXABAY/GIPHY).
-
-KV-биндинг: Settings → Functions → KV namespace bindings → `YT_JOBS`.
+Переменные сборки (`SUPABASE_URL`, `SUPABASE_ANON_KEY`) — в GitHub Actions secrets и/или в Dashboard Pages → Environment variables.  
+KV-биндинг: Settings → Functions → `YT_JOBS`.
 
 ---
 
-## B. Автодеплой с GitHub (вместо Connect to Git)
+## B. Автодеплой с GitHub
 
 Workflow: [`.github/workflows/deploy-cloudflare-pages.yml`](../.github/workflows/deploy-cloudflare-pages.yml)
 
-1. Cloudflare Dashboard → **Manage account** → **Account ID** (скопировать).
-2. [API Tokens](https://developers.cloudflare.com/fundamentals/api/get-started/create-token/) → Create Token → шаблон **Edit Cloudflare Workers**  
-   (или Custom: Account → Cloudflare Pages → Edit, Account → Account Settings → Read).
-3. В GitHub: репозиторий **PaperPit/kar-dots** → Settings → Secrets and variables → Actions → New repository secret:
+В GitHub → Settings → Secrets → Actions:
 
 | Secret | Значение |
 |--------|----------|
-| `CLOUDFLARE_API_TOKEN` | токен из п.2 |
-| `CLOUDFLARE_ACCOUNT_ID` | Account ID |
-| `SUPABASE_URL` | ваш URL |
-| `SUPABASE_ANON_KEY` | anon key |
+| `CLOUDFLARE_API_TOKEN` | [Create Token](https://developers.cloudflare.com/fundamentals/api/get-started/create-token/) → Edit Cloudflare Workers |
+| `CLOUDFLARE_ACCOUNT_ID` | Dashboard → Account ID |
+| `SUPABASE_URL` | Project URL |
+| `SUPABASE_ANON_KEY` | anon / publishable key |
 
-4. Закоммитьте workflow (если ещё не в `main`) и сделайте `git push` — Action задеплоит на `kar-tochki.pages.dev`.
+Push в `main` или Actions → **Deploy Cloudflare Pages** → Run workflow.
 
 ---
 
-## C. Вариант Dashboard «Connect to Git» (без GitHub Action)
+## C. Connect to Git в Dashboard (альтернатива Action)
 
-1. [dash.cloudflare.com](https://dash.cloudflare.com) → Workers & Pages → Create → Pages → **Connect to Git**
-2. GitHub → `PaperPit/kar-dots`
-3. Build command: `node scripts/generate-config.js && npm run build:bundle`
-4. Build output directory: `dist`
-5. Env + KV как выше
-
-Тогда Cloudflare сам соберёт при каждом push (лимит ~500 сборок/мес).
+Workers & Pages → Connect to Git → `PaperPit/kar-dots`  
+Build: `node scripts/generate-config.js && npm run build:bundle` → output `dist`.
 
 ---
 
@@ -82,17 +64,18 @@ Workflow: [`.github/workflows/deploy-cloudflare-pages.yml`](../.github/workflows
 
 ```bash
 npm run pages:dev   # http://localhost:8788
+npm run dev         # http://localhost:8080
 ```
 
 Ключи: `.env` или `.dev.vars` (не коммитить).
 
-## Чеклист после деплоя
+## Чеклист
 
-1. Открывается `https://kar-tochki.pages.dev`
-2. Вход Supabase работает
-3. YouTube / TTS / stock API отвечают
+1. Открывается `https://….pages.dev`
+2. Вход Supabase / демо-режим
+3. YouTube, TTS, stock API
 4. В логах Functions нет `process is not defined`
 
 ## Чистка Netlify
 
-После успешной проверки CF — попросите удалить `netlify/functions`, `netlify.toml` и `@netlify/blobs`.
+`netlify/functions` и `netlify.toml` — legacy. После того как Cloudflare устраивает полностью — можно удалить и снять `@netlify/blobs`.

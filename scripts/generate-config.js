@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Создаёт js/config.js при деплое (Netlify / CI) или локально.
+ * Создаёт js/config.js при деплое (Cloudflare Pages / CI) или локально.
  * Ключи Supabase — из переменных окружения SUPABASE_URL и SUPABASE_ANON_KEY.
  * Если не заданы — оставляет существующий js/config.js (локальные ключи)
  * либо копирует config.example.js (демо-режим).

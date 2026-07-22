@@ -9,72 +9,49 @@
 
 | Кому | Деплой | Supabase |
 |------|--------|----------|
-| Только вы, один браузер | не обязателен — `index.html` локально | нет |
-| Вы, PWA на телефоне | Netlify / Pages / VPS | нет (экспорт JSON) |
-| Вы + друзья с аккаунтами | ваш HTTPS-URL | **ваш** проект Supabase |
+| Только вы, один браузер | `npm run dev` локально | нет |
+| Вы, PWA на телефоне | **Cloudflare Pages** | нет (экспорт JSON) |
+| Вы + друзья с аккаунтами | **Cloudflare Pages** (`*.pages.dev`) | **ваш** проект Supabase |
+
+**Прод upstream:** [https://kar-tochki.pages.dev](https://kar-tochki.pages.dev)
 
 ---
 
 ## Статический хостинг
 
-Подойдёт любой HTTPS-хостинг: **Cloudflare Pages** (рекомендуется), **Netlify**, **GitHub Pages**, свой VPS (nginx/apache).
+Основной путь — **Cloudflare Pages** (статика `dist/` + Functions). Также возможны GitHub Pages (только UI) и свой VPS.
 
-### Cloudflare Pages + Functions (рекомендуется)
+### Cloudflare Pages + Functions (основной)
 
-Статика из `dist/` + API в `functions/api/*` (`/api/yt-video`, `/api/yt-generate`, `/api/tts`, `/api/stock-search`, `/api/yt-transcribe`). YouTube-джобы хранятся в Workers KV (`YT_JOBS`).
+Статика из `dist/` + API в `functions/api/*` (`/api/yt-video`, `/api/yt-generate`, `/api/tts`, `/api/stock-search`, `/api/yt-transcribe`). YouTube-джобы — Workers KV (`YT_JOBS`).
 
-1. Аккаунт на [dash.cloudflare.com](https://dash.cloudflare.com), CLI: `npx wrangler login`
-2. KV: `npx wrangler kv namespace create YT_JOBS` → подставить `id` в [`wrangler.toml`](../wrangler.toml)
-3. **Workers & Pages → Create → Pages → Connect to Git** (репозиторий) **или** `npm run pages:deploy`
-4. Build settings:
-   - Framework preset: None
-   - Build command: `node scripts/generate-config.js && npm run build:bundle`
-   - Build output directory: `dist`
-5. Environment variables (Settings → Variables):
+Пошагово: **[cloudflare-pages-setup.md](./cloudflare-pages-setup.md)**. Кратко:
 
-| Переменная | Тип | Зачем |
-|---|---|---|
-| `SUPABASE_URL` | plain | сборка `js/config.js` |
-| `SUPABASE_ANON_KEY` | plain | сборка `js/config.js` (публичный, защищён RLS) |
-| `GEMINI_API_KEY` | secret | генерация карточек |
-| `GROQ_API_KEY` | secret | резерв LLM + Whisper + TTS |
-| `GEMINI_MODEL`, `GROQ_MODEL` | plain (опц.) | переопределить модели |
-| `SUPADATA_API_KEY` | secret (опц.) | фоллбэк транскрипта |
-| `PIXABAY_API_KEY`, `GIPHY_API_KEY` | plain (опц.) | стоковые картинки |
+1. `npx wrangler login`
+2. KV: `npx wrangler kv namespace create YT_JOBS` → `id` в [`wrangler.toml`](../wrangler.toml)
+3. Деплой: GitHub Action на `main` **или** `npm run pages:deploy`
+4. Build (если Connect to Git в Dashboard):
+   - command: `node scripts/generate-config.js && npm run build:bundle`
+   - output: `dist`
+5. Env: `SUPABASE_URL`, `SUPABASE_ANON_KEY`, секреты `GEMINI_*` / `GROQ_*` / `SUPADATA_*`, опц. stock keys
+6. Functions → KV binding `YT_JOBS`
 
-6. Functions → KV namespace bindings → `YT_JOBS` (тот же namespace, что в `wrangler.toml`)
-
-Локально (эмуляция Pages + KV):
+Локально:
 
 ```bash
-# ключи в .dev.vars (не коммитить)
-npm run pages:dev
+npm run pages:dev   # http://localhost:8788 — эмуляция Pages + KV
+npm run dev         # http://localhost:8080 — dev-сервер + netlify/functions (legacy API)
 ```
-
-Обычный `npm run dev` по-прежнему поднимает старый Netlify-совместимый API из `netlify/functions/` (запасной путь).
-
-### Netlify Drop (~1 минута)
-
-1. https://app.netlify.com/drop — перетащите папку проекта
-2. Получите URL вида `https://имя.netlify.app`
-3. Обновление: повторный deploy той же папки
 
 ### GitHub Pages
 
-1. Settings → Pages → Source: branch `main`, folder `/` (root)
-2. Для custom domain — настройте DNS у регистратора
+Только статика из корня — **без** `/api/*` (YouTube-импорт и серверный TTS не работают). Settings → Pages → branch `main`, folder `/`.
 
-### Netlify + Functions (legacy / запасной)
+### Netlify (legacy)
 
-Пока Cloudflare не проверен end-to-end, Netlify остаётся запасным деплоем:
+`netlify.toml` + `netlify/functions/` ещё в репозитории как запасной путь. Новый деплой — на Cloudflare. После полной проверки CF каталог Netlify можно удалить.
 
-1. Подключите репозиторий к Netlify
-2. Build command: `node scripts/generate-config.js && npm run build:bundle` (см. `netlify.toml`)
-3. Publish directory: `dist`
-4. Functions: `netlify/functions/`
-5. Переменные окружения — см. [youtube-import-setup.md](./youtube-import-setup.md)
-
-> PWA и камера требуют **HTTPS** — перечисленные платформы выдают его автоматически.
+> PWA и камера требуют **HTTPS**.
 
 ---
 
@@ -103,6 +80,7 @@ supabase/migrations/0004_boxes.sql
 supabase/migrations/0005_updated_at.sql
 supabase/migrations/0006_cards_updated_at_idx.sql
 supabase/migrations/0007_settings_rls.sql
+supabase/migrations/0008_review_log.sql
 ```
 
 **Вариант B — один файл**
@@ -116,11 +94,13 @@ supabase/migrations/0007_settings_rls.sql
 `js/config.js`:
 
 ```js
-window.KAR_CONFIG = {
+export default {
   SUPABASE_URL: 'https://xxxx.supabase.co',
   SUPABASE_ANON_KEY: 'eyJ...',
 };
 ```
+
+На Cloudflare Pages ключи обычно задают через env (`SUPABASE_URL` / `SUPABASE_ANON_KEY`) — `scripts/generate-config.js` собирает `config.js` при билде.
 
 Anon key безопасен на клиенте — доступ ограничен RLS-политиками.
 

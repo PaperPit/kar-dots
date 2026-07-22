@@ -140,7 +140,7 @@ export async function POST(request: Request) {
 |-------------|----------|
 | **Local dev** | Separate Node worker process + optional Python sidecars |
 | **Self-hosted VPS** | Same worker on same machine; write temp audio to disk |
-| **Vercel / serverless** | **External worker required** — Route Handlers have timeouts, often no persistent filesystem, no shared state between invocations |
+| **Serverless (Cloudflare Pages Functions и аналоги)** | Workers/KV; без жёсткого 10s-таймаута Netlify; для Whisper — `waitUntil` |
 
 For MVP, plan a **dedicated worker** from day one:
 

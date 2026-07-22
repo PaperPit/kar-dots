@@ -3,11 +3,14 @@
 Пошаговая инструкция **для любого пользователя** — без опыта программирования (где возможно).  
 КАР-точки — open source: вы поднимаете **свой** экземпляр приложения и открываете его на компьютере и телефоне.
 
+**Живое демо upstream:** [https://kar-tochki.pages.dev](https://kar-tochki.pages.dev)  
+(можно попробовать сразу; для своих данных и друзей лучше свой деплой + свой Supabase.)
+
 **Содержание**
 
 1. [Какой способ выбрать](#1-какой-способ-выбрать)
-2. [Способ A: выложить в интернет за 5 минут (Netlify Drop)](#2-способ-a-выложить-в-интернет-за-5-минут-netlify-drop)
-3. [Способ B: через GitHub Pages](#3-способ-b-через-github-pages)
+2. [Способ A: Cloudflare Pages (рекомендуется)](#2-способ-a-cloudflare-pages-рекомендуется)
+3. [Способ B: через GitHub Pages (только статика)](#3-способ-b-через-github-pages-только-статика)
 4. [Способ C: только на своём компьютере](#4-способ-c-только-на-своём-компьютере)
 5. [Подключить облако Supabase (sync + друзья)](#5-подключить-облако-supabase-sync--друзья)
 6. [Первый запуск приложения](#6-первый-запуск-приложения)
@@ -24,55 +27,68 @@
 
 | Цель | Способ | Время |
 |------|--------|-------|
-| Быстро получить ссылку для себя и телефона | [A — Netlify Drop](#2-способ-a-выложить-в-интернет-за-5-минут-netlify-drop) | ~5 мин |
-| Держать код на GitHub, обновлять через git | [B — GitHub Pages](#3-способ-b-через-github-pages) | ~15 мин |
-| Только один компьютер, без ссылки в интернет | [C — локально](#4-способ-c-только-на-своём-компьютере) | ~3 мин |
-| Карточки на телефоне **и** компе, один аккаунт | A или B + [Supabase](#5-подключить-облако-supabase-sync--друзья) | +20 мин |
-| Друзья с **отдельными** коллекциями | A или B + Supabase, раздать ссылку | +20 мин |
+| Попробовать без установки | [Демо](https://kar-tochki.pages.dev) | 1 мин |
+| Свой сайт + YouTube/TTS API | [A — Cloudflare Pages](#2-способ-a-cloudflare-pages-рекомендуется) | ~20 мин |
+| Только статика (без серверного YouTube) | [B — GitHub Pages](#3-способ-b-через-github-pages-только-статика) | ~15 мин |
+| Только один компьютер | [C — локально](#4-способ-c-только-на-своём-компьютере) | ~3 мин |
+| Карточки на телефоне **и** компе | A + [Supabase](#5-подключить-облако-supabase-sync--друзья) | +20 мин |
+| Друзья с **отдельными** коллекциями | A + Supabase, раздать ссылку | +20 мин |
 
-> **Важно:** установка на телефон как приложение и камера для картинок работают только по **HTTPS**-ссылке (Netlify, GitHub Pages, Vercel и т.п.). Просто «файл на диске» на телефон так не поставить.
+> **Важно:** установка на телефон как приложение и камера для картинок работают только по **HTTPS**-ссылке (Cloudflare Pages и т.п.). Просто «файл на диске» на телефон так не поставить.  
+> Импорт из YouTube и Orpheus TTS нуждаются в **Pages Functions** — поэтому для полного функционала выбирайте способ A.
 
 ---
 
-## 2. Способ A: выложить в интернет за 5 минут (Netlify Drop)
+## 2. Способ A: Cloudflare Pages (рекомендуется)
 
-Самый простой путь: перетащить папку в браузер — получить ссылку вида `https://что-то.netlify.app`.
+Получите ссылку вида `https://ваше-имя.pages.dev` со статикой **и** API (`/api/yt-video`, `/api/yt-generate`, …).
 
-### Шаг 1. Скачать проект
+Подробная шпаргалка для админа: **[cloudflare-pages-setup.md](./cloudflare-pages-setup.md)**.
 
-1. Откройте https://github.com/PaperPit/kar-dots  
-2. Нажмите зелёную кнопку **Code** → **Download ZIP**  
-3. Распакуйте архив в удобное место, например `Документы/kar-dots`
+### Вариант A1 — через GitHub (удобно обновлять)
 
-### Шаг 2. (Опционально) Настроить облако
+1. Сделайте **Fork** https://github.com/PaperPit/kar-dots  
+2. В Cloudflare: [dash.cloudflare.com](https://dash.cloudflare.com) → аккаунт → скопируйте **Account ID**  
+3. Создайте [API Token](https://developers.cloudflare.com/fundamentals/api/get-started/create-token/) (шаблон **Edit Cloudflare Workers**)  
+4. В форке GitHub → **Settings → Secrets and variables → Actions** добавьте:
+   - `CLOUDFLARE_API_TOKEN`
+   - `CLOUDFLARE_ACCOUNT_ID`
+   - `SUPABASE_URL` и `SUPABASE_ANON_KEY` (если уже есть проект Supabase; иначе можно позже)
+5. Один раз создайте проект Pages и KV (в терминале или по инструкции в [cloudflare-pages-setup.md](./cloudflare-pages-setup.md)):
+   ```bash
+   npx wrangler login
+   npx wrangler pages project create ваше-имя --production-branch=main
+   npx wrangler kv namespace create YT_JOBS
+   ```
+6. Запустите workflow **Deploy Cloudflare Pages** (Actions → Run workflow) или сделайте любой `git push` в `main`  
+7. Откройте `https://ваше-имя.pages.dev` (имя проекта = имя в `wrangler pages project create`)
 
-Если пока нужен только режим «без регистрации» — **пропустите** этот шаг.
+Секреты для YouTube/LLM на сервере: `wrangler pages secret put GEMINI_API_KEY` / `GROQ_API_KEY` / `SUPADATA_API_KEY` — см. [youtube-import-setup.md](./youtube-import-setup.md).
 
-Если нужны аккаунты и sync — сначала выполните [раздел 5](#5-подключить-облако-supabase-sync--друзья), шаги 1–3 (создать `js/config.js`).
+### Вариант A2 — ручной деплой из терминала
 
-### Шаг 3. Загрузить на Netlify
+```bash
+git clone https://github.com/PaperPit/kar-dots.git
+cd kar-dots
+npm install
+npx wrangler login
+npx wrangler pages project create kar-tochki --production-branch=main
+npm run pages:deploy
+```
 
-1. Зарегистрируйтесь на https://app.netlify.com (можно через Google/GitHub)  
-2. Откройте https://app.netlify.com/drop  
-3. **Перетащите** всю папку `kar-dots` в окно браузера  
-4. Подождите 30–60 секунд  
-5. Netlify покажет ссылку, например `https://random-name-123.netlify.app` — **сохраните её**
+В конце wrangler покажет URL. Обновление: снова `npm run pages:deploy` или push в `main` (если настроен Action).
 
-### Шаг 4. Проверить
+### Проверка
 
 1. Откройте ссылку в Chrome или Safari  
-2. Должен появиться экран входа с вороной и кнопкой **«Попробовать без регистрации»**  
-3. Если видите приложение — деплой успешен
-
-### Обновление после правок
-
-Снова перетащите папку в Netlify → **Deploys** → Drop, или подключите репозиторий GitHub для автодеплоя (см. [DEPLOY.md](./DEPLOY.md)).
+2. Экран входа с вороной и **«Попробовать без регистрации»**  
+3. Приложение открылось — деплой успешен
 
 ---
 
-## 3. Способ B: через GitHub Pages
+## 3. Способ B: через GitHub Pages (только статика)
 
-Подходит, если у вас есть аккаунт GitHub и вы хотите хранить **свою** копию репозитория.
+Подходит, если нужен простой HTTPS без серверных функций. **Импорт YouTube / серверный TTS на GitHub Pages не работают** (нет `/api/*`). Для полного функционала — [способ A](#2-способ-a-cloudflare-pages-рекомендуется).
 
 ### Шаг 1. Fork
 
@@ -82,18 +98,20 @@
 
 В **своём** форке создайте файл `js/config.js` (через веб-редактор GitHub или локально):
 
-1. Откройте `js/config.example.js` → **Copy raw** / скопируйте содержимое  
-2. Создайте новый файл `js/config.js` с тем же содержимым  
+1. Откройте `js/config.example.js` → скопируйте содержимое  
+2. Создайте `js/config.js` с тем же содержимым  
 3. Вставьте URL и anon key из Supabase ([раздел 5](#5-подключить-облако-supabase-sync--друзья))
 
-> Файл `config.js` в оригинальном репозитории не коммитится (ключи секретные). В **вашем** форке вы можете его добавить — это **ваши** ключи на **вашем** инстансе.
+> Файл `config.js` в оригинальном репозитории не коммитится. В **вашем** форке вы можете его добавить — это **ваши** ключи.
 
 ### Шаг 3. Включить Pages
 
-1. В форке: **Settings** → слева **Pages**  
-2. **Build and deployment** → Source: **Deploy from a branch**  
+1. В форке: **Settings** → **Pages**  
+2. Source: **Deploy from a branch**  
 3. Branch: **main**, folder: **/ (root)** → **Save**  
-4. Через 1–3 минуты появится URL: `https://ВАШ-ЛОГИН.github.io/kar-dots/`
+4. URL: `https://ВАШ-ЛОГИН.github.io/kar-dots/`
+
+> Для продакшена с бандлом лучше Cloudflare (`dist/`). GitHub Pages из корня — упрощённый вариант для демо UI.
 
 ### Шаг 4. Открыть приложение
 
@@ -111,7 +129,7 @@
 
 ### Windows / macOS / Linux — через Python
 
-1. Скачайте и распакуйте проект (см. [шаг 1 способа A](#шаг-1-скачать-проект))  
+1. Скачайте и распакуйте проект (ZIP с GitHub: **Code → Download ZIP**)  
 2. Откройте **Терминал** (macOS) или **cmd/PowerShell** (Windows)  
 3. Перейдите в папку проекта, например:
 
@@ -184,7 +202,7 @@ export default {
 ```
 
 3. Сохраните файл  
-4. **Заново** загрузите проект на Netlify / закоммитьте в форк для GitHub Pages
+4. **Заново** задеплойте на Cloudflare (`npm run pages:deploy` или push в `main`) / обновите GitHub Pages
 
 ### Шаг 5. Упростить регистрацию (рекомендуется для друзей)
 
@@ -281,7 +299,7 @@ Safari хуже поддерживает установку PWA. Удобнее 
 
 ## 8. Как установить на телефон (PWA)
 
-Нужна **ваша HTTPS-ссылка** (Netlify, GitHub Pages и т.д.).
+Нужна **ваша HTTPS-ссылка** (Cloudflare Pages и т.д.).
 
 ### Android (Chrome)
 
@@ -345,12 +363,12 @@ Safari хуже поддерживает установку PWA. Удобнее 
 
 1. Разверните свой инстанс (способ A или B)  
 2. Подключите [Supabase](#5-подключить-облако-supabase-sync--друзья)  
-3. Отправьте друзьям ссылку, например `https://my-kar.netlify.app`  
+3. Отправьте друзьям ссылку, например `https://kar-tochki.pages.dev`  
 4. Каждый нажимает **Создать аккаунт** со **своей** почтой  
 
 **У каждого своя коллекция** — вы не видите чужие карточки, друзья не видят ваши.
 
-Вы отвечаете только за хостинг (Netlify бесплатно) и лимиты **вашего** Supabase (бесплатного тарифа обычно хватает на небольшую компанию).
+Вы отвечаете только за хостинг (Cloudflare Pages бесплатно) и лимиты **вашего** Supabase (бесплатного тарифа обычно хватает на небольшую компанию).
 
 ---
 
@@ -381,7 +399,7 @@ Safari хуже поддерживает установку PWA. Удобнее 
 В Supabase отключите **Confirm email** (см. [шаг 5](#шаг-5-упростить-регистрацию-рекомендуется-для-друзей)).
 
 **YouTube-импорт не работает**  
-Нужны ключи Supadata / Gemini / Groq в **Настройках → Интеграции** и Netlify Functions при деплое — см. [youtube-import-setup.md](./youtube-import-setup.md).
+Нужны ключи Supadata / Gemini / Groq в **Настройках → Интеграции** и Cloudflare Pages Functions при деплое — см. [youtube-import-setup.md](./youtube-import-setup.md).
 
 **Хочу нативное приложение в App Store**  
 Для продвинутых: сборка через Xcode — [IOS.md](./IOS.md) (нужен Mac).
@@ -392,7 +410,8 @@ Safari хуже поддерживает установку PWA. Удобнее 
 
 | Документ | Для кого |
 |----------|----------|
-| [DEPLOY.md](./DEPLOY.md) | админ деплоя, Netlify Functions, миграции |
+| [DEPLOY.md](./DEPLOY.md) | админ деплоя, Cloudflare Functions, миграции |
+| [cloudflare-pages-setup.md](./cloudflare-pages-setup.md) | логин, KV, secrets, GitHub Action |
 | [youtube-import-setup.md](./youtube-import-setup.md) | ключи для YouTube |
 | [CONTRIBUTING.md](../CONTRIBUTING.md) | разработка и PR |
 | [README.md](../README.md) | обзор проекта |

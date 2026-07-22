@@ -2,7 +2,7 @@ import { store } from '../../core/state.js';
 import { el, toast } from '../../ui/ui.js';
 import { route } from '../../core/router.js';
 import { folderDragEnabled, attachFolderDraggable, attachBoxDropTarget } from '../../ui/folder-drag.js';
-import { emptyFoldersBox, newBudget } from '../../ui/helpers.js';
+import { emptyFoldersBox, newBudget, reviewsBudget } from '../../ui/helpers.js';
 import { shell, offlineBanner, setDueBadge } from '../../ui/shell.js';
 import { homeStreakCalendarCard } from '../../ui/activity-calendar.js';
 import { homeGreeting, homeDayCard } from '../../ui/home-day-card.js';
@@ -18,32 +18,22 @@ import { todayStudyCount } from '../../data/home-stats.js';
 export async function renderHome() {
   const budget = newBudget();
   const homeStats = await store.getHomeStats();
-  const totalToStudy = todayStudyCount(homeStats, budget);
+  const totalToStudy = Math.min(todayStudyCount(homeStats, budget), reviewsBudget());
   setDueBadge(totalToStudy);
   const totalCards = homeStats.totalCards;
   const isWelcome = !store.folders.length && totalCards === 0 && !store.boxes.length;
 
-  const calendarPlace = store.settings.calendarPlace
-    ?? (store.settings.showCalendar === false || store.settings.showCalendar === 'hidden'
-      ? 'hidden'
-      : (store.settings.showCalendar === 'right' ? 'right' : 'left'));
+  const calendarPlaceRaw = store.settings.calendarPlace
+    ?? (store.settings.showCalendar === 'right' ? 'right' : 'left');
+  const calendarPlace = calendarPlaceRaw === 'right' ? 'right' : 'left';
   const isNarrow = typeof window !== 'undefined'
     && window.matchMedia('(max-width: 719px)').matches;
-  // На телефоне календарь всегда доступен (свёрнутая полоска); left/right/hide — только десктоп
-  const showCalendar = isNarrow || calendarPlace !== 'hidden';
 
   const dayCard = homeDayCard(totalToStudy, () => studyModePicker({}));
-  const heroRowKids: HTMLElement[] = [];
-  if (showCalendar) {
-    const calCard = homeStreakCalendarCard();
-    if (!isNarrow && calendarPlace === 'left') {
-      heroRowKids.push(calCard, dayCard);
-    } else {
-      heroRowKids.push(dayCard, calCard);
-    }
-  } else {
-    heroRowKids.push(dayCard);
-  }
+  const calCard = homeStreakCalendarCard();
+  const heroRowKids: HTMLElement[] = (!isNarrow && calendarPlace === 'left')
+    ? [calCard, dayCard]
+    : [dayCard, calCard];
 
   const loose = looseFolders(store.folders);
   const libraryGrid = el('div', { class: 'folder-grid library-grid' }, []);
@@ -92,7 +82,7 @@ export async function renderHome() {
 
   const sections: HTMLElement[] = [
     homeGreeting(totalToStudy),
-    el('div', { class: 'home-hero-row' + (showCalendar ? '' : ' home-hero-row--solo') }, heroRowKids),
+    el('div', { class: 'home-hero-row' }, heroRowKids),
   ];
 
   if (isWelcome) {

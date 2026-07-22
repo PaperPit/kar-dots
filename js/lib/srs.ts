@@ -40,10 +40,17 @@ export interface SrsCard extends Card, SrsRow {
   back_img?: string
 }
 
+export interface FsrsConfig {
+  requestRetention?: number
+  enableFuzz?: boolean
+  w?: number[] | null
+}
+
 interface FsrsEngineModule {
   fsrsIsUntouched(card: SrsCard): boolean
   fsrsPreviewLabel(card: SrsCard, rating: number, now?: number): string
   fsrsNext(card: SrsCard, rating: number, now?: number): Record<string, number | null>
+  configureFsrs(cfg: FsrsConfig): void
 }
 
 interface Sm2Result {
@@ -86,6 +93,20 @@ function needFsrs(): FsrsEngineModule {
     throw new Error("FSRS не загружен — сначала await preloadFsrs()")
   }
   return _fsrs
+}
+
+/** Применить параметры планировщика FSRS (после preloadFsrs). Тихо игнорирует, если движок не загружен. */
+export function configureFsrs(cfg: FsrsConfig): void {
+  if (_fsrs) _fsrs.configureFsrs(cfg)
+}
+
+/** Собрать конфиг FSRS из пользовательских настроек. */
+export function fsrsConfigFromSettings(s: { fsrsRetention?: number; fsrsFuzz?: boolean; fsrsWeights?: number[] | null }): FsrsConfig {
+  return {
+    requestRetention: typeof s.fsrsRetention === "number" ? s.fsrsRetention : 0.9,
+    enableFuzz: s.fsrsFuzz !== false,
+    w: Array.isArray(s.fsrsWeights) && s.fsrsWeights.length ? s.fsrsWeights : null
+  }
 }
 
 export function sm2Next(card: SrsCard, quality: number, now: number): Sm2Result {

@@ -138,21 +138,27 @@
   height: 82px;
   border-radius: 50%;
   background: var(--bg-raised);
-  display: grid;
-  place-items: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
   text-align: center;
+  box-sizing: border-box;
+  padding: 0;
 }
 .day-donut-num {
   font-family: var(--font-display);
   font-weight: 800;
   font-size: 22px;
   line-height: 1;
+  margin: 0;
 }
 .day-donut-of {
   font-weight: 600;
   font-size: 10px;
+  line-height: 1.1;
   color: var(--ink-muted);
-  margin-top: 2px;
+  margin: 3px 0 0;
 }
 .day-legend {
   flex: 1;
@@ -244,17 +250,20 @@
   background: var(--accent);
   min-height: 4px;
 }
-.week-bar-ok.is-today,
-.week-bar-stack:has(.week-bar-ok.is-today) {
-  box-shadow: 0 0 0 2px var(--bg-raised), 0 0 0 3.5px var(--accent);
-  border-radius: 4px;
-}
 .week-bar-label {
+  font-family: var(--font-body);
   font-weight: 600;
   font-size: 10.5px;
+  line-height: 1.2;
   color: var(--ink-muted);
 }
-.week-bar-label.is-today { color: var(--accent); }
+.week-bar-label.is-today {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 13px;
+  color: var(--accent);
+  letter-spacing: 0.02em;
+}
 .week-legend {
   display: flex;
   gap: 14px;

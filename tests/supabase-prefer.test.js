@@ -37,7 +37,8 @@ describe('MiniSupabase Prefer: return=minimal', () => {
   });
 
   it('upsert uses return=minimal with merge-duplicates', async () => {
-    await sb.upsert('settings', { user_id: 'u1', data: {} });
+    await sb.upsert('settings', { user_id: 'u1', data: {} }, { onConflict: 'user_id' });
     expect(preferHeader()).toBe('return=minimal,resolution=merge-duplicates');
+    expect(String(fetchMock.mock.calls[0][0])).toContain('on_conflict=user_id');
   });
 });

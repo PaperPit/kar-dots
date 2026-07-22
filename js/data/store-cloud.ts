@@ -33,7 +33,7 @@ import { getCardsByIds, hydrateReviewQueue } from './card-hydrate.js';
 import { isYoutubeCard } from '../lib/youtube-import.js';
 import type { Card, Folder, Box, Settings } from './types.js';
 import type { SrsMeta } from './srs-meta.js';
-import type { Algo } from '../lib/srs.js';
+import type { Algo, SrsRow } from '../lib/srs.js';
 import type { ProgressInfo } from './store-vocab.js';
 import type { MiniSupabase } from './supabase.js';
 import {
@@ -44,6 +44,13 @@ import {
   setActivityCloudSync, applyRemoteActivity, loadActivity,
   type ActivityData,
 } from '../lib/activity.js';
+import {
+  setReviewLogCloudSync,
+  lastReviewTs,
+  applyRemoteReviews,
+  initReviewLog,
+  type ReviewLogEntry,
+} from '../lib/review-log.js';
 
 export { folderSaveErrorMessage } from '../lib/folder-errors.js';
 
@@ -82,6 +89,7 @@ export class CloudStore {
   _onSyncChange: ((state: SyncState) => void) | null
   _onDataChange: (() => void) | null
   _folderIconCloudUnsupported: boolean
+  _reviewLogCloudUnsupported: boolean
   _boxesCloudUnsupported: boolean
   _boxIdCloudUnsupported: boolean
   _boxIconCloudUnsupported: boolean
@@ -106,6 +114,7 @@ export class CloudStore {
     this._onSyncChange = null;
     this._onDataChange = null;
     this._folderIconCloudUnsupported = false;
+    this._reviewLogCloudUnsupported = false;
     this._boxesCloudUnsupported = false;
     this._boxIdCloudUnsupported = false;
     this._boxIconCloudUnsupported = false;
@@ -210,6 +219,8 @@ export class CloudStore {
     this.queue.onDeadLetter(() => this._notifySync());
     window.addEventListener('online', () => this._onOnline());
     this._bindActivityCloudSync();
+    this._bindReviewLogCloudSync();
+    void initReviewLog();
     await this._loadData();
   }
 
@@ -222,6 +233,37 @@ export class CloudStore {
         void this._pushActivityToCloud(data);
       }, 1000);
     });
+  }
+
+  /** Журнал повторений: push/remove через очередь синка (best-effort, не блокирует оценку). */
+  _bindReviewLogCloudSync() {
+    setReviewLogCloudSync({
+      push: (entry) => { void this.queue.enqueue({ op: 'logReview', payload: entry }).then(() => this.flushSync()); },
+      remove: (id) => { void this.queue.enqueue({ op: 'removeReview', payload: { id } }).then(() => this.flushSync()); },
+    });
+  }
+
+  /** Подтянуть журнал повторений из облака (вызывать на экране статистики). */
+  async syncReviewLogFromCloud(): Promise<number> {
+    if (this._reviewLogCloudUnsupported || !this.sb.userId()) return 0;
+    try {
+      const since = await lastReviewTs();
+      const rows = await this.sb.select<ReviewLogEntry>(
+        'review_log',
+        'select=*&ts=gt.' + since + '&order=ts.asc&limit=5000'
+      );
+      return await applyRemoteReviews(rows);
+    } catch (e) {
+      if (isReviewLogMissing(e)) { this._reviewLogCloudUnsupported = true; await this._saveCloudFlags(); return 0; }
+      if (isNetworkError(e)) return 0;
+      console.warn('review-log pull', e);
+      return 0;
+    }
+  }
+
+  /** Все slim-SRS строки карточек — для прогноза нагрузки на экране статистики. */
+  getAllSrsRows(): SrsRow[] {
+    return (this._srsMeta || []) as unknown as SrsRow[];
   }
 
   async _pushActivityToCloud(data: ActivityData) {
@@ -484,11 +526,12 @@ export class CloudStore {
 
   async _loadCloudFlags() {
     if (!this.mirror) return;
-    const flags = (await mirrorGetKV(this.mirror, 'cloud_flags')) as { folderIconCloudUnsupported?: boolean; boxesCloudUnsupported?: boolean; boxIdCloudUnsupported?: boolean; boxIconCloudUnsupported?: boolean } | null;
+    const flags = (await mirrorGetKV(this.mirror, 'cloud_flags')) as { folderIconCloudUnsupported?: boolean; boxesCloudUnsupported?: boolean; boxIdCloudUnsupported?: boolean; boxIconCloudUnsupported?: boolean; reviewLogCloudUnsupported?: boolean } | null;
     this._folderIconCloudUnsupported = !!flags?.folderIconCloudUnsupported;
     this._boxesCloudUnsupported = !!flags?.boxesCloudUnsupported;
     this._boxIdCloudUnsupported = !!flags?.boxIdCloudUnsupported;
     this._boxIconCloudUnsupported = !!flags?.boxIconCloudUnsupported;
+    this._reviewLogCloudUnsupported = !!flags?.reviewLogCloudUnsupported;
   }
 
   async _saveCloudFlags() {
@@ -498,6 +541,7 @@ export class CloudStore {
       boxesCloudUnsupported: !!this._boxesCloudUnsupported,
       boxIdCloudUnsupported: !!this._boxIdCloudUnsupported,
       boxIconCloudUnsupported: !!this._boxIconCloudUnsupported,
+      reviewLogCloudUnsupported: !!this._reviewLogCloudUnsupported,
     });
   }
 
@@ -618,11 +662,7 @@ export class CloudStore {
         await this.sb.remove('cards', 'id=eq.' + payload.id);
         break;
       case 'saveSettings':
-        await this.sb.upsert('settings', {
-          user_id: this.sb.userId(),
-          data: payload.settings,
-          updated_at: Date.now(),
-        });
+        await this._cloudSaveSettings(payload.settings);
         break;
       case 'uploadImage':
         payload.url = await this.sb.uploadFile('card-images', payload.path, payload.blob, payload.contentType);
@@ -630,7 +670,84 @@ export class CloudStore {
           await this.sb.update('cards', 'id=eq.' + payload.cardId, stampUpdatedAt({ [payload.side]: payload.url }));
         }
         break;
+      case 'logReview': await this._cloudLogReview(payload as ReviewLogEntry); break;
+      case 'removeReview': await this._cloudRemoveReview(payload.id); break;
       default: throw new Error('Unknown sync op: ' + op);
+    }
+  }
+
+  async _cloudLogReview(entry: ReviewLogEntry) {
+    if (this._reviewLogCloudUnsupported) return;
+    const uid = this.sb.userId();
+    if (!uid) throw new Error('Нет активной сессии — войдите снова');
+    try {
+      await this.sb.upsert('review_log', Object.assign({ user_id: uid }, entry), { onConflict: 'id' });
+    } catch (e) {
+      if (isReviewLogMissing(e)) { this._reviewLogCloudUnsupported = true; await this._saveCloudFlags(); return; }
+      throw e;
+    }
+  }
+
+  async _cloudRemoveReview(id: string) {
+    if (this._reviewLogCloudUnsupported) return;
+    try {
+      await this.sb.remove('review_log', 'id=eq.' + id);
+    } catch (e) {
+      if (isReviewLogMissing(e)) { this._reviewLogCloudUnsupported = true; await this._saveCloudFlags(); return; }
+      throw e;
+    }
+  }
+
+  async _cloudSaveSettings(settings: unknown) {
+    const uid = this.sb.userId();
+    if (!uid) throw new Error('Нет активной сессии — войдите снова');
+    const row = {
+      user_id: uid,
+      data: settings,
+      updated_at: Date.now(),
+    };
+    const push = async () => {
+      // on_conflict обязателен для upsert под RLS; иначе PostgREST часто делает INSERT и падает.
+      try {
+        await this.sb.upsert('settings', row, { onConflict: 'user_id' });
+        return;
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : String(e);
+        if (!/row-level security|42501/i.test(msg)) throw e;
+      }
+      // Fallback: UPDATE, при пустом ответе — INSERT (надёжнее при глюках upsert+RLS).
+      try {
+        await this.sb.update('settings', 'user_id=eq.' + uid, {
+          data: settings,
+          updated_at: row.updated_at,
+        });
+      } catch (e) {
+        /* try insert below */
+      }
+      try {
+        await this.sb.insert('settings', row);
+      } catch (e2) {
+        // Строка уже есть — повторный update
+        await this.sb.update('settings', 'user_id=eq.' + uid, {
+          data: settings,
+          updated_at: Date.now(),
+        });
+      }
+    };
+    try {
+      await push();
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      if (/row-level security|42501|JWT|session|401|403/i.test(msg)) {
+        try {
+          await this.sb.refresh();
+          await push();
+          return;
+        } catch (e2) {
+          throw e2 instanceof Error ? e2 : e;
+        }
+      }
+      throw e;
     }
   }
 
@@ -1012,4 +1129,10 @@ export class CloudStore {
     await this._flushSrsMetaPersist();
     invalidateDerivedCaches(this, { allFolders: true });
   }
+}
+
+/** Ошибка «таблицы review_log ещё нет» (пользователь не применил миграцию 0008). */
+function isReviewLogMissing(err: unknown): boolean {
+  const msg = err instanceof Error ? err.message : String(err);
+  return /review_log|relation .*does not exist|PGRST205|42P01|42703|could not find the table|schema cache/i.test(msg);
 }

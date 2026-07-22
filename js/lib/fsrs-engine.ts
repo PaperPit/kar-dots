@@ -21,10 +21,34 @@ interface StoredFsrsCard {
   fsrs_last_review?: number | null
 }
 
+export interface FsrsConfig {
+  /** Желаемое удержание 0<r<=1 (по умолчанию 0.9). */
+  requestRetention?: number
+  /** Разброс интервалов (fuzz) — выравнивает пики нагрузки. */
+  enableFuzz?: boolean
+  /** Персональные веса FSRS (из официального оптимизатора). null/пусто = дефолтные. */
+  w?: number[] | null
+}
+
 let scheduler: FSRSScheduler | null = null
+let config: FsrsConfig = {}
+
+/** Задать параметры планировщика FSRS (удержание, fuzz, веса). Сбрасывает кэш планировщика. */
+export function configureFsrs(cfg: FsrsConfig): void {
+  config = { ...cfg }
+  scheduler = null
+}
 
 function getScheduler(): FSRSScheduler {
-  if (!scheduler) scheduler = fsrs()
+  if (!scheduler) {
+    const params: Record<string, unknown> = {}
+    if (typeof config.requestRetention === "number" && config.requestRetention > 0 && config.requestRetention <= 1) {
+      params.request_retention = config.requestRetention
+    }
+    if (typeof config.enableFuzz === "boolean") params.enable_fuzz = config.enableFuzz
+    if (Array.isArray(config.w) && config.w.length) params.w = config.w
+    scheduler = fsrs(params)
+  }
   return scheduler
 }
 

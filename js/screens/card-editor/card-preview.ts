@@ -1,7 +1,7 @@
 import { el, modal, toast, stripHtml } from '../../ui/ui.js';
 import type { ModalHandle } from '../../ui/ui.js';
 import { store } from '../../core/state.js';
-import { createFlipCard } from '../review/flip-card.js';
+import { createFlipCard, sizeFlipCard } from '../review/flip-card.js';
 
 interface RichTextEditor {
   getHTML(): string;
@@ -55,7 +55,7 @@ export function openCardPreview(ctx: PreviewCtx) {
 
   const card = buildPreviewCard(ctx);
   const promptSide = previewPromptSide();
-  const { box, grades } = createFlipCard(card, promptSide, {});
+  const { box, flip, grades } = createFlipCard(card, promptSide, {});
 
   grades.hidden = true;
   grades.replaceChildren();
@@ -72,4 +72,10 @@ export function openCardPreview(ctx: PreviewCtx) {
       el('button', { type: 'button', class: 'btn primary', onclick: () => pm.close() }, 'Закрыть'),
     ]),
   ]), { wide: true });
+
+  // После открытия модалки высота известна — подогнать фото под окно просмотра.
+  requestAnimationFrame(() => {
+    sizeFlipCard(flip);
+    requestAnimationFrame(() => sizeFlipCard(flip));
+  });
 }

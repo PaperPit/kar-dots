@@ -386,8 +386,9 @@ textarea.input { resize: vertical; min-height: 72px; }
   justify-content: space-between;
   gap: 10px;
   margin-bottom: 6px;
+  flex-wrap: nowrap;
 }
-.field-label-row label { margin-bottom: 0; }
+.field-label-row label { margin-bottom: 0; flex: none; }
 .field-label-row .rich-toolbar { margin-bottom: 0; }
 
 

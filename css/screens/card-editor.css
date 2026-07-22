@@ -1,11 +1,20 @@
 /* --- card editor --- */
 /* --- редактор с форматированием (жирный, ссылки) ------------ */
-.rich-toolbar { display: flex; gap: 6px; margin-bottom: 6px; flex-wrap: wrap; justify-content: flex-end; }
+.rich-toolbar {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 6px;
+  flex-wrap: nowrap;
+  justify-content: flex-end;
+  flex-shrink: 0;
+  align-items: center;
+}
 .rich-btn {
-  width: 44px; height: 44px; border-radius: 10px; border: 1.5px solid var(--line);
+  width: 40px; height: 40px; border-radius: 10px; border: 1.5px solid var(--line);
   background: var(--bg-raised); color: var(--ink-soft); cursor: pointer;
   display: flex; align-items: center; justify-content: center;
-  font-weight: 800; font-size: 14px; transition: background var(--dur), color var(--dur), border-color var(--dur);
+  font-weight: 800; font-size: 14px; flex: none;
+  transition: background var(--dur), color var(--dur), border-color var(--dur);
 }
 .rich-btn:hover { border-color: var(--accent); color: var(--accent); }
 .rich-btn.active { background: var(--accent); border-color: var(--accent); color: #fff; }
@@ -250,8 +259,20 @@
   }
 }
 .card-preview-wrap {
-  max-width: 784px;
+  max-width: 520px;
   margin: 0 auto 8px;
+}
+.card-preview-wrap .flip-card {
+  max-height: min(42vh, 340px);
+}
+.card-preview-wrap .flip-face {
+  padding: 20px 18px;
+}
+.card-preview-wrap .flip-face img {
+  max-height: min(22vh, 160px);
+}
+.card-preview-wrap .grade-row {
+  display: none !important;
 }
 .card-preview-lead {
   text-align: center;

@@ -109,18 +109,71 @@ export function createFlipCard(card: SrsCard, firstSide: 'front' | 'back', opts:
   return { box, flip, swipeWrap, grades, hint, getVisibleSide: () => (flip.classList.contains('flipped') ? backSide : firstSide) };
 }
 
+const sizedImgListeners = new WeakSet<HTMLImageElement>();
+
+function previewCardMaxHeight(flipEl: HTMLElement): number | null {
+  const previewWrap = flipEl.closest('.card-preview-wrap');
+  if (!previewWrap) return null;
+  const modalBox = flipEl.closest('.modal-box') as HTMLElement | null;
+  const modalH = modalBox?.clientHeight || Math.round(window.innerHeight * 0.88);
+  // Заголовок, подпись, hint, кнопка «Закрыть», отступы модалки
+  return Math.max(200, Math.min(340, modalH - 220));
+}
+
+/** Высота карточки так, чтобы hint + кнопки «Знаю/Не знаю» оставались в viewport. */
+function reviewCardMaxHeight(flipEl: HTMLElement, isDesktop: boolean): number {
+  const swipeArea = flipEl.closest('.flip-swipe-area') as HTMLElement | null;
+  const topEl = swipeArea || flipEl;
+  const top = topEl.getBoundingClientRect().top;
+  // hint (~36) + grade-row (~64–80) + отступы main/safe-area
+  const reserveBelow = isDesktop ? 130 : 120;
+  const available = Math.floor(window.innerHeight - top - reserveBelow);
+  const minBase = isDesktop ? 240 : 200;
+  const hardCap = Math.round(window.innerHeight * (isDesktop ? 0.52 : 0.46));
+  return Math.max(minBase, Math.min(hardCap, available));
+}
+
+/** Подогнать высоту карточки и сжать фото, чтобы слово/перевод всегда были видны. */
 export function sizeFlipCard(flipEl: HTMLElement) {
   const isDesktop = window.matchMedia('(min-width: 720px)').matches;
-  const padY = isDesktop ? 36 : 28;
-  const minBase = isDesktop ? 320 : 280;
-  const vhFactor = isDesktop ? 0.8 : 0.72;
-  const faces = flipEl.querySelectorAll('.flip-face');
-  let maxNeeded = minBase;
-  faces.forEach(face => {
-    const scrollBox = face.querySelector('.flip-face-scroll');
-    if (!scrollBox) return;
-    maxNeeded = Math.max(maxNeeded, scrollBox.scrollHeight + padY * 2 + 26);
+  const previewMax = previewCardMaxHeight(flipEl);
+  const inPreview = previewMax != null;
+
+  let cardH: number;
+  let imgCap: number;
+  if (inPreview) {
+    cardH = previewMax!;
+    imgCap = isDesktop ? 160 : 130;
+  } else {
+    cardH = reviewCardMaxHeight(flipEl, isDesktop);
+    imgCap = isDesktop ? 200 : 150;
+  }
+  flipEl.style.height = cardH + 'px';
+  flipEl.style.maxHeight = cardH + 'px';
+
+  flipEl.querySelectorAll('.flip-face').forEach((face) => {
+    const scroll = face.querySelector('.flip-face-scroll') as HTMLElement | null;
+    if (!scroll) return;
+    const img = scroll.querySelector(':scope > img') as HTMLImageElement | null;
+    if (!img) return;
+    let textH = 0;
+    scroll.querySelectorAll(':scope > :not(img)').forEach((node) => {
+      textH += (node as HTMLElement).offsetHeight;
+    });
+    const chip = (face.querySelector('.flip-side-chip') as HTMLElement | null)?.offsetHeight || 0;
+    const facePad = inPreview ? (isDesktop ? 56 : 40) : (isDesktop ? 64 : 44);
+    const gaps = inPreview ? 16 : 20;
+    const room = cardH - facePad - chip - textH - gaps;
+    const maxImg = Math.max(56, Math.min(imgCap, room));
+    img.style.maxHeight = `${maxImg}px`;
   });
-  const viewportMax = Math.max(minBase, Math.round(window.innerHeight * vhFactor));
-  flipEl.style.height = Math.min(maxNeeded, viewportMax) + 'px';
+
+  flipEl.querySelectorAll('img').forEach((node) => {
+    const img = node as HTMLImageElement;
+    if (img.complete || sizedImgListeners.has(img)) return;
+    sizedImgListeners.add(img);
+    const remeasure = () => sizeFlipCard(flipEl);
+    img.addEventListener('load', remeasure, { once: true });
+    img.addEventListener('error', remeasure, { once: true });
+  });
 }

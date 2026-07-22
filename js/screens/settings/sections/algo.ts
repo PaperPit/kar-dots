@@ -8,11 +8,15 @@ interface SettingsLike {
   algo: string;
   direction?: string;
   newPerDay?: number;
+  reviewsPerDay?: number;
   tts?: boolean;
   ttsAuto?: boolean;
   ttsRate?: number;
   ttsVoiceRu?: string;
   ttsVoiceEn?: string;
+  fsrsRetention?: number;
+  fsrsFuzz?: boolean;
+  fsrsWeights?: number[] | null;
   leitnerIntervals: number[];
 }
 import {
@@ -210,8 +214,32 @@ export function buildAlgoGroup(s: SettingsLike, save: () => void) {
         el('span', null, 'Чтобы не перегружаться в начале.'),
       ]),
       (() => {
-        const inp = el('input', { type: 'number', min: 1, max: 500, value: s.newPerDay });
-        inp.addEventListener('change', () => { s.newPerDay = Math.max(1, Number(inp.value) || 20); save(); });
+        const inp = el('input', { type: 'number', min: 1, max: 9999, value: s.newPerDay ?? 20 }) as HTMLInputElement;
+        inp.addEventListener('change', () => {
+          s.newPerDay = Math.max(1, Math.floor(Number(inp.value)) || 20);
+          inp.value = String(s.newPerDay);
+          save();
+        });
+        return inp;
+      })(),
+    ]),
+    el('div', { class: 'setting-row' }, [
+      el('div', { class: 'lab' }, [
+        el('b', null, 'Повторений в день'),
+        el('span', null, 'Сколько оценок максимум за календарный день (Знаю / Не знаю).'),
+      ]),
+      (() => {
+        const inp = el('input', {
+          type: 'number',
+          min: 1,
+          max: 9999,
+          value: s.reviewsPerDay ?? 50,
+        }) as HTMLInputElement;
+        inp.addEventListener('change', () => {
+          s.reviewsPerDay = Math.max(1, Math.floor(Number(inp.value)) || 50);
+          inp.value = String(s.reviewsPerDay);
+          save();
+        });
         return inp;
       })(),
     ]),
@@ -276,6 +304,98 @@ export function buildAlgoGroup(s: SettingsLike, save: () => void) {
         el('span', null, 'Через сколько дней показывать карточку из каждой коробки.'),
       ]),
       row,
+    ]));
+  }
+
+  if (s.algo === 'fsrs') {
+    const retVal = el('span', { class: 'tts-rate-val tnum' }, '');
+    const ret0 = Math.min(0.97, Math.max(0.8, Number(s.fsrsRetention ?? 0.9) || 0.9));
+    const retRange = el('input', { type: 'range', class: 'tts-rate', min: 0.8, max: 0.97, step: 0.01, value: ret0 }) as HTMLInputElement;
+    const setRetLabel = () => { retVal.textContent = Math.round(Number(retRange.value) * 100) + '%'; };
+    setRetLabel();
+    retRange.addEventListener('input', setRetLabel);
+    retRange.addEventListener('change', () => {
+      const v = Math.min(0.97, Math.max(0.8, Number(retRange.value) || 0.9));
+      s.fsrsRetention = Math.round(v * 100) / 100;
+      setRetLabel();
+      save();
+    });
+    algoGroup.append(el('div', { class: 'setting-row' }, [
+      el('div', { class: 'lab' }, [
+        el('b', null, 'Желаемое удержание (FSRS)'),
+        el('span', null, 'Какую долю карточек вы хотите помнить к моменту повтора. 85–90% оптимально: выше 95% почти удваивает нагрузку, ниже 80% — частое забывание.'),
+      ]),
+      el('div', { class: 'tts-rate-wrap' }, [retVal, retRange]),
+    ]));
+
+    const fuzzInput = el('input', { type: 'checkbox', class: 'chk' }, []) as HTMLInputElement;
+    fuzzInput.checked = s.fsrsFuzz !== false;
+    fuzzInput.addEventListener('change', () => { s.fsrsFuzz = fuzzInput.checked; save(); });
+    algoGroup.append(el('div', { class: 'setting-row' }, [
+      el('div', { class: 'lab' }, [
+        el('b', null, 'Выравнивание нагрузки (fuzz)'),
+        el('span', null, 'Небольшой случайный разброс интервалов — повторения не собираются пиками в один день.'),
+      ]),
+      el('label', { class: 'chk-wrap' }, fuzzInput),
+    ]));
+
+    const measured = el('span', { class: 'muted' }, 'Считаю измеренное удержание…');
+    algoGroup.append(el('div', { class: 'setting-row setting-row-stack' }, [
+      el('div', { class: 'lab' }, [
+        el('b', null, 'Измеренное удержание'),
+        measured,
+      ]),
+    ]));
+    void (async () => {
+      try {
+        const [rl, opt] = await Promise.all([
+          import('../../../lib/review-log.js'),
+          import('../../../lib/fsrs-optimize.js'),
+        ]);
+        const reviews = await rl.getAllReviews();
+        const stats = opt.computeRetentionStats(reviews);
+        const adv = opt.suggestRetention(stats);
+        measured.textContent = stats.reviewRetention != null
+          ? 'Факт: ' + opt.formatPercent(stats.reviewRetention) + ' по ' + stats.reviewCount + ' повторениям. ' + adv.text
+          : adv.text;
+      } catch (e) { measured.textContent = 'Данные журнала недоступны.'; }
+    })();
+
+    const weightsArea = el('textarea', { class: 'input', rows: 2, placeholder: 'напр. 0.40, 1.18, 3.17, … — веса из официального оптимизатора FSRS' }, []) as HTMLTextAreaElement;
+    weightsArea.value = Array.isArray(s.fsrsWeights) && s.fsrsWeights.length ? s.fsrsWeights.join(', ') : '';
+    const weightsHint = el('span', { class: 'muted' }, '');
+    weightsArea.addEventListener('change', async () => {
+      const { parseWeights } = await import('../../../lib/fsrs-optimize.js');
+      const w = parseWeights(weightsArea.value);
+      if (weightsArea.value.trim() && !w) { weightsHint.textContent = 'Не похоже на список чисел — не сохранено.'; return; }
+      s.fsrsWeights = w;
+      weightsHint.textContent = w ? ('Сохранено ' + w.length + ' весов.') : 'Веса сброшены на стандартные.';
+      save();
+    });
+    const exportBtn = el('button', {
+      type: 'button',
+      class: 'btn ghost',
+      onclick: async () => {
+        const [rl, opt] = await Promise.all([
+          import('../../../lib/review-log.js'),
+          import('../../../lib/fsrs-optimize.js'),
+        ]);
+        const csv = opt.toOptimizerCsv(await rl.getAllReviews());
+        const blob = new Blob([csv], { type: 'text/csv' });
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = 'kar-tochki-revlog.csv';
+        a.click();
+        setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+      },
+    }, 'Экспорт журнала (CSV)') as HTMLButtonElement;
+    algoGroup.append(el('div', { class: 'setting-row setting-row-stack' }, [
+      el('div', { class: 'lab' }, [
+        el('b', null, 'Персональные веса FSRS (продвинутое)'),
+        el('span', null, 'Полная оптимизация под вашу историю выполняется официальным оптимизатором FSRS. Экспортируйте журнал, прогоните его оптимизатором и вставьте полученные веса сюда.'),
+        weightsHint,
+      ]),
+      el('div', { class: 'fsrs-weights-controls' }, [weightsArea, exportBtn]),
     ]));
   }
 

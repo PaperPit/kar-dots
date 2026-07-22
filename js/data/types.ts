@@ -59,8 +59,8 @@ export interface Settings {
   algo: "sm2" | "fsrs" | "leiter"; // Leitner system
   theme: "light" | "dark";
   direction?: "ftb" | "btf";
-  showCalendar?: "left" | "right" | "hidden";
-  calendarPlace?: "left" | "right" | "hidden";
+  showCalendar?: "left" | "right" | "hidden"; // legacy; use calendarPlace
+  calendarPlace?: "left" | "right";
   dateLocale?: string;
   importTagMode?: "new" | "existing" | "merge";
   importConfirm?: boolean;
@@ -68,6 +68,8 @@ export interface Settings {
   searchScope?: "all" | "cards" | "tags";
   newCardsPerDay?: number;
   newPerDay?: number;
+  /** Максимум оценок за календарный день (очередь повторения). */
+  reviewsPerDay?: number;
   leitnerIntervals?: number[];
   repeatToday?: "include" | "only";
   resetDay?: "auto" | "custom";
@@ -97,6 +99,12 @@ export interface Settings {
   groqApiKey?: string;
   pixabayApiKey?: string;
   giphyApiKey?: string;
+  /** FSRS: желаемое удержание 0.80–0.97 (по умолчанию 0.9). */
+  fsrsRetention?: number;
+  /** FSRS: разброс интервалов (fuzz) для выравнивания нагрузки. */
+  fsrsFuzz?: boolean;
+  /** FSRS: персональные веса из официального оптимизатора (иначе дефолтные). */
+  fsrsWeights?: number[] | null;
   /** Календарь/серия повторений — синхронизируется между устройствами через settings. */
   activity?: {
     days: {

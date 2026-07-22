@@ -1,0 +1,145 @@
+/* ============================================================
+   Экран статистики
+   ============================================================ */
+
+.page-head.with-back {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+}
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: var(--sp-3);
+  margin-bottom: var(--sp-5);
+}
+
+.stat-card {
+  background: var(--bg-raised);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  padding: var(--sp-4);
+  box-shadow: var(--shadow-sm);
+  text-align: center;
+}
+
+.stat-card-val {
+  font-family: var(--font-display);
+  font-size: 1.7rem;
+  font-weight: 700;
+  color: var(--accent-text);
+  line-height: 1.1;
+}
+
+.stat-card-lab {
+  font-size: .82rem;
+  color: var(--ink-soft);
+  margin-top: 2px;
+}
+
+.stat-card-sub {
+  font-size: .72rem;
+  margin-top: 2px;
+}
+
+.stats-section { margin-bottom: var(--sp-5); }
+.stats-hint { margin: 0 0 var(--sp-3); font-size: .82rem; }
+
+/* --- Бары --- */
+.chart-bars {
+  display: flex;
+  align-items: flex-end;
+  gap: 3px;
+  height: 140px;
+  padding-top: var(--sp-2);
+}
+
+.chart-col {
+  flex: 1 1 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 0;
+  height: 100%;
+}
+
+.chart-bar {
+  width: 100%;
+  max-width: 22px;
+  flex: 1 1 auto;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+
+.chart-bar-fill {
+  width: 100%;
+  background: var(--accent-soft);
+  border: 1px solid var(--accent);
+  border-radius: 5px 5px 3px 3px;
+  min-height: 0;
+  transition: height var(--dur) var(--ease);
+}
+
+.chart-bar-fill.accent {
+  background: var(--accent);
+}
+
+.chart-xlabel {
+  font-size: .62rem;
+  color: var(--ink-muted);
+  margin-top: 3px;
+  white-space: nowrap;
+  overflow: hidden;
+  max-width: 100%;
+}
+
+/* --- Удержание --- */
+.retention-head {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-4);
+  flex-wrap: wrap;
+}
+
+.retention-big {
+  font-family: var(--font-display);
+  font-size: 2.4rem;
+  font-weight: 800;
+  color: var(--ok-text);
+}
+
+.retention-advice {
+  flex: 1 1 200px;
+  font-size: .88rem;
+  color: var(--ink-soft);
+  line-height: 1.4;
+}
+
+.retention-by-algo {
+  display: flex;
+  gap: var(--sp-4);
+  margin-top: var(--sp-3);
+  font-size: .8rem;
+  flex-wrap: wrap;
+}
+
+/* --- Папки --- */
+.stats-folders { display: flex; flex-direction: column; gap: 2px; }
+
+.stats-folder-row {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  gap: var(--sp-3);
+  align-items: center;
+  padding: var(--sp-2) var(--sp-3);
+  border-radius: var(--radius-sm);
+}
+
+.stats-folder-row:nth-child(odd) { background: var(--bg-sunken); }
+.stats-folder-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.stats-folder-num { color: var(--ink-soft); min-width: 42px; text-align: right; }
+.stats-folder-ret { color: var(--ok-text); min-width: 48px; text-align: right; }
+
+.stats-open-btn { margin-top: var(--sp-3); }

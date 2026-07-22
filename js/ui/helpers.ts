@@ -19,7 +19,7 @@ export {
 } from "./icons.js"
 export { brandMark, modalHead } from "./brand.js"
 export { detectSpeechLang, speakText, speakSequence, speakCardSide } from "./tts.js"
-export { newBudget, spendNewBudget, refundNewBudget } from "./study-budget.js"
+export { newBudget, spendNewBudget, refundNewBudget, reviewsBudget, reviewsPerDaySetting, reviewsTodayCount } from "./study-budget.js"
 
 import { shuffle } from "../lib/shuffle.js"
 

@@ -12,6 +12,7 @@
 | `0004_boxes.sql` | 4 | таблица `boxes`, `folders.box_id`, RLS для коробок |
 | `0005_updated_at.sql` | 5 | `updated_at` у `folders`/`cards`/`boxes`/`settings` — LWW в офлайн-синке |
 | `0006_cards_updated_at_idx.sql` | 6 | индекс `(user_id, updated_at)` на `cards` — delta sync |
+| `0007_settings_rls.sql` | 7 | явные RLS-политики для `settings` (фикс ошибки upsert) |
 
 Нужная версия в коде: `REQUIRED_SCHEMA_VERSION` в `js/data/schema-version.js`.
 

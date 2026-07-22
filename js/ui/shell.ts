@@ -40,9 +40,15 @@ async function openStudyModePicker() {
 
 let dueBadge = 0
 let shellEl: ShellEl | null = null
+/** Последний экран shell — чтобы бейдж «Повторение» скрывался во время сессии. */
+let lastViewName: string | null = null
 
-function tabConfig(): TabItem[] {
-  const badge = dueBadge > 0 ? String(dueBadge) : null
+function reviewDueBadge(viewName: string | null = lastViewName): string | null {
+  if ((viewName ?? lastViewName) === "review") return null
+  return dueBadge > 0 ? String(dueBadge) : null
+}
+
+function tabConfig(viewName: string | null = lastViewName): TabItem[] {
   return [
     { id: "home", label: "Папки", icon: ICONS.home, hash: "#home" },
     {
@@ -51,7 +57,7 @@ function tabConfig(): TabItem[] {
       icon: ICONS.cards,
       onclick: () => openStudyModePicker(),
       hash: "#review",
-      badge
+      badge: reviewDueBadge(viewName)
     },
     { id: "settings", label: "Настройки", icon: ICONS.gear, hash: "#settings" }
   ]
@@ -84,7 +90,7 @@ function makeNavItems(tabs: TabItem[], viewName: string, kind: "desktop" | "tab"
 }
 
 function buildShell(viewName: string): ShellEl {
-  const tabs = tabConfig()
+  const tabs = tabConfig(viewName)
   const desktopNav = makeNavItems(tabs, viewName, "desktop")
   const tabNav = makeNavItems(tabs, viewName, "tab")
 
@@ -133,7 +139,8 @@ function shellAlive() {
 
 function syncShellChrome(viewName: string | null): void {
   if (!shellEl) return
-  const badge = dueBadge > 0 ? String(dueBadge) : null
+  if (viewName != null) lastViewName = viewName
+  const badge = reviewDueBadge(viewName)
   const applyActive = viewName != null
   for (const items of [shellEl.desktopNav, shellEl.tabNav]) {
     for (const { id, btn, badgeEl } of items) {
@@ -155,8 +162,11 @@ export async function refreshDueBadge(): Promise<number> {
     return 0
   }
   const { todayStudyCount } = await import("../data/home-stats.js")
-  const { newBudget } = await import("./study-budget.js")
-  dueBadge = todayStudyCount(await store.getHomeStats(), newBudget())
+  const { newBudget, reviewsBudget } = await import("./study-budget.js")
+  dueBadge = Math.min(
+    todayStudyCount(await store.getHomeStats(), newBudget()),
+    reviewsBudget()
+  )
   syncShellChrome(null)
   return dueBadge
 }

@@ -7,7 +7,7 @@ import { isNetworkError } from "./supabase.js"
  * Нужная версия схемы. Должна совпадать с номером последней миграции
  * в supabase/migrations. При добавлении миграции — поднимите это число.
  */
-export const REQUIRED_SCHEMA_VERSION = 6
+export const REQUIRED_SCHEMA_VERSION = 7
 
 /**
  * Читает текущую версию схемы из public.schema_meta.

@@ -1,4 +1,6 @@
 import { store } from "../core/state.js"
+import { loadActivity, dayKey } from "../lib/activity.js"
+import type { Settings } from "../data/types.js"
 
 export function newBudget() {
   const s = store.settings
@@ -33,4 +35,21 @@ export function refundNewBudget() {
   }
   rec.count = Math.max(0, (rec.count || 0) - 1)
   localStorage.setItem("kar_new_today", JSON.stringify(rec))
+}
+
+/** Лимит оценок в день из настроек (минимум 1, fallback 50). */
+export function reviewsPerDaySetting(settings?: Settings | null): number {
+  const s = settings ?? store?.settings
+  const n = Number(s?.reviewsPerDay)
+  return Math.max(1, Number.isFinite(n) && n > 0 ? Math.floor(n) : 50)
+}
+
+/** Сколько оценок уже сделано сегодня (из activity). */
+export function reviewsTodayCount(): number {
+  return loadActivity().days[dayKey()]?.reviews || 0
+}
+
+/** Сколько оценок ещё можно сделать сегодня. */
+export function reviewsBudget(settings?: Settings | null): number {
+  return Math.max(0, reviewsPerDaySetting(settings) - reviewsTodayCount())
 }

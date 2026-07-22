@@ -1,6 +1,0 @@
-{
-  "$schema": "https://openapi.vercel.sh/vercel.json",
-  "framework": null,
-  "buildCommand": "node scripts/generate-config.js && npm run build:bundle",
-  "outputDirectory": "dist"
-}

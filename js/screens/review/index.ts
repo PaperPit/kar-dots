@@ -1,7 +1,7 @@
 import { store } from '../../core/state.js';
 import { el, spinner, plural } from '../../ui/ui.js';
 import { ICONS } from '../../ui/constants.js';
-import { crowBox, featherIcon, newBudget, shuffle, svgNode, trophyBox } from '../../ui/helpers.js';
+import { crowBox, featherIcon, newBudget, reviewsBudget, reviewsTodayCount, shuffle, svgNode, trophyBox } from '../../ui/helpers.js';
 import { shell, nav, offlineBanner, refreshDueBadge } from '../../ui/shell.js';
 import { backBtn } from '../../ui/navigation.js';
 import {
@@ -50,25 +50,53 @@ export async function renderReview(folderId: string | null, opts: ReviewOpts = {
   const folder = folderId ? store.folders.find((f: Folder) => f.id === folderId) : null;
 
   if (algo === 'fsrs') {
-    const { preloadFsrs } = await import('../../lib/srs.js');
+    const { preloadFsrs, configureFsrs, fsrsConfigFromSettings } = await import('../../lib/srs.js');
     await preloadFsrs();
+    configureFsrs(fsrsConfigFromSettings(store.settings));
   }
   if (session !== reviewSession) return;
 
   let queue;
+  let dayLimitHit = false;
   if (cram) {
     const limit = (cramLimit ?? 0) > 0 ? cramLimit : null;
     queue = typeof store.getCramCards === 'function'
       ? await store.getCramCards(folderId, limit)
       : shuffle([...(await store.getFolderCards(folderId))]).slice(0, limit || undefined);
   } else {
-    const { due: dueCards, fresh: newCards } = await store.getReviewCards(folderId || null, algo, budget, now);
-    queue = shuffle(dueCards.concat(newCards));
+    const dayLeft = reviewsBudget();
+    if (dayLeft <= 0) {
+      dayLimitHit = true;
+      queue = [];
+    } else {
+      const { due: dueCards, fresh: newCards } = await store.getReviewCards(folderId || null, algo, budget, now);
+      queue = shuffle(dueCards.concat(newCards)).slice(0, dayLeft);
+    }
   }
 
   if (session !== reviewSession) return;
 
   if (!queue.length) {
+    if (dayLimitHit) {
+      const limit = store.settings.reviewsPerDay || 50;
+      const done = reviewsTodayCount();
+      shell('review', el('div', { class: 'review-done' }, [
+        trophyBox(),
+        el('h2', null, 'На сегодня лимит'),
+        el('p', null,
+          `Сегодня уже ${done} ${plural(done, 'оценка', 'оценки', 'оценок')} из ${limit}. ` +
+          'Лимит можно увеличить в настройках — или продолжить завтра.'),
+        el('button', {
+          class: 'btn primary big',
+          onclick: () => nav('#settings'),
+        }, 'К настройкам'),
+        el('button', {
+          class: 'btn big',
+          onclick: () => nav(folderId ? '#folder/' + folderId : '#home'),
+        }, folderId ? 'К папке' : 'К папкам'),
+      ]));
+      return;
+    }
     const poolCount = folderId ? await store.countCards(folderId) : await store.countCards(null);
     shell('review', el('div', { class: 'review-done' }, [
       poolCount ? trophyBox() : crowBox('crow'),

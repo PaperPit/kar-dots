@@ -141,7 +141,7 @@ function renderWeekBody(): HTMLElement {
               style: { height: failH + "px" }
             }),
             el("div", {
-              class: "week-bar-ok" + (b.isToday ? " is-today" : ""),
+              class: "week-bar-ok",
               style: { height: okH + "px" }
             })
           ]),

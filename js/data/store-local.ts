@@ -26,7 +26,7 @@ import {
 } from './store-vocab.js';
 import { StoreCache } from './store-cache.js';
 import type { Card, Folder, Box, Settings } from './types.js';
-import type { Algo } from '../lib/srs.js';
+import type { Algo, SrsRow } from '../lib/srs.js';
 import type { ProgressInfo } from './store-vocab.js';
 
 interface CardRecord extends Card {
@@ -224,6 +224,11 @@ export class LocalStore {
     this._homeStatsCache = buildHomeStats(this._srsMeta, algo as Algo);
     this._homeStatsCacheAlgo = algo as Algo;
     return this._homeStatsCache;
+  }
+
+  /** Все slim-SRS строки карточек — для прогноза нагрузки на экране статистики. */
+  getAllSrsRows(): SrsRow[] {
+    return this._srsMeta as unknown as SrsRow[];
   }
 
   async init() {

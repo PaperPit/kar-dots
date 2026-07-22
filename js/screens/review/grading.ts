@@ -6,6 +6,7 @@ import { spendNewBudget, refundNewBudget } from '../../ui/helpers.js';
 import { recordReview, undoReview, type ReviewSplit } from '../../lib/activity.js';
 import { animateCardExit } from '../../ui/swipe-grades.js';
 import { comboMatchBatchProgress } from '../../lib/review-progress.js';
+import { buildReviewEntry, logReview, removeReview } from '../../lib/review-log.js';
 
 export const UNDO_TOAST_MS = 3000;
 
@@ -25,6 +26,7 @@ export interface PendingUndo {
   firstTryRecorded: boolean
   firstTryOk: boolean
   reviewSplit?: ReviewSplit
+  reviewLogId?: string | null
 }
 
 export interface ReviewStats {
@@ -84,6 +86,47 @@ function gradeFailed(algo: Algo, g: Grade): boolean {
   if (algo === 'leitner') return !g.leitner;
   if (algo === 'fsrs') return g.fsrs === SRS.FsrsRating.Again;
   return (g.q ?? 0) < 3;
+}
+
+function buildLogEntry(ctx: GradeContext, card: SrsCard, g: Grade, failed: boolean, now: number) {
+  const algo = ctx.algo;
+  const known = !failed;
+  let rating: number;
+  if (algo === 'fsrs') rating = g.fsrs ?? SRS.FsrsRating.Again;
+  else rating = known ? 3 : 1;
+
+  let elapsedDays = 0;
+  let stateBefore = 0;
+  let stabilityBefore: number | null = null;
+  if (algo === 'fsrs') {
+    const fresh = SRS.fsrsIsUntouched(card);
+    stateBefore = fresh ? 0 : ((card.fsrs_state as number | null) ?? 0);
+    stabilityBefore = card.fsrs_stability ?? null;
+    if (!fresh && card.fsrs_last_review) elapsedDays = (now - card.fsrs_last_review) / SRS.DAY;
+  } else if (algo === 'leitner') {
+    const box = card.box || 0;
+    stateBefore = box ? 2 : 0;
+    if (box) {
+      const ivs = store.settings.leitnerIntervals && store.settings.leitnerIntervals.length === 5
+        ? store.settings.leitnerIntervals : [1, 2, 4, 8, 16];
+      elapsedDays = ivs[box - 1] ?? 0;
+    }
+  } else {
+    const reviewed = !!(card.sm2_reps || card.sm2_due);
+    stateBefore = reviewed ? 2 : 0;
+    if (reviewed) elapsedDays = card.sm2_ivl ?? 0;
+  }
+  return buildReviewEntry({
+    card_id: card.id ?? '',
+    folder_id: card.folder_id ?? (card as { folderId?: string }).folderId ?? '',
+    algo,
+    rating,
+    known,
+    elapsed_days: elapsedDays,
+    state_before: stateBefore,
+    stability_before: stabilityBefore,
+    ts: now,
+  });
 }
 
 function applyAlgoGrade(card: SrsCard, algo: Algo, g: Grade, now: number) {
@@ -227,6 +270,9 @@ export async function applyGrade(ctx: GradeContext, card: SrsCard, g: Grade, opt
   catch (e) { toast('Не сохранилось: ' + (e instanceof Error ? e.message : String(e)), 'error'); }
   const reviewSplit = failed ? { failed: 1 } : { known: 1 };
   await recordReview(1, reviewSplit);
+  let reviewLogId: string | null = null;
+  try { reviewLogId = await logReview(buildLogEntry(ctx, card, g, failed, now)); }
+  catch (e) { /* журнал не критичен для оценки */ }
 
   ctx.pendingUndo = {
     card: Object.assign({}, card),
@@ -238,6 +284,7 @@ export async function applyGrade(ctx: GradeContext, card: SrsCard, g: Grade, opt
     firstTryRecorded: !!opts.firstTryRecorded,
     firstTryOk: !!opts.firstTryOk,
     reviewSplit,
+    reviewLogId,
   };
   const showUndoToast = opts.flipGrade && !opts.quiet;
   if (!showUndoToast) {
@@ -282,6 +329,7 @@ export async function undoLastGrade(ctx: GradeContext) {
   try { await store.updateCard(u.card.id ?? '', u.prevSnap); }
   catch (e) { toast('Не удалось отменить: ' + (e instanceof Error ? e.message : String(e)), 'error'); return; }
   await undoReview(1, u.reviewSplit);
+  if (u.reviewLogId) { try { await removeReview(u.reviewLogId); } catch (e) { /* ignore */ } }
   ctx.updateBar();
   if (ctx.showNextTimer) { clearTimeout(ctx.showNextTimer); ctx.showNextTimer = null; }
   ctx.showNext(true);

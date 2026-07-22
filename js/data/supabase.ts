@@ -209,9 +209,10 @@ export class MiniSupabase {
     return Array.isArray(rows) ? rows[0] : rows
   }
 
-  async upsert(table: string, row: unknown): Promise<unknown> {
+  async upsert(table: string, row: unknown, opts: { onConflict?: string } = {}): Promise<unknown> {
     await this.ensureFresh()
-    const r = await this._fetch(this.url + "/rest/v1/" + table, {
+    const qs = opts.onConflict ? "?on_conflict=" + encodeURIComponent(opts.onConflict) : ""
+    const r = await this._fetch(this.url + "/rest/v1/" + table + qs, {
       method: "POST",
       headers: Object.assign(
         {

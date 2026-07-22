@@ -5,7 +5,12 @@ export const DEFAULT_SETTINGS: Settings = {
   algo: "sm2",
   direction: "ftb",
   newPerDay: 20,
+  /** Максимум оценок (Знаю/Не знаю) за календарный день. */
+  reviewsPerDay: 50,
   leitnerIntervals: [1, 2, 4, 8, 16],
+  fsrsRetention: 0.9,
+  fsrsFuzz: true,
+  fsrsWeights: null,
   calendarPlace: "left",
   streakRingDays: 21,
   tts: true,

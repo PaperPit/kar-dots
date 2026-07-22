@@ -73,6 +73,32 @@ create policy "own settings" on public.settings
   for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 
 -- ------------------------------------------------------------
+-- Журнал повторений: карточка, оценка, интервал, время.
+-- Основа для статистики удержания, прогноза нагрузки и оптимизации FSRS.
+-- ------------------------------------------------------------
+create table if not exists public.review_log (
+  id uuid primary key,
+  user_id uuid not null references auth.users (id) on delete cascade,
+  card_id uuid,
+  folder_id uuid,
+  algo text,
+  rating smallint,
+  known smallint,
+  elapsed_days double precision,
+  state_before smallint,
+  stability_before double precision,
+  ts bigint not null
+);
+
+create index if not exists review_log_user_ts_idx on public.review_log (user_id, ts);
+create index if not exists review_log_card_idx on public.review_log (card_id);
+
+alter table public.review_log enable row level security;
+
+create policy "own review_log" on public.review_log
+  for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+
+-- ------------------------------------------------------------
 -- Хранилище картинок: публичный бакет card-images.
 -- Файлы лежат в папке с id пользователя: {user_id}/xxx.jpg
 -- ------------------------------------------------------------

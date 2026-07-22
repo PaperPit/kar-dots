@@ -12,6 +12,7 @@ import { cardHasCheckableAnswer, getExpectedAnswer } from '../../lib/answer-chec
 import { canBuildCloze } from '../../lib/cloze.js';
 import { speechRecognitionSupported } from '../../lib/speech-input.js';
 import { createFlipModeCard } from './modes/flip.js';
+import { sizeFlipCard } from './flip-card.js';
 import { createTypeModeCard } from './modes/type.js';
 import { createVoiceModeCard } from './modes/voice.js';
 import { createClozeModeCard } from './modes/cloze.js';
@@ -256,13 +257,14 @@ export function runReviewSession(ctx: ReviewSessionContext) {
     ctx.reshowAfterEdit = () => showStudyCard(true, 'flip');
     ctx.editBtn.style.visibility = '';
     ctx.editBtn.onclick = () => cardDialog(card.folder_id ?? "", card, reviewCardDialogOpts(card));
-    const { box, swipeWrap, grades, getVisibleSide } = createFlipModeCard(card, {
+    const { box, flip, swipeWrap, grades, getVisibleSide } = createFlipModeCard(card, {
       promptSide: side,
       stageContains: node => ctx.stage.contains(node),
       onFirstFlip: () => {
         if (ctx.undoHoldUntilFlip) dismissUndoToast(ctx);
         ctx.gradesVisible = true;
         renderGrades(ctx, card, grades);
+        requestAnimationFrame(() => sizeFlipCard(flip));
       },
       onFlip: flipSide => {
         if (store.settings.tts !== false && store.settings.ttsAuto) void speakCardSide(card, flipSide as "front" | "back");

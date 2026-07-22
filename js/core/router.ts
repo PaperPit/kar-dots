@@ -51,6 +51,9 @@ export async function route(): Promise<void> {
         mode: isStudyMode(mode) ? mode : "flip",
         cramLimit: cramLimit && cramLimit > 0 ? cramLimit : undefined
       })
+    } else if (name === "stats") {
+      const { renderStats } = await import("../screens/stats/index.js")
+      await renderStats()
     } else if (name === "settings") {
       const { renderSettings } = await import("../screens/settings/index.js")
       await renderSettings()

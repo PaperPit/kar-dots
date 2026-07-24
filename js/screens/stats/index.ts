@@ -1,7 +1,6 @@
 import { store } from '../../core/state.js';
 import { el } from '../../ui/ui.js';
 import { shell } from '../../ui/shell.js';
-import { backBtn } from '../../ui/navigation.js';
 import { initActivity, loadActivity, calcVisitStreak } from '../../lib/activity.js';
 import { initReviewLog, getAllReviews } from '../../lib/review-log.js';
 import {
@@ -120,8 +119,7 @@ export async function renderStats(): Promise<void> {
   );
 
   const content = el('div', null, [
-    el('div', { class: 'page-head with-back' }, [
-      backBtn('#settings', 'Настройки'),
+    el('div', { class: 'page-head' }, [
       el('h2', { class: 'page-title' }, 'Статистика'),
     ]),
     tiles,

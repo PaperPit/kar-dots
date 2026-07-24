@@ -10,7 +10,6 @@ import { buildSoundGroup } from './sections/sounds.js';
 import { buildPacksGroup } from './sections/packs.js';
 import { buildDataGroup } from './sections/data.js';
 import { buildAccountGroup } from './sections/account.js';
-import { buildStatsGroup } from './sections/stats.js';
 import { buildIntegrationsGroup } from './sections/integrations.js';
 import { buildStockMediaGroup } from './sections/stock-media.js';
 
@@ -24,7 +23,6 @@ export async function renderSettings() {
     catch (e) { toast('Не сохранилось: ' + (e instanceof Error ? e.message : String(e)), 'error'); }
   }
 
-  const statsGroup = await buildStatsGroup(store);
   const calendarGroup = buildCalendarGroup(s, save);
   const algoGroup = buildAlgoGroup(s, save);
   const soundGroup = buildSoundGroup(s, save);
@@ -37,7 +35,7 @@ export async function renderSettings() {
   shell('settings', el('div', null, [
     offlineBanner(),
     el('div', { class: 'page-head' }, el('h2', { class: 'page-title' }, 'Настройки')),
-    statsGroup, calendarGroup, algoGroup, soundGroup, packsGroup, integrationsGroup, stockMediaGroup, dataGroup, accGroup,
+    calendarGroup, algoGroup, soundGroup, packsGroup, integrationsGroup, stockMediaGroup, dataGroup, accGroup,
     el('p', { class: 'muted settings-footer' }, 'КАР-точки · ворона помнит всё'),
   ]));
 }

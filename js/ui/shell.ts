@@ -59,6 +59,7 @@ function tabConfig(viewName: string | null = lastViewName): TabItem[] {
       hash: "#review",
       badge: reviewDueBadge(viewName)
     },
+    { id: "stats", label: "Статистика", icon: ICONS.chart, hash: "#stats" },
     { id: "settings", label: "Настройки", icon: ICONS.gear, hash: "#settings" }
   ]
 }

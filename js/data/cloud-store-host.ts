@@ -60,8 +60,3 @@ export interface CloudStoreHost {
   _invalidateHomeStats?(): void
   saveSettings(s: Settings): Promise<unknown>
 }
-
-/** Алиасы под старые имена флагов — для постепенной миграции внутри модулей. */
-export function readCompat(store: CloudStoreHost) {
-  return store._compat
-}

@@ -17,7 +17,7 @@ import { createTypeModeCard } from './modes/type.js';
 import { createVoiceModeCard } from './modes/voice.js';
 import { createClozeModeCard } from './modes/cloze.js';
 import { createMatchRound, pickMatchBatch, MIN_BATCH, BATCH_SIZE, COMBO_MATCH_BATCH } from './modes/match.js';
-import { finishProgressAnswered } from '../../lib/review-progress.js';
+import { finishProgressAnswered, progressShown } from '../../lib/review-progress.js';
 import {
   gradePayload, renderGrades, gradeMatchResults, submitGrade, dismissUndoToast,
 } from './grading.js';
@@ -83,7 +83,9 @@ export function runReviewSession(ctx: ReviewSessionContext) {
   }
 
   function updateBar() {
-    const shown = Math.min(ctx.answered, ctx.sessionTotal);
+    // done = успешно закрытые карточки; «Не знаю» возвращает карточку в очередь
+    // и не двигает прогресс (иначе N/N при ещё непустой колоде).
+    const shown = progressShown(ctx.done, ctx.sessionTotal);
     const segs = ctx.bar.querySelectorAll('.progress-seg');
     if (segs.length) {
       segs.forEach((seg, i) => {
@@ -321,6 +323,7 @@ export function runReviewSession(ctx: ReviewSessionContext) {
     if (ctx.undoToastDismiss) { ctx.undoToastDismiss(); ctx.undoToastDismiss = null; }
     clearStage();
     ctx.answered = finishProgressAnswered(ctx.sessionTotal);
+    ctx.done = Math.max(ctx.done, ctx.sessionTotal);
     updateBar();
     ctx.editBtn.style.visibility = 'hidden';
     ctx.speakBtn.style.display = 'none';

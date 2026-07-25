@@ -11,8 +11,8 @@ export function parseCueTime(raw: string | null | undefined): number {
   const parts = s.split(":")
   if (parts.length < 2 || parts.length > 3) return 0
   let h = 0
-  let m = 0
-  let sec = 0
+  let m: number
+  let sec: number
   if (parts.length === 3) {
     h = parseInt(parts[0]!, 10) || 0
     m = parseInt(parts[1]!, 10) || 0

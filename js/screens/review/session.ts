@@ -244,7 +244,7 @@ export function runReviewSession(ctx: ReviewSessionContext) {
       };
       widget = createVoiceModeCard(card, { promptSide, onSuccess, onFail, getSettings: () => store.settings });
     } else {
-      widget = showFlipCard(card, first, promptSide);
+      showFlipCard(card, first, promptSide);
       return;
     }
 

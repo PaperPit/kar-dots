@@ -53,14 +53,13 @@ export function parseReviewRoute(parts: string[]): ReviewRoute {
   const rest = parts.slice(1);
   if (!rest.length) return { folderId, cram, mode, cramLimit };
 
-  let i = 0;
   const first = rest[0];
   if (MODES.has(first as Mode)) {
     return { folderId: null, cram: false, mode: first as Mode, cramLimit: null };
   }
 
   folderId = first ?? null;
-  i = 1;
+  let i = 1;
 
   if (rest[i] === "cram") {
     cram = true;

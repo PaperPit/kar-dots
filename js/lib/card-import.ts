@@ -23,7 +23,7 @@ export function parseBulkLines(text: string): {
     const line = raw.trim()
     if (!line || line.startsWith("#")) continue
 
-    let front = ""
+    let front: string
     let back = ""
     const sep = line.match(SEP_RE)
     if (sep) {

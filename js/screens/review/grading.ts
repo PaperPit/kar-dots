@@ -98,7 +98,7 @@ export function buildLogEntry(ctx: GradeContext, card: SrsCard, g: Grade, failed
   else rating = known ? 3 : 1;
 
   let elapsedDays = 0;
-  let stateBefore = 0;
+  let stateBefore: number;
   let stabilityBefore: number | null = null;
   if (algo === 'fsrs') {
     const fresh = SRS.fsrsIsUntouched(card);

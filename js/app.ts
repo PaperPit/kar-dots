@@ -9,6 +9,7 @@ import { initUiClicks } from './lib/ui-clicks.js';
 import { initRouter, route } from './core/router.js';
 import { initSpeechVoices } from './lib/web-speech-tts.js';
 import { initStudyKeyboardLock } from './lib/study-keyboard.js';
+import { initExtConnect } from './lib/ext-connect.js';
 
 function dismissBootSplash() {
   animateBootSplashOut(document.getElementById('bootSplash') as HTMLElement);
@@ -53,15 +54,18 @@ async function boot() {
         await cloud.syncActivityNow();
       }
       await route();
+      initExtConnect();
     } else {
       dismissBootSplash();
       renderAuth(undefined);
+      initExtConnect();
     }
   } catch (e) {
     console.error(e);
     dismissBootSplash();
     toast('Ошибка запуска: ' + (e instanceof Error ? e.message : String(e)), 'error');
     renderAuth(undefined);
+    initExtConnect();
   }
 }
 

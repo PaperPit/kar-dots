@@ -48,5 +48,8 @@ js/**/*.js
 !js/config.example.js
 *.tsbuildinfo
 
-# Прод-бандл (esbuild -> dist/). Локальные ключи config.js уже игнорируются выше.
-dist/
+# Прод-бандл (esbuild -> dist/). Только корень репо — extension/dist коммитим для load unpacked.
+/dist/
+
+# Sourcemaps сборки Chrome-расширения
+extension/dist/*.map

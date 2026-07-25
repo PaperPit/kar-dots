@@ -66,6 +66,7 @@
 - Папки с цветами и иконками, **коробки** для групп папок; **перетаскивание папок** в коробку и обратно
 - Массовый импорт (`слово — перевод`), автоперевод RU↔EN, экспорт/импорт JSON
 - **Карточки из YouTube** — субтитры + LLM (Gemini / Groq), см. [docs/youtube-import-setup.md](docs/youtube-import-setup.md)
+- **Chrome-расширение** — кнопка на YouTube → Side Panel без копирования ссылки, см. [docs/chrome-extension.md](docs/chrome-extension.md)
 - Готовые **паки слов** в [`packs/`](packs/)
 
 ### Повторение (SRS)
@@ -182,6 +183,7 @@ tests/                  — unit-тесты
 | Cloudflare Pages (основной хостинг) | [docs/cloudflare-pages-setup.md](docs/cloudflare-pages-setup.md) |
 | Functions, миграции SQL, troubleshooting | [docs/DEPLOY.md](docs/DEPLOY.md) |
 | YouTube-импорт (API-ключи) | [docs/youtube-import-setup.md](docs/youtube-import-setup.md) |
+| Chrome-расширение | [docs/chrome-extension.md](docs/chrome-extension.md) |
 | iOS / Xcode (нативная оболочка) | [docs/IOS.md](docs/IOS.md) |
 
 <br>

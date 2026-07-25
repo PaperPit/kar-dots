@@ -55,11 +55,10 @@ function loadDotEnv() {
 
 loadDotEnv();
 
-let ytVideo, ytTranscribeBg, ttsFn, stockSearchFn;
+let ytVideo, ttsFn, stockSearchFn;
 try {
   ({ default: ytVideo } = await import('../netlify/functions/yt-video.mjs'));
   await import('../netlify/functions/yt-generate.mjs');
-  ({ default: ytTranscribeBg } = await import('../netlify/functions/yt-transcribe-background.mjs'));
   ({ default: ttsFn } = await import('../netlify/functions/tts.mjs'));
   ({ default: stockSearchFn } = await import('../netlify/functions/stock-search.mjs'));
 } catch (e) {
@@ -74,7 +73,6 @@ const API_STATIC = {
   '/api/yt-video': () => ytVideo,
   '/api/tts': () => ttsFn,
   '/api/stock-search': () => stockSearchFn,
-  '/.netlify/functions/yt-transcribe-background': () => ytTranscribeBg,
 };
 
 /** yt-generate часто меняется — в dev перечитываем модуль на каждый запрос. */

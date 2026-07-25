@@ -92,7 +92,6 @@ npm run pages:dev   # http://localhost:8788 — как в проде (functions/
 | `functions/api/lib/supadata.js` | клиент Supadata API |
 | `functions/api/yt-video.js` | метаданные + транскрипт, polling, KV |
 | `functions/api/yt-generate.js` | Gemini + Groq резерв |
-| `functions/api/yt-transcribe.js` | Whisper fallback (`waitUntil`) |
 | `js/lib/youtube-import-settings.js` | чтение ключей, `withApiKeys()` |
 | `js/screens/settings/sections/integrations.js` | компактная строка + модальное окно ключей |
 | `js/screens/folder/youtube-dialog.js` | диалог импорта |

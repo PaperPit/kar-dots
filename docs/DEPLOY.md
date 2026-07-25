@@ -23,7 +23,7 @@
 
 ### Cloudflare Pages + Functions (основной)
 
-Статика из `dist/` + API в `functions/api/*` (`/api/yt-video`, `/api/yt-generate`, `/api/tts`, `/api/stock-search`, `/api/yt-transcribe`). YouTube-джобы — Workers KV (`YT_JOBS`).
+Статика из `dist/` + API в `functions/api/*` (`/api/yt-video`, `/api/yt-generate`, `/api/tts`, `/api/stock-search`). YouTube-джобы — Workers KV (`YT_JOBS`).
 
 Пошагово: **[cloudflare-pages-setup.md](./cloudflare-pages-setup.md)**. Кратко:
 

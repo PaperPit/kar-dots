@@ -21,24 +21,50 @@
   };
 
   // src/lib/storage.ts
+  function storageAlive() {
+    try {
+      return typeof chrome !== "undefined" && !!chrome.runtime?.id && !!chrome.storage?.local;
+    } catch {
+      return false;
+    }
+  }
   async function getAuth() {
-    const data = await chrome.storage.local.get(STORAGE_KEYS.auth);
-    return data[STORAGE_KEYS.auth] || null;
+    if (!storageAlive()) return null;
+    try {
+      const data = await chrome.storage.local.get(STORAGE_KEYS.auth);
+      return data[STORAGE_KEYS.auth] || null;
+    } catch {
+      return null;
+    }
   }
   async function setAuth(auth) {
-    if (auth) await chrome.storage.local.set({ [STORAGE_KEYS.auth]: auth });
-    else await chrome.storage.local.remove(STORAGE_KEYS.auth);
+    if (!storageAlive()) return;
+    try {
+      if (auth) await chrome.storage.local.set({ [STORAGE_KEYS.auth]: auth });
+      else await chrome.storage.local.remove(STORAGE_KEYS.auth);
+    } catch {
+    }
   }
   async function getPrefs() {
-    const data = await chrome.storage.local.get(STORAGE_KEYS.prefs);
-    return { ...DEFAULT_PREFS, ...data[STORAGE_KEYS.prefs] };
+    if (!storageAlive()) return { ...DEFAULT_PREFS };
+    try {
+      const data = await chrome.storage.local.get(STORAGE_KEYS.prefs);
+      return { ...DEFAULT_PREFS, ...data[STORAGE_KEYS.prefs] };
+    } catch {
+      return { ...DEFAULT_PREFS };
+    }
   }
   async function setPrefs(patch) {
     const next = { ...await getPrefs(), ...patch };
-    await chrome.storage.local.set({ [STORAGE_KEYS.prefs]: next });
+    if (!storageAlive()) return next;
+    try {
+      await chrome.storage.local.set({ [STORAGE_KEYS.prefs]: next });
+    } catch {
+    }
     return next;
   }
   async function getVideo() {
+    if (!storageAlive()) return null;
     try {
       const data = await chrome.storage.local.get(STORAGE_KEYS.video);
       return data[STORAGE_KEYS.video] || null;

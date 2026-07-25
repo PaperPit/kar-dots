@@ -1,6 +1,7 @@
 /** FAB + оверлей с UI панели прямо в странице YouTube (Shadow DOM, без iframe/вкладок). */
 
 import { mountKarPanel } from "./sidepanel/sidepanel.js"
+import { isExtensionContextValid, showReloadHint } from "./lib/ext-context.js"
 
 const BTN_ID = "kar-ext-yt-fab"
 const OVERLAY_ID = "kar-ext-yt-overlay"
@@ -41,6 +42,7 @@ function videoTitle(): string {
 
 async function loadPanelCss(): Promise<string> {
   if (cssText != null) return cssText
+  if (!isExtensionContextValid()) throw new Error("context invalidated")
   const url = chrome.runtime.getURL("sidepanel/sidepanel.css")
   const res = await fetch(url)
   cssText = await res.text()
@@ -139,6 +141,10 @@ function hideOverlay() {
 }
 
 async function openPanel() {
+  if (!isExtensionContextValid()) {
+    showReloadHint()
+    return
+  }
   const videoUrl = currentVideoUrl()
   if (!videoUrl) return
   try {
@@ -147,13 +153,27 @@ async function openPanel() {
       url: videoUrl,
       title: videoTitle()
     })
-  } catch {
-    /* ignore */
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e)
+    if (/invalidated|receiving end/i.test(msg) || !isExtensionContextValid()) {
+      showReloadHint()
+      return
+    }
   }
-  await showOverlay()
+  try {
+    await showOverlay()
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e)
+    if (/invalidated|context/i.test(msg) || !isExtensionContextValid()) {
+      showReloadHint()
+      return
+    }
+    throw e
+  }
 }
 
 function ensureButton() {
+  if (!isExtensionContextValid()) return
   const url = currentVideoUrl()
   let btn = document.getElementById(BTN_ID) as HTMLButtonElement | null
 
@@ -174,6 +194,10 @@ function ensureButton() {
     btn.addEventListener("click", (e) => {
       e.preventDefault()
       e.stopPropagation()
+      if (!isExtensionContextValid()) {
+        showReloadHint()
+        return
+      }
       const root = document.getElementById(OVERLAY_ID)
       if (root && root.style.display !== "none") hideOverlay()
       else void openPanel()
@@ -185,23 +209,34 @@ function ensureButton() {
 }
 
 function notifyVideo() {
+  if (!isExtensionContextValid()) return
   const url = currentVideoUrl()
   if (!url) return
-  chrome.runtime
-    .sendMessage({
+  try {
+    const p = chrome.runtime.sendMessage({
       type: "SET_VIDEO",
       url,
       title: videoTitle()
     })
-    .catch(() => {})
+    if (p && typeof (p as Promise<unknown>).catch === "function") {
+      ;(p as Promise<unknown>).catch(() => {})
+    }
+  } catch {
+    /* context invalidated */
+  }
 }
 
 function sync() {
+  if (!isExtensionContextValid()) return
   ensureButton()
   notifyVideo()
 }
 
 chrome.runtime.onMessage.addListener((msg) => {
+  if (!isExtensionContextValid()) {
+    showReloadHint()
+    return
+  }
   if (msg?.type === "SHOW_OVERLAY") void openPanel()
   if (msg?.type === "HIDE_OVERLAY") hideOverlay()
 })
@@ -216,6 +251,10 @@ document.addEventListener("keydown", (e) => {
 
 let lastHref = location.href
 const mo = new MutationObserver(() => {
+  if (!isExtensionContextValid()) {
+    mo.disconnect()
+    return
+  }
   if (location.href !== lastHref) {
     lastHref = location.href
     sync()

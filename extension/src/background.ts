@@ -1,14 +1,40 @@
 import { setAuth, setVideo } from "./lib/storage.js"
 import type { ExtMessage } from "./lib/constants.js"
 
+async function injectYouTubeContent(tabId: number): Promise<void> {
+  await chrome.scripting.insertCSS({
+    target: { tabId },
+    files: ["content-youtube.css"]
+  }).catch(() => {})
+  await chrome.scripting.executeScript({
+    target: { tabId },
+    files: ["dist/content-youtube.js"]
+  })
+}
+
 async function showOverlayOnYouTubeTab(preferredTabId?: number): Promise<boolean> {
-  if (preferredTabId != null) {
+  const trySend = async (tabId: number) => {
+    await chrome.tabs.sendMessage(tabId, { type: "SHOW_OVERLAY" })
+  }
+
+  const tryTab = async (tabId: number) => {
     try {
-      await chrome.tabs.sendMessage(preferredTabId, { type: "SHOW_OVERLAY" })
+      await trySend(tabId)
       return true
     } catch {
-      /* no content script */
+      // После Reload расширения старый content script «мёртв» — внедряем заново.
+      try {
+        await injectYouTubeContent(tabId)
+        await trySend(tabId)
+        return true
+      } catch {
+        return false
+      }
     }
+  }
+
+  if (preferredTabId != null) {
+    if (await tryTab(preferredTabId)) return true
   }
 
   const tabs = await chrome.tabs.query({
@@ -16,12 +42,7 @@ async function showOverlayOnYouTubeTab(preferredTabId?: number): Promise<boolean
   })
   const active = tabs.find((t) => t.active && t.id != null) || tabs.find((t) => t.id != null)
   if (active?.id == null) return false
-  try {
-    await chrome.tabs.sendMessage(active.id, { type: "SHOW_OVERLAY" })
-    return true
-  } catch {
-    return false
-  }
+  return tryTab(active.id)
 }
 
 chrome.action.onClicked.addListener((tab) => {
@@ -47,7 +68,7 @@ chrome.runtime.onMessage.addListener((msg: ExtMessage & { url?: string }, sender
           })
         }
         if (tabId != null) {
-          await chrome.tabs.sendMessage(tabId, { type: "SHOW_OVERLAY" }).catch(() => {})
+          await showOverlayOnYouTubeTab(tabId)
         } else {
           await showOverlayOnYouTubeTab()
         }

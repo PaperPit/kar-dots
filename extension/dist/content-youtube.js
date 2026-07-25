@@ -21,24 +21,50 @@
   };
 
   // src/lib/storage.ts
+  function storageAlive() {
+    try {
+      return typeof chrome !== "undefined" && !!chrome.runtime?.id && !!chrome.storage?.local;
+    } catch {
+      return false;
+    }
+  }
   async function getAuth() {
-    const data = await chrome.storage.local.get(STORAGE_KEYS.auth);
-    return data[STORAGE_KEYS.auth] || null;
+    if (!storageAlive()) return null;
+    try {
+      const data = await chrome.storage.local.get(STORAGE_KEYS.auth);
+      return data[STORAGE_KEYS.auth] || null;
+    } catch {
+      return null;
+    }
   }
   async function setAuth(auth) {
-    if (auth) await chrome.storage.local.set({ [STORAGE_KEYS.auth]: auth });
-    else await chrome.storage.local.remove(STORAGE_KEYS.auth);
+    if (!storageAlive()) return;
+    try {
+      if (auth) await chrome.storage.local.set({ [STORAGE_KEYS.auth]: auth });
+      else await chrome.storage.local.remove(STORAGE_KEYS.auth);
+    } catch {
+    }
   }
   async function getPrefs() {
-    const data = await chrome.storage.local.get(STORAGE_KEYS.prefs);
-    return { ...DEFAULT_PREFS, ...data[STORAGE_KEYS.prefs] };
+    if (!storageAlive()) return { ...DEFAULT_PREFS };
+    try {
+      const data = await chrome.storage.local.get(STORAGE_KEYS.prefs);
+      return { ...DEFAULT_PREFS, ...data[STORAGE_KEYS.prefs] };
+    } catch {
+      return { ...DEFAULT_PREFS };
+    }
   }
   async function setPrefs(patch) {
     const next = { ...await getPrefs(), ...patch };
-    await chrome.storage.local.set({ [STORAGE_KEYS.prefs]: next });
+    if (!storageAlive()) return next;
+    try {
+      await chrome.storage.local.set({ [STORAGE_KEYS.prefs]: next });
+    } catch {
+    }
     return next;
   }
   async function getVideo() {
+    if (!storageAlive()) return null;
     try {
       const data = await chrome.storage.local.get(STORAGE_KEYS.video);
       return data[STORAGE_KEYS.video] || null;
@@ -1077,6 +1103,43 @@
   var appEl = document.getElementById("app");
   if (appEl) mountKarPanel(appEl);
 
+  // src/lib/ext-context.ts
+  function isExtensionContextValid() {
+    try {
+      return typeof chrome !== "undefined" && !!chrome.runtime?.id;
+    } catch {
+      return false;
+    }
+  }
+  function showReloadHint() {
+    const id = "kar-ext-reload-hint";
+    if (document.getElementById(id)) return;
+    const el2 = document.createElement("div");
+    el2.id = id;
+    el2.textContent = "\u041A\u0410\u0420-\u0442\u043E\u0447\u043A\u0438 \u043E\u0431\u043D\u043E\u0432\u0438\u043B\u043E\u0441\u044C \u2014 \u043D\u0430\u0436\u043C\u0438 Cmd+R (\u0438\u043B\u0438 F5), \u0447\u0442\u043E\u0431\u044B \u043F\u0435\u0440\u0435\u0437\u0430\u0433\u0440\u0443\u0437\u0438\u0442\u044C YouTube";
+    el2.setAttribute(
+      "style",
+      [
+        "position:fixed",
+        "left:50%",
+        "bottom:24px",
+        "transform:translateX(-50%)",
+        "z-index:2147483647",
+        "max-width:min(480px,calc(100vw - 24px))",
+        "padding:12px 16px",
+        "border-radius:12px",
+        "background:#1c1611",
+        "color:#fbf7ef",
+        "font:600 13px/1.35 Segoe UI,system-ui,sans-serif",
+        "box-shadow:0 10px 30px rgba(0,0,0,.35)",
+        "cursor:pointer"
+      ].join(";")
+    );
+    el2.title = "\u041D\u0430\u0436\u043C\u0438, \u0447\u0442\u043E\u0431\u044B \u043F\u0435\u0440\u0435\u0437\u0430\u0433\u0440\u0443\u0437\u0438\u0442\u044C \u0441\u0442\u0440\u0430\u043D\u0438\u0446\u0443";
+    el2.addEventListener("click", () => location.reload());
+    document.documentElement.appendChild(el2);
+  }
+
   // src/content-youtube.ts
   var BTN_ID = "kar-ext-yt-fab";
   var OVERLAY_ID = "kar-ext-yt-overlay";
@@ -1108,6 +1171,7 @@
   }
   async function loadPanelCss() {
     if (cssText != null) return cssText;
+    if (!isExtensionContextValid()) throw new Error("context invalidated");
     const url = chrome.runtime.getURL("sidepanel/sidepanel.css");
     const res = await fetch(url);
     cssText = await res.text();
@@ -1197,6 +1261,10 @@
     root2.setAttribute("aria-hidden", "true");
   }
   async function openPanel() {
+    if (!isExtensionContextValid()) {
+      showReloadHint();
+      return;
+    }
     const videoUrl2 = currentVideoUrl();
     if (!videoUrl2) return;
     try {
@@ -1205,11 +1273,26 @@
         url: videoUrl2,
         title: videoTitle2()
       });
-    } catch {
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      if (/invalidated|receiving end/i.test(msg) || !isExtensionContextValid()) {
+        showReloadHint();
+        return;
+      }
     }
-    await showOverlay();
+    try {
+      await showOverlay();
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      if (/invalidated|context/i.test(msg) || !isExtensionContextValid()) {
+        showReloadHint();
+        return;
+      }
+      throw e;
+    }
   }
   function ensureButton() {
+    if (!isExtensionContextValid()) return;
     const url = currentVideoUrl();
     let btn = document.getElementById(BTN_ID);
     if (!url) {
@@ -1227,6 +1310,10 @@
       btn.addEventListener("click", (e) => {
         e.preventDefault();
         e.stopPropagation();
+        if (!isExtensionContextValid()) {
+          showReloadHint();
+          return;
+        }
         const root2 = document.getElementById(OVERLAY_ID);
         if (root2 && root2.style.display !== "none") hideOverlay();
         else void openPanel();
@@ -1236,20 +1323,33 @@
     btn.hidden = false;
   }
   function notifyVideo() {
+    if (!isExtensionContextValid()) return;
     const url = currentVideoUrl();
     if (!url) return;
-    chrome.runtime.sendMessage({
-      type: "SET_VIDEO",
-      url,
-      title: videoTitle2()
-    }).catch(() => {
-    });
+    try {
+      const p = chrome.runtime.sendMessage({
+        type: "SET_VIDEO",
+        url,
+        title: videoTitle2()
+      });
+      if (p && typeof p.catch === "function") {
+        ;
+        p.catch(() => {
+        });
+      }
+    } catch {
+    }
   }
   function sync() {
+    if (!isExtensionContextValid()) return;
     ensureButton();
     notifyVideo();
   }
   chrome.runtime.onMessage.addListener((msg) => {
+    if (!isExtensionContextValid()) {
+      showReloadHint();
+      return;
+    }
     if (msg?.type === "SHOW_OVERLAY") void openPanel();
     if (msg?.type === "HIDE_OVERLAY") hideOverlay();
   });
@@ -1261,6 +1361,10 @@
   });
   var lastHref = location.href;
   var mo = new MutationObserver(() => {
+    if (!isExtensionContextValid()) {
+      mo.disconnect();
+      return;
+    }
     if (location.href !== lastHref) {
       lastHref = location.href;
       sync();

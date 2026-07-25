@@ -2,16 +2,12 @@
 // POST { text, voice, groqApiKey? } → audio/wav
 
 import { formatOrpheusError } from '../../js/lib/orpheus-tts.js';
+import { cleanGroqApiKey } from '../../js/lib/llm-api-keys.js';
 
 const ORPHEUS_MODEL = 'canopylabs/orpheus-v1-english';
 const MAX_CHARS = 200;
 const VOICES = new Set(['autumn', 'diana', 'hannah', 'austin', 'daniel', 'troy']);
 const GROQ_URL = 'https://api.groq.com/openai/v1/audio/speech';
-
-function cleanApiKey(raw) {
-  const s = String(raw || '').trim();
-  return /^[A-Za-z0-9_-]{20,200}$/.test(s) ? s : '';
-}
 
 function json(body, status = 400) {
   return new Response(JSON.stringify(body), {
@@ -37,7 +33,7 @@ async function handler(req, env) {
     return json({ error: 'too-long', message: `Максимум ${MAX_CHARS} символов для Orpheus` });
   }
 
-  const apiKey = cleanApiKey(payload.groqApiKey) || cleanApiKey(env?.GROQ_API_KEY) || '';
+  const apiKey = cleanGroqApiKey(payload.groqApiKey) || cleanGroqApiKey(env?.GROQ_API_KEY) || '';
   if (!apiKey) {
     return json({ error: 'config', message: 'Нужен Groq API ключ (Настройки → Карточки из YouTube)' }, 401);
   }

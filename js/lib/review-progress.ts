@@ -10,7 +10,12 @@ export function comboMatchBatchProgress(results: MatchResult[]): { answeredAdd: 
   }
 }
 
-/** Bar counter shown on finish — always full session length. */
+/** Bar counter shown on finish — always full session length (успешно закрытые). */
 export function finishProgressAnswered(sessionTotal: number): number {
   return sessionTotal
+}
+
+/** Сколько сегментов прогресса закрасить: только успешно закрытые, не все ответы. */
+export function progressShown(done: number, sessionTotal: number): number {
+  return Math.min(Math.max(0, done), sessionTotal)
 }

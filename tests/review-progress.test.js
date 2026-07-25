@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { comboMatchBatchProgress, finishProgressAnswered } from '../js/lib/review-progress.ts';
+import { comboMatchBatchProgress, finishProgressAnswered, progressShown } from '../js/lib/review-progress.ts';
 
 describe('comboMatchBatchProgress', () => {
   it('counts each card toward answered and successes toward done', () => {
@@ -26,5 +26,17 @@ describe('comboMatchBatchProgress', () => {
 describe('finishProgressAnswered', () => {
   it('returns session total for finish screen bar', () => {
     expect(finishProgressAnswered(10)).toBe(10);
+  });
+});
+
+describe('progressShown', () => {
+  it('uses done (успехи), not answered — fails do not fill the bar', () => {
+    expect(progressShown(5, 38)).toBe(5);
+    expect(progressShown(38, 38)).toBe(38);
+  });
+
+  it('caps at sessionTotal and floors at 0', () => {
+    expect(progressShown(40, 38)).toBe(38);
+    expect(progressShown(-1, 38)).toBe(0);
   });
 });

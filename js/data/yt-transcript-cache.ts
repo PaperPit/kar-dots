@@ -1,20 +1,7 @@
 /** Кэш транскриптов YouTube в IndexedDB — videoId → { video, transcript, fetchedAt }. TTL 7 дней. */
 
-export interface YtVideo {
-  videoId?: string | null
-  title?: string
-  durationSec?: number
-}
-
-export interface YtTranscriptSegment {
-  t: number
-  text: string
-}
-
-export interface YtTranscript {
-  lang?: string | null
-  segments: YtTranscriptSegment[]
-}
+export type { YtVideo, YtTranscript, YtTranscriptSegment } from "../lib/yt-transcript.js"
+import type { YtVideo, YtTranscript } from "../lib/yt-transcript.js"
 
 interface CachedTranscriptRow {
   videoId: string

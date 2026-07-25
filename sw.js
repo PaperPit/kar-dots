@@ -1,4 +1,4 @@
-const VERSION = 'kar-v15.4';
+const VERSION = 'kar-v15.5';
 
 /** AUTO-GENERATED CORE_FILES — node scripts/generate-sw-files.js */
 const CORE_FILES = [
@@ -29,6 +29,12 @@ const CORE_FILES = [
   'js/data/cache-invalidate.js',
   'js/data/card-hydrate.js',
   'js/data/cloud-delta.js',
+  'js/data/cloud-import.js',
+  'js/data/cloud-pull.js',
+  'js/data/cloud-queries.js',
+  'js/data/cloud-remote.js',
+  'js/data/cloud-store-host.js',
+  'js/data/cloud-sync-runtime.js',
   'js/data/home-stats.js',
   'js/data/index.js',
   'js/data/schema-version.js',
@@ -50,6 +56,7 @@ const CORE_FILES = [
   'js/lib/answer-check.js',
   'js/lib/card-import.js',
   'js/lib/charts.js',
+  'js/lib/ext-connect.js',
   'js/lib/folder-errors.js',
   'js/lib/folder-icons.js',
   'js/lib/fsrs-optimize.js',

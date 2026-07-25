@@ -1,12 +1,33 @@
-// Оркестрация YouTube-импорта: кэш → Supadata, файл субтитров, генерация карточек.
+// Оркестрация YouTube-импорта: Supadata, файл субтитров, генерация карточек.
+// Кэш IndexedDB — опциональный порт (не импортируем js/data из lib).
 
 import { parseYouTubeId, buildCardDescription, filterTranscriptSegments, type YtCandidate } from "./youtube-import.js"
 import { withApiKeys } from "./youtube-import-settings.js"
-import { getCachedTranscript, setCachedTranscript } from "../data/yt-transcript-cache.js"
-import type { YtVideo, YtTranscript } from "../data/yt-transcript-cache.js"
 import { parseCaptionFile } from "./yt-caption-parsers.js"
 import { mergeCaptionSegments } from "./yt-segment-merge.js"
 import type { Settings } from "../data/types.js"
+
+export interface YtVideo {
+  videoId?: string | null
+  title?: string
+  durationSec?: number
+}
+
+export interface YtTranscriptSegment {
+  t: number
+  end?: number | null
+  text?: string
+}
+
+export interface YtTranscript {
+  lang?: string | null
+  segments: YtTranscriptSegment[]
+}
+
+export interface TranscriptCachePort {
+  get: (videoId: string) => Promise<{ video?: YtVideo | null; transcript: YtTranscript } | null>
+  set: (videoId: string, data: { video: YtVideo | null; transcript: YtTranscript }) => Promise<void>
+}
 
 const POLL_MS = 2500
 const POLL_MAX_MS = 3 * 60 * 1000
@@ -14,11 +35,19 @@ const POLL_MAX_MS = 3 * 60 * 1000
 interface ImportOptions {
   isClosed?: () => boolean
   onStatus?: (msg: string) => void
+  /** Префикс origin для расширения (например https://kar-tochki.pages.dev). */
+  apiBase?: string
+  /** Опциональный кэш транскриптов (IDB в приложении, нет в extension). */
+  cache?: TranscriptCachePort | null
 }
 
 interface ApiJsonResponse {
   error?: unknown
   message?: string
+  pending?: boolean
+  jobId?: string
+  video?: YtVideo
+  transcript?: YtTranscript
   [key: string]: unknown
 }
 
@@ -51,12 +80,17 @@ export interface YtGenResult {
 export async function fetchTranscriptFromUrl(
   url: string | null | undefined,
   settings: Settings | null,
-  { isClosed = () => false, onStatus = () => {} }: ImportOptions = {}
+  {
+    isClosed = () => false,
+    onStatus = () => {},
+    apiBase = "",
+    cache = null,
+  }: ImportOptions = {}
 ): Promise<{ video: YtVideo; transcript: YtTranscript; source: "cache" | "supadata" }> {
   const videoId = parseYouTubeId(url)
-  if (videoId) {
+  if (videoId && cache) {
     onStatus("Проверяю кэш транскрипта…")
-    const cached = await getCachedTranscript(videoId)
+    const cached = await cache.get(videoId)
     if (cached) {
       return {
         video: cached.video ?? { videoId },
@@ -67,7 +101,7 @@ export async function fetchTranscriptFromUrl(
   }
 
   onStatus("Получаю данные видео…")
-  let data = await apiJson("/api/yt-video", {
+  let data = await apiJson(apiBase + "/api/yt-video", {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify(withApiKeys(settings, { url }))
@@ -81,7 +115,7 @@ export async function fetchTranscriptFromUrl(
       if (Date.now() > deadline)
         throw new Error("Расшифровка заняла слишком много времени — попробуй позже")
       await new Promise((r) => setTimeout(r, POLL_MS))
-      data = await apiJson("/api/yt-video?jobId=" + encodeURIComponent(String(data.jobId)))
+      data = await apiJson(apiBase + "/api/yt-video?jobId=" + encodeURIComponent(String(data.jobId)))
     }
   }
 
@@ -90,8 +124,8 @@ export async function fetchTranscriptFromUrl(
   if (!transcript?.segments?.length) throw new Error("Не удалось получить текст видео")
 
   const cacheId = video?.videoId || videoId
-  if (cacheId) {
-    await setCachedTranscript(cacheId, { video, transcript })
+  if (cacheId && cache) {
+    await cache.set(cacheId, { video, transcript })
   }
 
   return { video, transcript, source: "supadata" }
@@ -125,9 +159,9 @@ export function prepareTranscriptForMode(
   { mergeCues = true }: { mergeCues?: boolean } = {}
 ): YtTranscript {
   if (mode !== "sentences") return transcript
-  let segments = transcript?.segments || []
-  if (mergeCues) segments = mergeCaptionSegments(segments)
-  segments = filterTranscriptSegments(segments, { minWords: 3, dedupe: true })
+  let segments: YtTranscriptSegment[] = transcript?.segments || []
+  if (mergeCues) segments = mergeCaptionSegments(segments as any) as YtTranscriptSegment[]
+  segments = filterTranscriptSegments(segments as any, { minWords: 3, dedupe: true }) as YtTranscriptSegment[]
   if (!segments.length) {
     throw new Error("После фильтрации не осталось предложений — попробуй другие субтитры")
   }
@@ -139,14 +173,15 @@ interface GenerateYoutubeCardsArgs {
   transcript: YtTranscript
   mode: string
   settings: Settings | null
+  apiBase?: string
 }
 
 export async function generateYoutubeCards(
-  { video, transcript, mode, settings }: GenerateYoutubeCardsArgs,
+  { video, transcript, mode, settings, apiBase = "" }: GenerateYoutubeCardsArgs,
   { isClosed = () => false }: { isClosed?: () => boolean } = {}
 ): Promise<YtGenResult> {
   if (isClosed()) throw new Error("Отменено")
-  return apiJson<YtGenResult>("/api/yt-generate", {
+  return apiJson<YtGenResult>(apiBase + "/api/yt-generate", {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify(

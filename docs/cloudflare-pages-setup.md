@@ -75,7 +75,3 @@ npm run dev         # http://localhost:8080
 2. Вход Supabase / демо-режим
 3. YouTube, TTS, stock API
 4. В логах Functions нет `process is not defined`
-
-## Чистка Netlify
-
-`netlify/functions` и `netlify.toml` — legacy. После того как Cloudflare устраивает полностью — можно удалить и снять `@netlify/blobs`.

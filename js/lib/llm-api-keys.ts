@@ -60,8 +60,3 @@ export function cleanGiphyApiKey(raw: unknown) {
   if (/^[A-Za-z0-9]{16,128}$/.test(s)) return s
   return ""
 }
-
-/** @deprecated используй cleanGroqApiKey / cleanGeminiApiKey */
-export function cleanApiKey(raw: unknown) {
-  return cleanGroqApiKey(raw) || cleanGeminiApiKey(raw)
-}

@@ -20,7 +20,7 @@ import {
 import { cleanGeminiApiKey, cleanGroqApiKey } from '../../js/lib/llm-api-keys.js';
 import { formatGeminiGenerateError, combineLlmErrors } from '../../js/lib/gemini-generate.js';
 
-export { cleanGroqApiKey as cleanApiKey } from '../../js/lib/llm-api-keys.js';
+export { cleanGroqApiKey } from '../../js/lib/llm-api-keys.js';
 
 const DEFAULT_GEMINI_MODEL = 'gemini-flash-latest';
 const MAX_TRANSCRIPT_CHARS = 28000;

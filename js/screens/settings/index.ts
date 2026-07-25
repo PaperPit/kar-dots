@@ -1,4 +1,5 @@
 import { store, sb, setStore } from '../../core/state.js';
+import { APP_GITHUB_URL, APP_VERSION_SHORT } from '../../core/version.js';
 import { el, toast } from '../../ui/ui.js';
 import { shell, offlineBanner } from '../../ui/shell.js';
 import { renderAuth } from '../auth/index.js';
@@ -12,6 +13,25 @@ import { buildDataGroup } from './sections/data.js';
 import { buildAccountGroup } from './sections/account.js';
 import { buildIntegrationsGroup } from './sections/integrations.js';
 import { buildStockMediaGroup } from './sections/stock-media.js';
+
+function buildAboutGroup() {
+  return el('div', { class: 'settings-group' }, [
+    el('h4', null, 'Проект'),
+    el('div', { class: 'setting-row' }, [
+      el('div', { class: 'lab' }, [
+        el('b', null, 'GitHub'),
+        el('span', null, 'Исходный код приложения на GitHub.'),
+      ]),
+      el('button', {
+        class: 'btn',
+        type: 'button',
+        onclick: () => {
+          window.open(APP_GITHUB_URL, '_blank', 'noopener,noreferrer');
+        },
+      }, 'Открыть'),
+    ]),
+  ]);
+}
 
 export async function renderSettings() {
   await initActivity();
@@ -31,11 +51,13 @@ export async function renderSettings() {
   const stockMediaGroup = buildStockMediaGroup(s, save);
   const dataGroup = buildDataGroup(store, route);
   const accGroup = buildAccountGroup(store, sb, setStore, renderAuth, route);
+  const aboutGroup = buildAboutGroup();
 
   shell('settings', el('div', null, [
     offlineBanner(),
     el('div', { class: 'page-head' }, el('h2', { class: 'page-title' }, 'Настройки')),
     calendarGroup, algoGroup, soundGroup, packsGroup, integrationsGroup, stockMediaGroup, dataGroup, accGroup,
-    el('p', { class: 'muted settings-footer' }, 'КАР-точки · ворона помнит всё'),
+    aboutGroup,
+    el('p', { class: 'muted settings-footer' }, `КАР-точки · v${APP_VERSION_SHORT}`),
   ]));
 }

@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="132" viewBox="0 0 1200 132" role="img" aria-labelledby="secTitle secDesc">
+<title id="secTitle">Деплой и облако</title>
+<desc id="secDesc">Заголовок раздела «Деплой и облако» — Cloudflare Pages, Supabase, iOS.</desc>
+<rect width="1200" height="132" rx="22" fill="#14110E"/>
+<rect x="0.75" y="0.75" width="1198.5" height="130.5" rx="21.5" fill="none" stroke="#3A332B" stroke-width="1.5"/>
+<rect x="48" y="38" width="6" height="56" rx="3" fill="#E07840"/>
+<text x="78" y="66" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif" font-size="32" font-weight="700" fill="#F3EBE0">Деплой и облако</text>
+<text x="78" y="96" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif" font-size="15" fill="#948875">Cloudflare Pages, Supabase, iOS</text>
+<text x="1152" y="72" text-anchor="end" font-family="ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace" font-size="13" letter-spacing="1.4" fill="#948875">07 / 08</text>
+</svg>

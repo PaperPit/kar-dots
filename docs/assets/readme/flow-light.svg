@@ -1,0 +1,60 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="470" viewBox="0 0 1200 470" role="img" aria-labelledby="flowTitle flowDesc">
+<title id="flowTitle">Путь карточки: новая → учится → повторение → журнал → статистика</title>
+<desc id="flowDesc">Схема: новая карточка попадает в обучение, затем в повторение по алгоритму FSRS; оценка «Снова» возвращает её в обучение; каждая оценка пишется в журнал повторений, из журнала строится экран статистики: удержание, активность за 30 дней, прогноз нагрузки и разбивка по папкам.</desc>
+<rect width="1200" height="470" rx="26" fill="#FBFAF7"/>
+<rect x="0.75" y="0.75" width="1198.5" height="468.5" rx="25.5" fill="none" stroke="#DDD2C4" stroke-width="1.5"/>
+<text x="64" y="60" font-family="ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace" font-size="12.5" letter-spacing="2.2" fill="#A08D77">ПУТЬ ОДНОЙ КАРТОЧКИ</text>
+<g stroke="#C45528" stroke-width="2" fill="none" stroke-dasharray="6 5">
+  <path d="M 976 120 L 976 92 L 600 92 L 600 112"/>
+</g>
+<path d="M 595 112 L 605 112 L 600 122 Z" fill="#C45528" opacity="0.9"/>
+<text x="788" y="82" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace" font-size="11.5" fill="#A08D77">оценка «Снова» — карточка возвращается в обучение</text>
+<g>
+  <rect x="64" y="120" width="320" height="118" rx="18" fill="#FFFFFF" stroke="#DDD2C4" stroke-width="1.5"/>
+  <text x="88" y="160" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif" font-size="20" font-weight="700" fill="#1C1611">Новая</text>
+  <text x="88" y="186" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif" font-size="13.5" fill="#A08D77">лимит новых карточек в день</text>
+  <text x="88" y="206" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif" font-size="13.5" fill="#A08D77">направление лицо ↔ оборот</text>
+</g>
+<g>
+  <rect x="440" y="120" width="320" height="118" rx="18" fill="#FFFFFF" stroke="#DDD2C4" stroke-width="1.5"/>
+  <text x="464" y="160" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif" font-size="20" font-weight="700" fill="#1C1611">Учится</text>
+  <text x="464" y="186" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif" font-size="13.5" fill="#A08D77">короткие шаги: 1 мин, 6 мин</text>
+  <text x="464" y="206" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif" font-size="13.5" fill="#A08D77">режимы: ввод, cloze, голос, пары</text>
+</g>
+<g>
+  <rect x="816" y="120" width="320" height="118" rx="18" fill="#FFFFFF" stroke="#C45528" stroke-width="2"/>
+  <text x="840" y="160" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif" font-size="20" font-weight="700" fill="#1C1611">Повторение</text>
+  <text x="840" y="186" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif" font-size="13.5" fill="#A08D77">FSRS: стабильность → срок</text>
+  <text x="840" y="206" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif" font-size="13.5" fill="#A08D77">или SM-2 / коробки Лейтнера</text>
+</g>
+<g stroke="#C45528" stroke-width="2" fill="none">
+  <line x1="384" y1="179" x2="431" y2="179"/>
+  <path d="M 429 174 L 439 179 L 429 184 Z" fill="#C45528" stroke="none"/>
+</g>
+<g stroke="#C45528" stroke-width="2" fill="none">
+  <line x1="760" y1="179" x2="807" y2="179"/>
+  <path d="M 805 174 L 815 179 L 805 184 Z" fill="#C45528" stroke="none"/>
+</g>
+<g stroke="#C45528" stroke-width="2" fill="none" opacity="0.75">
+  <path d="M 976 238 L 976 272 L 324 272 L 324 302"/>
+</g>
+<path d="M 319 302 L 329 302 L 324 312 Z" fill="#C45528" opacity="0.75"/>
+<text x="700" y="264" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace" font-size="11.5" fill="#A08D77">каждая оценка пишется в журнал</text>
+<g>
+  <rect x="64" y="312" width="520" height="118" rx="18" fill="#FFFFFF" stroke="#DDD2C4" stroke-width="1.5"/>
+  <text x="88" y="352" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif" font-size="20" font-weight="700" fill="#1C1611">Журнал повторений</text>
+  <text x="88" y="378" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif" font-size="13.5" fill="#A08D77">рейтинг, интервал, состояние карточки</text>
+  <text x="88" y="398" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif" font-size="13.5" fill="#A08D77">отдельная IndexedDB + синк в ваш Supabase</text>
+</g>
+<g>
+  <rect x="640" y="312" width="496" height="118" rx="18" fill="#FFFFFF" stroke="#DDD2C4" stroke-width="1.5"/>
+  <text x="664" y="352" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif" font-size="20" font-weight="700" fill="#1C1611">Экран статистики</text>
+  <text x="664" y="378" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif" font-size="13.5" fill="#A08D77">удержание, 30 дней активности, прогноз на 14 дней</text>
+  <text x="664" y="398" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif" font-size="13.5" fill="#A08D77">разбивка по папкам, экспорт CSV для оптимизатора</text>
+</g>
+<g stroke="#C45528" stroke-width="2" fill="none">
+  <line x1="584" y1="371" x2="631" y2="371"/>
+  <path d="M 629 366 L 639 371 L 629 376 Z" fill="#C45528" stroke="none"/>
+</g>
+<text x="64" y="452" font-family="ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace" font-size="12" fill="#A08D77">js/lib/review-log.ts · js/lib/fsrs-engine.ts · js/screens/stats/</text>
+</svg>

@@ -1,3 +1,5 @@
+import { t } from "./i18n.js";
+
 type Mode = "flip" | "type" | "voice" | "match" | "combo" | "cloze";
 
 const MODES = new Set<Mode>(["flip", "type", "voice", "match", "combo", "cloze"]);
@@ -20,19 +22,31 @@ export interface StudyModeMeta {
   desc: string;
 }
 
-export const PROMPT_SIDE_META: PromptSideMeta[] = [
-  { id: "front", label: "Лицо", desc: "Видите термин — вводите или говорите перевод" },
-  { id: "back", label: "Оборот", desc: "Видите перевод — вводите или говорите термин" }
-];
+/** Localized prompt-side options (call at render time). */
+export function getPromptSideMeta(): PromptSideMeta[] {
+  return [
+    { id: "front", label: t("review.side.front"), desc: t("review.side.frontDesc") },
+    { id: "back", label: t("review.side.back"), desc: t("review.side.backDesc") }
+  ];
+}
 
-export const STUDY_MODE_META: StudyModeMeta[] = [
-  { id: "flip", title: "Классический", desc: "Переворот карточки и свайп «Знаю / Не знаю»" },
-  { id: "type", title: "Ввод", desc: "Напечатать перевод или ответ" },
-  { id: "cloze", title: "Пропуски", desc: "Слово — дописать буквы; фраза — дописать слова" },
-  { id: "voice", title: "Голос", desc: "Сказать перевод в микрофон" },
-  { id: "combo", title: "Микс", desc: "Случайно: ввод, голос или 5 пар слов" },
-  { id: "match", title: "Пары", desc: "Собрать термины и переводы в пары" }
-];
+/** Localized study-mode options (call at render time). */
+export function getStudyModeMeta(): StudyModeMeta[] {
+  return [
+    { id: "flip", title: t("review.mode.flip.title"), desc: t("review.mode.flip.desc") },
+    { id: "type", title: t("review.mode.type.title"), desc: t("review.mode.type.desc") },
+    { id: "cloze", title: t("review.mode.cloze.title"), desc: t("review.mode.cloze.desc") },
+    { id: "voice", title: t("review.mode.voice.title"), desc: t("review.mode.voice.desc") },
+    { id: "combo", title: t("review.mode.combo.title"), desc: t("review.mode.combo.desc") },
+    { id: "match", title: t("review.mode.match.title"), desc: t("review.mode.match.desc") }
+  ];
+}
+
+/** @deprecated Prefer getPromptSideMeta() — snapshot at module load. */
+export const PROMPT_SIDE_META: PromptSideMeta[] = getPromptSideMeta();
+
+/** @deprecated Prefer getStudyModeMeta() — snapshot at module load. */
+export const STUDY_MODE_META: StudyModeMeta[] = getStudyModeMeta();
 
 export function isStudyMode(v: unknown): v is Mode {
   return MODES.has(v as Mode);
@@ -132,11 +146,13 @@ export function resolveStudyMode(urlMode: string): Mode {
 }
 
 export function studyModeLabel(mode: Mode): string {
-  return STUDY_MODE_META.find((m) => m.id === mode)?.title || "Классический";
+  const key = `review.mode.${mode}.title`;
+  const label = t(key);
+  return label === key ? t("review.mode.flip.title") : label;
 }
 
 export function promptSideLabel(side: "front" | "back"): string {
-  return PROMPT_SIDE_META.find((s) => s.id === side)?.label || "Лицо";
+  return side === "back" ? t("review.side.back") : t("review.side.front");
 }
 
 export function normalizePromptSide(side: string): "front" | "back" {
@@ -236,6 +252,8 @@ export interface StudyModesAPI {
   setLastCramLimit: typeof setLastCramLimit;
   setSessionCramLimit: typeof setSessionCramLimit;
   consumeSessionCramLimit: typeof consumeSessionCramLimit;
+  getPromptSideMeta: typeof getPromptSideMeta;
+  getStudyModeMeta: typeof getStudyModeMeta;
   PROMPT_SIDE_META: typeof PROMPT_SIDE_META;
   STUDY_MODE_META: typeof STUDY_MODE_META;
 }

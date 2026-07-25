@@ -22,6 +22,7 @@ import {
   gradePayload, renderGrades, gradeMatchResults, submitGrade, dismissUndoToast,
 } from './grading.js';
 import { studyModePicker } from './mode-picker.js';
+import { t } from '../../lib/i18n.js';
 
 import type { GradeContext } from "./grading.js";
 import type { Card } from "../../data/types.js";
@@ -65,7 +66,7 @@ export function runReviewSession(ctx: ReviewSessionContext) {
 
     clearStage();
     updateBar();
-    toast('Карточка удалена', 'ok');
+    toast(t('review.session.cardDeleted'), 'ok');
     if (!ctx.queue.length) finish();
     else if (wasCurrent) showNext(false);
   }
@@ -75,7 +76,7 @@ export function runReviewSession(ctx: ReviewSessionContext) {
       review: true,
       onSaved: (patch: Partial<Card>) => {
         syncCardInQueue(card.id ?? "", patch as Partial<SrsCard>);
-        toast('Карточка сохранена', 'ok');
+        toast(t('review.session.cardSaved'), 'ok');
         ctx.reshowAfterEdit?.();
       },
       onDeleted: () => removeCardFromSession(card.id ?? ""),
@@ -142,8 +143,8 @@ export function runReviewSession(ctx: ReviewSessionContext) {
     const side = pickSide();
     while (ctx.queue.length && !cardWorksInMode(ctx.queue[0]!, side)) {
       const msg = ctx.mode === 'cloze'
-        ? 'Слишком короткий ответ для пропусков — пропуск'
-        : (side === 'front' ? 'Нет перевода для проверки — пропуск' : 'Нет термина для проверки — пропуск');
+        ? t('review.session.skipClozeShort')
+        : (side === 'front' ? t('review.session.skipNoBack') : t('review.session.skipNoFront'));
       toast(msg, 'error');
       ctx.queue.shift();
     }
@@ -228,19 +229,19 @@ export function runReviewSession(ctx: ReviewSessionContext) {
     if (activeMode === 'type') {
       ctx.speakBtn.style.display = store.settings.tts !== false ? '' : 'none';
       ctx.speakBtn.onclick = async () => {
-        if (!(await speakCardSide(card, promptSide))) toast('Нет текста для озвучки', 'error');
+        if (!(await speakCardSide(card, promptSide))) toast(t('review.session.noTts'), 'error');
       };
       widget = createTypeModeCard(card, { promptSide, onSuccess, onFail, getSettings: () => store.settings });
     } else if (activeMode === 'cloze') {
       ctx.speakBtn.style.display = store.settings.tts !== false ? '' : 'none';
       ctx.speakBtn.onclick = async () => {
-        if (!(await speakCardSide(card, promptSide))) toast('Нет текста для озвучки', 'error');
+        if (!(await speakCardSide(card, promptSide))) toast(t('review.session.noTts'), 'error');
       };
       widget = createClozeModeCard(card, { promptSide, onSuccess, onFail, getSettings: () => store.settings });
     } else if (activeMode === 'voice') {
       ctx.speakBtn.style.display = store.settings.tts !== false ? '' : 'none';
       ctx.speakBtn.onclick = async () => {
-        if (!(await speakCardSide(card, promptSide))) toast('Нет текста для озвучки', 'error');
+        if (!(await speakCardSide(card, promptSide))) toast(t('review.session.noTts'), 'error');
       };
       widget = createVoiceModeCard(card, { promptSide, onSuccess, onFail, getSettings: () => store.settings });
     } else {
@@ -277,7 +278,7 @@ export function runReviewSession(ctx: ReviewSessionContext) {
       onGradeDir: dir => submitGrade(ctx, card, gradePayload(ctx.algo, dir === 'right'), dir, { flipGrade: true }),
     });
     ctx.speakBtn.onclick = async () => {
-      if (!(await speakCardSide(card, getVisibleSide()))) toast('Нет текста для озвучки', 'error');
+      if (!(await speakCardSide(card, getVisibleSide()))) toast(t('review.session.noTts'), 'error');
     };
     attachSwipeGrades(box, {
       cardEl: swipeWrap,
@@ -334,17 +335,17 @@ export function runReviewSession(ctx: ReviewSessionContext) {
     const homeHash = ctx.folderId ? '#folder/' + ctx.folderId : '#home';
     ctx.stage.append(el('div', { class: 'review-done' }, [
       el('img', { class: 'review-done-raven', src: 'icons/raven.svg', alt: '', draggable: 'false' }),
-      el('h2', null, 'Сессия завершена!'),
-      el('p', { class: 'review-done-sub' }, 'Ворона довольна. Возвращайтесь завтра — память любит ритм.'),
+      el('h2', null, t('review.session.doneTitle')),
+      el('p', { class: 'review-done-sub' }, t('review.session.doneSub')),
       lessonRewardBox(stars),
       el('div', { class: 'review-done-stats' }, [
         el('div', { class: 'review-done-stat is-ok' }, [
           el('div', { class: 'review-done-stat-val' }, String(known)),
-          el('div', { class: 'review-done-stat-lab' }, 'знаю'),
+          el('div', { class: 'review-done-stat-lab' }, t('review.session.statKnown')),
         ]),
         el('div', { class: 'review-done-stat is-fail' }, [
           el('div', { class: 'review-done-stat-val' }, String(failed)),
-          el('div', { class: 'review-done-stat-lab' }, 'повторить ещё'),
+          el('div', { class: 'review-done-stat-lab' }, t('review.session.statRetry')),
         ]),
       ]),
       el('div', { class: 'review-done-actions' }, [
@@ -354,11 +355,11 @@ export function runReviewSession(ctx: ReviewSessionContext) {
             folderId: ctx.folderId || undefined,
             cram: ctx.cram || undefined,
           }),
-        }, 'Ещё раз'),
+        }, t('review.session.again')),
         el('button', {
           class: 'btn review-done-home',
           onclick: () => nav(homeHash),
-        }, ctx.folderId ? 'К папке' : 'На главную'),
+        }, ctx.folderId ? t('review.empty.toFolder') : t('review.empty.toHome')),
       ]),
     ]));
     playLessonCompleteFromStore(stars);

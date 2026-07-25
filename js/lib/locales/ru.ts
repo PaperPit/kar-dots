@@ -152,7 +152,142 @@ export const ru = {
   "settings.about.title": "Проект",
   "settings.about.github": "GitHub",
   "settings.about.githubHint": "Исходный код приложения на GitHub.",
-  "settings.footer": "КАР-точки · v{version}"
+  "settings.footer": "КАР-точки · v{version}",
+
+  // —— review ——
+  "common.grade": { one: "оценка", few: "оценки", many: "оценок" },
+  "common.undo": "Отменить",
+
+  "review.side.front": "Лицо",
+  "review.side.frontDesc": "Видите термин — вводите или говорите перевод",
+  "review.side.back": "Оборот",
+  "review.side.backDesc": "Видите перевод — вводите или говорите термин",
+
+  "review.mode.flip.title": "Классический",
+  "review.mode.flip.desc": "Переворот карточки и свайп «Знаю / Не знаю»",
+  "review.mode.type.title": "Ввод",
+  "review.mode.type.desc": "Напечатать перевод или ответ",
+  "review.mode.cloze.title": "Пропуски",
+  "review.mode.cloze.desc": "Слово — дописать буквы; фраза — дописать слова",
+  "review.mode.voice.title": "Голос",
+  "review.mode.voice.desc": "Сказать перевод в микрофон",
+  "review.mode.combo.title": "Микс",
+  "review.mode.combo.desc": "Случайно: ввод, голос или 5 пар слов",
+  "review.mode.match.title": "Пары",
+  "review.mode.match.desc": "Собрать термины и переводы в пары",
+
+  "review.picker.title": "Режим повторения",
+  "review.picker.cramTitle": "Закрепление папки",
+  "review.picker.sub": "Выберите, как хотите повторять карточки в этой сессии.",
+  "review.picker.cramSub":
+    "Выберите сторону, сколько слов повторить и способ закрепления.",
+  "review.picker.sideLabel": "Что показывать на карточке?",
+  "review.picker.modesLabel": "Способ закрепления",
+  "review.picker.limitLabel": "Сколько слов за раз? ",
+  "review.picker.limitInFolder": "(в папке {n})",
+  "review.picker.limitAll": "Все",
+  "review.picker.limitOther": "Другое",
+  "review.picker.limitOtherAria": "Другое количество, от 1 до {n}",
+  "review.picker.unavailable": "Недоступно в этом браузере",
+
+  "review.empty.limitTitle": "На сегодня лимит",
+  "review.empty.limitText":
+    "Сегодня уже {done} {grades} из {limit}. Лимит можно увеличить в настройках — или продолжить завтра.",
+  "review.empty.toSettings": "К настройкам",
+  "review.empty.toFolder": "К папке",
+  "review.empty.toFolders": "К папкам",
+  "review.empty.toHome": "На главную",
+  "review.empty.doneTitle": "КАР-р-р! Сегодня ты был великолепен!!!",
+  "review.empty.doneText":
+    "Сейчас нет карточек к повторению. Загляните позже — ворона напомнит точками.",
+  "review.empty.blankTitle": "Здесь пока пусто",
+  "review.empty.blankText": "Добавьте первые слова — и мы начнём повторять.",
+  "review.empty.cramFolder": "Закрепить папку",
+
+  "review.intro.cram": "Закрепление · {side} · {mode} — {n} {cards}",
+  "review.intro.cramFrom": " из «{name}»",
+  "review.intro.regular": "{mode} · {n} {cards}",
+  "review.intro.folder": " · «{name}»",
+
+  "review.toolbar.speak": "Озвучить текущую сторону",
+  "review.toolbar.edit": "Редактировать карточку",
+
+  "review.session.cardDeleted": "Карточка удалена",
+  "review.session.cardSaved": "Карточка сохранена",
+  "review.session.skipClozeShort": "Слишком короткий ответ для пропусков — пропуск",
+  "review.session.skipNoBack": "Нет перевода для проверки — пропуск",
+  "review.session.skipNoFront": "Нет термина для проверки — пропуск",
+  "review.session.noTts": "Нет текста для озвучки",
+  "review.session.doneTitle": "Сессия завершена!",
+  "review.session.doneSub":
+    "Ворона довольна. Возвращайтесь завтра — память любит ритм.",
+  "review.session.statKnown": "знаю",
+  "review.session.statRetry": "повторить ещё",
+  "review.session.again": "Ещё раз",
+
+  "review.grade.again": "Снова",
+  "review.grade.hard": "Трудно",
+  "review.grade.good": "Хорошо",
+  "review.grade.easy": "Легко",
+  "review.grade.dontKnow": "Не знаю",
+  "review.grade.know": "Знаю",
+  "review.grade.swipeFsrs": "← снова · → хорошо",
+  "review.grade.keysFsrs":
+    "← снова · → хорошо · 1–4 — оценки · пробел — перевернуть",
+  "review.grade.swipeBinary": "← не знаю · → знаю",
+  "review.grade.keysBinary":
+    "клавиши: пробел — перевернуть · ← не знаю · → знаю",
+  "review.grade.saveFailed": "Не сохранилось: {message}",
+  "review.grade.saved": "Оценка сохранена",
+  "review.grade.undoFailed": "Не удалось отменить: {message}",
+  "review.grade.undone": "Оценка отменена",
+
+  "review.flip.aria": "Карточка — нажмите, чтобы перевернуть",
+  "review.flip.hint": "коснитесь, чтобы увидеть перевод",
+
+  "review.type.placeholderBack": "Введите перевод…",
+  "review.type.placeholderFront": "Введите термин…",
+  "review.type.check": "Проверить",
+  "review.type.wrong": "Неверно",
+  "review.type.showAnswer": "Показать ответ",
+  "review.type.correctIs": "Правильно: {answer}",
+  "review.type.dontKnow": "Не знаю",
+  "review.type.correct": "Верно!",
+  "review.type.hint": "Введите ответ и нажмите «Проверить»",
+
+  "review.match.hintTermFirst": "Нажмите термин, затем перевод",
+  "review.match.hintDefFirst": "Нажмите перевод, затем термин",
+  "review.match.empty": "(пусто)",
+  "review.match.allDone": "Все пары собраны!",
+  "review.match.keepGoing": "Отлично! Продолжайте",
+  "review.match.wrongPair": "Не та пара — попробуйте снова",
+  "review.match.roundLabel": "Соберите пары · {n}",
+
+  "review.cloze.phraseLabel": "Фраза с пропусками",
+  "review.cloze.wordLabel": "Слово с пропусками",
+  "review.cloze.ariaWord": "Пропущенное слово",
+  "review.cloze.ariaLetter": "Пропущенная буква",
+  "review.cloze.hintWords":
+    "Допишите пропущенные слова прямо в тексте — только их, не всю фразу",
+  "review.cloze.hintLetters":
+    "Допишите пропущенные буквы прямо в слове — только их, не слово целиком",
+
+  "review.voice.start": "🎤 Сказать ответ",
+  "review.voice.check": "✓ Проверить",
+  "review.voice.statusIdle": "Пробел или кнопка — начать запись",
+  "review.voice.notRecognized":
+    "Речь не распознана — произнесите перевод вслух и нажмите «Проверить»",
+  "review.voice.heard": "Услышано: «{transcript}»",
+  "review.voice.heardAndCorrect":
+    "Услышано: «{transcript}». Правильно: {answer}",
+  "review.voice.correctIs": "Правильно: {answer}",
+  "review.voice.retry": "🎤 Попробовать снова",
+  "review.voice.checking": "Проверяю…",
+  "review.voice.checkFailed":
+    "Не удалось проверить — нажмите «Сказать ответ» ещё раз",
+  "review.voice.listening": "Слушаю: «{text}»",
+  "review.voice.unavailable":
+    "Голосовой режим недоступен — используйте ввод текста"
 } as const satisfies Record<string, MessageValue>
 
 export type MessageKey = keyof typeof ru

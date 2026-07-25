@@ -138,5 +138,139 @@ export const en: Record<string, MessageValue> = {
   "settings.about.title": "Project",
   "settings.about.github": "GitHub",
   "settings.about.githubHint": "App source code on GitHub.",
-  "settings.footer": "KAR-dots · v{version}"
+  "settings.footer": "KAR-dots · v{version}",
+
+  "common.grade": { one: "grade", other: "grades" },
+  "common.undo": "Undo",
+
+  "review.side.front": "Front",
+  "review.side.frontDesc": "See the term — type or say the translation",
+  "review.side.back": "Back",
+  "review.side.backDesc": "See the translation — type or say the term",
+
+  "review.mode.flip.title": "Classic",
+  "review.mode.flip.desc": "Flip the card and swipe Know / Don’t know",
+  "review.mode.type.title": "Type",
+  "review.mode.type.desc": "Type the translation or answer",
+  "review.mode.cloze.title": "Cloze",
+  "review.mode.cloze.desc": "Fill missing letters in a word or words in a phrase",
+  "review.mode.voice.title": "Voice",
+  "review.mode.voice.desc": "Say the translation into the mic",
+  "review.mode.combo.title": "Mix",
+  "review.mode.combo.desc": "Random: type, voice, or 5 word pairs",
+  "review.mode.match.title": "Match",
+  "review.mode.match.desc": "Match terms with translations",
+
+  "review.picker.title": "Review mode",
+  "review.picker.cramTitle": "Folder cram",
+  "review.picker.sub": "Choose how you want to review cards this session.",
+  "review.picker.cramSub":
+    "Choose the side, how many words, and the cram method.",
+  "review.picker.sideLabel": "What to show on the card?",
+  "review.picker.modesLabel": "Cram method",
+  "review.picker.limitLabel": "How many words at once? ",
+  "review.picker.limitInFolder": "(in folder {n})",
+  "review.picker.limitAll": "All",
+  "review.picker.limitOther": "Other",
+  "review.picker.limitOtherAria": "Other amount, from 1 to {n}",
+  "review.picker.unavailable": "Unavailable in this browser",
+
+  "review.empty.limitTitle": "Daily limit reached",
+  "review.empty.limitText":
+    "Today you’ve done {done} {grades} of {limit}. Raise the limit in settings — or continue tomorrow.",
+  "review.empty.toSettings": "To settings",
+  "review.empty.toFolder": "To folder",
+  "review.empty.toFolders": "To folders",
+  "review.empty.toHome": "Home",
+  "review.empty.doneTitle": "CAW! You were brilliant today!!!",
+  "review.empty.doneText":
+    "No cards due right now. Come back later — the crow will nudge you.",
+  "review.empty.blankTitle": "Nothing here yet",
+  "review.empty.blankText": "Add your first words — and we’ll start reviewing.",
+  "review.empty.cramFolder": "Cram folder",
+
+  "review.intro.cram": "Cram · {side} · {mode} — {n} {cards}",
+  "review.intro.cramFrom": " from «{name}»",
+  "review.intro.regular": "{mode} · {n} {cards}",
+  "review.intro.folder": " · «{name}»",
+
+  "review.toolbar.speak": "Speak current side",
+  "review.toolbar.edit": "Edit card",
+
+  "review.session.cardDeleted": "Card deleted",
+  "review.session.cardSaved": "Card saved",
+  "review.session.skipClozeShort": "Answer too short for cloze — skipped",
+  "review.session.skipNoBack": "No translation to check — skipped",
+  "review.session.skipNoFront": "No term to check — skipped",
+  "review.session.noTts": "No text to speak",
+  "review.session.doneTitle": "Session complete!",
+  "review.session.doneSub":
+    "The crow is pleased. Come back tomorrow — memory loves rhythm.",
+  "review.session.statKnown": "know",
+  "review.session.statRetry": "review again",
+  "review.session.again": "Again",
+
+  "review.grade.again": "Again",
+  "review.grade.hard": "Hard",
+  "review.grade.good": "Good",
+  "review.grade.easy": "Easy",
+  "review.grade.dontKnow": "Don’t know",
+  "review.grade.know": "Know",
+  "review.grade.swipeFsrs": "← again · → good",
+  "review.grade.keysFsrs":
+    "← again · → good · 1–4 grades · space — flip",
+  "review.grade.swipeBinary": "← don’t know · → know",
+  "review.grade.keysBinary":
+    "keys: space — flip · ← don’t know · → know",
+  "review.grade.saveFailed": "Could not save: {message}",
+  "review.grade.saved": "Grade saved",
+  "review.grade.undoFailed": "Could not undo: {message}",
+  "review.grade.undone": "Grade undone",
+
+  "review.flip.aria": "Card — tap to flip",
+  "review.flip.hint": "tap to see the translation",
+
+  "review.type.placeholderBack": "Type the translation…",
+  "review.type.placeholderFront": "Type the term…",
+  "review.type.check": "Check",
+  "review.type.wrong": "Incorrect",
+  "review.type.showAnswer": "Show answer",
+  "review.type.correctIs": "Correct: {answer}",
+  "review.type.dontKnow": "Don’t know",
+  "review.type.correct": "Correct!",
+  "review.type.hint": "Type your answer and tap «Check»",
+
+  "review.match.hintTermFirst": "Tap the term, then the translation",
+  "review.match.hintDefFirst": "Tap the translation, then the term",
+  "review.match.empty": "(empty)",
+  "review.match.allDone": "All pairs matched!",
+  "review.match.keepGoing": "Nice! Keep going",
+  "review.match.wrongPair": "Wrong pair — try again",
+  "review.match.roundLabel": "Match pairs · {n}",
+
+  "review.cloze.phraseLabel": "Phrase with blanks",
+  "review.cloze.wordLabel": "Word with blanks",
+  "review.cloze.ariaWord": "Missing word",
+  "review.cloze.ariaLetter": "Missing letter",
+  "review.cloze.hintWords":
+    "Fill in the missing words in the text — only those, not the whole phrase",
+  "review.cloze.hintLetters":
+    "Fill in the missing letters in the word — only those, not the whole word",
+
+  "review.voice.start": "🎤 Say answer",
+  "review.voice.check": "✓ Check",
+  "review.voice.statusIdle": "Space or the button — start recording",
+  "review.voice.notRecognized":
+    "Speech not recognized — say the translation aloud and tap «Check»",
+  "review.voice.heard": "Heard: «{transcript}»",
+  "review.voice.heardAndCorrect":
+    "Heard: «{transcript}». Correct: {answer}",
+  "review.voice.correctIs": "Correct: {answer}",
+  "review.voice.retry": "🎤 Try again",
+  "review.voice.checking": "Checking…",
+  "review.voice.checkFailed":
+    "Could not check — tap «Say answer» again",
+  "review.voice.listening": "Listening: «{text}»",
+  "review.voice.unavailable":
+    "Voice mode unavailable — use typing instead"
 }

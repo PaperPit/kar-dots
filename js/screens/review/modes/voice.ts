@@ -9,6 +9,7 @@ import { flashStudyCard, showStudyFeedback } from '../../../ui/answer-feedback.j
 import { checkCardAnswer, getExpectedAnswer, formatExpectedDisplay, expectedVariants } from '../../../lib/answer-check.js';
 import { listenOnce, speechRecognitionSupported, resolveVoiceSpeechLang, releaseSpeechSession } from '../../../lib/speech-input.js';
 import { isSpaceKey, shouldStartVoiceFromSpace } from '../../../lib/voice-keyboard.js';
+import { t } from '../../../lib/i18n.js';
 
 
 interface VoiceCtx {
@@ -18,8 +19,8 @@ interface VoiceCtx {
   getSettings: () => Settings | null;
 }
 
-const LABEL_START = '🎤 Сказать ответ';
-const LABEL_CHECK = '✓ Проверить';
+function labelStart() { return t('review.voice.start'); }
+function labelCheck() { return t('review.voice.check'); }
 
 function buildPrompt(card: SrsCard, promptSide: 'front' | 'back') {
   return el('div', { class: 'study-prompt-card' }, [
@@ -48,7 +49,7 @@ export function createVoiceModeCard(card: SrsCard, ctx: VoiceCtx) {
   }
 
   const prompt = buildPrompt(card, promptSide);
-  const status = el('p', { class: 'study-voice-status muted' }, 'Пробел или кнопка — начать запись');
+  const status = el('p', { class: 'study-voice-status muted' }, t('review.voice.statusIdle'));
   const heard = el('div', { class: 'study-feedback', hidden: true }, undefined);
   const actions = el('div', { class: 'study-actions study-voice-actions' }, undefined);
 
@@ -56,13 +57,13 @@ export function createVoiceModeCard(card: SrsCard, ctx: VoiceCtx) {
     type: 'button',
     class: 'btn accent study-mic-btn',
     disabled: !speechRecognitionSupported(),
-  }, LABEL_START) as HTMLButtonElement;
+  }, labelStart()) as HTMLButtonElement;
 
   const checkBtn = el('button', {
     type: 'button',
     class: 'btn primary study-check-btn',
     hidden: true,
-  }, LABEL_CHECK) as HTMLButtonElement;
+  }, labelCheck()) as HTMLButtonElement;
 
   function setUiIdle() {
     listening = false;
@@ -72,7 +73,7 @@ export function createVoiceModeCard(card: SrsCard, ctx: VoiceCtx) {
     startBtn.style.display = '';
     checkBtn.style.display = 'none';
     checkBtn.classList.remove('is-listening');
-    checkBtn.textContent = LABEL_CHECK;
+    checkBtn.textContent = labelCheck();
     startBtn.disabled = answered || !speechRecognitionSupported();
     checkBtn.disabled = false;
     checkBtn.removeAttribute('disabled');
@@ -100,7 +101,7 @@ export function createVoiceModeCard(card: SrsCard, ctx: VoiceCtx) {
     startBtn.style.display = 'none';
     checkBtn.style.display = '';
     checkBtn.classList.add('is-listening');
-    checkBtn.textContent = LABEL_CHECK;
+    checkBtn.textContent = labelCheck();
     checkBtn.disabled = false;
     checkBtn.removeAttribute('disabled');
   }
@@ -127,7 +128,7 @@ export function createVoiceModeCard(card: SrsCard, ctx: VoiceCtx) {
     checkBtn.hidden = true;
     if (!transcript?.trim()) {
       setUiIdle();
-      status.textContent = 'Речь не распознана — произнесите перевод вслух и нажмите «Проверить»';
+      status.textContent = t('review.voice.notRecognized');
       heard.hidden = true;
       return;
     }
@@ -142,7 +143,7 @@ export function createVoiceModeCard(card: SrsCard, ctx: VoiceCtx) {
       playFeedback(true);
       haptic(12);
       flashStudyCard(prompt, true);
-      showStudyFeedback(heard, true, 'Верно!');
+      showStudyFeedback(heard, true, t('review.type.correct'));
       setTimeout(() => onSuccess({ firstTry }), 580);
     } else {
       setUiIdle();
@@ -155,17 +156,17 @@ export function createVoiceModeCard(card: SrsCard, ctx: VoiceCtx) {
 
   function showWrong(transcript: string, expected: string) {
     flashStudyCard(prompt, false);
-    showStudyFeedback(heard, false, transcript ? `Услышано: «${transcript}»` : 'Неверно');
+    showStudyFeedback(heard, false, transcript ? t('review.voice.heard', { transcript }) : t('review.type.wrong'));
     actions.innerHTML = '';
     const revealBtn = el('button', {
       type: 'button',
       class: 'btn ghost study-reveal-btn',
-    }, 'Показать ответ');
+    }, t('review.type.showAnswer'));
     revealBtn.addEventListener('click', () => {
       const display = formatExpectedDisplay(expected);
       showStudyFeedback(heard, false, transcript
-        ? `Услышано: «${transcript}». Правильно: ${display}`
-        : `Правильно: ${display}`);
+        ? t('review.voice.heardAndCorrect', { transcript, answer: display })
+        : t('review.voice.correctIs', { answer: display }));
       revealBtn.remove();
     });
     actions.append(
@@ -173,7 +174,7 @@ export function createVoiceModeCard(card: SrsCard, ctx: VoiceCtx) {
         type: 'button',
         class: 'btn accent study-mic-btn',
         onclick: () => startListen(),
-      }, '🎤 Попробовать снова'),
+      }, t('review.voice.retry')),
       revealBtn,
       el('button', {
         type: 'button',
@@ -182,7 +183,7 @@ export function createVoiceModeCard(card: SrsCard, ctx: VoiceCtx) {
           cleanupListen();
           if (!answered) { answered = true; onFail({ firstTry: false }); }
         },
-      }, 'Не знаю'),
+      }, t('review.type.dontKnow')),
     );
   }
 
@@ -190,7 +191,7 @@ export function createVoiceModeCard(card: SrsCard, ctx: VoiceCtx) {
     if (!listening || answered || stopping) return;
     stopping = true;
     checkBtn.textContent = '…';
-    status.textContent = 'Проверяю…';
+    status.textContent = t('review.voice.checking');
     const fn = stopListen;
     stopListen = null;
     try {
@@ -204,7 +205,7 @@ export function createVoiceModeCard(card: SrsCard, ctx: VoiceCtx) {
       stopping = false;
       listening = false;
       setUiIdle();
-      status.textContent = 'Не удалось проверить — нажмите «Сказать ответ» ещё раз';
+      status.textContent = t('review.voice.checkFailed');
     }
   }
 
@@ -237,7 +238,7 @@ export function createVoiceModeCard(card: SrsCard, ctx: VoiceCtx) {
       manualStop: true,
       contextualStrings: expectedVariants(expected),
       onInterim: (text) => {
-        if (!stopping) status.textContent = `Слушаю: «${text}»`;
+        if (!stopping) status.textContent = t('review.voice.listening', { text });
         maybeAutoCheck(text);
       },
       onResult: evaluateTranscript,
@@ -299,7 +300,7 @@ export function createVoiceModeCard(card: SrsCard, ctx: VoiceCtx) {
   });
 
   if (!speechRecognitionSupported()) {
-    status.textContent = 'Голосовой режим недоступен — используйте ввод текста';
+    status.textContent = t('review.voice.unavailable');
   }
 
   return {

@@ -1,5 +1,5 @@
 import { store } from '../../core/state.js';
-import { el, spinner, plural } from '../../ui/ui.js';
+import { el, spinner } from '../../ui/ui.js';
 import { ICONS } from '../../ui/constants.js';
 import { crowBox, featherIcon, newBudget, reviewsBudget, reviewsTodayCount, shuffle, svgNode, trophyBox } from '../../ui/helpers.js';
 import { shell, nav, offlineBanner, refreshDueBadge } from '../../ui/shell.js';
@@ -8,6 +8,7 @@ import {
   studyModeLabel, resolveStudyMode, promptSideLabel,
   consumeSessionPromptSide, getLastPromptSide, consumeSessionCramLimit, getLastCramLimit,
 } from '../../lib/study-modes.js';
+import { t, tp } from '../../lib/i18n.js';
 import { studyModePicker } from './mode-picker.js';
 import { runReviewSession, type ReviewSessionContext, type ReviewMode } from './session.js';
 import type { Folder } from '../../data/types.js';
@@ -82,18 +83,20 @@ export async function renderReview(folderId: string | null, opts: ReviewOpts = {
       const done = reviewsTodayCount();
       shell('review', el('div', { class: 'review-done' }, [
         trophyBox(),
-        el('h2', null, 'На сегодня лимит'),
-        el('p', null,
-          `Сегодня уже ${done} ${plural(done, 'оценка', 'оценки', 'оценок')} из ${limit}. ` +
-          'Лимит можно увеличить в настройках — или продолжить завтра.'),
+        el('h2', null, t('review.empty.limitTitle')),
+        el('p', null, t('review.empty.limitText', {
+          done,
+          grades: tp('common.grade', done),
+          limit,
+        })),
         el('button', {
           class: 'btn primary big',
           onclick: () => nav('#settings'),
-        }, 'К настройкам'),
+        }, t('review.empty.toSettings')),
         el('button', {
           class: 'btn big',
           onclick: () => nav(folderId ? '#folder/' + folderId : '#home'),
-        }, folderId ? 'К папке' : 'К папкам'),
+        }, folderId ? t('review.empty.toFolder') : t('review.empty.toFolders')),
       ]));
       return;
     }
@@ -101,37 +104,43 @@ export async function renderReview(folderId: string | null, opts: ReviewOpts = {
     shell('review', el('div', { class: 'review-done' }, [
       poolCount ? trophyBox() : crowBox('crow'),
       el('h2', null, poolCount
-        ? 'КАР-р-р! Сегодня ты был великолепен!!!'
-        : 'Здесь пока пусто'),
+        ? t('review.empty.doneTitle')
+        : t('review.empty.blankTitle')),
       el('p', null, poolCount
-        ? 'Сейчас нет карточек к повторению. Загляните позже — ворона напомнит точками.'
-        : 'Добавьте первые слова — и мы начнём повторять.'),
+        ? t('review.empty.doneText')
+        : t('review.empty.blankText')),
       poolCount && folderId && !cram ? el('button', {
         class: 'btn accent big',
         onclick: () => studyModePicker({ folderId, cram: true }),
-      }, 'Закрепить папку') : null,
+      }, t('review.empty.cramFolder')) : null,
       el('button', {
         class: 'btn primary big',
         onclick: () => nav(folderId ? '#folder/' + folderId : '#home'),
-      }, folderId ? 'К папке' : 'К папкам'),
+      }, folderId ? t('review.empty.toFolder') : t('review.empty.toFolders')),
     ]));
     return;
   }
 
   const sessionTotal = queue.length;
   const modeLabel = studyModeLabel(mode);
+  const cardsWord = tp('common.card', sessionTotal);
   const intro = cram
     ? el('p', { class: 'review-intro review-intro-cram' }, [
-      'Закрепление · ', promptSideLabel(cramPromptSide ?? 'front'), ' · ', modeLabel, ' — ',
-      String(sessionTotal), ' ',
-      plural(sessionTotal, 'карточка', 'карточки', 'карточек'),
-      folder ? ' из «' + folder.name + '»' : '',
+      t('review.intro.cram', {
+        side: promptSideLabel(cramPromptSide ?? 'front'),
+        mode: modeLabel,
+        n: sessionTotal,
+        cards: cardsWord,
+      }),
+      folder ? t('review.intro.cramFrom', { name: folder.name }) : '',
     ])
     : el('p', { class: 'review-intro' }, [
-      modeLabel, ' · ',
-      String(sessionTotal), ' ',
-      plural(sessionTotal, 'карточка', 'карточки', 'карточек'),
-      folder ? ' · «' + folder.name + '»' : '',
+      t('review.intro.regular', {
+        mode: modeLabel,
+        n: sessionTotal,
+        cards: cardsWord,
+      }),
+      folder ? t('review.intro.folder', { name: folder.name }) : '',
     ]);
 
   const segs = el('div', { class: 'progress-segs' }, undefined);
@@ -139,8 +148,8 @@ export async function renderReview(folderId: string | null, opts: ReviewOpts = {
     segs.append(el('div', { class: 'progress-seg' + (i === 0 ? ' is-current' : '') }));
   }
   const counter = el('span', { class: 'review-count' }, '');
-  const speakBtn = el('button', { class: 'icon-btn', title: 'Озвучить текущую сторону' }, svgNode(ICONS.speaker));
-  const editBtn = el('button', { class: 'icon-btn', title: 'Редактировать карточку' }, featherIcon());
+  const speakBtn = el('button', { class: 'icon-btn', title: t('review.toolbar.speak') }, svgNode(ICONS.speaker));
+  const editBtn = el('button', { class: 'icon-btn', title: t('review.toolbar.edit') }, featherIcon());
   const stage = el('div', null, undefined);
   const wrap = el('div', { class: 'review-wrap' }, undefined);
   const top = el('div', { class: 'review-top' }, [

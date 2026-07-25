@@ -2,6 +2,7 @@ import type { SrsCard } from "../../lib/srs.js";
 import { el } from '../../ui/ui.js';
 import { buildFlipFace } from '../../ui/card-face.js';
 import { haptic } from '../../ui/helpers.js';
+import { t } from '../../lib/i18n.js';
 
 
 interface FlipCardOpts {
@@ -31,13 +32,13 @@ export function createFlipCard(card: SrsCard, firstSide: 'front' | 'back', opts:
 
   const flip = el('div', {
     class: 'flip-card', role: 'button', tabindex: '0',
-    'aria-label': 'Карточка — нажмите, чтобы перевернуть',
+    'aria-label': t('review.flip.aria'),
   }, [
     buildFlipFace(firstSide, card, false),
     buildFlipFace(backSide, card, true),
   ]);
 
-  const hint = el('div', { class: 'flip-hint' }, 'коснитесь, чтобы увидеть перевод');
+  const hint = el('div', { class: 'flip-hint' }, t('review.flip.hint'));
   const grades = el('div', { class: 'grade-row' }, undefined);
   const swipeWrap = el('div', { class: 'flip-swipe-wrap' }, [flip]);
   // декоративные слои-«стопка» позади карточки: создают ощущение колоды

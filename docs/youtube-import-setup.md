@@ -60,7 +60,7 @@ functions/api/yt-generate.js ──► Gemini generateContent (JSON)
 
 ```bash
 npm install
-npm run dev         # http://localhost:8080 — API из netlify/functions (dev)
+npm run dev         # http://localhost:8080 — API из functions/api (dev)
 npm run pages:dev   # http://localhost:8788 — как в проде (functions/api + KV)
 ```
 

@@ -40,16 +40,12 @@
 
 ```bash
 npm run pages:dev   # http://localhost:8788 — эмуляция Pages + KV
-npm run dev         # http://localhost:8080 — dev-сервер + netlify/functions (legacy API)
+npm run dev         # http://localhost:8080 — dev-сервер + functions/api
 ```
 
 ### GitHub Pages
 
 Только статика из корня — **без** `/api/*` (YouTube-импорт и серверный TTS не работают). Settings → Pages → branch `main`, folder `/`.
-
-### Netlify (legacy)
-
-`netlify.toml` + `netlify/functions/` ещё в репозитории как запасной путь. Новый деплой — на Cloudflare. После полной проверки CF каталог Netlify можно удалить.
 
 > PWA и камера требуют **HTTPS**.
 
@@ -119,7 +115,7 @@ Anon key безопасен на клиенте — доступ огранич�
 
 ```bash
 npm install
-npm run dev        # http://localhost:8080 + API из netlify/functions/
+npm run dev        # http://localhost:8080 + API из functions/api/
 npm run pages:dev  # эмуляция Cloudflare Pages (dist + functions/ + KV)
 ```
 

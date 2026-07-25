@@ -1,15 +1,14 @@
 #!/usr/bin/env node
 /**
- * Локальный dev-сервер: статика + Netlify Functions
- * (/api/yt-video, /api/yt-generate — транскрипт через Supadata).
- * Заменяет python -m http.server для разработки с YouTube-импортом.
+ * Локальный dev-сервер: статика + Cloudflare Pages Functions
+ * (/api/yt-video, /api/yt-generate, /api/tts, /api/stock-search).
  *
  * Запуск: npm run dev  (сначала один раз npm install)
  * Переменные окружения — из .env в корне (см. .env.example); ключи, указанные
  * в настройках приложения (Настройки → «Карточки из YouTube»), работают и без .env.
  *
- * Netlify Blobs локально недоступны — функции сами переключаются на общий
- * in-memory стор (globalThis.__ytJobsMem), это уже учтено в их коде.
+ * Workers KV локально недоступен — functions/api/_kv.js переключается на
+ * in-memory стор (globalThis.__ytJobsMem).
  */
 import http from 'node:http';
 import fs from 'node:fs';
@@ -55,30 +54,40 @@ function loadDotEnv() {
 
 loadDotEnv();
 
-let ytVideo, ttsFn, stockSearchFn;
-try {
-  ({ default: ytVideo } = await import('../netlify/functions/yt-video.mjs'));
-  await import('../netlify/functions/yt-generate.mjs');
-  ({ default: ttsFn } = await import('../netlify/functions/tts.mjs'));
-  ({ default: stockSearchFn } = await import('../netlify/functions/stock-search.mjs'));
-} catch (e) {
-  if (e.code === 'ERR_MODULE_NOT_FOUND' && String(e.message).includes('@netlify/blobs')) {
-    console.error('\nНе найден пакет @netlify/blobs — запусти сначала:  npm install\n');
-    process.exit(1);
-  }
-  throw e;
+function pagesContext(request) {
+  return {
+    request,
+    env: process.env,
+    waitUntil(promise) {
+      void Promise.resolve(promise).catch((err) => {
+        console.error('[dev-server] waitUntil', err);
+      });
+    },
+  };
 }
 
+function asPagesHandler(exportName, mod) {
+  const fn = mod[exportName];
+  if (typeof fn !== 'function') {
+    throw new Error(`Ожидался экспорт ${exportName}`);
+  }
+  return (request) => fn(pagesContext(request));
+}
+
+const ytVideoMod = await import('../functions/api/yt-video.js');
+const ttsMod = await import('../functions/api/tts.js');
+const stockSearchMod = await import('../functions/api/stock-search.js');
+
 const API_STATIC = {
-  '/api/yt-video': () => ytVideo,
-  '/api/tts': () => ttsFn,
-  '/api/stock-search': () => stockSearchFn,
+  '/api/yt-video': () => asPagesHandler('onRequest', ytVideoMod),
+  '/api/tts': () => asPagesHandler('onRequestPost', ttsMod),
+  '/api/stock-search': () => asPagesHandler('onRequestPost', stockSearchMod),
 };
 
 /** yt-generate часто меняется — в dev перечитываем модуль на каждый запрос. */
 async function getYtGenerateHandler() {
-  const mod = await import(`../netlify/functions/yt-generate.mjs?dev=${Date.now()}`);
-  return mod.default;
+  const mod = await import(`../functions/api/yt-generate.js?dev=${Date.now()}`);
+  return asPagesHandler('onRequestPost', mod);
 }
 
 async function resolveApiHandler(pathname) {

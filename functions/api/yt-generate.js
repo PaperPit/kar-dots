@@ -352,7 +352,7 @@ export function resolveTimestamps(cards, segments) {
   return cards.map(card => {
     const n = normText(card.front);
     if (!n) return card;
-    let t = null;
+    let t;
     if (card.kind === 'phrase' || n.includes(' ')) {
       // сначала ищем фразу целиком внутри одного сегмента (точный таймкод),
       // и только если не нашли — пробуем склейку с соседним сегментом
@@ -378,7 +378,7 @@ export function resolveTimestamps(cards, segments) {
     } else {
       t = findFirst([...spokenForms(n)].map(boundaryRe), false);
     }
-    return t === null ? card : { ...card, t };
+    return t == null ? card : { ...card, t };
   });
 }
 

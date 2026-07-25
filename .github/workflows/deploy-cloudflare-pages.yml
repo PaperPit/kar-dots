@@ -1,11 +1,12 @@
-# Деплой на Cloudflare Pages при push в main (Direct Upload через wrangler).
-# Нативная связка «Connect to Git» в Dashboard CLI не умеет — этот workflow её заменяет.
+# Деплой на Cloudflare Pages только после успешного CI на main
+# (не параллельно с проверками и не при красном CI).
 
 name: Deploy Cloudflare Pages
 
 on:
-  push:
-    branches: [main]
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
   workflow_dispatch:
 
 concurrency:
@@ -14,15 +15,23 @@ concurrency:
 
 jobs:
   deploy:
+    if: >
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.event == 'push' &&
+       github.event.workflow_run.head_branch == 'main')
     runs-on: ubuntu-latest
     permissions:
       contents: read
+      actions: read
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
 
       - uses: actions/setup-node@v4
         with:
-          node-version: "22"
+          node-version: "20"
           cache: npm
 
       - run: npm ci

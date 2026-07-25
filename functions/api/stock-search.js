@@ -2,25 +2,13 @@
 // POST { q, type, page, pageSize, pixabayApiKey?, giphyApiKey? }
 
 import { searchGiphy, searchPixabay } from '../../js/lib/stock-media-providers.js';
+import { cleanGiphyApiKey, cleanPixabayApiKey } from './lib/api-keys.js';
 
 function json(body, status = 200) {
   return new Response(JSON.stringify(body), {
     status,
     headers: { 'content-type': 'application/json; charset=utf-8' },
   });
-}
-
-function cleanPixabay(raw) {
-  const s = String(raw || '').trim();
-  if (!s) return '';
-  if (/^[0-9]+-[A-Za-z0-9_-]{10,128}$/.test(s)) return s;
-  if (s.length >= 20 && s.includes('-')) return s;
-  return '';
-}
-
-function cleanGiphy(raw) {
-  const s = String(raw || '').trim();
-  return /^[A-Za-z0-9]{16,128}$/.test(s) ? s : '';
 }
 
 async function handler(req, _env) {
@@ -39,8 +27,8 @@ async function handler(req, _env) {
   const pageSize = Math.min(30, Math.max(1, Number(payload.pageSize) || 20));
 
   // Только ключи из запроса — серверные PIXABAY_/GIPHY_ не используем.
-  const pixabayKey = cleanPixabay(payload.pixabayApiKey);
-  const giphyKey = cleanGiphy(payload.giphyApiKey);
+  const pixabayKey = cleanPixabayApiKey(payload.pixabayApiKey);
+  const giphyKey = cleanGiphyApiKey(payload.giphyApiKey);
 
   try {
     if ((type === 'photo' || type === 'illustration') && pixabayKey) {

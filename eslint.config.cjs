@@ -112,5 +112,29 @@ module.exports = [
         }
       ]
     }
+  },
+  {
+    files: ["functions/**/*.js"],
+    languageOptions: {
+      ecmaVersion: "latest",
+      sourceType: "module",
+      globals: {
+        ...browserGlobals,
+        Response: "readonly",
+        Request: "readonly",
+        crypto: "readonly",
+        caches: "readonly",
+        process: "readonly"
+      }
+    },
+    rules: {
+      ...js.configs.recommended.rules,
+      "no-console": "off",
+      "no-empty": ["error", { allowEmptyCatch: true }],
+      "no-unused-vars": [
+        "error",
+        { argsIgnorePattern: "^_", varsIgnorePattern: "^_", caughtErrors: "none" }
+      ]
+    }
   }
 ]

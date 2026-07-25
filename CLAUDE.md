@@ -15,8 +15,11 @@ Vanilla JS PWA (ES modules, **без bundler в dev**). Исходники — T
 ## Команды
 
 - `npm test` — Vitest (happy-dom)
+- `npm run test:coverage` — unit + coverage thresholds (js emit, functions, extension)
+- `npm run test:e2e` — Playwright smoke (`e2e/`)
+- `npm run functions:check` — синтаксис/экспорты Cloudflare Pages Functions
 - `npm run build:bundle` — прод-сборка: `tsc` + esbuild-бандл в `dist/` + генерация `dist/sw.js` (прекеш бандла + чанков + ассетов)
-- `npm run ext:build` — сборка Chrome-расширения в `extension/dist/` (load unpacked из `extension/`)
+- `npm run ext:build` / `npm run ext:check` — сборка Chrome-расширения в `extension/dist/` (load unpacked из `extension/`)
 - `npm run sw:generate` — пересобрать список precache в корневом `sw.js` (dev/unbundled-режим, версия `kar-v12.x`)
 
 ## Конвенции

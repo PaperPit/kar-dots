@@ -1,14 +1,76 @@
 import { setAuth, setVideo } from "./lib/storage.js"
 import type { ExtMessage } from "./lib/constants.js"
 
-chrome.runtime.onInstalled.addListener(() => {
-  chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true }).catch(() => {})
+const PANEL_URL = "sidepanel/index.html"
+const PANEL_WIDTH = 420
+const PANEL_HEIGHT = 740
+const PANEL_WIN_KEY = "kar_ext_panel_window_id"
+
+async function getSavedPanelWindowId(): Promise<number | null> {
+  const data = await chrome.storage.local.get(PANEL_WIN_KEY)
+  const id = data[PANEL_WIN_KEY]
+  return typeof id === "number" ? id : null
+}
+
+async function savePanelWindowId(id: number | null): Promise<void> {
+  if (id == null) await chrome.storage.local.remove(PANEL_WIN_KEY)
+  else await chrome.storage.local.set({ [PANEL_WIN_KEY]: id })
+}
+
+/** Отдельное popup-окно поверх браузера — без сдвига страницы как у Side Panel. */
+async function openPanelWindow(): Promise<void> {
+  const existingId = await getSavedPanelWindowId()
+  if (existingId != null) {
+    try {
+      await chrome.windows.update(existingId, { focused: true })
+      return
+    } catch {
+      await savePanelWindowId(null)
+    }
+  }
+
+  let left: number | undefined
+  let top: number | undefined
+  try {
+    const current = await chrome.windows.getLastFocused()
+    if (current.left != null && current.width != null) {
+      left = Math.max(0, current.left + current.width - PANEL_WIDTH - 28)
+    }
+    if (current.top != null) {
+      top = Math.max(0, current.top + 72)
+    }
+  } catch {
+    /* default placement */
+  }
+
+  const win = await chrome.windows.create({
+    url: chrome.runtime.getURL(PANEL_URL),
+    type: "popup",
+    width: PANEL_WIDTH,
+    height: PANEL_HEIGHT,
+    focused: true,
+    ...(left != null ? { left } : {}),
+    ...(top != null ? { top } : {})
+  })
+
+  if (win.id != null) await savePanelWindowId(win.id)
+}
+
+chrome.windows.onRemoved.addListener((windowId) => {
+  void (async () => {
+    const saved = await getSavedPanelWindowId()
+    if (saved === windowId) await savePanelWindowId(null)
+  })()
+})
+
+chrome.action.onClicked.addListener(() => {
+  void openPanelWindow()
 })
 
 chrome.runtime.onMessage.addListener((msg: ExtMessage, sender, sendResponse) => {
   void (async () => {
     try {
-      if (msg.type === "OPEN_SIDEPANEL") {
+      if (msg.type === "OPEN_SIDEPANEL" || msg.type === "OPEN_PANEL") {
         const tabId = sender.tab?.id
         if (msg.url) {
           await setVideo({
@@ -17,9 +79,7 @@ chrome.runtime.onMessage.addListener((msg: ExtMessage, sender, sendResponse) => 
             tabId
           })
         }
-        if (tabId != null) {
-          await chrome.sidePanel.open({ tabId })
-        }
+        await openPanelWindow()
         sendResponse({ ok: true })
         return
       }

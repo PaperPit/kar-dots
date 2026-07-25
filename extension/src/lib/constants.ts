@@ -44,6 +44,8 @@ export interface ExtVideo {
 }
 
 export type ExtMessage =
+  | { type: "OPEN_PANEL"; url?: string; title?: string }
+  /** @deprecated alias — старые content scripts */
   | { type: "OPEN_SIDEPANEL"; url?: string; title?: string }
   | { type: "SET_VIDEO"; url: string; title?: string; tabId?: number }
   | { type: "AUTH_CONNECT"; session: ExtAuth["session"]; supabaseUrl: string; anonKey: string }

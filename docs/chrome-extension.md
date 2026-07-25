@@ -1,6 +1,6 @@
 # Chrome-расширение: карточки из YouTube
 
-Расширение добавляет кнопку **«Карточки»** в правом верхнем углу YouTube. По нажатию открывается Side Panel с теми же настройками режима, что в диалоге приложения (Слова / Фразы / Слова+фразы / Предложения), превью с галочками и сохранением в облачный аккаунт на [kar-tochki.pages.dev](https://kar-tochki.pages.dev).
+Расширение добавляет кнопку **«Карточки»** в правом верхнем углу YouTube. По нажатию открывается отдельное popup-окно поверх браузера (страница YouTube не сдвигается) с теми же настройками режима, что в диалоге приложения (Слова / Фразы / Слова+фразы / Предложения), превью с галочками и сохранением в облачный аккаунт на [kar-tochki.pages.dev](https://kar-tochki.pages.dev).
 
 ## Установка (unpacked)
 
@@ -18,7 +18,7 @@ npm run ext:build
 5. На [kar-tochki.pages.dev](https://kar-tochki.pages.dev/?ext_connect=1) войдите в облачный аккаунт (если ещё не вошли). Баннер подтвердит подключение.
 6. Откройте любое видео на YouTube → нажмите **Карточки** → выберите режим и папку → **Сформировать** → отметьте карточки → **Создать**.
 
-Если Side Panel пустой: правый клик внутри панели → **Inspect** → вкладка Console; также смотри **Errors** на `chrome://extensions`.
+Если окно пустое: правый клик внутри него → **Inspect** → вкладка Console; также смотри **Errors** на `chrome://extensions`.
 
 ## Что нужно заранее
 
@@ -39,10 +39,10 @@ npm run ext:build
 | Путь | Назначение |
 |---|---|
 | `extension/manifest.json` | MV3 манифест |
-| `extension/src/` | исходники (background, content scripts, side panel) |
+| `extension/src/` | исходники (background, content scripts, popup UI) |
 | `extension/dist/` | сборка (`npm run ext:build`) |
 | `js/lib/ext-connect.ts` | bridge `?ext_connect=1` в PWA |
 
 ## Отключение
 
-В Side Panel → **Отключить** (чистит сессию в `chrome.storage`). Либо удалите расширение в `chrome://extensions`.
+В окне расширения → **Отключить** (чистит сессию в `chrome.storage`). Либо удалите расширение в `chrome://extensions`.

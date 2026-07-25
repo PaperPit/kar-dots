@@ -46,7 +46,7 @@
         const videoUrl = currentVideoUrl();
         if (!videoUrl) return;
         chrome.runtime.sendMessage({
-          type: "OPEN_SIDEPANEL",
+          type: "OPEN_PANEL",
           url: videoUrl,
           title: videoTitle()
         });

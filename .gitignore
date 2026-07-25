@@ -48,11 +48,24 @@ js/**/*.js
 !js/config.example.js
 *.tsbuildinfo
 
-# Прод-бандл (esbuild -> dist/). Только корень репо — extension/dist коммитим для load unpacked.
+# Прод-бандл (esbuild -> dist/)
 /dist/
 
-# Sourcemaps сборки Chrome-расширения
-extension/dist/*.map
+# Сборка Chrome-расширения: генерируется из extension/src командой npm run ext:build.
+# Для «load unpacked» соберите локально — в git сборочный вывод не хранится.
+extension/dist/
+
+# Кэш и артефакты Python-скриптов (scripts/*.py)
+__pycache__/
+*.pyc
+*.pyo
+
+# Архивы и снапшоты для ручного деплоя — не хранить в репозитории
+# (внутри легко оседают ключи Supabase и устаревшая схема БД)
+*.zip
+*.tar
+*.tar.gz
+*.tgz
 
 # Отчёт сканера локализации
 scripts/i18n-report.json

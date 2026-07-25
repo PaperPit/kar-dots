@@ -1,10 +1,16 @@
-# Деплой на Cloudflare Pages при push в main (Direct Upload через wrangler).
+# Деплой на Cloudflare Pages (Direct Upload через wrangler).
 # Нативная связка «Connect to Git» в Dashboard CLI не умеет — этот workflow её заменяет.
+#
+# Запускается НЕ по push напрямую, а ПОСЛЕ успешного прогона workflow «CI»
+# (typecheck + lint + test) на ветке main — красная сборка больше не деплоится.
+# Ручной запуск (workflow_dispatch) по-прежнему работает.
 
 name: Deploy Cloudflare Pages
 
 on:
-  push:
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
     branches: [main]
   workflow_dispatch:
 
@@ -15,10 +21,20 @@ concurrency:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    # workflow_run — только зелёный CI на main; ручной запуск — без условий.
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.head_branch == 'main')
     permissions:
       contents: read
     steps:
+      # По событию workflow_run checkout по умолчанию берёт ветку по умолчанию —
+      # явно указываем коммит, который прошёл CI. При workflow_dispatch
+      # head_sha пуст, и берётся выбранная в UI ветка (github.ref).
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.ref }}
 
       - uses: actions/setup-node@v4
         with:

@@ -11,6 +11,7 @@ import { build } from 'esbuild';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { EXCLUDE_ICONS, PRECACHE_FONTS } from './sw-precache-assets.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const DIST = path.join(ROOT, 'dist');
@@ -88,17 +89,15 @@ const walk = (dir, acc = []) => {
   return acc;
 };
 
-const EXCLUDE_ICONS = new Set([
-  'icons/ghost.png', 'icons/feather.png', 'icons/raven.png',
-  'icons/Scarecrow.png', 'icons/Bird cage.png', 'icons/star-empty.svg',
-]);
-
 const all = walk(DIST).filter((f) => !f.startsWith('js/vendor/'));
 const jsChunks = all.filter((f) => /^js\/.*\.js$/.test(f));
 const configFiles = all.filter((f) => /^config(\.example)?\.js$/.test(f));
 const uiIcons = all.filter((f) => /^icons\/.*\.(svg|png)$/.test(f) && !EXCLUDE_ICONS.has(f));
 const cssFiles = all.filter((f) => f.endsWith('.css'));
-const fontFiles = all.filter((f) => f.endsWith('.woff2'));
+// Шрифты — по общему allowlist (scripts/sw-precache-assets.mjs), а не «все .woff2
+// из dist/»: остальные срезы копируются в dist/, но кэшируются рантаймом.
+// cache.addAll атомарен, лишние 115 КБ deva тут никому не нужны.
+const fontFiles = PRECACHE_FONTS.filter((f) => all.includes(f));
 
 const CORE_FILES = ['./', 'index.html', 'manifest.webmanifest', 'packs/manifest.json', ...cssFiles, ...fontFiles, ...jsChunks, ...configFiles, ...uiIcons];
 // убираем дубликаты и './'

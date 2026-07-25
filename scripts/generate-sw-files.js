@@ -5,6 +5,7 @@
  */
 import { readdir, readFile, writeFile } from 'fs/promises';
 import { join, relative } from 'path';
+import { EXCLUDE_ICONS, PRECACHE_FONTS } from './sw-precache-assets.mjs';
 
 const ROOT = join(import.meta.dirname, '..');
 
@@ -17,16 +18,6 @@ async function walk(dir, acc = []) {
   }
   return acc;
 }
-
-/** PNG-дубликаты SVG и неиспользуемые ассеты — не кэшировать (см. js/ui/icons.js). */
-const EXCLUDE_ICONS = new Set([
-  'icons/ghost.png',
-  'icons/feather.png',
-  'icons/raven.png',
-  'icons/Scarecrow.png',
-  'icons/Bird cage.png',
-  'icons/star-empty.svg',
-]);
 
 /** Не precache — кэшируются при первом fetch (runtime). Пути в js/ (скомпилированный TS на месте). */
 const RUNTIME_PREFIXES = [
@@ -60,9 +51,7 @@ const CORE_STATIC = [
   'css/screens/card-editor.css', 'css/screens/review.css', 'css/screens/settings.css',
   'css/screens/youtube-import.css', 'css/screens/stats.css',
   'css/fonts/fonts.css',
-  'css/fonts/baloo2-latin.woff2',
-  'css/fonts/nunito-cyr-ext.woff2', 'css/fonts/nunito-cyr.woff2',
-  'css/fonts/nunito-latin-ext.woff2', 'css/fonts/nunito-latin.woff2',
+  ...PRECACHE_FONTS,
   'packs/manifest.json',
 ];
 

@@ -1,8 +1,10 @@
 import { el } from '../../../ui/ui.js';
 import { route } from '../../../core/router.js';
 import { DEFAULT_SETTINGS } from '../../../data/store-common.js';
+import { t, tp } from '../../../lib/i18n.js';
 import { segControl } from '../shared.js';
 import type { SpeechVoiceLike } from '../../../lib/web-speech-tts.js';
+import type { RetentionAdvice } from '../../../lib/fsrs-optimize.js';
 
 interface SettingsLike {
   algo: string;
@@ -28,13 +30,18 @@ import {
 } from '../../../lib/web-speech-tts.js';
 import { previewSpeechVoice } from '../../../ui/tts.js';
 
-const ALGO_DESCRIPTIONS = {
-  sm2: 'Классика из Anki. Две кнопки: «Знаю» и «Не знаю». Интервал считается для каждой карточки отдельно — «Не знаю» вернёт её через 10 минут, «Знаю» отодвинет на день и дальше. Простой и привычный режим.',
-  fsrs: 'Современный алгоритм (как в Anki 23.10+). Четыре оценки: Снова, Трудно, Хорошо, Легко — чем увереннее ответ, тем дольше пауза до следующего показа. Обычно точнее подбирает интервалы, чем SM-2.',
-  leitner: 'Пять «коробок». Две кнопки: «Помню» — карточка поднимается в следующую коробку, «Не помню» — возвращается в первую. Через сколько дней показывать карточку из каждой коробки — настраивается ниже. Самый простой для понимания.',
-};
+function algoDescKey(algo: string): string {
+  if (algo === 'fsrs' || algo === 'leitner') return `settings.algo.desc.${algo}`;
+  return 'settings.algo.desc.sm2';
+}
 
-const ALGO_FOOTNOTE = 'При переключении алгоритма старый прогресс не теряется — у SM-2, FSRS и Лейтнера он хранится отдельно.';
+function formatRetentionAdvice(adv: RetentionAdvice, reviewRetention: number | null): string {
+  if (adv.level === 'nodata') return t('settings.algo.fsrs.adviceNodata');
+  const pct = reviewRetention != null ? Math.round(reviewRetention * 100) : 0;
+  if (adv.level === 'high') return t('settings.algo.fsrs.adviceHigh', { pct });
+  if (adv.level === 'low') return t('settings.algo.fsrs.adviceLow', { pct });
+  return t('settings.algo.fsrs.adviceOk', { pct });
+}
 
 function fillVoiceSelect(
   select: HTMLSelectElement,
@@ -43,7 +50,7 @@ function fillVoiceSelect(
   savedUri: string | undefined,
 ) {
   select.replaceChildren();
-  select.append(el('option', { value: '' }, 'Авто (лучший доступный)'));
+  select.append(el('option', { value: '' }, t('settings.algo.voiceAuto')));
   listSpeechVoicesForLang(voices, prefix).forEach(v => {
     const opt = el('option', null, formatSpeechVoiceLabel(v));
     opt.value = v.voiceURI;
@@ -59,26 +66,26 @@ function buildSpeechVoiceRow(s: SettingsLike, save: () => void, ttsEnabled: bool
   const ruPreview = el('button', {
     type: 'button',
     class: 'btn ghost speech-preview-btn',
-    title: 'Прослушать «Привет»',
+    title: t('settings.algo.previewRu'),
     onclick: () => previewSpeechVoice('ru-RU'),
-  }, '▶ Привет') as HTMLButtonElement;
+  }, t('settings.algo.previewRuBtn')) as HTMLButtonElement;
   const enPreview = el('button', {
     type: 'button',
     class: 'btn ghost speech-preview-btn',
-    title: 'Прослушать «Hello»',
+    title: t('settings.algo.previewEn'),
     onclick: () => previewSpeechVoice('en-US'),
-  }, '▶ Hello') as HTMLButtonElement;
+  }, t('settings.algo.previewEnBtn')) as HTMLButtonElement;
   const hintEl = el('div', { class: 'speech-voice-hint muted' }, '');
 
   function refreshHint() {
     if (!speechSynthesisSupported()) {
-      hintEl.textContent = 'Speech Synthesis недоступен в этом браузере.';
+      hintEl.textContent = t('settings.algo.speechUnavailable');
       return;
     }
     const n = getSpeechVoices().length;
     hintEl.textContent = n
-      ? `Системных голосов: ${n}. «Авто» выбирает лучший для языка текста.`
-      : 'Голоса загружаются… обновите страницу, если список пуст.';
+      ? t('settings.algo.speechVoicesCount', { n })
+      : t('settings.algo.speechVoicesLoading');
   }
 
   function repopulate() {
@@ -125,17 +132,17 @@ function buildSpeechVoiceRow(s: SettingsLike, save: () => void, ttsEnabled: bool
 
   const node = el('div', { class: 'setting-row setting-row-stack speech-voice-settings' }, [
     el('div', { class: 'lab' }, [
-      el('b', null, 'Голоса браузера'),
-      el('span', null, 'Speech Synthesis API — без интернета и лимитов. Язык текста определяется автоматически: кириллица → русский, латиница → английский.'),
+      el('b', null, t('settings.algo.speechVoicesTitle')),
+      el('span', null, t('settings.algo.speechVoicesHint')),
       hintEl,
     ]),
     el('div', { class: 'speech-voice-row' }, [
-      el('label', { class: 'speech-voice-label' }, 'Русский'),
+      el('label', { class: 'speech-voice-label' }, t('settings.algo.voiceRu')),
       ruSelect,
       ruPreview,
     ]),
     el('div', { class: 'speech-voice-row' }, [
-      el('label', { class: 'speech-voice-label' }, 'Английский'),
+      el('label', { class: 'speech-voice-label' }, t('settings.algo.voiceEn')),
       enSelect,
       enPreview,
     ]),
@@ -177,41 +184,44 @@ export function buildAlgoGroup(s: SettingsLike, save: () => void) {
     save();
   });
 
-  const algoDesc = el('span', { class: 'algo-desc' }, ALGO_DESCRIPTIONS[s.algo as keyof typeof ALGO_DESCRIPTIONS] || ALGO_DESCRIPTIONS.sm2);
-  const algoFootnote = el('span', { class: 'algo-footnote muted' }, ALGO_FOOTNOTE);
+  const ttsAutoHint = el('span', null, '');
+  const algoDesc = el('span', { class: 'algo-desc' }, t(algoDescKey(s.algo)));
+  const algoFootnote = el('span', { class: 'algo-footnote muted' }, t('settings.algo.footnote'));
 
   const algoGroup = el('div', { class: 'settings-group' }, [
-    el('h4', null, 'Интервальное повторение'),
+    el('h4', null, t('settings.algo.title')),
     el('div', { class: 'setting-row' }, [
       el('div', { class: 'lab' }, [
-        el('b', null, 'Алгоритм'),
+        el('b', null, t('settings.algo.algorithm')),
         algoDesc,
         algoFootnote,
       ]),
       segControl(s.algo, [
         { v: 'sm2', label: 'SM-2' },
         { v: 'fsrs', label: 'FSRS' },
-        { v: 'leitner', label: 'Лейтнер' },
+        { v: 'leitner', label: t('settings.algo.leitner') },
       ], v => {
         s.algo = v;
-        algoDesc.textContent = ALGO_DESCRIPTIONS[v as keyof typeof ALGO_DESCRIPTIONS] || ALGO_DESCRIPTIONS.sm2;
+        algoDesc.textContent = t(algoDescKey(v));
         save();
         route();
       }),
     ]),
     el('div', { class: 'setting-row' }, [
       el('div', { class: 'lab' }, [
-        el('b', null, 'Направление'),
-        el('span', null, 'Какую сторону карточки показывать первой.'),
+        el('b', null, t('settings.algo.direction')),
+        el('span', null, t('settings.algo.directionHint')),
       ]),
       segControl(s.direction, [
-        { v: 'ftb', label: 'Лицо' }, { v: 'btf', label: 'Оборот' }, { v: 'mixed', label: 'Вперемешку' },
+        { v: 'ftb', label: t('review.side.front') },
+        { v: 'btf', label: t('review.side.back') },
+        { v: 'mixed', label: t('settings.algo.directionMixed') },
       ], v => { s.direction = v; save(); }),
     ]),
     el('div', { class: 'setting-row' }, [
       el('div', { class: 'lab' }, [
-        el('b', null, 'Новых карточек в день'),
-        el('span', null, 'Чтобы не перегружаться в начале.'),
+        el('b', null, t('settings.algo.newPerDay')),
+        el('span', null, t('settings.algo.newPerDayHint')),
       ]),
       (() => {
         const inp = el('input', { type: 'number', min: 1, max: 9999, value: s.newPerDay ?? 20 }) as HTMLInputElement;
@@ -225,8 +235,8 @@ export function buildAlgoGroup(s: SettingsLike, save: () => void) {
     ]),
     el('div', { class: 'setting-row' }, [
       el('div', { class: 'lab' }, [
-        el('b', null, 'Повторений в день'),
-        el('span', null, 'Сколько оценок максимум за календарный день (Знаю / Не знаю).'),
+        el('b', null, t('settings.algo.reviewsPerDay')),
+        el('span', null, t('settings.algo.reviewsPerDayHint')),
       ]),
       (() => {
         const inp = el('input', {
@@ -245,24 +255,22 @@ export function buildAlgoGroup(s: SettingsLike, save: () => void) {
     ]),
     el('div', { class: 'setting-row' }, [
       el('div', { class: 'lab' }, [
-        el('b', null, 'Озвучка на повторении'),
-        el('span', null, 'На экране повторения появляется кнопка 🔊. Язык — по тексту (кириллица / латиница). Голоса и скорость настраиваются ниже.'),
+        el('b', null, t('settings.algo.tts')),
+        el('span', null, t('settings.algo.ttsHint')),
       ]),
       el('label', { class: 'chk-wrap' }, ttsInput),
     ]),
     el('div', { class: 'setting-row' }, [
       el('div', { class: 'lab' }, [
-        el('b', null, 'Озвучивать при перевороте'),
-        el('span', null, ttsEnabled
-          ? 'Без нажатия на 🔊: после каждого переворота карточки (тап, пробел или Enter) сразу читается видимая сторона. Не срабатывает при оценке «Знаю» / «Не знаю» и не читает карточку до первого переворота.'
-          : 'Сначала включите «Озвучку на повторении» — тогда можно включить автоматическое чтение при перевороте.'),
+        el('b', null, t('settings.algo.ttsAuto')),
+        ttsAutoHint,
       ]),
       el('label', { class: 'chk-wrap' }, ttsAutoInput),
     ]),
     el('div', { class: 'setting-row' }, [
       el('div', { class: 'lab' }, [
-        el('b', null, 'Скорость озвучки'),
-        el('span', null, 'От 0,5× (медленнее) до 2× (быстрее).'),
+        el('b', null, t('settings.algo.ttsRate')),
+        el('span', null, t('settings.algo.ttsRateHint')),
       ]),
       (() => {
         const rate = Math.min(2, Math.max(0.5, Number(s.ttsRate ?? 1) || 1));
@@ -284,6 +292,14 @@ export function buildAlgoGroup(s: SettingsLike, save: () => void) {
     speechVoiceBlock.node,
   ]);
 
+  function syncTtsAutoHint() {
+    ttsAutoHint.textContent = ttsInput.checked
+      ? t('settings.algo.ttsAutoOn')
+      : t('settings.algo.ttsAutoOff');
+  }
+  syncTtsAutoHint();
+  ttsInput.addEventListener('change', syncTtsAutoHint);
+
   if (s.algo === 'leitner') {
     const row = el('div', { class: 'row leitner-intervals-row' }, []);
     const intervals = s.leitnerIntervals || DEFAULT_SETTINGS.leitnerIntervals;
@@ -294,14 +310,14 @@ export function buildAlgoGroup(s: SettingsLike, save: () => void) {
         save();
       });
       row.append(el('div', { class: 'text-center' }, [
-        el('div', { class: 'muted' }, 'Кор. ' + (i + 1)),
+        el('div', { class: 'muted' }, t('settings.algo.leitnerBoxShort', { n: i + 1 })),
         inp,
       ]));
     });
     algoGroup.append(el('div', { class: 'setting-row' }, [
       el('div', { class: 'lab' }, [
-        el('b', null, 'Интервалы коробок (дни)'),
-        el('span', null, 'Через сколько дней показывать карточку из каждой коробки.'),
+        el('b', null, t('settings.algo.leitnerIntervals')),
+        el('span', null, t('settings.algo.leitnerIntervalsHint')),
       ]),
       row,
     ]));
@@ -322,8 +338,8 @@ export function buildAlgoGroup(s: SettingsLike, save: () => void) {
     });
     algoGroup.append(el('div', { class: 'setting-row' }, [
       el('div', { class: 'lab' }, [
-        el('b', null, 'Желаемое удержание (FSRS)'),
-        el('span', null, 'Какую долю карточек вы хотите помнить к моменту повтора. 85–90% оптимально: выше 95% почти удваивает нагрузку, ниже 80% — частое забывание.'),
+        el('b', null, t('settings.algo.fsrs.retention')),
+        el('span', null, t('settings.algo.fsrs.retentionHint')),
       ]),
       el('div', { class: 'tts-rate-wrap' }, [retVal, retRange]),
     ]));
@@ -333,16 +349,16 @@ export function buildAlgoGroup(s: SettingsLike, save: () => void) {
     fuzzInput.addEventListener('change', () => { s.fsrsFuzz = fuzzInput.checked; save(); });
     algoGroup.append(el('div', { class: 'setting-row' }, [
       el('div', { class: 'lab' }, [
-        el('b', null, 'Выравнивание нагрузки (fuzz)'),
-        el('span', null, 'Небольшой случайный разброс интервалов — повторения не собираются пиками в один день.'),
+        el('b', null, t('settings.algo.fsrs.fuzz')),
+        el('span', null, t('settings.algo.fsrs.fuzzHint')),
       ]),
       el('label', { class: 'chk-wrap' }, fuzzInput),
     ]));
 
-    const measured = el('span', { class: 'muted' }, 'Считаю измеренное удержание…');
+    const measured = el('span', { class: 'muted' }, t('settings.algo.fsrs.measuredLoading'));
     algoGroup.append(el('div', { class: 'setting-row setting-row-stack' }, [
       el('div', { class: 'lab' }, [
-        el('b', null, 'Измеренное удержание'),
+        el('b', null, t('settings.algo.fsrs.measured')),
         measured,
       ]),
     ]));
@@ -355,21 +371,28 @@ export function buildAlgoGroup(s: SettingsLike, save: () => void) {
         const reviews = await rl.getAllReviews();
         const stats = opt.computeRetentionStats(reviews);
         const adv = opt.suggestRetention(stats);
+        const advice = formatRetentionAdvice(adv, stats.reviewRetention);
         measured.textContent = stats.reviewRetention != null
-          ? 'Факт: ' + opt.formatPercent(stats.reviewRetention) + ' по ' + stats.reviewCount + ' повторениям. ' + adv.text
-          : adv.text;
-      } catch (e) { measured.textContent = 'Данные журнала недоступны.'; }
+          ? t('settings.algo.fsrs.measuredFact', {
+            pct: opt.formatPercent(stats.reviewRetention),
+            reviews: tp('settings.algo.fsrs.reviewCount', stats.reviewCount, { n: stats.reviewCount }),
+            advice,
+          })
+          : advice;
+      } catch (e) { measured.textContent = t('settings.algo.fsrs.logUnavailable'); }
     })();
 
-    const weightsArea = el('textarea', { class: 'input', rows: 2, placeholder: 'напр. 0.40, 1.18, 3.17, … — веса из официального оптимизатора FSRS' }, []) as HTMLTextAreaElement;
+    const weightsArea = el('textarea', { class: 'input', rows: 2, placeholder: t('settings.algo.fsrs.weightsPlaceholder') }, []) as HTMLTextAreaElement;
     weightsArea.value = Array.isArray(s.fsrsWeights) && s.fsrsWeights.length ? s.fsrsWeights.join(', ') : '';
     const weightsHint = el('span', { class: 'muted' }, '');
     weightsArea.addEventListener('change', async () => {
       const { parseWeights } = await import('../../../lib/fsrs-optimize.js');
       const w = parseWeights(weightsArea.value);
-      if (weightsArea.value.trim() && !w) { weightsHint.textContent = 'Не похоже на список чисел — не сохранено.'; return; }
+      if (weightsArea.value.trim() && !w) { weightsHint.textContent = t('settings.algo.fsrs.weightsInvalid'); return; }
       s.fsrsWeights = w;
-      weightsHint.textContent = w ? ('Сохранено ' + w.length + ' весов.') : 'Веса сброшены на стандартные.';
+      weightsHint.textContent = w
+        ? tp('settings.algo.fsrs.weightsSaved', w.length, { n: w.length })
+        : t('settings.algo.fsrs.weightsReset');
       save();
     });
     const exportBtn = el('button', {
@@ -388,11 +411,11 @@ export function buildAlgoGroup(s: SettingsLike, save: () => void) {
         a.click();
         setTimeout(() => URL.revokeObjectURL(a.href), 2000);
       },
-    }, 'Экспорт журнала (CSV)') as HTMLButtonElement;
+    }, t('settings.algo.fsrs.exportCsv')) as HTMLButtonElement;
     algoGroup.append(el('div', { class: 'setting-row setting-row-stack' }, [
       el('div', { class: 'lab' }, [
-        el('b', null, 'Персональные веса FSRS (продвинутое)'),
-        el('span', null, 'Полная оптимизация под вашу историю выполняется официальным оптимизатором FSRS. Экспортируйте журнал, прогоните его оптимизатором и вставьте полученные веса сюда.'),
+        el('b', null, t('settings.algo.fsrs.weightsTitle')),
+        el('span', null, t('settings.algo.fsrs.weightsHint')),
         weightsHint,
       ]),
       el('div', { class: 'fsrs-weights-controls' }, [weightsArea, exportBtn]),

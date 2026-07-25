@@ -1,4 +1,5 @@
 import { el, modal } from '../../../ui/ui.js';
+import { t } from '../../../lib/i18n.js';
 import { integrationsKeySummary } from '../../../lib/youtube-import-settings.js';
 import { cleanGeminiApiKey, cleanGroqApiKey, cleanSupadataApiKey } from '../../../lib/llm-api-keys.js';
 import type { Settings } from '../../../data/types.js';
@@ -11,70 +12,84 @@ interface KeyDef {
   placeholder: string;
   required?: boolean;
   lead: string;
+  helpOpen: string;
+  helpHow: string;
+  keyNote: string;
   help: { linkText: string; linkHref: string; steps: string[] };
 }
 
-const KEY_DEFS: KeyDef[] = [
-  {
-    prop: 'supadataApiKey',
-    title: 'Supadata API ключ',
-    placeholder: 'sd_…',
-    required: true,
-    lead: 'Обязателен: достаёт субтитры и транскрипт из YouTube.',
-    help: {
-      linkText: 'supadata.ai',
-      linkHref: 'https://supadata.ai',
-      steps: [
-        'Зарегистрируйся и открой раздел API Keys.',
-        'Скопируй ключ и вставь сюда.',
-        'Бесплатный тариф покрывает личное использование; одно видео = один запрос.',
-      ],
+function getKeyDefs(): KeyDef[] {
+  return [
+    {
+      prop: 'supadataApiKey',
+      title: t('settings.yt.supadata.title'),
+      placeholder: 'sd_…',
+      required: true,
+      lead: t('settings.yt.supadata.lead'),
+      helpOpen: t('settings.yt.helpOpen'),
+      helpHow: t('settings.yt.helpHow'),
+      keyNote: t('settings.yt.keyNote'),
+      help: {
+        linkText: 'supadata.ai',
+        linkHref: 'https://supadata.ai',
+        steps: [
+          t('settings.yt.supadata.step1'),
+          t('settings.yt.supadata.step2'),
+          t('settings.yt.supadata.step3'),
+        ],
+      },
     },
-  },
-  {
-    prop: 'geminiApiKey',
-    title: 'Gemini API ключ',
-    placeholder: 'AIza…',
-    lead: 'Генерация карточек: слова и переводы из транскрипта.',
-    help: {
-      linkText: 'Google AI Studio',
-      linkHref: 'https://aistudio.google.com/apikey',
-      steps: [
-        'Создай API key в Google AI Studio.',
-        'Вставь ключ (AIza… или новый формат AQ.…).',
-        'Без ключа генерация карточек не работает (нужен Gemini или Groq).',
-      ],
+    {
+      prop: 'geminiApiKey',
+      title: t('settings.yt.gemini.title'),
+      placeholder: 'AIza…',
+      lead: t('settings.yt.gemini.lead'),
+      helpOpen: t('settings.yt.helpOpen'),
+      helpHow: t('settings.yt.helpHow'),
+      keyNote: t('settings.yt.keyNote'),
+      help: {
+        linkText: 'Google AI Studio',
+        linkHref: 'https://aistudio.google.com/apikey',
+        steps: [
+          t('settings.yt.gemini.step1'),
+          t('settings.yt.gemini.step2'),
+          t('settings.yt.gemini.step3'),
+        ],
+      },
     },
-  },
-  {
-    prop: 'groqApiKey',
-    title: 'Groq API ключ',
-    placeholder: 'gsk_…',
-    lead: 'Резерв, если у Gemini кончилась квота.',
-    help: {
-      linkText: 'console.groq.com/keys',
-      linkHref: 'https://console.groq.com/keys',
-      steps: [
-        'Создай API Key в Groq Console.',
-        'Вставь ключ (начинается с gsk_…).',
-        'Если модели отключены в проекте — Project → Limits: включи GPT OSS.',
-        'Без ключа генерация карточек не работает (нужен Gemini или Groq).',
-      ],
+    {
+      prop: 'groqApiKey',
+      title: t('settings.yt.groq.title'),
+      placeholder: 'gsk_…',
+      lead: t('settings.yt.groq.lead'),
+      helpOpen: t('settings.yt.helpOpen'),
+      helpHow: t('settings.yt.helpHow'),
+      keyNote: t('settings.yt.keyNote'),
+      help: {
+        linkText: 'console.groq.com/keys',
+        linkHref: 'https://console.groq.com/keys',
+        steps: [
+          t('settings.yt.groq.step1'),
+          t('settings.yt.groq.step2'),
+          t('settings.yt.groq.step3'),
+          t('settings.yt.groq.step4'),
+        ],
+      },
     },
-  },
-];
+  ];
+}
 
 function validateKey(prop: KeyProp, value: unknown) {
   const v = String(value || '').trim();
   if (!v) return { ok: true, message: '' };
   if (prop === 'geminiApiKey' && !cleanGeminiApiKey(v)) {
-    return { ok: false, message: 'Неверный формат — ключ AI Studio: AIza… или AQ.…' };
+    return { ok: false, message: t('settings.yt.invalidGemini') };
   }
   if (prop === 'groqApiKey' && !cleanGroqApiKey(v)) {
-    return { ok: false, message: 'Неверный формат — ключ Groq начинается с gsk_…' };
+    return { ok: false, message: t('settings.yt.invalidGroq') };
   }
   if (prop === 'supadataApiKey' && !cleanSupadataApiKey(v)) {
-    return { ok: false, message: 'Неверный формат ключа Supadata' };
+    return { ok: false, message: t('settings.yt.invalidSupadata') };
   }
   return { ok: true, message: '' };
 }
@@ -83,8 +98,8 @@ function updateKeyStatus(statusEl: HTMLElement, def: KeyDef, value: unknown) {
   const next = String(value || '').trim();
   if (!next) {
     statusEl.textContent = def.required
-      ? 'Не указан — импорт недоступен'
-      : 'Не указан — нужен Gemini или Groq';
+      ? t('settings.yt.statusMissingRequired')
+      : t('settings.yt.statusMissingOptional');
     statusEl.classList.remove('is-set', 'is-invalid');
     return;
   }
@@ -95,7 +110,7 @@ function updateKeyStatus(statusEl: HTMLElement, def: KeyDef, value: unknown) {
     statusEl.classList.remove('is-set');
     return;
   }
-  statusEl.textContent = 'Ключ сохранён';
+  statusEl.textContent = t('settings.yt.statusSaved');
   statusEl.classList.add('is-set');
   statusEl.classList.remove('is-invalid');
 }
@@ -121,9 +136,9 @@ function buildKeyField(def: KeyDef, s: Settings, save: (patch?: Partial<Settings
     onclick: () => {
       visible = !visible;
       keyInput.type = visible ? 'text' : 'password';
-      toggleBtn.textContent = visible ? 'Скрыть' : 'Показать';
+      toggleBtn.textContent = visible ? t('common.hide') : t('common.show');
     },
-  }, 'Показать') as HTMLButtonElement;
+  }, t('common.show')) as HTMLButtonElement;
 
   function flush() {
     const next = keyInput.value.trim();
@@ -134,7 +149,6 @@ function buildKeyField(def: KeyDef, s: Settings, save: (patch?: Partial<Settings
     const check = validateKey(def.prop, normalized);
     updateKeyStatus(statusEl, def, normalized);
     if (!check.ok && normalized) {
-      // Сохраняем как есть — сервер тоже попробует нормализовать
       s[def.prop] = normalized;
       save();
       return true;
@@ -160,17 +174,16 @@ function buildKeyField(def: KeyDef, s: Settings, save: (patch?: Partial<Settings
       el('b', null, def.title + (def.required ? ' *' : '')),
       el('span', { class: 'api-key-lead' }, def.lead),
       el('details', { class: 'api-key-help' }, [
-        el('summary', null, 'Как получить'),
+        el('summary', null, def.helpHow),
         el('ol', null, [
           el('li', null, [
-            'Открой ',
+            def.helpOpen + ' ',
             el('a', { href: def.help.linkHref, target: '_blank', rel: 'noopener noreferrer' }, def.help.linkText),
             '.',
           ]),
-           ...def.help.steps.map((step: string) => el('li', null, step)),
+          ...def.help.steps.map((step: string) => el('li', null, step)),
         ]),
-        el('p', { class: 'muted api-key-note' },
-          'Ключ сохраняется при нажатии «Готово». Передаётся на сервер только при импорте.'),
+        el('p', { class: 'muted api-key-note' }, def.keyNote),
       ]),
     ]),
     el('div', { class: 'api-key-field' }, [keyInput, toggleBtn, statusEl]),
@@ -180,13 +193,12 @@ function buildKeyField(def: KeyDef, s: Settings, save: (patch?: Partial<Settings
 }
 
 function openKeysModal(s: Settings, save: (patch?: Partial<Settings>) => void, onClose: () => void) {
-  const fields = KEY_DEFS.map(def => buildKeyField(def, s, save));
+  const fields = getKeyDefs().map(def => buildKeyField(def, s, save));
   const body = el('div', { class: 'integrations-keys-modal' }, fields.map(f => f.node));
 
   const m = modal(el('div', null, [
-    el('h3', { class: 'modal-title' }, 'API-ключи YouTube'),
-    el('p', { class: 'modal-text muted' },
-      'Supadata обязателен для транскрипта. Для карточек нужен свой Gemini и/или Groq — без них импорт не работает.'),
+    el('h3', { class: 'modal-title' }, t('settings.yt.modalTitle')),
+    el('p', { class: 'modal-text muted' }, t('settings.yt.modalIntro')),
     body,
     el('div', { class: 'modal-actions' }, [
       el('button', {
@@ -195,7 +207,7 @@ function openKeysModal(s: Settings, save: (patch?: Partial<Settings>) => void, o
           const ok = fields.every(f => f.flush());
           if (ok) m.close();
         },
-      }, 'Готово'),
+      }, t('common.done')),
     ]),
   ]), { wide: true });
 
@@ -215,30 +227,29 @@ export function buildIntegrationsGroup(s: Settings, save: (patch?: Partial<Setti
   };
 
   return el('div', { class: 'settings-group' }, [
-    el('h4', null, 'Карточки из YouTube'),
+    el('h4', null, t('settings.yt.title')),
     el('div', { class: 'setting-row integrations-compact' }, [
       el('div', { class: 'lab' }, [
-        el('b', null, 'API-ключи'),
+        el('b', null, t('settings.yt.apiKeys')),
         statusEl,
       ]),
       el('button', {
         type: 'button',
         class: 'btn',
         onclick: () => openKeysModal(s, save, refreshStatus),
-      }, 'Настроить'),
+      }, t('settings.yt.configure')),
     ]),
     el('div', { class: 'setting-row integrations-compact' }, [
       el('div', { class: 'lab' }, [
-        el('b', null, 'Расширение Chrome'),
-        el('span', { class: 'integrations-status muted' },
-          'Кнопка на YouTube → Side Panel с теми же настройками режима'),
+        el('b', null, t('settings.yt.extension')),
+        el('span', { class: 'integrations-status muted' }, t('settings.yt.extensionHint')),
       ]),
       el('a', {
         class: 'btn',
         href: 'https://github.com/PaperPit/kar-dots/blob/main/docs/chrome-extension.md',
         target: '_blank',
         rel: 'noopener noreferrer',
-      }, 'Как установить'),
+      }, t('settings.yt.installGuide')),
     ]),
   ]);
 }

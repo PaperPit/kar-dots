@@ -47,11 +47,11 @@ let accountEmail: string | null = null
 
 function el<K extends keyof HTMLElementTagNameMap>(
   tag: K,
-  attrs: Record<string, unknown> = {},
+  attrs: Record<string, unknown> | null = {},
   children: Array<Node | string | null | false | undefined> | string = []
 ): HTMLElementTagNameMap[K] {
   const node = document.createElement(tag)
-  for (const [k, v] of Object.entries(attrs)) {
+  for (const [k, v] of Object.entries(attrs || {})) {
     if (k === "class") node.className = String(v)
     else if (k === "onclick" && typeof v === "function") node.addEventListener("click", v as EventListener)
     else if (k === "onchange" && typeof v === "function") node.addEventListener("change", v as EventListener)

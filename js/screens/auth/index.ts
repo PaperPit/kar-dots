@@ -130,6 +130,8 @@ export async function enterCloud() {
     }
     nav('#home');
     await route();
+    const { tryExtConnectAfterLogin } = await import('../../lib/ext-connect.js');
+    tryExtConnectAfterLogin();
     } catch (e) {
       setStore(null);
       toast('Не удалось загрузить данные: ' + errMsg(e), 'error');

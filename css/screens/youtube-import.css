@@ -150,3 +150,34 @@
 .yt-chip-time { opacity: 0.65; }
 
 .yt-back-input { width: 100%; font-size: 14px; padding: 7px 10px; }
+
+/* Banner подключения Chrome-расширения (?ext_connect=1) */
+.ext-connect-banner {
+  position: fixed;
+  left: 50%;
+  bottom: max(16px, env(safe-area-inset-bottom));
+  transform: translateX(-50%);
+  z-index: 10050;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  max-width: min(520px, calc(100vw - 24px));
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: var(--bg-raised, #fbf7ef);
+  color: var(--ink, #1c1611);
+  border: 1px solid var(--line, rgba(28, 22, 17, 0.12));
+  box-shadow: 0 10px 30px rgba(28, 22, 17, 0.16);
+  font-size: 14px;
+}
+.ext-connect-banner.ext-connect-ok {
+  border-color: color-mix(in srgb, #3d7a52 40%, var(--line, #ccc));
+}
+.ext-connect-banner.ext-connect-error {
+  border-color: color-mix(in srgb, #c4453c 40%, var(--line, #ccc));
+}
+.ext-connect-banner .ext-connect-close {
+  flex: none;
+  min-height: 32px;
+  padding: 4px 10px;
+}

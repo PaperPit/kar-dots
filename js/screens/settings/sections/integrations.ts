@@ -225,5 +225,18 @@ export function buildIntegrationsGroup(s: Settings, save: (patch?: Partial<Setti
         onclick: () => openKeysModal(s, save, refreshStatus),
       }, 'Настроить'),
     ]),
+    el('div', { class: 'setting-row integrations-compact' }, [
+      el('div', { class: 'lab' }, [
+        el('b', null, 'Расширение Chrome'),
+        el('span', { class: 'integrations-status muted' },
+          'Кнопка на YouTube → Side Panel с теми же настройками режима'),
+      ]),
+      el('a', {
+        class: 'btn',
+        href: 'https://github.com/PaperPit/kar-dots/blob/main/docs/chrome-extension.md',
+        target: '_blank',
+        rel: 'noopener noreferrer',
+      }, 'Как установить'),
+    ]),
   ]);
 }

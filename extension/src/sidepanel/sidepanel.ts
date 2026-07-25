@@ -24,14 +24,14 @@ import {
 import { hasSupadataApiKey } from "../../../js/lib/youtube-import-settings.js"
 import type { Settings } from "../../../js/data/types.js"
 
-const root = document.getElementById("app")!
-
 interface PreviewItem {
   cand: YtCandidate
   checked: boolean
   back: string
 }
 
+let root: HTMLElement | null = null
+let mounted = false
 let cancelled = false
 let mode: ImportMode = "both"
 let mergeCues = true
@@ -44,13 +44,18 @@ let previewItems: PreviewItem[] = []
 let videoId: string | null = null
 let accountEmail: string | null = null
 
+function requireRoot(): HTMLElement {
+  if (!root) throw new Error("Панель КАР-точки не смонтирована")
+  return root
+}
+
 function el<K extends keyof HTMLElementTagNameMap>(
   tag: K,
-  attrs: Record<string, unknown> = {},
+  attrs: Record<string, unknown> | null = {},
   children: Array<Node | string | null | false | undefined> | string = []
 ): HTMLElementTagNameMap[K] {
   const node = document.createElement(tag)
-  for (const [k, v] of Object.entries(attrs)) {
+  for (const [k, v] of Object.entries(attrs || {})) {
     if (k === "class") node.className = String(v)
     else if (k === "onclick" && typeof v === "function") node.addEventListener("click", v as EventListener)
     else if (k === "onchange" && typeof v === "function") node.addEventListener("change", v as EventListener)
@@ -72,7 +77,7 @@ function el<K extends keyof HTMLElementTagNameMap>(
 function brand() {
   return el("div", { class: "brand" }, [
     el("div", { class: "brand-mark" }, "К"),
-    el("div", null, [el("h1", null, "КАР-точки"), el("p", null, "Карточки из YouTube")])
+    el("div", {}, [el("h1", {}, "КАР-точки"), el("p", {}, "Карточки из YouTube")])
   ])
 }
 
@@ -83,22 +88,35 @@ async function refreshVideoFromStorage() {
     videoTitle = v.title || videoTitle
   }
   if (!videoUrl) {
-    const [tab] = await chrome.tabs.query({ active: true, lastFocusedWindow: true })
-    if (tab?.url && /youtube\.com\/(watch|shorts)/.test(tab.url)) {
-      videoUrl = tab.url
-      videoTitle = (tab.title || "").replace(/ - YouTube$/, "")
+    try {
+      const [tab] = await chrome.tabs.query({ active: true, lastFocusedWindow: true })
+      if (tab?.url && /youtube\.com\/(watch|shorts)/.test(tab.url)) {
+        videoUrl = tab.url
+        videoTitle = (tab.title || "").replace(/ - YouTube$/, "")
+      }
+    } catch {
+      /* chrome.tabs недоступен в content script — URL уже положен через SET_VIDEO */
     }
   }
 }
 
 async function boot() {
-  const prefs = await getPrefs()
-  mode = prefs.mode
-  mergeCues = prefs.mergeCues
-  folderId = prefs.folderId
-  await refreshVideoFromStorage()
+  try {
+    const prefs = await getPrefs()
+    mode = prefs.mode
+    mergeCues = prefs.mergeCues
+    folderId = prefs.folderId
+  } catch {
+    /* defaults already set */
+  }
 
-  const auth = await getAuth()
+  try {
+    await refreshVideoFromStorage()
+  } catch {
+    /* video optional on first paint */
+  }
+
+  const auth = await getAuth().catch(() => null)
   if (!auth) {
     renderAuth()
     return
@@ -126,7 +144,7 @@ async function boot() {
 }
 
 function renderAuth(error?: string) {
-  root.replaceChildren(
+  requireRoot().replaceChildren(
     brand(),
     el("div", { class: "card auth-box" }, [
       el(
@@ -141,7 +159,9 @@ function renderAuth(error?: string) {
           {
             class: "btn primary",
             onclick: () => {
-              chrome.tabs.create({ url: CONNECT_URL })
+              chrome.runtime.sendMessage({ type: "OPEN_TAB", url: CONNECT_URL }).catch(() => {
+                window.open(CONNECT_URL, "_blank", "noopener,noreferrer")
+              })
             }
           },
           "Войти через КАР-точки"
@@ -158,7 +178,7 @@ function renderAuth(error?: string) {
 
 function accountBar() {
   return el("div", { class: "account-row" }, [
-    el("span", null, accountEmail ? `Аккаунт: ${accountEmail}` : "Аккаунт подключён"),
+    el("span", {}, accountEmail ? `Аккаунт: ${accountEmail}` : "Аккаунт подключён"),
     el(
       "button",
       {
@@ -206,7 +226,7 @@ function renderForm(error = "") {
   const sentencesOpts = el("div", { class: "field" }, [
     el("label", { class: "check-label" }, [
       mergeChk,
-      el("span", null, "Склеивать короткие реплики в предложения")
+      el("span", {}, "Склеивать короткие реплики в предложения")
     ])
   ])
   sentencesOpts.style.display = mode === "sentences" ? "" : "none"
@@ -237,15 +257,15 @@ function renderForm(error = "") {
     "Сформировать"
   ) as HTMLButtonElement
 
-  root.replaceChildren(
+  requireRoot().replaceChildren(
     brand(),
     accountBar(),
     el("div", { class: "card" }, [
       el("p", { class: "video-title" }, videoTitle || "Текущее видео"),
       el("p", { class: "video-url" }, videoUrl || "Открой ролик на YouTube"),
-      el("div", { class: "field" }, [el("label", null, "Что достать из ролика"), modeSeg]),
+      el("div", { class: "field" }, [el("label", {}, "Что достать из ролика"), modeSeg]),
       sentencesOpts,
-      el("div", { class: "field" }, [el("label", null, "Папка"), folderSelect]),
+      el("div", { class: "field" }, [el("label", {}, "Папка"), folderSelect]),
       errEl,
       el("div", { class: "actions" }, [goBtn])
     ])
@@ -253,8 +273,8 @@ function renderForm(error = "") {
 }
 
 function renderProgress(text: string) {
-  const statusEl = el("p", null, text)
-  root.replaceChildren(
+  const statusEl = el("p", {}, text)
+  requireRoot().replaceChildren(
     brand(),
     el("div", { class: "card status-wrap" }, [
       el("div", { class: "spinner" }),
@@ -369,9 +389,9 @@ function renderPreview() {
   const toast = el("div", { class: "toast" }, "")
   toast.style.display = "none"
 
-  const list = el("div", null, [])
+  const list = el("div", {}, [])
   for (const [title, items] of groups) {
-    const groupEl = el("div", { class: "preview-group" }, [el("h3", null, `${title} (${items.length})`)])
+    const groupEl = el("div", { class: "preview-group" }, [el("h3", {}, `${title} (${items.length})`)])
     for (const item of items) {
       const chk = el("input", { type: "checkbox", checked: item.checked }) as HTMLInputElement
       chk.addEventListener("change", () => {
@@ -393,7 +413,7 @@ function renderPreview() {
       groupEl.append(
         el("div", { class: "preview-row" }, [
           chk,
-          el("div", null, [
+          el("div", {}, [
             el("div", { class: "front" }, item.cand.front || ""),
             metaParts.length ? el("div", { class: "meta" }, metaParts.join(" · ")) : null,
             back
@@ -414,11 +434,11 @@ function renderPreview() {
     "Создать карточки"
   ) as HTMLButtonElement
 
-  root.replaceChildren(
+  requireRoot().replaceChildren(
     brand(),
     el("div", { class: "card" }, [
       el("div", { class: "preview-head" }, [
-        el("div", null, [
+        el("div", {}, [
           el("p", { class: "video-title" }, videoTitle || "Превью"),
           el("p", { class: "muted" }, "Отметь, что сохранить, при необходимости поправь перевод")
         ]),
@@ -481,9 +501,36 @@ async function saveSelected(
   }
 }
 
-chrome.storage.onChanged.addListener((changes, area) => {
-  if (area === "local" && changes.kar_ext_auth) void boot()
-  if (area === "session" && changes.kar_ext_video) {
+function renderFatal(error: unknown) {
+  const msg = error instanceof Error ? error.message : String(error)
+  requireRoot().replaceChildren(
+    brand(),
+    el("div", { class: "card" }, [
+      el("p", { class: "error" }, "Не удалось открыть панель: " + msg),
+      el("p", { class: "muted" }, "Открой chrome://extensions → Errors у «КАР-точки — YouTube»."),
+      el("div", { class: "actions" }, [
+        el(
+          "button",
+          {
+            class: "btn primary",
+            onclick: () => {
+              void boot().catch(renderFatal)
+            }
+          },
+          "Повторить"
+        )
+      ])
+    ])
+  )
+}
+
+function onStorageChanged(
+  changes: { [key: string]: chrome.storage.StorageChange },
+  area: string
+) {
+  if (!root || area !== "local") return
+  if (changes.kar_ext_auth) void boot().catch(renderFatal)
+  if (changes.kar_ext_video) {
     const v = changes.kar_ext_video.newValue as { url?: string; title?: string } | undefined
     if (v?.url) {
       videoUrl = v.url
@@ -494,6 +541,18 @@ chrome.storage.onChanged.addListener((changes, area) => {
       if (titleEl && videoTitle) titleEl.textContent = videoTitle
     }
   }
-})
+}
 
-void boot()
+/** Монтирует UI панели в контейнер (оверлей на YouTube или #app). */
+export function mountKarPanel(container: HTMLElement): void {
+  root = container
+  if (!mounted) {
+    chrome.storage.onChanged.addListener(onStorageChanged)
+    mounted = true
+  }
+  void boot().catch(renderFatal)
+}
+
+// Standalone страница sidepanel/index.html
+const appEl = document.getElementById("app")
+if (appEl) mountKarPanel(appEl)

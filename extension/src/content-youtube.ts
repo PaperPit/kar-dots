@@ -1,6 +1,13 @@
-/** FAB на YouTube + обновление URL при SPA-навигации. */
+/** FAB + оверлей с UI панели прямо в странице YouTube (Shadow DOM, без iframe/вкладок). */
+
+import { mountKarPanel } from "./sidepanel/sidepanel.js"
+import { isExtensionContextValid, showReloadHint } from "./lib/ext-context.js"
 
 const BTN_ID = "kar-ext-yt-fab"
+const OVERLAY_ID = "kar-ext-yt-overlay"
+
+let panelMounted = false
+let cssText: string | null = null
 
 function isWatchPage(href = location.href): boolean {
   try {
@@ -33,12 +40,146 @@ function videoTitle(): string {
   return (el?.textContent || document.title || "").replace(/ - YouTube$/, "").trim()
 }
 
+async function loadPanelCss(): Promise<string> {
+  if (cssText != null) return cssText
+  if (!isExtensionContextValid()) throw new Error("context invalidated")
+  const url = chrome.runtime.getURL("sidepanel/sidepanel.css")
+  const res = await fetch(url)
+  cssText = await res.text()
+  return cssText
+}
+
+function ensureOverlay(): { root: HTMLElement; app: HTMLElement } {
+  let host = document.getElementById(OVERLAY_ID)
+  if (host?.shadowRoot) {
+    const app = host.shadowRoot.querySelector(".kar-ext-app") as HTMLElement
+    return { root: host, app }
+  }
+
+  host = document.createElement("div")
+  host.id = OVERLAY_ID
+  host.style.all = "initial"
+  host.style.position = "fixed"
+  host.style.inset = "0"
+  host.style.zIndex = "2147483645"
+  host.style.display = "none"
+  host.setAttribute("aria-hidden", "true")
+
+  const shadow = host.attachShadow({ mode: "open" })
+  shadow.innerHTML = `
+    <style>
+      :host { all: initial; }
+      .wrap { position: fixed; inset: 0; font-family: "Segoe UI", system-ui, sans-serif; }
+      .backdrop { position: absolute; inset: 0; background: rgba(20, 14, 10, 0.28); }
+      .panel {
+        position: absolute; top: 0; right: 0; bottom: 0;
+        width: min(420px, 100vw);
+        display: flex; flex-direction: column;
+        background: #f4ebe0;
+        box-shadow: -12px 0 40px rgba(20, 14, 10, 0.28);
+      }
+      .bar {
+        flex: none; display: flex; align-items: center; justify-content: space-between;
+        height: 44px; padding: 0 10px 0 14px;
+        background: #fbf7ef; border-bottom: 1px solid rgba(28, 22, 17, 0.12);
+      }
+      .bar-title { font: 700 14px/1 "Segoe UI", system-ui, sans-serif; color: #1c1611; }
+      .bar-close {
+        width: 32px; height: 32px; border: none; border-radius: 8px;
+        background: transparent; color: #1c1611; font-size: 22px; cursor: pointer;
+      }
+      .bar-close:hover { background: rgba(28, 22, 17, 0.06); }
+      .body { flex: 1 1 auto; min-height: 0; overflow: auto; }
+    </style>
+    <div class="wrap">
+      <div class="backdrop" data-kar-close="1"></div>
+      <aside class="panel" role="dialog" aria-label="КАР-точки">
+        <header class="bar">
+          <span class="bar-title">КАР-точки</span>
+          <button type="button" class="bar-close" data-kar-close="1" aria-label="Закрыть">×</button>
+        </header>
+        <div class="body"><div class="kar-ext-app app"></div></div>
+      </aside>
+    </div>
+  `
+
+  shadow.addEventListener("click", (e) => {
+    const t = e.target as HTMLElement | null
+    if (t?.closest?.("[data-kar-close]")) hideOverlay()
+  })
+
+  document.documentElement.appendChild(host)
+  const app = shadow.querySelector(".kar-ext-app") as HTMLElement
+  return { root: host, app }
+}
+
+async function ensurePanelMounted(app: HTMLElement) {
+  if (panelMounted) {
+    mountKarPanel(app)
+    return
+  }
+  const css = await loadPanelCss()
+  const style = document.createElement("style")
+  style.textContent = css
+  app.parentElement?.insertBefore(style, app)
+  mountKarPanel(app)
+  panelMounted = true
+}
+
+async function showOverlay() {
+  const { root, app } = ensureOverlay()
+  await ensurePanelMounted(app)
+  root.style.display = "block"
+  root.setAttribute("aria-hidden", "false")
+}
+
+function hideOverlay() {
+  const root = document.getElementById(OVERLAY_ID)
+  if (!root) return
+  root.style.display = "none"
+  root.setAttribute("aria-hidden", "true")
+}
+
+async function openPanel() {
+  if (!isExtensionContextValid()) {
+    showReloadHint()
+    return
+  }
+  const videoUrl = currentVideoUrl()
+  if (!videoUrl) return
+  try {
+    await chrome.runtime.sendMessage({
+      type: "SET_VIDEO",
+      url: videoUrl,
+      title: videoTitle()
+    })
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e)
+    if (/invalidated|receiving end/i.test(msg) || !isExtensionContextValid()) {
+      showReloadHint()
+      return
+    }
+  }
+  try {
+    await showOverlay()
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e)
+    if (/invalidated|context/i.test(msg) || !isExtensionContextValid()) {
+      showReloadHint()
+      return
+    }
+    throw e
+  }
+}
+
 function ensureButton() {
+  if (!isExtensionContextValid()) return
   const url = currentVideoUrl()
   let btn = document.getElementById(BTN_ID) as HTMLButtonElement | null
 
   if (!url) {
     btn?.remove()
+    hideOverlay()
     return
   }
 
@@ -53,13 +194,13 @@ function ensureButton() {
     btn.addEventListener("click", (e) => {
       e.preventDefault()
       e.stopPropagation()
-      const videoUrl = currentVideoUrl()
-      if (!videoUrl) return
-      chrome.runtime.sendMessage({
-        type: "OPEN_SIDEPANEL",
-        url: videoUrl,
-        title: videoTitle()
-      })
+      if (!isExtensionContextValid()) {
+        showReloadHint()
+        return
+      }
+      const root = document.getElementById(OVERLAY_ID)
+      if (root && root.style.display !== "none") hideOverlay()
+      else void openPanel()
     })
     document.documentElement.appendChild(btn)
   }
@@ -68,27 +209,52 @@ function ensureButton() {
 }
 
 function notifyVideo() {
+  if (!isExtensionContextValid()) return
   const url = currentVideoUrl()
   if (!url) return
-  chrome.runtime.sendMessage({
-    type: "SET_VIDEO",
-    url,
-    title: videoTitle()
-  }).catch(() => {})
+  try {
+    const p = chrome.runtime.sendMessage({
+      type: "SET_VIDEO",
+      url,
+      title: videoTitle()
+    })
+    if (p && typeof (p as Promise<unknown>).catch === "function") {
+      ;(p as Promise<unknown>).catch(() => {})
+    }
+  } catch {
+    /* context invalidated */
+  }
 }
 
 function sync() {
+  if (!isExtensionContextValid()) return
   ensureButton()
   notifyVideo()
 }
+
+chrome.runtime.onMessage.addListener((msg) => {
+  if (!isExtensionContextValid()) {
+    showReloadHint()
+    return
+  }
+  if (msg?.type === "SHOW_OVERLAY") void openPanel()
+  if (msg?.type === "HIDE_OVERLAY") hideOverlay()
+})
 
 sync()
 
 document.addEventListener("yt-navigate-finish", () => sync())
 window.addEventListener("popstate", () => sync())
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape") hideOverlay()
+})
 
 let lastHref = location.href
 const mo = new MutationObserver(() => {
+  if (!isExtensionContextValid()) {
+    mo.disconnect()
+    return
+  }
   if (location.href !== lastHref) {
     lastHref = location.href
     sync()

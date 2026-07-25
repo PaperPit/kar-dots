@@ -41,18 +41,96 @@
   font-weight: 800;
 }
 
+#kar-ext-yt-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 2147483645;
+  display: none;
+  pointer-events: none;
+}
+
+#kar-ext-yt-overlay.is-open {
+  display: block;
+  pointer-events: auto;
+}
+
+#kar-ext-yt-overlay .kar-ext-overlay-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(20, 14, 10, 0.28);
+}
+
+#kar-ext-yt-overlay .kar-ext-overlay-panel {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: min(420px, 100vw);
+  display: flex;
+  flex-direction: column;
+  background: #f4ebe0;
+  box-shadow: -12px 0 40px rgba(20, 14, 10, 0.28);
+  animation: kar-ext-slide-in 0.2s ease;
+}
+
+@keyframes kar-ext-slide-in {
+  from { transform: translateX(16px); opacity: 0.6; }
+  to { transform: translateX(0); opacity: 1; }
+}
+
+#kar-ext-yt-overlay .kar-ext-overlay-bar {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  height: 44px;
+  padding: 0 10px 0 14px;
+  background: #fbf7ef;
+  border-bottom: 1px solid rgba(28, 22, 17, 0.12);
+}
+
+#kar-ext-yt-overlay .kar-ext-overlay-title {
+  font: 700 14px/1 "Segoe UI", system-ui, sans-serif;
+  color: #1c1611;
+}
+
+#kar-ext-yt-overlay .kar-ext-overlay-close {
+  width: 32px;
+  height: 32px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: #1c1611;
+  font-size: 22px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+#kar-ext-yt-overlay .kar-ext-overlay-close:hover {
+  background: rgba(28, 22, 17, 0.06);
+}
+
+#kar-ext-yt-overlay .kar-ext-overlay-frame {
+  flex: 1 1 auto;
+  width: 100%;
+  border: 0;
+  background: #f4ebe0;
+}
+
 @media (max-width: 720px) {
   #kar-ext-yt-fab {
     right: 12px;
     top: auto;
     bottom: 88px;
+    padding: 0 8px;
+    width: 36px;
+    justify-content: center;
   }
   #kar-ext-yt-fab .kar-ext-fab-label {
     display: none;
   }
-  #kar-ext-yt-fab {
-    padding: 0 8px;
-    width: 36px;
-    justify-content: center;
+  #kar-ext-yt-overlay .kar-ext-overlay-panel {
+    width: 100vw;
   }
 }

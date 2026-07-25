@@ -66,7 +66,7 @@
 - Папки с цветами и иконками, **коробки** для групп папок; **перетаскивание папок** в коробку и обратно
 - Массовый импорт (`слово — перевод`), автоперевод RU↔EN, экспорт/импорт JSON
 - **Карточки из YouTube** — субтитры + LLM (Gemini / Groq), см. [docs/youtube-import-setup.md](docs/youtube-import-setup.md)
-- **Chrome-расширение** — кнопка на YouTube → Side Panel без копирования ссылки, см. [docs/chrome-extension.md](docs/chrome-extension.md)
+- **Chrome-расширение** — кнопка на YouTube → оверлей без копирования ссылки, см. [docs/chrome-extension.md](docs/chrome-extension.md)
 - Готовые **паки слов** в [`packs/`](packs/)
 
 ### Повторение (SRS)

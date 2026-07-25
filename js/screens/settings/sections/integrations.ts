@@ -229,7 +229,7 @@ export function buildIntegrationsGroup(s: Settings, save: (patch?: Partial<Setti
       el('div', { class: 'lab' }, [
         el('b', null, 'Расширение Chrome'),
         el('span', { class: 'integrations-status muted' },
-          'Кнопка на YouTube → Side Panel с теми же настройками режима'),
+          'Кнопка на YouTube → панель поверх ролика с теми же настройками режима'),
       ]),
       el('a', {
         class: 'btn',

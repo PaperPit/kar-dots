@@ -21,60 +21,32 @@ async function setVideo(video) {
 }
 
 // src/background.ts
-var PANEL_URL = "sidepanel/index.html";
-var PANEL_WIDTH = 420;
-var PANEL_HEIGHT = 740;
-var PANEL_WIN_KEY = "kar_ext_panel_window_id";
-async function getSavedPanelWindowId() {
-  const data = await chrome.storage.local.get(PANEL_WIN_KEY);
-  const id = data[PANEL_WIN_KEY];
-  return typeof id === "number" ? id : null;
-}
-async function savePanelWindowId(id) {
-  if (id == null) await chrome.storage.local.remove(PANEL_WIN_KEY);
-  else await chrome.storage.local.set({ [PANEL_WIN_KEY]: id });
-}
-async function openPanelWindow() {
-  const existingId = await getSavedPanelWindowId();
-  if (existingId != null) {
+async function showOverlayOnYouTubeTab(preferredTabId) {
+  if (preferredTabId != null) {
     try {
-      await chrome.windows.update(existingId, { focused: true });
-      return;
+      await chrome.tabs.sendMessage(preferredTabId, { type: "SHOW_OVERLAY" });
+      return true;
     } catch {
-      await savePanelWindowId(null);
     }
   }
-  let left;
-  let top;
-  try {
-    const current = await chrome.windows.getLastFocused();
-    if (current.left != null && current.width != null) {
-      left = Math.max(0, current.left + current.width - PANEL_WIDTH - 28);
-    }
-    if (current.top != null) {
-      top = Math.max(0, current.top + 72);
-    }
-  } catch {
-  }
-  const win = await chrome.windows.create({
-    url: chrome.runtime.getURL(PANEL_URL),
-    type: "popup",
-    width: PANEL_WIDTH,
-    height: PANEL_HEIGHT,
-    focused: true,
-    ...left != null ? { left } : {},
-    ...top != null ? { top } : {}
+  const tabs = await chrome.tabs.query({
+    url: ["https://www.youtube.com/*", "https://youtube.com/*"]
   });
-  if (win.id != null) await savePanelWindowId(win.id);
+  const active = tabs.find((t) => t.active && t.id != null) || tabs.find((t) => t.id != null);
+  if (active?.id == null) return false;
+  try {
+    await chrome.tabs.sendMessage(active.id, { type: "SHOW_OVERLAY" });
+    return true;
+  } catch {
+    return false;
+  }
 }
-chrome.windows.onRemoved.addListener((windowId) => {
+chrome.action.onClicked.addListener((tab) => {
   void (async () => {
-    const saved = await getSavedPanelWindowId();
-    if (saved === windowId) await savePanelWindowId(null);
+    const ok = await showOverlayOnYouTubeTab(tab.id);
+    if (!ok) {
+    }
   })();
-});
-chrome.action.onClicked.addListener(() => {
-  void openPanelWindow();
 });
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   void (async () => {
@@ -88,7 +60,12 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
             tabId
           });
         }
-        await openPanelWindow();
+        if (tabId != null) {
+          await chrome.tabs.sendMessage(tabId, { type: "SHOW_OVERLAY" }).catch(() => {
+          });
+        } else {
+          await showOverlayOnYouTubeTab();
+        }
         sendResponse({ ok: true });
         return;
       }

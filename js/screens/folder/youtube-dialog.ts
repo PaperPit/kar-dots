@@ -1,5 +1,5 @@
 // Диалог «Карточки из YouTube»: ссылка или файл субтитров → LLM → превью → карточки в папку.
-// Серверная часть: netlify/functions/yt-video.mjs, yt-generate.mjs (см. docs/youtube-import-setup.md).
+// Серверная часть: functions/api/yt-video.js, yt-generate.js (см. docs/youtube-import-setup.md).
 
 import { store } from '../../core/state.js';
 import { el, toast, modal, spinner, plural } from '../../ui/ui.js';

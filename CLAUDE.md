@@ -3,7 +3,7 @@
 Vanilla JS PWA (ES modules, **без bundler в dev**). Исходники — TypeScript (`js/**/*.ts`), компилируются `tsc` на место в `js/**/*.js` (gitignored).
 
 - **Dev**: `npm run dev` отдаёт несобранные `js/*.js` из корня (`index.html` → `js/app.js` → `js/core/router.js`). Экраны ленивые через `await import()`.
-- **Prod**: `npm run build:bundle` собирает esbuild-бандл в `dist/` (entry `js/app.js` + code-splitting чанки для lazy-экранов, минификация). Деплой публикует `dist/` (`netlify.toml`), `dist/sw.js` генерируется скриптом. Точка входа прод-сборки: `dist/index.html` → `dist/js/app.js`.
+- **Prod**: `npm run build:bundle` собирает esbuild-бандл в `dist/` (entry `js/app.js` + code-splitting чанки для lazy-экранов, минификация). Деплой публикует `dist/` (Cloudflare Pages / `wrangler.toml`), `dist/sw.js` генерируется скриптом. Точка входа прод-сборки: `dist/index.html` → `dist/js/app.js`.
 
 ## Слои
 

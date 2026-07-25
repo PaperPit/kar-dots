@@ -1,4 +1,4 @@
-// Cloudflare Pages Function: Whisper-транскрипт YouTube-аудио (бывшая Netlify background).
+// Cloudflare Pages Function: Whisper-транскрипт YouTube-аудио (фон через waitUntil).
 // POST { jobId, audioUrl, mimeType?, groqApiKey? } → 202; результат в KV (YT_JOBS).
 // Опрос: GET /api/yt-video?jobId=
 

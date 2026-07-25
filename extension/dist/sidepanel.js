@@ -156,7 +156,7 @@ var ExtSupabase = class _ExtSupabase {
   }
 };
 
-// ../js/lib/vocab-packs.ts
+// ../js/lib/vocab-packs.js
 function isVocabPackFolder(folder) {
   return !!folder?.pack_id;
 }
@@ -173,15 +173,17 @@ async function loadUserSettings(sb) {
   return rows[0]?.data || null;
 }
 
-// ../js/lib/llm-api-keys.ts
+// ../js/lib/llm-api-keys.js
 function strip(raw) {
   return String(raw || "").replace(/[\u200B-\u200D\uFEFF]/g, "").trim().replace(/\s+/g, "");
 }
 var GEMINI_KEY_RE = /^(?:AIza[A-Za-z0-9_-]{10,}|AQ\.[A-Za-z0-9._-]{20,})$/;
 function cleanGeminiApiKey(raw) {
   const s = strip(raw);
-  if (!s) return "";
-  if (GEMINI_KEY_RE.test(s)) return s.slice(0, 512);
+  if (!s)
+    return "";
+  if (GEMINI_KEY_RE.test(s))
+    return s.slice(0, 512);
   if (/^AQ\./.test(s) && s.length >= 24 && s.length <= 512 && /^[A-Za-z0-9._-]+$/.test(s)) {
     return s;
   }
@@ -192,20 +194,26 @@ function cleanGeminiApiKey(raw) {
 }
 function cleanGroqApiKey(raw) {
   const s = strip(raw);
-  if (!s) return "";
-  if (/^gsk_[A-Za-z0-9_-]{10,200}$/.test(s)) return s;
-  if (/^[A-Za-z0-9_-]{20,200}$/.test(s)) return s;
+  if (!s)
+    return "";
+  if (/^gsk_[A-Za-z0-9_-]{10,200}$/.test(s))
+    return s;
+  if (/^[A-Za-z0-9_-]{20,200}$/.test(s))
+    return s;
   return "";
 }
 function cleanSupadataApiKey(raw) {
   const s = strip(raw);
-  if (!s) return "";
-  if (/^sd_[A-Za-z0-9_-]{10,200}$/.test(s)) return s;
-  if (/^[A-Za-z0-9_-]{16,200}$/.test(s)) return s;
+  if (!s)
+    return "";
+  if (/^sd_[A-Za-z0-9_-]{10,200}$/.test(s))
+    return s;
+  if (/^[A-Za-z0-9_-]{16,200}$/.test(s))
+    return s;
   return "";
 }
 
-// ../js/lib/youtube-import-settings.ts
+// ../js/lib/youtube-import-settings.js
 function getSupadataApiKey(settings2) {
   return cleanSupadataApiKey(settings2?.supadataApiKey || "");
 }
@@ -221,19 +229,23 @@ function getGroqApiKey(settings2) {
 function withApiKeys(settings2, body) {
   const out = { ...body };
   const supadata = getSupadataApiKey(settings2);
-  if (supadata) out.supadataApiKey = supadata;
+  if (supadata)
+    out.supadataApiKey = supadata;
   const gemini = getGeminiApiKey(settings2);
-  if (gemini) out.geminiApiKey = gemini;
+  if (gemini)
+    out.geminiApiKey = gemini;
   const groq = getGroqApiKey(settings2);
-  if (groq) out.groqApiKey = groq;
+  if (groq)
+    out.groqApiKey = groq;
   return out;
 }
 
-// ../js/lib/yt-segment-merge.ts
+// ../js/lib/yt-segment-merge.js
 var DEFAULT_MAX_CHARS = 120;
 function countWords(text) {
   const s = String(text || "").trim();
-  if (!s) return 0;
+  if (!s)
+    return 0;
   return s.split(/\s+/).filter(Boolean).length;
 }
 function endsSentence(text) {
@@ -243,45 +255,52 @@ function mergeCaptionSegments(segments, { maxChars = DEFAULT_MAX_CHARS } = {}) {
   const out = [];
   let buf = null;
   const flush = () => {
-    if (buf?.text?.trim()) out.push(buf);
+    if (buf?.text?.trim())
+      out.push(buf);
     buf = null;
   };
   for (const s of segments || []) {
     const text = String(s?.text || "").replace(/\s+/g, " ").trim();
-    if (!text) continue;
+    if (!text)
+      continue;
     const t = Math.max(0, Math.round(Number(s?.t) || 0));
     const end = Number.isFinite(Number(s?.end)) ? Math.max(0, Math.round(Number(s?.end))) : null;
     if (!buf) {
       buf = { t, text, end: end ?? t };
-      if (endsSentence(text) || text.length >= maxChars) flush();
+      if (endsSentence(text) || text.length >= maxChars)
+        flush();
       continue;
     }
     const joined = buf.text + " " + text;
     if (joined.length > maxChars && buf.text) {
       flush();
       buf = { t, text, end: end ?? t };
-      if (endsSentence(text) || text.length >= maxChars) flush();
+      if (endsSentence(text) || text.length >= maxChars)
+        flush();
     } else {
       buf.text = joined;
       buf.end = end ?? t;
-      if (endsSentence(joined) || joined.length >= maxChars) flush();
+      if (endsSentence(joined) || joined.length >= maxChars)
+        flush();
     }
   }
   flush();
   return out;
 }
 
-// ../js/lib/youtube-import.ts
+// ../js/lib/youtube-import.js
 var ID_PATTERNS = [
   /(?:youtube\.com\/(?:watch\?(?:.*&)?v=|shorts\/|embed\/|live\/))([\w-]{11})/,
   /youtu\.be\/([\w-]{11})/
 ];
 function parseYouTubeId(url) {
   const s = String(url || "").trim();
-  if (/^[\w-]{11}$/.test(s)) return s;
+  if (/^[\w-]{11}$/.test(s))
+    return s;
   for (const re of ID_PATTERNS) {
     const m = s.match(re);
-    if (m) return m[1];
+    if (m)
+      return m[1];
   }
   return null;
 }
@@ -291,35 +310,47 @@ function normalizeTerm(s) {
 function stemVariants(word) {
   const w = normalizeTerm(word);
   const out = /* @__PURE__ */ new Set([w]);
-  if (!w || w.includes(" ")) return out;
+  if (!w || w.includes(" "))
+    return out;
   const add = (v) => {
-    if (v && v.length > 1) out.add(v);
+    if (v && v.length > 1)
+      out.add(v);
   };
-  if (w.endsWith("ies") && w.length > 4) add(w.slice(0, -3) + "y");
-  if (w.endsWith("es") && w.length > 3) add(w.slice(0, -2));
-  if (w.endsWith("s") && !w.endsWith("ss")) add(w.slice(0, -1));
+  if (w.endsWith("ies") && w.length > 4)
+    add(w.slice(0, -3) + "y");
+  if (w.endsWith("es") && w.length > 3)
+    add(w.slice(0, -2));
+  if (w.endsWith("s") && !w.endsWith("ss"))
+    add(w.slice(0, -1));
   if (w.endsWith("ing") && w.length > 5) {
     const base = w.slice(0, -3);
     add(base);
     add(base + "e");
-    if (base.length > 2 && base[base.length - 1] === base[base.length - 2]) add(base.slice(0, -1));
+    if (base.length > 2 && base[base.length - 1] === base[base.length - 2])
+      add(base.slice(0, -1));
   }
-  if (w.endsWith("ied") && w.length > 4) add(w.slice(0, -3) + "y");
+  if (w.endsWith("ied") && w.length > 4)
+    add(w.slice(0, -3) + "y");
   if (w.endsWith("ed") && w.length > 4) {
     const base = w.slice(0, -2);
     add(base);
     add(w.slice(0, -1));
-    if (base.length > 2 && base[base.length - 1] === base[base.length - 2]) add(base.slice(0, -1));
+    if (base.length > 2 && base[base.length - 1] === base[base.length - 2])
+      add(base.slice(0, -1));
   }
   out.delete("");
   return out;
 }
 function isKnownTerm(term, knownSet) {
   const n = normalizeTerm(term);
-  if (!n) return true;
-  if (knownSet.has(n)) return true;
+  if (!n)
+    return true;
+  if (knownSet.has(n))
+    return true;
   if (!n.includes(" ")) {
-    for (const v of stemVariants(n)) if (knownSet.has(v)) return true;
+    for (const v of stemVariants(n))
+      if (knownSet.has(v))
+        return true;
   }
   return false;
 }
@@ -328,7 +359,8 @@ function collectKnownTerms(cardArrays) {
   for (const cards of cardArrays || []) {
     for (const c of cards || []) {
       const n = normalizeTerm(c && c.front);
-      if (n) known.add(n);
+      if (n)
+        known.add(n);
     }
   }
   return known;
@@ -342,10 +374,12 @@ function filterNewCandidates(candidates, knownSet) {
   const words = [];
   for (const c of candidates || []) {
     const n = normalizeTerm(c && c.front);
-    if (!n || seen.has(n)) continue;
+    if (!n || seen.has(n))
+      continue;
     seen.add(n);
     if (c.kind === "phrase") {
-      if (!knownSet.has(n)) phrases.push(c);
+      if (!knownSet.has(n))
+        phrases.push(c);
     } else {
       words.push(c);
     }
@@ -353,15 +387,20 @@ function filterNewCandidates(candidates, knownSet) {
   const coveredByPhrases = /* @__PURE__ */ new Set();
   for (const p of phrases) {
     for (const token of normalizeTerm(p.front).split(" ")) {
-      for (const v of stemVariants(token)) coveredByPhrases.add(v);
+      for (const v of stemVariants(token))
+        coveredByPhrases.add(v);
       coveredByPhrases.add(token);
     }
   }
   const newWords = words.filter((w) => {
     const n = normalizeTerm(w.front);
-    if (isKnownTerm(n, knownSet)) return false;
-    if (coveredByPhrases.has(n)) return false;
-    for (const v of stemVariants(n)) if (coveredByPhrases.has(v)) return false;
+    if (isKnownTerm(n, knownSet))
+      return false;
+    if (coveredByPhrases.has(n))
+      return false;
+    for (const v of stemVariants(n))
+      if (coveredByPhrases.has(v))
+        return false;
     return true;
   });
   return { phrases, words: newWords };
@@ -371,11 +410,14 @@ function filterTranscriptSegments(segments, { minWords = 3, dedupe = true } = {}
   const out = [];
   for (const s of segments || []) {
     const text = String(s?.text || "").replace(/\s+/g, " ").trim();
-    if (!text) continue;
-    if (minWords > 0 && countWords(text) < minWords) continue;
+    if (!text)
+      continue;
+    if (minWords > 0 && countWords(text) < minWords)
+      continue;
     if (seen) {
       const n = normalizeTerm(text);
-      if (!n || seen.has(n)) continue;
+      if (!n || seen.has(n))
+        continue;
       seen.add(n);
     }
     const t = Math.max(0, Math.round(Number(s?.t) || 0));
@@ -389,9 +431,11 @@ function filterNewSentences(candidates, knownSet) {
   const sentences = [];
   for (const c of candidates || []) {
     const n = normalizeTerm(c && c.front);
-    if (!n || seen.has(n)) continue;
+    if (!n || seen.has(n))
+      continue;
     seen.add(n);
-    if (!knownSet.has(n)) sentences.push(c);
+    if (!knownSet.has(n))
+      sentences.push(c);
   }
   return sentences;
 }
@@ -411,7 +455,8 @@ function buildYtLink(videoId2, t) {
 }
 function buildCardDescription(candidate, videoId2) {
   const parts = [];
-  if (candidate.level) parts.push(candidate.level);
+  if (candidate.level)
+    parts.push(candidate.level);
   const kindLabel = candidate.kind === "phrase" ? "phrase" : candidate.kind === "sentence" ? "sentence" : candidate.pos || "\u0441\u043B\u043E\u0432\u043E";
   parts.push(kindLabel);
   let out = parts.join(" \xB7 ");
@@ -542,27 +587,52 @@ async function loadKnownTermsForImport(sb, folders2, folderId2) {
   return collectKnownTerms(sources);
 }
 
-// src/lib/create-cards.ts
+// ../js/data/store-common.js
 function uuid() {
-  if (crypto.randomUUID) return crypto.randomUUID();
+  if (crypto.randomUUID)
+    return crypto.randomUUID();
   return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {
     const r = Math.random() * 16 | 0;
     return (c === "x" ? r : r & 3 | 8).toString(16);
   });
 }
-function buildCardRow(data, userId) {
+
+// ../js/lib/folder-icons.js
+var FOLDER_ICONS = [
+  { id: "graduation-cap", label: "\u0423\u0447\u0451\u0431\u0430" },
+  { id: "bulb", label: "\u0418\u0434\u0435\u0438" },
+  { id: "globe", label: "\u041C\u0438\u0440" },
+  { id: "bookmark", label: "\u0417\u0430\u043A\u043B\u0430\u0434\u043A\u0430" },
+  { id: "search", label: "\u041F\u043E\u0438\u0441\u043A" },
+  { id: "edit", label: "\u0417\u0430\u043F\u0438\u0441\u044C" },
+  { id: "rocket", label: "\u0421\u0442\u0430\u0440\u0442" },
+  { id: "leaf", label: "\u041F\u0440\u0438\u0440\u043E\u0434\u0430" },
+  { id: "stethoscope", label: "\u041C\u0435\u0434\u0438\u0446\u0438\u043D\u0430" },
+  { id: "restaurant", label: "\u041A\u0443\u0445\u043D\u044F" },
+  { id: "dollar", label: "\u0424\u0438\u043D\u0430\u043D\u0441\u044B" },
+  { id: "align-justify", label: "\u0421\u043F\u0438\u0441\u043E\u043A" }
+];
+var ICON_PICKER_BOTTOM = [
+  { id: "box-alt", label: "\u041A\u043E\u0440\u043E\u0431\u043A\u0430" },
+  { id: "box-open", label: "\u041E\u0442\u043A\u0440\u044B\u0442\u0430\u044F \u043A\u043E\u0440\u043E\u0431\u043A\u0430" },
+  { id: "books", label: "\u041A\u043D\u0438\u0433\u0438" },
+  { id: "pencil", label: "\u041A\u0430\u0440\u0430\u043D\u0434\u0430\u0448" }
+];
+var ALL_PICKER_ICONS = [...FOLDER_ICONS, ...ICON_PICKER_BOTTOM];
+var VALID = new Set(ALL_PICKER_ICONS.map((i) => i.id));
+
+// ../js/data/store-contract.js
+function buildCardRecord(data, extras = {}) {
   const t = Date.now();
-  return {
+  return Object.assign({
     id: uuid(),
     created_at: t,
     updated_at: t,
-    front: data.front,
-    back: data.back,
-    description: data.description,
+    front: "",
+    back: "",
+    description: "",
     front_img: null,
     back_img: null,
-    folder_id: data.folder_id,
-    user_id: userId,
     sm2_ef: 2.5,
     sm2_reps: 0,
     sm2_ivl: 0,
@@ -579,8 +649,10 @@ function buildCardRow(data, userId) {
     fsrs_lapses: null,
     fsrs_learning_steps: null,
     fsrs_last_review: null
-  };
+  }, data, extras);
 }
+
+// src/lib/create-cards.ts
 async function createYoutubeCardsBatch(sb, folderId2, selected, videoId2) {
   const uid = sb.userId();
   if (!uid) throw new Error("\u041D\u0435\u0442 \u043F\u043E\u043B\u044C\u0437\u043E\u0432\u0430\u0442\u0435\u043B\u044F");
@@ -590,14 +662,14 @@ async function createYoutubeCardsBatch(sb, folderId2, selected, videoId2) {
     const text = String(back || "").trim();
     if (!text) continue;
     try {
-      const row = buildCardRow(
+      const row = buildCardRecord(
         {
           folder_id: folderId2,
           front: cand.front || "",
           back: text,
           description: buildCardDescription(cand, videoId2)
         },
-        uid
+        { user_id: uid }
       );
       await sb.insert("cards", row);
       ok++;

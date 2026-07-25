@@ -1,5 +1,5 @@
-// Замена Netlify Blobs (стор 'yt-import-jobs') на Workers KV.
-// Без биндинга YT_JOBS — in-memory fallback (локальный pages:dev без --kv).
+// Workers KV для состояния YouTube-джобов (стор YT_JOBS).
+// Без биндинга YT_JOBS — in-memory fallback (локальный pages:dev / npm run dev).
 
 export function jobsStore(env) {
   const kv = env?.YT_JOBS;

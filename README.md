@@ -166,7 +166,6 @@ wrangler.toml           — Pages + KV YT_JOBS
 dist/                   — прод-сборка (esbuild)
 supabase/migrations/    — схема БД
 .github/workflows/      — CI + deploy на Cloudflare Pages
-netlify/functions/      — legacy (запасной путь, не основной)
 tests/                  — unit-тесты
 ```
 

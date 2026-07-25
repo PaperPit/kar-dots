@@ -1,5 +1,5 @@
 // Чистые утилиты импорта карточек из YouTube-ролика.
-// Серверная часть — netlify/functions/yt-video.mjs и yt-generate.mjs.
+// Серверная часть — functions/api/yt-video.js и yt-generate.js.
 
 import { countWords } from "./yt-segment-merge.js"
 

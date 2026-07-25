@@ -13,8 +13,11 @@ async function setAuth(auth) {
   else await chrome.storage.local.remove(STORAGE_KEYS.auth);
 }
 async function setVideo(video) {
-  if (video) await chrome.storage.session.set({ [STORAGE_KEYS.video]: video });
-  else await chrome.storage.session.remove(STORAGE_KEYS.video);
+  try {
+    if (video) await chrome.storage.local.set({ [STORAGE_KEYS.video]: video });
+    else await chrome.storage.local.remove(STORAGE_KEYS.video);
+  } catch {
+  }
 }
 
 // src/background.ts
@@ -79,4 +82,3 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   })();
   return true;
 });
-//# sourceMappingURL=background.js.map

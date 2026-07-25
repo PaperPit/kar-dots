@@ -22,6 +22,8 @@ import {
 import { buildHomeStats, folderStudyDue } from '../../data/home-stats.js';
 import { debounce } from '../../lib/debounce.js';
 import { buildCardSearchIndex, matchesSearchIndex } from '../../lib/card-search.js';
+import { offerUndoDeleteCard, offerUndoDeleteFolder } from '../../lib/undo-delete.js';
+import { route } from '../../core/router.js';
 
 type ListItem = {
   card: SrsCard;
@@ -56,10 +58,17 @@ export async function renderFolder(folderId: string) {
           isPack ? 'Удалить пак' : 'Удалить', true,
           crowTombIcon());
         if (!yes) return;
-        if (isPack && folder.pack_id) await store.deleteVocabPack(folder.pack_id);
-        else await store.deleteFolder(folderId);
-        toast(isPack ? 'Пак удалён' : 'Папка удалена');
+        if (isPack && folder.pack_id) {
+          await store.deleteVocabPack(folder.pack_id);
+          toast('Пак удалён');
+          nav('#home');
+          return;
+        }
+        const folderSnap = { ...folder };
+        const cardsSnap = cards.map((c) => ({ ...c }));
+        await store.deleteFolder(folderId);
         nav('#home');
+        offerUndoDeleteFolder(folderSnap, cardsSnap, () => route());
       },
     }, svgNode(ICONS.trash)),
   ]);
@@ -188,6 +197,7 @@ export async function renderFolder(folderId: string) {
   }
 
   async function removeCardLocally(cardId: string) {
+    const snap = cards.find((c) => c.id === cardId);
     await store.deleteCard(cardId);
     cards = cards.filter((c) => c.id !== cardId);
     searchIndex.delete(cardId);
@@ -203,7 +213,21 @@ export async function renderFolder(folderId: string) {
     } else {
       paintList();
     }
-    toast('Карточка удалена');
+    if (snap) {
+      offerUndoDeleteCard(snap, async () => {
+        cards = (await store.getFolderCards(folderId)) as SrsCard[];
+        const rebuilt = buildCardSearchIndex(cards);
+        searchIndex = rebuilt.hay;
+        displayPlain = rebuilt.plains;
+        wrap.classList.toggle('is-empty', !cards.length);
+        if (cards.length && !toolbar.isConnected) {
+          wrap.append(toolbar, listMount, emptyFilter);
+        }
+        paintList();
+      });
+    } else {
+      toast('Карточка удалена');
+    }
   }
 
   filterAllBtn.addEventListener('click', () => setFilter('all'));

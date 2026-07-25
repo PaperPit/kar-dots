@@ -222,6 +222,7 @@ export class CloudStore {
     this.queue.onFlush(item => this._executeSyncItem(item));
     this.queue.onDeadLetter(() => this._notifySync());
     window.addEventListener('online', () => this._onOnline());
+    window.addEventListener('offline', () => this._onOffline());
     this._bindActivityCloudSync();
     this._bindReviewLogCloudSync();
     void initReviewLog();
@@ -305,6 +306,11 @@ export class CloudStore {
     this._offline = false;
     await this.flushSync();
     try { await this._fetchFromCloud(); this._notifySync(); this._emitDataChange(); } catch (e) { /* mirror */ }
+  }
+
+  _onOffline() {
+    this._offline = true;
+    void this._notifySync();
   }
 
   async flushSync() {
@@ -916,10 +922,11 @@ export class CloudStore {
     };
   }
 
-  async getCramCards(folderId: string | null, limit: number) {
+  async getCramCards(folderId: string | null, limit?: number | null) {
     const source = filterByFolder(this._srsMeta || [], folderId);
     const picked = shuffle(source);
-    const slice = limit > 0 ? picked.slice(0, limit) : picked;
+    const lim = limit ?? 0;
+    const slice = lim > 0 ? picked.slice(0, lim) : picked;
     const { cards, missingIds } = await this._hydrateQueueRows(slice);
     return { cards, missingOffline: missingIds.length };
   }

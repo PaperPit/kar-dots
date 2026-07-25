@@ -16,7 +16,6 @@ interface TtsSettings {
   ttsVoiceEn?: string
   ttsVoiceRu?: string
   ttsRate?: number
-  [key: string]: unknown
 }
 
 let speakSession = 0

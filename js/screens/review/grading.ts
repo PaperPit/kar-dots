@@ -138,7 +138,7 @@ export function buildLogEntry(ctx: GradeContext, card: SrsCard, g: Grade, failed
 }
 
 function applyAlgoGrade(card: SrsCard, algo: Algo, g: Grade, now: number) {
-  if (algo === 'leitner') return SRS.leitnerNext(card, g.leitner ?? false, store.settings.leitnerIntervals, now);
+  if (algo === 'leitner') return SRS.leitnerNext(card, g.leitner ?? false, store.settings.leitnerIntervals || [1, 3, 7, 14, 30], now);
   if (algo === 'fsrs') return SRS.fsrsNext(card, g.fsrs ?? SRS.FsrsRating.Again, now);
   return SRS.sm2Next(card, g.q ?? 0, now);
 }
@@ -343,7 +343,7 @@ export async function undoLastGrade(ctx: GradeContext) {
   if (u.failed) ctx.stats.failed = Math.max(0, ctx.stats.failed - 1);
   else ctx.stats.known = Math.max(0, ctx.stats.known - 1);
 
-  try { await store.updateCard(u.card.id ?? '', u.prevSnap); }
+  try { await store.updateCard(u.card.id ?? '', u.prevSnap as Partial<import('../../data/types.js').Card>); }
   catch (e) { toast('Не удалось отменить: ' + (e instanceof Error ? e.message : String(e)), 'error'); return; }
   try { await undoReview(1, u.reviewSplit); }
   catch (e) { console.warn('undoReview', e); }

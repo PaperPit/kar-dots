@@ -10,6 +10,14 @@ const HIGHLIGHT_PRESETS = [
   { id: "sky", title: "Голубой" }
 ]
 
+function escapePlainForRich(text: string): string {
+  return String(text || "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/\n/g, "<br>")
+}
+
 interface RichEditorOpts {
   placeholder?: string
   value?: string
@@ -253,10 +261,20 @@ export function richEditor(opts: RichEditorOpts): RichEditor {
 
   const onDocClick = (e: Event) => {
     if (!hlMenuOpen) return
-    if (!(e.target instanceof Node) || !highlightWrap.contains(e.target)) return
-    closeHlMenu()
+    if (!(e.target instanceof Node) || !highlightWrap.contains(e.target)) closeHlMenu()
   }
   document.addEventListener("click", onDocClick)
+
+  editable.addEventListener("paste", (e: ClipboardEvent) => {
+    e.preventDefault()
+    const html = e.clipboardData?.getData("text/html")
+    const text = e.clipboardData?.getData("text/plain") || ""
+    const cleaned = html ? sanitizeRich(html) : escapePlainForRich(text)
+    editable.focus()
+    restoreSelection()
+    document.execCommand("insertHTML", false, cleaned || escapePlainForRich(text))
+    saveSelection()
+  })
 
   const toolbar =
     opts.toolbar === false

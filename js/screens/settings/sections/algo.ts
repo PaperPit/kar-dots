@@ -18,7 +18,7 @@ interface SettingsLike {
   fsrsRetention?: number;
   fsrsFuzz?: boolean;
   fsrsWeights?: number[] | null;
-  leitnerIntervals: number[];
+  leitnerIntervals?: number[];
 }
 import {
   getSpeechVoices,
@@ -213,7 +213,7 @@ export function buildAlgoGroup(s: SettingsLike, save: () => void) {
         algoDesc.textContent = ALGO_DESCRIPTIONS[v as keyof typeof ALGO_DESCRIPTIONS] || ALGO_DESCRIPTIONS.sm2;
         try {
           if (typeof store.convertAlgoProgress === 'function') {
-            const r = await store.convertAlgoProgress(from, v);
+            const r = await store.convertAlgoProgress(from as import('../../../lib/srs.js').Algo, v as import('../../../lib/srs.js').Algo);
             if (r?.updated) toast('Перенесён прогресс: ' + r.updated + ' карточек', 'ok');
           }
         } catch (e) {

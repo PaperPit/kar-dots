@@ -48,8 +48,14 @@ js/**/*.js
 !js/config.example.js
 *.tsbuildinfo
 
-# Прод-бандл (esbuild -> dist/). Только корень репо — extension/dist коммитим для load unpacked.
+# Прод-бандл (esbuild -> dist/). Только корень репо — extension/dist собирается npm run ext:build.
 /dist/
 
-# Sourcemaps сборки Chrome-расширения
-extension/dist/*.map
+# Сборка Chrome-расширения (load unpacked после npm run ext:build)
+extension/dist/
+
+# Артефакты деплоя / дизайн / байткод — не в git
+*.zip
+*.tar.gz
+**/__pycache__/
+*.pyc

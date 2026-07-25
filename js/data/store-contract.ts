@@ -68,11 +68,11 @@ import type { Folder, Box, Card } from "./types.js"
 export function buildFolderRecord(data: Partial<Folder>, extras: Record<string, unknown> = {}): Folder {
   const t = Date.now()
   return {
-    id: uuid(),
+    id: data.id || uuid(),
     name: data.name ?? "",
     color: data.color || "#7C8DB5",
     icon: normalizeFolderIcon(data.icon),
-    created_at: t,
+    created_at: data.created_at ?? t,
     updated_at: t,
     pack_id: data.pack_id ?? null,
     pack_version: data.pack_version ?? null,

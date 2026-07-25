@@ -78,7 +78,7 @@ export function boxDialog(box: Box | null) {
           await store.setBoxFolders(box.id, [...selected]);
         } else {
           const created = await store.createBox(patch);
-          if (selected.size) await store.setBoxFolders(created.id, [...selected]);
+          if (selected.size && created?.id) await store.setBoxFolders(created.id, [...selected]);
         }
         m.close();
         await route();

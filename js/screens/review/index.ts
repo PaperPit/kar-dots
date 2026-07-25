@@ -65,17 +65,17 @@ export async function renderReview(folderId: string | null, opts: ReviewOpts = {
   }
   if (session !== reviewSession) return;
 
-  let queue;
+  let queue: import('../../lib/srs.js').SrsCard[] = [];
   let dayLimitHit = false;
   let missingOffline = 0;
   if (cram) {
-    const limit = (cramLimit ?? 0) > 0 ? cramLimit : null;
+    const limit = (cramLimit ?? 0) > 0 ? cramLimit! : null;
     if (typeof store.getCramCards === 'function') {
       const cramResult = normalizeCramResult(await store.getCramCards(folderId, limit));
       queue = cramResult.queue;
       missingOffline = cramResult.missingOffline;
     } else {
-      queue = shuffle([...(await store.getFolderCards(folderId))]).slice(0, limit || undefined);
+      queue = shuffle([...(await store.getFolderCards(folderId))]).slice(0, limit || undefined) as import('../../lib/srs.js').SrsCard[];
     }
   } else {
     const dayLeft = reviewsBudget();

@@ -23,7 +23,7 @@ interface SessionCache {
 
 interface ImportStore {
   folders: Folder[]
-  countCards(folderId: string): Promise<number>
+  countCards(folderId: string): Promise<number | undefined>
   getFolderCards(folderId: string): Promise<Card[]>
   scanFolderFronts?(folderId: string, opts: { youtubeOnly: boolean }): Promise<MiniCard[]>
 }
@@ -76,7 +76,7 @@ async function loadPackSources(): Promise<MiniCard[][]> {
 
 async function folderMiniCards(store: ImportStore, folderId: string, youtubeOnly: boolean): Promise<MiniCard[]> {
   const key = folderSliceKey(folderId, youtubeOnly)
-  const n = await store.countCards(folderId)
+  const n = (await store.countCards(folderId)) ?? 0
   const cached = await getKnownTermsSlice(key)
   if (cached && cached.n === n) return cached.mini as MiniCard[]
 

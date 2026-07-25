@@ -1,4 +1,6 @@
 import type { MiniSupabase } from "../data/supabase.js";
+import type { LocalStore } from "../data/store-local.js";
+import type { CloudStore } from "../data/store-cloud.js";
 
 export interface Config {
   SUPABASE_URL?: string;
@@ -6,13 +8,16 @@ export interface Config {
   [key: string]: unknown;
 }
 
+export type AppStore = LocalStore | CloudStore;
+
 let cfg = {} as Config;
 let cloudConfigured = false;
 
-// store намеренно any: в приложении два конфликтующих типа Settings
-// (data/types и lib/sounds), поэтому точная типизация LocalStore | CloudStore
-// ломает звуковые хелперы. Типизировать после унификации Settings.
-let store: any = null;
+/**
+ * After boot / enterLocal / cloud init the router only mounts screens when a store is set.
+ * Typed as AppStore (not any) so settings/folders/methods stay checked; null only before boot.
+ */
+let store = null as unknown as AppStore;
 let sb: MiniSupabase | null = null;
 
 export const app = document.getElementById('app') as HTMLElement;
@@ -34,11 +39,11 @@ export async function initConfig(): Promise<void> {
   cloudConfigured = !!(cfg.SUPABASE_URL && cfg.SUPABASE_ANON_KEY);
 }
 
-export function setStore(s: any): void {
-  store = s;
+export function setStore(s: AppStore | null): void {
+  store = s as AppStore;
 }
 export function setSb(s: MiniSupabase | null): void {
   sb = s;
 }
 
-export { store, sb, cloudConfigured, cfg }; // For individual imports
+export { store, sb, cloudConfigured, cfg };

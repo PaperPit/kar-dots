@@ -131,5 +131,13 @@ export function cardDialog(folderId: string, card?: Card | null, opts: CardDialo
     actionsRow,
   ]), { wide: true, sticky: fromLesson, labelledBy: titleId });
 
+  const origClose = m.close.bind(m);
+  m.close = () => {
+    frontRich.destroy();
+    defRich.destroy();
+    descRich.destroy();
+    origClose();
+  };
+
   if (!isEditing) setTimeout(() => frontRich.focus(), 260);
 }

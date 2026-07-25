@@ -194,7 +194,10 @@ export async function vocabPacksDialog(): Promise<void> {
       const pack = await fetchVocabPack(meta.id)
       const total = pack.cards.filter((c: { front?: string }) => c.front?.trim()).length
       overlay.setImport(total)
-      const folder = await store.importVocabPack(pack, (p: { done: number; total: number }) => overlay.onProgress(p))
+      const folder = await store.importVocabPack(pack, ((p: number | { done: number; total: number }) => {
+        const info = typeof p === 'number' ? { done: p, total } : p
+        overlay.onProgress(info)
+      }) as (n: number) => void)
       await overlay.finish()
       overlay.remove()
       toast(`Пак «${meta.title}» установлен`, "ok")
@@ -210,7 +213,7 @@ export async function vocabPacksDialog(): Promise<void> {
   }
 
   async function removePack(meta: VocabPackMeta, folder: Folder): Promise<void> {
-    const n = await store.countCards(folder.id)
+    const n = (await store.countCards(folder.id)) ?? 0
     const yes = await confirmDialog(
       "Удалить лексический пак?",
       `«${meta.title}» и все ${n} ${plural(n, "карточка", "карточки", "карточек")} будут удалены.`,

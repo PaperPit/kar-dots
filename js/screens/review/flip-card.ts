@@ -91,7 +91,7 @@ export function createFlipCard(card: SrsCard, firstSide: 'front' | 'back', opts:
       e.preventDefault();
       toggleFlip();
     }
-    if (gradesShown && opts.onGradeKey && ['1', '2'].includes(e.key)) {
+    if (gradesShown && opts.onGradeKey && ['1', '2', '3', '4'].includes(e.key)) {
       opts.onGradeKey(e.key, grades);
     }
     if (gradesShown && opts.onGradeDir) {
@@ -106,7 +106,17 @@ export function createFlipCard(card: SrsCard, firstSide: 'front' | 'back', opts:
   };
   document.addEventListener('keydown', onKey);
 
-  return { box, flip, swipeWrap, grades, hint, getVisibleSide: () => (flip.classList.contains('flipped') ? backSide : firstSide) };
+  return {
+    box,
+    flip,
+    swipeWrap,
+    grades,
+    hint,
+    getVisibleSide: () => (flip.classList.contains('flipped') ? backSide : firstSide),
+    destroy() {
+      document.removeEventListener('keydown', onKey);
+    },
+  };
 }
 
 const sizedImgListeners = new WeakSet<HTMLImageElement>();

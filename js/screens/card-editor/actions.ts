@@ -2,6 +2,7 @@ import { store } from '../../core/state.js';
 import { toast, stripHtml, confirmDialog } from '../../ui/ui.js';
 import { crowTombIcon, textPreview } from '../../ui/helpers.js';
 import { route } from '../../core/router.js';
+import { offerUndoDeleteCard } from '../../lib/undo-delete.js';
 import type { Card } from '../../data/types.js';
 import type { ModalHandle } from '../../ui/ui.js';
 
@@ -58,9 +59,10 @@ export async function saveCard({
   try {
     const patch = {
       front, back, description,
-      front_img: state.front_img, back_img: state.back_img,
+      front_img: state.front_img ?? undefined,
+      back_img: state.back_img ?? undefined,
     };
-    if (card) await store.updateCard(card.id, patch);
+    if (card) await store.updateCard(card.id ?? '', patch);
     else await store.createCard(Object.assign({ folder_id: folderId }, patch));
     m.close();
     if (fromLesson) {
@@ -93,14 +95,16 @@ export async function deleteCardAction(card: Card | null, opts: DeleteCardOpts, 
   );
   if (!yes) return;
   try {
-    await store.deleteCard(card.id);
+    const snap = { ...card };
+    await store.deleteCard(card.id ?? '');
     m.close();
     if (opts.onDeleted) {
       opts.onDeleted();
+      offerUndoDeleteCard(snap, () => route());
       return;
     }
     await route();
-    toast('Карточка удалена', 'ok');
+    offerUndoDeleteCard(snap, () => route());
   } catch (e) {
     const err = e as Error;
     toast(err.message, 'error');

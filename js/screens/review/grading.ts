@@ -165,7 +165,12 @@ export function submitGrade(
       firstTryRecorded,
       firstTryOk: firstTryRecorded && know,
       quiet,
-    }).finally(() => { ctx.grading = false; });
+    })
+      .catch((e) => {
+        console.error(e);
+        toast('Не удалось сохранить оценку: ' + (e instanceof Error ? e.message : String(e)), 'error');
+      })
+      .finally(() => { ctx.grading = false; });
   };
   if (dir && ctx.currentSwipeWrap && ctx.currentBox) {
     animateCardExit(ctx.currentSwipeWrap, dir, run, ctx.currentBox);
@@ -277,7 +282,11 @@ export async function applyGrade(ctx: GradeContext, card: SrsCard, g: Grade, opt
   try { await store.updateCard(card.id ?? '', patch); }
   catch (e) { toast('Не сохранилось: ' + (e instanceof Error ? e.message : String(e)), 'error'); }
   const reviewSplit = failed ? { failed: 1 } : { known: 1 };
-  await recordReview(1, reviewSplit);
+  try { await recordReview(1, reviewSplit); }
+  catch (e) {
+    console.warn('recordReview', e);
+    toast('Статистика не записалась', 'error');
+  }
   let reviewLogId: string | null = null;
   try { reviewLogId = await logReview(buildLogEntry(ctx, card, g, failed, now)); }
   catch (e) { /* журнал не критичен для оценки */ }
@@ -336,7 +345,8 @@ export async function undoLastGrade(ctx: GradeContext) {
 
   try { await store.updateCard(u.card.id ?? '', u.prevSnap); }
   catch (e) { toast('Не удалось отменить: ' + (e instanceof Error ? e.message : String(e)), 'error'); return; }
-  await undoReview(1, u.reviewSplit);
+  try { await undoReview(1, u.reviewSplit); }
+  catch (e) { console.warn('undoReview', e); }
   if (u.reviewLogId) { try { await removeReview(u.reviewLogId); } catch (e) { /* ignore */ } }
   ctx.updateBar();
   if (ctx.showNextTimer) { clearTimeout(ctx.showNextTimer); ctx.showNextTimer = null; }

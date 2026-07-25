@@ -225,6 +225,25 @@
 .flip-face:has(img) .flip-face-scroll {
   overflow: hidden;
 }
+/* Reserved image slot — avoid CLS while decode; sizeFlipCard still caps img max-height */
+.card-img-slot {
+  flex: none;
+  width: 100%;
+  max-width: 100%;
+  aspect-ratio: 4 / 3;
+  max-height: min(28vh, 200px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+.card-img-slot img {
+  width: auto;
+  height: auto;
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+}
 .flip-face-scroll::-webkit-scrollbar { width: 6px; }
 .flip-face-scroll::-webkit-scrollbar-thumb { background: var(--line); border-radius: 999px; }
 .flip-face-scroll .word {

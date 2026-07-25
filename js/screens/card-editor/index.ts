@@ -7,6 +7,7 @@ import { buildCardEditorForm } from './form.js';
 import { saveCard, deleteCardAction } from './actions.js';
 import { openCardPreview } from './card-preview.js';
 import type { Card } from '../../data/types.js';
+import { ensureCss, SCREEN_CSS } from '../../ui/ensure-css.js';
 
 interface CardDialogOpts {
   review?: boolean;
@@ -17,6 +18,7 @@ interface CardDialogOpts {
 }
 
 export function cardDialog(folderId: string, card?: Card | null, opts: CardDialogOpts = {}) {
+  void ensureCss(SCREEN_CSS.cardEditor);
   const isEditing = !!card;
   const fromLesson = !!(opts.review || opts.fromLesson || opts.onSaved || opts.onDeleted);
   const titleId = 'card-dialog-title';

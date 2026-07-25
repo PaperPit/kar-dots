@@ -258,11 +258,12 @@ export class LocalStore {
   }
 
   async getFolderCards(folderId: string) {
-    if (this._cache.folderCache.has(folderId)) return this._cache.folderCache.get(folderId);
+    const hit = this._cache.getFolderList(folderId);
+    if (hit) return hit;
     const cards = (await indexGetAll(this.db, 'cards', 'folder_id', folderId)) as CardRecord[];
     cards.sort((a, b) => (b.created_at || 0) - (a.created_at || 0));
     cards.forEach(c => { if (c.description == null) c.description = ''; });
-    this._cache.folderCache.set(folderId, cards as Card[]);
+    this._cache.setFolderList(folderId, cards as Card[]);
     return cards;
   }
 

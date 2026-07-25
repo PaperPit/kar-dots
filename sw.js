@@ -4,16 +4,12 @@ const VERSION = 'kar-v15.4';
 const CORE_FILES = [
   './',
   'css/components/modal.css',
-  'css/fonts/baloo2-deva.woff2',
-  'css/fonts/baloo2-ext.woff2',
   'css/fonts/baloo2-latin.woff2',
-  'css/fonts/baloo2-viet.woff2',
   'css/fonts/fonts.css',
   'css/fonts/nunito-cyr-ext.woff2',
   'css/fonts/nunito-cyr.woff2',
   'css/fonts/nunito-latin-ext.woff2',
   'css/fonts/nunito-latin.woff2',
-  'css/fonts/nunito-viet.woff2',
   'css/screens/card-editor.css',
   'css/screens/folder.css',
   'css/screens/home.css',
@@ -67,7 +63,9 @@ const CORE_FILES = [
   'js/lib/activity.js',
   'js/lib/answer-check.js',
   'js/lib/card-import.js',
+  'js/lib/card-search.js',
   'js/lib/charts.js',
+  'js/lib/debounce.js',
   'js/lib/ext-connect.js',
   'js/lib/folder-errors.js',
   'js/lib/folder-icons.js',
@@ -112,6 +110,7 @@ const CORE_FILES = [
   'js/ui/brand.js',
   'js/ui/card-face.js',
   'js/ui/constants.js',
+  'js/ui/ensure-css.js',
   'js/ui/folder-cards.js',
   'js/ui/folder-drag.js',
   'js/ui/helpers.js',
@@ -178,17 +177,55 @@ self.addEventListener('fetch', e => {
   if (!isSameOrigin && !isStorageImage) return;
 
   const path = url.pathname.replace(/^\//, '');
-  const isAppJs = isSameOrigin && /\.(js|css|html)$/.test(url.pathname);
   const lazy = isSameOrigin && isLazyPath(path);
   const hasRange = e.request.headers.has('range');
+  const hashedChunk = isSameOrigin && /\/[A-Za-z0-9_-]+-[A-Z0-9]{8}\.js$/.test(url.pathname);
+  const shellAsset = isSameOrigin && /\.(js|css|html)$/.test(url.pathname) && !hashedChunk;
+
+  function putInCache(req, resp) {
+    if (resp.status === 200 && !hasRange) {
+      const copy = resp.clone();
+      caches.open(VERSION).then(c => c.put(req, copy)).catch(() => {});
+    }
+  }
+
+  if (hashedChunk) {
+    e.respondWith(
+      caches.match(e.request, { ignoreSearch: true }).then(cached => {
+        if (cached) return cached;
+        return fetch(e.request).then(resp => {
+          putInCache(e.request, resp);
+          return resp;
+        });
+      }).catch(async () => {
+        const cached = await caches.match(e.request, { ignoreSearch: true });
+        if (cached) return cached;
+        if (lazy) throw new Error('offline');
+        throw new Error('offline');
+      }),
+    );
+    return;
+  }
+
+  if (shellAsset) {
+    e.respondWith(
+      caches.match(e.request, { ignoreSearch: true }).then(cached => {
+        const network = fetch(e.request)
+          .then(resp => {
+            putInCache(e.request, resp);
+            return resp;
+          })
+          .catch(() => cached);
+        return cached || network;
+      }),
+    );
+    return;
+  }
 
   e.respondWith(
-    fetch(isAppJs ? new Request(e.request, { cache: 'no-cache' }) : e.request)
+    fetch(e.request)
       .then(resp => {
-        if (resp.status === 200 && !hasRange) {
-          const copy = resp.clone();
-          caches.open(VERSION).then(c => c.put(e.request, copy)).catch(() => {});
-        }
+        putInCache(e.request, resp);
         return resp;
       })
       .catch(async () => {

@@ -2,7 +2,7 @@ import { store } from '../../core/state.js';
 import * as SRS from '../../lib/srs.js';
 import type { SrsCard, Algo } from '../../lib/srs.js';
 import type { Folder } from '../../data/types.js';
-import { el, toast, confirmDialog, stripHtml, plural } from '../../ui/ui.js';
+import { el, toast, confirmDialog, plural } from '../../ui/ui.js';
 import { ICONS } from '../../ui/constants.js';
 import { crowTombIcon, featherIcon, folderSwatch, newBudget, svgNode, textPreview } from '../../ui/helpers.js';
 import { shell, nav, offlineBanner } from '../../ui/shell.js';
@@ -13,31 +13,31 @@ import { bulkCardDialog } from '../card-editor/bulk-dialog.js';
 import { youtubeImportDialog } from './youtube-dialog.js';
 import { studyModePicker } from '../review/mode-picker.js';
 import { isVocabPackFolder } from '../../lib/vocab-packs.js';
-import { route } from '../../core/router.js';
-import { createVirtualList, VIRTUAL_LIST_THRESHOLD } from '../../lib/virtual-list.js';
+import {
+  createVirtualList,
+  VIRTUAL_LIST_THRESHOLD,
+  DEFAULT_ROW_HEIGHT,
+  DEFAULT_GAP,
+} from '../../lib/virtual-list.js';
 import { buildHomeStats, folderStudyDue } from '../../data/home-stats.js';
+import { debounce } from '../../lib/debounce.js';
+import { buildCardSearchIndex, matchesSearchIndex } from '../../lib/card-search.js';
 
-const CARD_ROW_HEIGHT = 74;
-const CARD_ROW_GAP = 10;
-
-function matchesSearch(card: SrsCard, query: string) {
-  if (!query) return true;
-  const hay = [
-    stripHtml(card.front),
-    stripHtml(card.back),
-    stripHtml(card.description || ''),
-  ].join(' ').toLowerCase();
-  return hay.includes(query.toLowerCase());
-}
+type ListItem = {
+  card: SrsCard;
+  i: number;
+  frontPlain: string;
+  backPlain: string;
+};
 
 export async function renderFolder(folderId: string) {
   const folder = (store.folders as Folder[]).find(f => f.id === folderId);
   if (!folder) { nav('#home'); return; }
 
-  const cards = await store.getFolderCards(folderId) as SrsCard[];
+  let cards = (await store.getFolderCards(folderId)) as SrsCard[];
   const algo = store.settings.algo as Algo;
   const now = Date.now();
-  const due = folderStudyDue(buildHomeStats(cards, algo, now).byFolder[folderId], newBudget());
+  let due = folderStudyDue(buildHomeStats(cards, algo, now).byFolder[folderId], newBudget());
 
   const isPack = isVocabPackFolder(folder);
 
@@ -113,13 +113,17 @@ export async function renderFolder(folderId: string) {
   const emptyFilter = el('p', { class: 'folder-filter-empty muted hidden' }, 'Ничего не найдено');
   let virtualList: ReturnType<typeof createVirtualList> | null = null;
 
-  function buildFilteredItems() {
-    const q = searchInput.value.trim();
-    const items: { card: SrsCard; i: number }[] = [];
+  /** Search haystack + display plains — stripHtml once per card load, not per keystroke. */
+  let { hay: searchIndex, plains: displayPlain } = buildCardSearchIndex(cards);
+
+  function buildFilteredItems(): ListItem[] {
+    const q = searchInput.value.trim().toLowerCase();
+    const items: ListItem[] = [];
     cards.forEach((c: SrsCard, i: number) => {
       if (filterMode === 'due' && !SRS.isReviewable(c, algo, now)) return;
-      if (!matchesSearch(c, q)) return;
-      items.push({ card: c, i });
+      if (!matchesSearchIndex(searchIndex, c.id, q)) return;
+      const plains = displayPlain.get(c.id || '') || { front: '', back: '' };
+      items.push({ card: c, i, frontPlain: plains.front, backPlain: plains.back });
     });
     return items;
   }
@@ -133,23 +137,23 @@ export async function renderFolder(folderId: string) {
     }
   }
 
-  function paintListPlain(items: { card: SrsCard; i: number }[]) {
+  function paintListPlain(items: ListItem[]) {
     listMount.innerHTML = '';
     listMount.className = 'card-list';
-    for (const { card, i } of items) {
-      listMount.append(cardRow(card, i, algo, false));
+    for (const item of items) {
+      listMount.append(cardRow(item, algo, false));
     }
   }
 
-  function paintListVirtual(items: { card: SrsCard; i: number }[], scrollRoot: Element | null) {
+  function paintListVirtual(items: ListItem[], scrollRoot: Element | null) {
     if (!virtualList) {
       virtualList = createVirtualList({
         scrollRoot: scrollRoot as HTMLElement,
         mount: listMount,
         items,
-        rowHeight: CARD_ROW_HEIGHT,
-        gap: CARD_ROW_GAP,
-        renderRow: ({ card, i }) => cardRow(card, i, algo, true),
+        rowHeight: DEFAULT_ROW_HEIGHT,
+        gap: DEFAULT_GAP,
+        renderRow: (item) => cardRow(item as ListItem, algo, true),
       });
     } else {
       virtualList.setItems(items);
@@ -183,9 +187,28 @@ export async function renderFolder(folderId: string) {
     paintList();
   }
 
+  async function removeCardLocally(cardId: string) {
+    await store.deleteCard(cardId);
+    cards = cards.filter((c) => c.id !== cardId);
+    searchIndex.delete(cardId);
+    displayPlain.delete(cardId);
+    due = folderStudyDue(buildHomeStats(cards, algo, Date.now()).byFolder[folderId], newBudget());
+    wrap.classList.toggle('is-empty', !cards.length);
+    if (!cards.length) {
+      toolbar.remove();
+      listMount.remove();
+      emptyFilter.remove();
+      virtualList?.destroy();
+      virtualList = null;
+    } else {
+      paintList();
+    }
+    toast('Карточка удалена');
+  }
+
   filterAllBtn.addEventListener('click', () => setFilter('all'));
   filterDueBtn.addEventListener('click', () => setFilter('due'));
-  searchInput.addEventListener('input', () => paintList());
+  searchInput.addEventListener('input', debounce(() => paintList(), 180));
 
   const wrap = el('div', { class: 'folder-page' + (!cards.length ? ' is-empty' : '') }, []);
   const content = [offlineBanner(), head];
@@ -203,7 +226,9 @@ export async function renderFolder(folderId: string) {
     requestAnimationFrame(() => virtualList!.refresh());
   }
 
-  function cardRow(c: SrsCard, i: number, algoName: Algo, virtual: boolean) {
+  function cardRow(item: ListItem, algoName: Algo, virtual: boolean) {
+    const c = item.card;
+    const i = item.i;
     const img = c.front_img || c.back_img;
     let chip;
     if (SRS.isNew(c, algoName)) chip = el('span', { class: 'srs-chip new' }, 'новая');
@@ -227,8 +252,8 @@ export async function renderFolder(folderId: string) {
         decoding: 'async',
       }) : null,
       el('div', { class: 'texts' }, [
-        el('div', { class: 'front' }, stripHtml(c.front) || '(картинка)'),
-        el('div', { class: 'back' }, stripHtml(c.back) || ''),
+        el('div', { class: 'front' }, item.frontPlain || '(картинка)'),
+        el('div', { class: 'back' }, item.backPlain || ''),
       ]),
       chip,
       el('button', {
@@ -238,10 +263,8 @@ export async function renderFolder(folderId: string) {
           const yes = await confirmDialog('Удалить карточку?', textPreview(c), 'Удалить', true, crowTombIcon());
           if (!yes) return;
           row.classList.add('removing');
-          setTimeout(async () => {
-            await store.deleteCard(c.id);
-            await route();
-            toast('Карточка удалена');
+          setTimeout(() => {
+            if (c.id) void removeCardLocally(c.id);
           }, 250);
         },
       }, svgNode(ICONS.trash)),

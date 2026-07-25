@@ -838,7 +838,8 @@ export class CloudStore {
   }
 
   async getFolderCards(folderId: string) {
-    if (this._cache.folderCache.has(folderId)) return this._cache.folderCache.get(folderId);
+    const hit = this._cache.getFolderList(folderId);
+    if (hit) return hit;
     let cards;
     if (navigator.onLine && !this._offline) {
       try {
@@ -854,7 +855,7 @@ export class CloudStore {
       cards = await indexGetAll<Card>(this.mirror, 'cards', 'folder_id', folderId);
     }
     cards.sort((a: Card, b: Card) => (b.created_at || 0) - (a.created_at || 0));
-    this._cache.folderCache.set(folderId, cards);
+    this._cache.setFolderList(folderId, cards);
     return cards;
   }
 

@@ -14,6 +14,8 @@ import { fileURLToPath } from 'node:url';
 import {
   assertPrecacheInDist,
   buildPrecacheFromDist,
+  injectModulePreloads,
+  pickModulePreloads,
   renderBundleSw,
 } from './lib/sw-precache.mjs';
 
@@ -51,7 +53,7 @@ const configExternal = {
   },
 };
 
-await build({
+const result = await build({
   entryPoints: [path.join(JS, 'app.js')],
   bundle: true,
   format: 'esm',
@@ -73,6 +75,17 @@ cpDir(path.join(ROOT, 'icons'), path.join(DIST, 'icons'));
 cpDir(path.join(ROOT, 'packs'), path.join(DIST, 'packs'));
 for (const f of ['manifest.webmanifest', 'index.html']) {
   if (fs.existsSync(path.join(ROOT, f))) cpFile(path.join(ROOT, f), path.join(DIST, f));
+}
+
+// Prod: modulepreload entry + largest shared chunks (dev index.html untouched).
+{
+  const indexPath = path.join(DIST, 'index.html');
+  if (fs.existsSync(indexPath) && result.metafile) {
+    const hrefs = pickModulePreloads(result.metafile, DIST);
+    const html = fs.readFileSync(indexPath, 'utf8');
+    fs.writeFileSync(indexPath, injectModulePreloads(html, hrefs));
+    console.log(`bundle: modulepreload → ${hrefs.join(', ')}`);
+  }
 }
 // config грузится рантайм-import'ом через переменную (state.ts initConfig:
 // '../config.js'), поэтому esbuild не может сделать его external и оставляет

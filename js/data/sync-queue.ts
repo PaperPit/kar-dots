@@ -132,6 +132,32 @@ export class SyncQueue {
     })
   }
 
+  /**
+   * Привязать cardId/side к отложенным uploadImage по data:-URL
+   * (после create/update карточки, когда id уже известен).
+   * @returns число обновлённых элементов очереди
+   */
+  async bindUploadImages(
+    dataUrl: string,
+    meta: { cardId: string; side: string }
+  ): Promise<number> {
+    if (!dataUrl || !meta.cardId || !meta.side) return 0
+    const items = await getAll<QueueItem>(this.requireDB(), QUEUE_STORE)
+    let n = 0
+    await txAll(this.requireDB(), QUEUE_STORE, "readwrite", (s) => {
+      for (const item of items) {
+        if (item.op !== "uploadImage" || item.id === undefined) continue
+        const payload = item.payload as { dataUrl?: string; cardId?: string; side?: string }
+        if (payload?.dataUrl !== dataUrl) continue
+        payload.cardId = meta.cardId
+        payload.side = meta.side
+        s.put(item)
+        n++
+      }
+    })
+    return n
+  }
+
   onFlush(handler: (item: QueueItem) => Promise<void>) {
     this._handler = handler
   }

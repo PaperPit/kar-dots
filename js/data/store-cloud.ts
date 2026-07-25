@@ -730,6 +730,9 @@ export class CloudStore {
             stampUpdatedAt({ [payload.side]: payload.url }) as Record<string, unknown>,
             payload.baseUpdatedAt,
           );
+          await this._setCardImageLocal(payload.cardId, payload.side, payload.url);
+        } else if (payload.dataUrl) {
+          await this._replaceDataUrlInCards(payload.dataUrl, payload.url);
         }
         break;
       case 'logReview': await this._cloudLogReview(payload as ReviewLogEntry); break;
@@ -742,8 +745,10 @@ export class CloudStore {
     if (this._reviewLogCloudUnsupported) return;
     const uid = this.sb.userId();
     if (!uid) throw new Error('Нет активной сессии — войдите снова');
+    // synthetic — локальный флаг оптимизатора; в облачную схему может ещё не входить.
+    const { synthetic: _synthetic, ...rest } = entry as ReviewLogEntry & { synthetic?: boolean };
     try {
-      await this.sb.upsert('review_log', Object.assign({ user_id: uid }, entry), { onConflict: 'id' });
+      await this.sb.upsert('review_log', Object.assign({ user_id: uid }, rest), { onConflict: 'id' });
     } catch (e) {
       if (isReviewLogMissing(e)) { this._reviewLogCloudUnsupported = true; await this._saveCloudFlags(); return; }
       throw e;
@@ -1097,7 +1102,9 @@ export class CloudStore {
     this._cache.prependCard(row.folder_id ?? "", row);
     this._cache.bumpCount(row.folder_id ?? "", 1);
     invalidateDerivedCaches(this, { folderId: row.folder_id });
-    return this._cloudOrQueue('createCard', { row }, async () => row);
+    await this._attachImageUploads(row);
+    const cloudRow = this._cloudSafeCardRow(row);
+    return this._cloudOrQueue('createCard', { row: cloudRow }, async () => row);
   }
 
   async updateCard(id: string, patch: Partial<Card>) {
@@ -1110,7 +1117,9 @@ export class CloudStore {
     this._patchSrsMeta(c);
     this._cache.patchCardInLists(id, stamped as Partial<Card>);
     invalidateDerivedCaches(this, { folderId: c.folder_id });
-    return this._cloudOrQueue('updateCard', { id, patch: stamped, baseUpdatedAt }, async () => c, { optimistic: true });
+    await this._attachImageUploads(c);
+    const cloudPatch = this._cloudSafeCardRow(stamped as unknown as Card);
+    return this._cloudOrQueue('updateCard', { id, patch: cloudPatch, baseUpdatedAt }, async () => c, { optimistic: true });
   }
 
   async deleteCard(id: string) {
@@ -1134,13 +1143,20 @@ export class CloudStore {
     }
   }
 
-  async uploadImage(file: Blob) {
+  async uploadImage(file: Blob, opts: { cardId?: string; side?: string } = {}) {
     const blob = await resizeImage(file);
     const ext = blob.type === 'image/png' ? 'png' : 'jpg';
     const path = this.sb.userId() + '/' + uuid() + '.' + ext;
+    const link = {
+      cardId: opts.cardId,
+      side: opts.side,
+    };
     if (!navigator.onLine) {
       const dataUrl = await blobToDataURL(blob);
-      await this.queue.enqueue({ op: 'uploadImage', payload: { path, blob, contentType: blob.type } });
+      await this.queue.enqueue({
+        op: 'uploadImage',
+        payload: { path, blob, contentType: blob.type, dataUrl, ...link },
+      });
       this._offline = true;
       this._notifySync();
       return dataUrl;
@@ -1150,7 +1166,10 @@ export class CloudStore {
     } catch (e) {
       if (isNetworkError(e)) {
         const dataUrl = await blobToDataURL(blob);
-        await this.queue.enqueue({ op: 'uploadImage', payload: { path, blob, contentType: blob.type } });
+        await this.queue.enqueue({
+          op: 'uploadImage',
+          payload: { path, blob, contentType: blob.type, dataUrl, ...link },
+        });
         this._offline = true;
         this._notifySync();
         return dataUrl;
@@ -1159,11 +1178,107 @@ export class CloudStore {
     }
   }
 
+  /** Не слать data:-URL в Postgres — только Storage-ссылки или null. */
+  _cloudSafeCardRow(row: Card | Record<string, unknown>): Record<string, unknown> {
+    const out = Object.assign({}, row) as Record<string, unknown>;
+    for (const side of ['front_img', 'back_img'] as const) {
+      const v = out[side];
+      if (typeof v === 'string' && v.startsWith('data:')) out[side] = null;
+    }
+    return out;
+  }
+
+  /**
+   * После сохранения карточки: привязать отложенные uploadImage к cardId/side
+   * или поставить в очередь новую загрузку из data:-URL.
+   */
+  async _attachImageUploads(card: Card) {
+    if (!card?.id) return;
+    for (const side of ['front_img', 'back_img'] as const) {
+      const val = card[side];
+      if (!val || !String(val).startsWith('data:')) continue;
+      const bound = await this.queue.bindUploadImages(val, { cardId: card.id, side });
+      if (bound > 0) continue;
+      try {
+        const blob = await (await fetch(val)).blob();
+        const resized = await resizeImage(blob);
+        const ext = resized.type === 'image/png' ? 'png' : 'jpg';
+        const path = this.sb.userId() + '/' + uuid() + '.' + ext;
+        await this.queue.enqueue({
+          op: 'uploadImage',
+          payload: {
+            path,
+            blob: resized,
+            contentType: resized.type,
+            dataUrl: val,
+            cardId: card.id,
+            side,
+            baseUpdatedAt: Number(card.updated_at) || 0,
+          },
+        });
+        this._notifySync();
+      } catch (e) {
+        console.warn('attachImageUploads', e);
+      }
+    }
+  }
+
+  async _setCardImageLocal(cardId: string, side: string, url: string) {
+    const c = await this._getCardById(cardId);
+    if (!c) return;
+    (c as unknown as Record<string, unknown>)[side] = url;
+    await mirrorPut(this.mirror, 'cards', c);
+    this._cache.patchCardInLists(cardId, { [side]: url } as Partial<Card>);
+  }
+
+  /** Запасной путь: заменить data: в зеркале и на сервере, если cardId не был в очереди. */
+  async _replaceDataUrlInCards(dataUrl: string, url: string) {
+    if (!this.mirror || !dataUrl) return;
+    const cards = await getAll<Card>(this.mirror, 'cards');
+    for (const c of cards) {
+      if (!c?.id) continue;
+      for (const side of ['front_img', 'back_img'] as const) {
+        if (c[side] !== dataUrl) continue;
+        await this._setCardImageLocal(c.id, side, url);
+        try {
+          await this._applyPatchWithLww(
+            'cards',
+            c.id,
+            stampUpdatedAt({ [side]: url }) as Record<string, unknown>,
+            Number(c.updated_at) || 0,
+          );
+        } catch (e) {
+          if (!isNetworkError(e)) console.warn('replaceDataUrlInCards', e);
+        }
+      }
+    }
+  }
+
   async deleteImage(url: string) {
     const marker = '/object/public/card-images/';
     const i = url.indexOf(marker);
     if (i === -1) return;
     try { await this.sb.deleteFile('card-images', url.slice(i + marker.length)); } catch (e) {}
+  }
+
+  /**
+   * При смене алгоритма — сидировать пустые колонки цели из прогресса источника.
+   * Старые колонки не трогаем (обратное переключение вернёт прежний прогресс).
+   */
+  async convertAlgoProgress(from: Algo, to: Algo) {
+    if (!from || !to || from === to) return { updated: 0 };
+    const { convertAlgoPatch } = await import('../lib/srs-convert.js');
+    const cards = await getAll<Card>(this.mirror, 'cards');
+    const settings = { leitnerIntervals: this.settings.leitnerIntervals };
+    let updated = 0;
+    for (const card of cards) {
+      if (!card?.id) continue;
+      const patch = convertAlgoPatch(card as SrsRow, from, to, settings);
+      if (!patch) continue;
+      await this.updateCard(card.id, patch as Partial<Card>);
+      updated++;
+    }
+    return { updated };
   }
 
   async saveSettings(s: Settings) {

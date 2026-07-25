@@ -47,6 +47,7 @@
  * @property {(id: string, patch: Object) => Promise<Object|null>} updateCard
  * @property {(id: string) => Promise<void>} deleteCard
  * @property {(file: File) => Promise<string>} uploadImage
+ * @property {(from: string, to: string) => Promise<{updated: number}>} [convertAlgoProgress]
  * @property {(url?: string) => Promise<void>} deleteImage
  * @property {(s: StoreSettings) => Promise<StoreSettings>} saveSettings
  * @property {() => Promise<string>} exportJSONFull

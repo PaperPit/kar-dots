@@ -1,5 +1,6 @@
-import { el } from '../../../ui/ui.js';
+import { el, confirmDialog, toast } from '../../../ui/ui.js';
 import { route } from '../../../core/router.js';
+import { store } from '../../../core/state.js';
 import { DEFAULT_SETTINGS } from '../../../data/store-common.js';
 import { segControl } from '../shared.js';
 import type { SpeechVoiceLike } from '../../../lib/web-speech-tts.js';
@@ -34,7 +35,9 @@ const ALGO_DESCRIPTIONS = {
   leitner: 'Пять «коробок». Две кнопки: «Помню» — карточка поднимается в следующую коробку, «Не помню» — возвращается в первую. Через сколько дней показывать карточку из каждой коробки — настраивается ниже. Самый простой для понимания.',
 };
 
-const ALGO_FOOTNOTE = 'При переключении алгоритма старый прогресс не теряется — у SM-2, FSRS и Лейтнера он хранится отдельно.';
+const ALGO_FOOTNOTE =
+  'Прогресс SM-2, FSRS и Лейтнера хранится в разных полях и не стирается. ' +
+  'При смене алгоритма интервалы по возможности переносятся в новый; иначе карточки выглядели бы «новыми».';
 
 function fillVoiceSelect(
   select: HTMLSelectElement,
@@ -192,9 +195,30 @@ export function buildAlgoGroup(s: SettingsLike, save: () => void) {
         { v: 'sm2', label: 'SM-2' },
         { v: 'fsrs', label: 'FSRS' },
         { v: 'leitner', label: 'Лейтнер' },
-      ], v => {
+      ], async v => {
+        if (v === s.algo) return;
+        const from = s.algo;
+        const ok = await confirmDialog(
+          'Сменить алгоритм?',
+          'Прогресс «' + from.toUpperCase() + '» сохранится в своих полях. ' +
+            'Для «' + v.toUpperCase() + '» перенесём приблизительные интервалы, где это возможно. ' +
+            'Обратное переключение вернёт прежние данные.',
+          'Сменить',
+        );
+        if (!ok) {
+          route();
+          return;
+        }
         s.algo = v;
         algoDesc.textContent = ALGO_DESCRIPTIONS[v as keyof typeof ALGO_DESCRIPTIONS] || ALGO_DESCRIPTIONS.sm2;
+        try {
+          if (typeof store.convertAlgoProgress === 'function') {
+            const r = await store.convertAlgoProgress(from, v);
+            if (r?.updated) toast('Перенесён прогресс: ' + r.updated + ' карточек', 'ok');
+          }
+        } catch (e) {
+          toast(e instanceof Error ? e.message : String(e), 'error');
+        }
         save();
         route();
       }),

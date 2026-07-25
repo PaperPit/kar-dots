@@ -467,6 +467,22 @@ export class LocalStore {
 
   async deleteImage() {}
 
+  async convertAlgoProgress(from: Algo, to: Algo) {
+    if (!from || !to || from === to) return { updated: 0 };
+    const { convertAlgoPatch } = await import('../lib/srs-convert.js');
+    const settings = { leitnerIntervals: this.settings.leitnerIntervals };
+    const jobs: { id: string; patch: Record<string, number | null> }[] = [];
+    await forEachCard(this.db, null, (card) => {
+      const patch = convertAlgoPatch(card, from, to, settings);
+      if (!patch || !card.id) return;
+      jobs.push({ id: card.id, patch });
+    });
+    for (const job of jobs) {
+      await this.updateCard(job.id, job.patch);
+    }
+    return { updated: jobs.length };
+  }
+
   async saveSettings(s: Settings) {
     this.settings = s;
     localStorage.setItem('kar_settings_local', JSON.stringify(s));

@@ -88,10 +88,12 @@ function gradeFailed(algo: Algo, g: Grade): boolean {
   return (g.q ?? 0) < 3;
 }
 
-function buildLogEntry(ctx: GradeContext, card: SrsCard, g: Grade, failed: boolean, now: number) {
+export function buildLogEntry(ctx: GradeContext, card: SrsCard, g: Grade, failed: boolean, now: number) {
   const algo = ctx.algo;
   const known = !failed;
   let rating: number;
+  // SM-2 / Leitner — бинарные кнопки; rating 1/3 синтетический для журнала.
+  const synthetic = algo !== 'fsrs';
   if (algo === 'fsrs') rating = g.fsrs ?? SRS.FsrsRating.Again;
   else rating = known ? 3 : 1;
 
@@ -106,15 +108,20 @@ function buildLogEntry(ctx: GradeContext, card: SrsCard, g: Grade, failed: boole
   } else if (algo === 'leitner') {
     const box = card.box || 0;
     stateBefore = box ? 2 : 0;
-    if (box) {
+    if (box && card.box_due) {
       const ivs = store.settings.leitnerIntervals && store.settings.leitnerIntervals.length === 5
         ? store.settings.leitnerIntervals : [1, 2, 4, 8, 16];
-      elapsedDays = ivs[box - 1] ?? 0;
+      const scheduled = ivs[box - 1] ?? 0;
+      const lastApprox = card.box_due - scheduled * SRS.DAY;
+      elapsedDays = Math.max(0, (now - lastApprox) / SRS.DAY);
     }
   } else {
     const reviewed = !!(card.sm2_reps || card.sm2_due);
     stateBefore = reviewed ? 2 : 0;
-    if (reviewed) elapsedDays = card.sm2_ivl ?? 0;
+    if (reviewed && card.sm2_due != null && card.sm2_ivl != null) {
+      const lastApprox = card.sm2_due - card.sm2_ivl * SRS.DAY;
+      elapsedDays = Math.max(0, (now - lastApprox) / SRS.DAY);
+    }
   }
   return buildReviewEntry({
     card_id: card.id ?? '',
@@ -125,6 +132,7 @@ function buildLogEntry(ctx: GradeContext, card: SrsCard, g: Grade, failed: boole
     elapsed_days: elapsedDays,
     state_before: stateBefore,
     stability_before: stabilityBefore,
+    synthetic,
     ts: now,
   });
 }

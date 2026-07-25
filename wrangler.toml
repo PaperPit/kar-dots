@@ -3,9 +3,23 @@ compatibility_date = "2025-07-01"
 compatibility_flags = ["nodejs_compat"]
 pages_build_output_dir = "dist"
 
-# KV: состояние YouTube-джобов.
+# KV: состояние YouTube-джобов + лимиты запросов и кэш проверки токенов
+# (functions/api/_middleware.js, functions/api/lib/_ratelimit.js).
+# Ключи: job:… — задачи транскрипта, rl:… — счётчики лимитов, auth:… — кэш
+# проверенных токенов (5 минут, по хешу токена; сам токен в KV не попадает).
+# Без биндинга API продолжает работать, но БЕЗ лимитов (fail open + console.warn),
+# поэтому в проде биндинг обязателен.
 # Создайте namespace: npx wrangler kv namespace create YT_JOBS
 # и подставьте id ниже (и в Dashboard → Functions → KV bindings).
+# Локально: npm run pages:dev (уже с --kv YT_JOBS).
 [[kv_namespaces]]
 binding = "YT_JOBS"
 id = "5e57b0e230ad4fc5bf23fde74ac6d625"
+
+# Переменные окружения для /api/* задаются в Cloudflare Pages →
+# Settings → Environment variables, здесь их не дублируем (см. .env.example):
+#   SUPABASE_URL       — проверка access-token'а в middleware
+#   SUPABASE_ANON_KEY  — публичный anon key того же проекта (не service_role!)
+#   GEMINI_MODEL / GROQ_MODEL — опционально, только имена моделей
+# SUPABASE_URL и SUPABASE_ANON_KEY публичны по замыслу Supabase (anon key и так
+# уходит в браузер), новых секретов на сервере это не создаёт.

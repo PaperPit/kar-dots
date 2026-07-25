@@ -23,7 +23,7 @@ function cleanGiphy(raw) {
   return /^[A-Za-z0-9]{16,128}$/.test(s) ? s : '';
 }
 
-async function handler(req, env) {
+async function handler(req, _env) {
   if (req.method !== 'POST') return json({ error: 'bad-request', message: 'Ожидается POST' }, 405);
 
   let payload;
@@ -38,8 +38,9 @@ async function handler(req, env) {
   const page = Math.max(1, Number(payload.page) || 1);
   const pageSize = Math.min(30, Math.max(1, Number(payload.pageSize) || 20));
 
-  const pixabayKey = cleanPixabay(payload.pixabayApiKey) || cleanPixabay(env?.PIXABAY_API_KEY);
-  const giphyKey = cleanGiphy(payload.giphyApiKey) || cleanGiphy(env?.GIPHY_API_KEY);
+  // Только ключи из запроса — серверные PIXABAY_/GIPHY_ не используем.
+  const pixabayKey = cleanPixabay(payload.pixabayApiKey);
+  const giphyKey = cleanGiphy(payload.giphyApiKey);
 
   try {
     if ((type === 'photo' || type === 'illustration') && pixabayKey) {

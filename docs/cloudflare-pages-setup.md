@@ -23,12 +23,15 @@ npx wrangler kv namespace create YT_JOBS
 npm run pages:deploy
 ```
 
-### Секреты рантайма функций
+### Переменные рантайма функций
+
+Секреты `GEMINI_API_KEY` / `GROQ_API_KEY` / `SUPADATA_API_KEY` **не нужны**: пользователи указывают свои ключи в Настройках приложения. Без личного ключа соответствующие `/api/*` отвечают `401`.
+
+Опционально (имена моделей, не биллинг):
 
 ```bash
-npx wrangler pages secret put GEMINI_API_KEY --project-name=kar-tochki
-npx wrangler pages secret put GROQ_API_KEY --project-name=kar-tochki
-npx wrangler pages secret put SUPADATA_API_KEY --project-name=kar-tochki
+npx wrangler pages secret put GEMINI_MODEL --project-name=kar-tochki   # напр. gemini-flash-latest
+npx wrangler pages secret put GROQ_MODEL --project-name=kar-tochki
 ```
 
 Переменные сборки (`SUPABASE_URL`, `SUPABASE_ANON_KEY`) — в GitHub Actions secrets и/или в Dashboard Pages → Environment variables.  

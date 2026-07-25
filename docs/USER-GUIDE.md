@@ -63,7 +63,7 @@
 6. Запустите workflow **Deploy Cloudflare Pages** (Actions → Run workflow) или сделайте любой `git push` в `main`  
 7. Откройте `https://ваше-имя.pages.dev` (имя проекта = имя в `wrangler pages project create`)
 
-Секреты для YouTube/LLM на сервере: `wrangler pages secret put GEMINI_API_KEY` / `GROQ_API_KEY` / `SUPADATA_API_KEY` — см. [youtube-import-setup.md](./youtube-import-setup.md).
+API-ключи YouTube/LLM (Supadata, Gemini, Groq) задаются каждым пользователем в Настройках — см. [youtube-import-setup.md](./youtube-import-setup.md). Серверные `*_API_KEY` для этих провайдеров не используются.
 
 ### Вариант A2 — ручной деплой из терминала
 

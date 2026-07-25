@@ -3,13 +3,10 @@
 // POST { title, lang, mode: 'words'|'phrases'|'both'|'sentences', segments: [{t, text}] }
 //   → { cards: [{ front, back, pos, level, kind, t }] }
 //
-// Ключи (личный ключ из payload имеет приоритет над серверным из env):
-//   payload.geminiApiKey | GEMINI_API_KEY — основной провайдер; GEMINI_MODEL
-//     (опционально, по умолчанию gemini-flash-latest — авто-обновляемый алиас,
-//     чтобы не ловить "model no longer available" при смене поколений моделей).
-//   payload.groqApiKey | GROQ_API_KEY — резервный провайдер; GROQ_MODEL (опционально)
-//     — первая модель в цепочке (см. js/lib/groq-generate.js).
-// Личные ключи задаются в приложении: Настройки → «Карточки из YouTube».
+// Ключи — только из payload (личные, из Настроек). Серверные GEMINI_/GROQ_API_KEY
+// не подставляются: без ключа пользователя генерация не работает.
+//   payload.geminiApiKey — основной провайдер; GEMINI_MODEL (env, имя модели)
+//   payload.groqApiKey — резерв; GROQ_MODEL (env, опционально)
 // См. docs/youtube-import-setup.md.
 
 import {
@@ -393,14 +390,18 @@ async function handler(req, env) {
 
   const rawGemini = String(payload.geminiApiKey || '').trim();
   const rawGroq = String(payload.groqApiKey || '').trim();
-  const geminiKey = cleanGeminiApiKey(rawGemini) || cleanGeminiApiKey(env?.GEMINI_API_KEY);
-  const groqKey = cleanGroqApiKey(rawGroq) || cleanGroqApiKey(env?.GROQ_API_KEY);
+  const geminiKey = cleanGeminiApiKey(rawGemini);
+  const groqKey = cleanGroqApiKey(rawGroq);
 
   if (rawGemini && !geminiKey) {
     return err('config', 'Не удалось прочитать Gemini ключ — вставь целиком из AI Studio (формат AIza… или AQ.…). Обнови страницу (Cmd+Shift+R) и перезапусти npm run dev.', 401);
   }
   if (!geminiKey && !groqKey) {
-    return err('config', 'Нет API-ключа: укажи Gemini или Groq ключ в Настройках → «Карточки из YouTube» (или настрой ключи на сервере)', 401);
+    return err(
+      'config',
+      'Нет API-ключа: укажи свой Gemini или Groq ключ в Настройках → «Карточки из YouTube» → «Настроить»',
+      401,
+    );
   }
 
   const mode = ['words', 'phrases', 'both', 'sentences'].includes(payload.mode) ? payload.mode : 'both';

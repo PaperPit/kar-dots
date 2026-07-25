@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   getSupadataApiKey, hasSupadataApiKey,
   getGeminiApiKey, hasGeminiApiKey,
-  getGroqApiKey, hasGroqApiKey,
+  getGroqApiKey, hasGroqApiKey, hasGenerateApiKey,
   withApiKeys, integrationsKeySummary,
 } from '../js/lib/youtube-import-settings.ts';
 
@@ -26,6 +26,9 @@ describe('youtube-import-settings', () => {
     expect(hasGeminiApiKey({ geminiApiKey: 'AIzaX' })).toBe(false);
     expect(hasGroqApiKey({ groqApiKey: GROQ })).toBe(true);
     expect(hasGroqApiKey({})).toBe(false);
+    expect(hasGenerateApiKey({ geminiApiKey: GEMINI })).toBe(true);
+    expect(hasGenerateApiKey({ groqApiKey: GROQ })).toBe(true);
+    expect(hasGenerateApiKey({})).toBe(false);
   });
 
   it('withApiKeys добавляет только заданные ключи и не мутирует исходное тело', () => {

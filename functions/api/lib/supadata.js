@@ -9,9 +9,9 @@ export function cleanSupadataApiKey(raw) {
   return /^[\w.-]{8,200}$/.test(s) ? s : '';
 }
 
-/** @param {object} payload @param {{ SUPADATA_API_KEY?: string } | undefined} env */
-export function resolveSupadataApiKey(payload, env) {
-  return cleanSupadataApiKey(payload?.supadataApiKey) || cleanSupadataApiKey(env?.SUPADATA_API_KEY) || '';
+/** Только ключ из тела запроса — серверный SUPADATA_API_KEY не используем. */
+export function resolveSupadataApiKey(payload, _env) {
+  return cleanSupadataApiKey(payload?.supadataApiKey) || '';
 }
 
 async function supadataFetch(path, apiKey, { searchParams } = {}) {

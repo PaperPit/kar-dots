@@ -10,7 +10,7 @@ import {
   filterNewCandidates, filterNewSentences, fmtTimestamp,
   type YtCandidate,
 } from '../../lib/youtube-import.js';
-import { hasSupadataApiKey } from '../../lib/youtube-import-settings.js';
+import { hasSupadataApiKey, hasGenerateApiKey } from '../../lib/youtube-import-settings.js';
 import {
   fetchTranscriptFromUrl, importFromCaptionFile,
   generateYoutubeCards, createYoutubeCardsBatch, prepareTranscriptForMode,
@@ -223,6 +223,11 @@ export function youtubeImportDialog(folderId: string) {
             errEl.classList.remove('hidden');
             return;
           }
+          if (!hasGenerateApiKey(store.settings)) {
+            errEl.textContent = 'Укажи Gemini или Groq API ключ: Настройки → «Карточки из YouTube» → «Настроить»';
+            errEl.classList.remove('hidden');
+            return;
+          }
           runUrlImport(urlInput.value.trim(), mode, mergeCues);
           return;
         }
@@ -236,6 +241,11 @@ export function youtubeImportDialog(folderId: string) {
         const offlineMsg = needsOnline();
         if (offlineMsg) {
           errEl.textContent = offlineMsg;
+          errEl.classList.remove('hidden');
+          return;
+        }
+        if (!hasGenerateApiKey(store.settings)) {
+          errEl.textContent = 'Укажи Gemini или Groq API ключ: Настройки → «Карточки из YouTube» → «Настроить»';
           errEl.classList.remove('hidden');
           return;
         }

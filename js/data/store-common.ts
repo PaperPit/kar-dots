@@ -26,9 +26,9 @@ export const DEFAULT_SETTINGS: Settings = {
   uiClickSound: "none",
   /** Личный ключ Supadata — транскрипт YouTube (обязателен для импорта). */
   supadataApiKey: "",
-  /** Личный ключ Google AI Studio для генерации карточек (пусто = серверный). */
+  /** Личный ключ Google AI Studio для генерации карточек (обязателен вместе с Groq или вместо него). */
   geminiApiKey: "",
-  /** Личный ключ Groq (резерв генерации) для «Карточки из YouTube». */
+  /** Личный ключ Groq (резерв / альтернатива Gemini) для «Карточки из YouTube». */
   groqApiKey: "",
   /** Pixabay — поиск фото/иллюстраций для обложек карточек. */
   pixabayApiKey: "",

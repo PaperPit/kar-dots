@@ -25,7 +25,7 @@ function normalizeVoice(v) {
   return VOICES.has(id) ? id : 'hannah';
 }
 
-async function handler(req, env) {
+async function handler(req, _env) {
   if (req.method !== 'POST') return json({ error: 'bad-request', message: 'Ожидается POST' }, 405);
 
   let payload;
@@ -37,9 +37,13 @@ async function handler(req, env) {
     return json({ error: 'too-long', message: `Максимум ${MAX_CHARS} символов для Orpheus` });
   }
 
-  const apiKey = cleanApiKey(payload.groqApiKey) || cleanApiKey(env?.GROQ_API_KEY) || '';
+  // Только ключ из запроса — серверный GROQ_API_KEY не используем.
+  const apiKey = cleanApiKey(payload.groqApiKey) || '';
   if (!apiKey) {
-    return json({ error: 'config', message: 'Нужен Groq API ключ (Настройки → Карточки из YouTube)' }, 401);
+    return json({
+      error: 'config',
+      message: 'Нужен свой Groq API ключ в Настройках → «Карточки из YouTube» → «Настроить»',
+    }, 401);
   }
 
   const voice = normalizeVoice(payload.voice);

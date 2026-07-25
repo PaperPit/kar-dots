@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "КАР-точки — YouTube",
   "description": "Создавай карточки из YouTube-роликов прямо на странице видео.",
-  "version": "1.0.5",
+  "version": "1.0.6",
   "icons": {
     "48": "icons/icon-48.png",
     "128": "icons/icon-128.png",

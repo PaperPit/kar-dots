@@ -1,8 +1,12 @@
-/** FAB на YouTube + оверлей-панель поверх страницы (без Side Panel и без новых вкладок). */
+/** FAB + оверлей с UI панели прямо в странице YouTube (Shadow DOM, без iframe/вкладок). */
+
+import { mountKarPanel } from "./sidepanel/sidepanel.js"
 
 const BTN_ID = "kar-ext-yt-fab"
 const OVERLAY_ID = "kar-ext-yt-overlay"
-const FRAME_ID = "kar-ext-yt-frame"
+
+let panelMounted = false
+let cssText: string | null = null
 
 function isWatchPage(href = location.href): boolean {
   try {
@@ -35,51 +39,103 @@ function videoTitle(): string {
   return (el?.textContent || document.title || "").replace(/ - YouTube$/, "").trim()
 }
 
-function ensureOverlay(): HTMLElement {
-  let root = document.getElementById(OVERLAY_ID)
-  if (root) return root
+async function loadPanelCss(): Promise<string> {
+  if (cssText != null) return cssText
+  const url = chrome.runtime.getURL("sidepanel/sidepanel.css")
+  const res = await fetch(url)
+  cssText = await res.text()
+  return cssText
+}
 
-  root = document.createElement("div")
-  root.id = OVERLAY_ID
-  root.setAttribute("aria-hidden", "true")
-  root.innerHTML = `
-    <div class="kar-ext-overlay-backdrop" data-kar-close="1"></div>
-    <aside class="kar-ext-overlay-panel" role="dialog" aria-label="КАР-точки">
-      <header class="kar-ext-overlay-bar">
-        <span class="kar-ext-overlay-title">КАР-точки</span>
-        <button type="button" class="kar-ext-overlay-close" data-kar-close="1" aria-label="Закрыть">×</button>
-      </header>
-      <iframe id="${FRAME_ID}" class="kar-ext-overlay-frame" title="КАР-точки"></iframe>
-    </aside>
+function ensureOverlay(): { root: HTMLElement; app: HTMLElement } {
+  let host = document.getElementById(OVERLAY_ID)
+  if (host?.shadowRoot) {
+    const app = host.shadowRoot.querySelector(".kar-ext-app") as HTMLElement
+    return { root: host, app }
+  }
+
+  host = document.createElement("div")
+  host.id = OVERLAY_ID
+  host.style.all = "initial"
+  host.style.position = "fixed"
+  host.style.inset = "0"
+  host.style.zIndex = "2147483645"
+  host.style.display = "none"
+  host.setAttribute("aria-hidden", "true")
+
+  const shadow = host.attachShadow({ mode: "open" })
+  shadow.innerHTML = `
+    <style>
+      :host { all: initial; }
+      .wrap { position: fixed; inset: 0; font-family: "Segoe UI", system-ui, sans-serif; }
+      .backdrop { position: absolute; inset: 0; background: rgba(20, 14, 10, 0.28); }
+      .panel {
+        position: absolute; top: 0; right: 0; bottom: 0;
+        width: min(420px, 100vw);
+        display: flex; flex-direction: column;
+        background: #f4ebe0;
+        box-shadow: -12px 0 40px rgba(20, 14, 10, 0.28);
+      }
+      .bar {
+        flex: none; display: flex; align-items: center; justify-content: space-between;
+        height: 44px; padding: 0 10px 0 14px;
+        background: #fbf7ef; border-bottom: 1px solid rgba(28, 22, 17, 0.12);
+      }
+      .bar-title { font: 700 14px/1 "Segoe UI", system-ui, sans-serif; color: #1c1611; }
+      .bar-close {
+        width: 32px; height: 32px; border: none; border-radius: 8px;
+        background: transparent; color: #1c1611; font-size: 22px; cursor: pointer;
+      }
+      .bar-close:hover { background: rgba(28, 22, 17, 0.06); }
+      .body { flex: 1 1 auto; min-height: 0; overflow: auto; }
+    </style>
+    <div class="wrap">
+      <div class="backdrop" data-kar-close="1"></div>
+      <aside class="panel" role="dialog" aria-label="КАР-точки">
+        <header class="bar">
+          <span class="bar-title">КАР-точки</span>
+          <button type="button" class="bar-close" data-kar-close="1" aria-label="Закрыть">×</button>
+        </header>
+        <div class="body"><div class="kar-ext-app app"></div></div>
+      </aside>
+    </div>
   `
-  root.addEventListener("click", (e) => {
+
+  shadow.addEventListener("click", (e) => {
     const t = e.target as HTMLElement | null
     if (t?.closest?.("[data-kar-close]")) hideOverlay()
   })
-  document.documentElement.appendChild(root)
-  return root
+
+  document.documentElement.appendChild(host)
+  const app = shadow.querySelector(".kar-ext-app") as HTMLElement
+  return { root: host, app }
 }
 
-function showOverlay() {
-  const root = ensureOverlay()
-  const frame = document.getElementById(FRAME_ID) as HTMLIFrameElement | null
-  const panelUrl = chrome.runtime.getURL("sidepanel/index.html")
-  if (frame) {
-    // Перезагружаем, чтобы подтянуть актуальный video из storage.
-    if (frame.src !== panelUrl) frame.src = panelUrl
-    else frame.src = panelUrl + "?t=" + Date.now()
+async function ensurePanelMounted(app: HTMLElement) {
+  if (panelMounted) {
+    mountKarPanel(app)
+    return
   }
-  root.classList.add("is-open")
+  const css = await loadPanelCss()
+  const style = document.createElement("style")
+  style.textContent = css
+  app.parentElement?.insertBefore(style, app)
+  mountKarPanel(app)
+  panelMounted = true
+}
+
+async function showOverlay() {
+  const { root, app } = ensureOverlay()
+  await ensurePanelMounted(app)
+  root.style.display = "block"
   root.setAttribute("aria-hidden", "false")
-  document.documentElement.classList.add("kar-ext-overlay-open")
 }
 
 function hideOverlay() {
   const root = document.getElementById(OVERLAY_ID)
   if (!root) return
-  root.classList.remove("is-open")
+  root.style.display = "none"
   root.setAttribute("aria-hidden", "true")
-  document.documentElement.classList.remove("kar-ext-overlay-open")
 }
 
 async function openPanel() {
@@ -92,9 +148,9 @@ async function openPanel() {
       title: videoTitle()
     })
   } catch {
-    /* background may be asleep briefly */
+    /* ignore */
   }
-  showOverlay()
+  await showOverlay()
 }
 
 function ensureButton() {
@@ -119,7 +175,7 @@ function ensureButton() {
       e.preventDefault()
       e.stopPropagation()
       const root = document.getElementById(OVERLAY_ID)
-      if (root?.classList.contains("is-open")) hideOverlay()
+      if (root && root.style.display !== "none") hideOverlay()
       else void openPanel()
     })
     document.documentElement.appendChild(btn)
@@ -146,12 +202,8 @@ function sync() {
 }
 
 chrome.runtime.onMessage.addListener((msg) => {
-  if (msg?.type === "SHOW_OVERLAY") {
-    void openPanel()
-  }
-  if (msg?.type === "HIDE_OVERLAY") {
-    hideOverlay()
-  }
+  if (msg?.type === "SHOW_OVERLAY") void openPanel()
+  if (msg?.type === "HIDE_OVERLAY") hideOverlay()
 })
 
 sync()

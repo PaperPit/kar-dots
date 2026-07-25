@@ -42,15 +42,16 @@ async function showOverlayOnYouTubeTab(preferredTabId) {
   }
 }
 chrome.action.onClicked.addListener((tab) => {
-  void (async () => {
-    const ok = await showOverlayOnYouTubeTab(tab.id);
-    if (!ok) {
-    }
-  })();
+  void showOverlayOnYouTubeTab(tab.id);
 });
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   void (async () => {
     try {
+      if (msg.type === "OPEN_TAB" && msg.url) {
+        await chrome.tabs.create({ url: msg.url });
+        sendResponse({ ok: true });
+        return;
+      }
       if (msg.type === "OPEN_SIDEPANEL" || msg.type === "OPEN_PANEL") {
         const tabId = sender.tab?.id;
         if (msg.url) {

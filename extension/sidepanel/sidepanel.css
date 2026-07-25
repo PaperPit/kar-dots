@@ -1,4 +1,4 @@
-:root {
+:root, :host, .kar-ext-app {
   --bg: #f4ebe0;
   --bg-raised: #fbf7ef;
   --bg-sunken: #ece1d2;
@@ -19,7 +19,7 @@
 
 * { box-sizing: border-box; }
 
-html, body {
+html, body, .kar-ext-app {
   margin: 0;
   min-height: 100%;
   background:
@@ -27,9 +27,14 @@ html, body {
     linear-gradient(180deg, #f8f0e4 0%, var(--bg) 45%, #ebe0d1 100%);
 }
 
-body {
+body, .kar-ext-app {
   font-size: 14px;
   line-height: 1.45;
+}
+
+.kar-ext-app {
+  height: 100%;
+  overflow: auto;
 }
 
 .app {

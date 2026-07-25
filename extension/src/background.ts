@@ -1,14 +1,13 @@
 import { setAuth, setVideo } from "./lib/storage.js"
 import type { ExtMessage } from "./lib/constants.js"
 
-/** Показать оверлей на активной вкладке YouTube (без новых окон/вкладок). */
 async function showOverlayOnYouTubeTab(preferredTabId?: number): Promise<boolean> {
   if (preferredTabId != null) {
     try {
       await chrome.tabs.sendMessage(preferredTabId, { type: "SHOW_OVERLAY" })
       return true
     } catch {
-      /* tab may not have content script */
+      /* no content script */
     }
   }
 
@@ -26,18 +25,18 @@ async function showOverlayOnYouTubeTab(preferredTabId?: number): Promise<boolean
 }
 
 chrome.action.onClicked.addListener((tab) => {
-  void (async () => {
-    const ok = await showOverlayOnYouTubeTab(tab.id)
-    if (!ok) {
-      // Не на YouTube — откроем watch-home в текущей вкладке не нужно; просто игнор.
-      // Пользователь должен быть на ролике.
-    }
-  })()
+  void showOverlayOnYouTubeTab(tab.id)
 })
 
-chrome.runtime.onMessage.addListener((msg: ExtMessage, sender, sendResponse) => {
+chrome.runtime.onMessage.addListener((msg: ExtMessage & { url?: string }, sender, sendResponse) => {
   void (async () => {
     try {
+      if (msg.type === "OPEN_TAB" && msg.url) {
+        await chrome.tabs.create({ url: msg.url })
+        sendResponse({ ok: true })
+        return
+      }
+
       if (msg.type === "OPEN_SIDEPANEL" || msg.type === "OPEN_PANEL") {
         const tabId = sender.tab?.id
         if (msg.url) {
@@ -47,10 +46,7 @@ chrome.runtime.onMessage.addListener((msg: ExtMessage, sender, sendResponse) => 
             tabId
           })
         }
-        // Content script сам рисует оверлей; если запрос с background/action — шлём SHOW_OVERLAY.
         if (tabId != null) {
-          // Уже на YouTube: content script откроет оверлей сам после ответа,
-          // но на случай вызова не из FAB — продублируем сигнал.
           await chrome.tabs.sendMessage(tabId, { type: "SHOW_OVERLAY" }).catch(() => {})
         } else {
           await showOverlayOnYouTubeTab()

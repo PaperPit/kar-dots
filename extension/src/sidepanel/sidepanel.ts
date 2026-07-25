@@ -24,15 +24,14 @@ import {
 import { hasSupadataApiKey } from "../../../js/lib/youtube-import-settings.js"
 import type { Settings } from "../../../js/data/types.js"
 
-const root = document.getElementById("app")
-if (!root) throw new Error("Не найден #app в sidepanel/index.html")
-
 interface PreviewItem {
   cand: YtCandidate
   checked: boolean
   back: string
 }
 
+let root: HTMLElement | null = null
+let mounted = false
 let cancelled = false
 let mode: ImportMode = "both"
 let mergeCues = true
@@ -44,6 +43,11 @@ let videoTitle = ""
 let previewItems: PreviewItem[] = []
 let videoId: string | null = null
 let accountEmail: string | null = null
+
+function requireRoot(): HTMLElement {
+  if (!root) throw new Error("Панель КАР-точки не смонтирована")
+  return root
+}
 
 function el<K extends keyof HTMLElementTagNameMap>(
   tag: K,
@@ -84,10 +88,14 @@ async function refreshVideoFromStorage() {
     videoTitle = v.title || videoTitle
   }
   if (!videoUrl) {
-    const [tab] = await chrome.tabs.query({ active: true, lastFocusedWindow: true })
-    if (tab?.url && /youtube\.com\/(watch|shorts)/.test(tab.url)) {
-      videoUrl = tab.url
-      videoTitle = (tab.title || "").replace(/ - YouTube$/, "")
+    try {
+      const [tab] = await chrome.tabs.query({ active: true, lastFocusedWindow: true })
+      if (tab?.url && /youtube\.com\/(watch|shorts)/.test(tab.url)) {
+        videoUrl = tab.url
+        videoTitle = (tab.title || "").replace(/ - YouTube$/, "")
+      }
+    } catch {
+      /* chrome.tabs недоступен в content script — URL уже положен через SET_VIDEO */
     }
   }
 }
@@ -136,7 +144,7 @@ async function boot() {
 }
 
 function renderAuth(error?: string) {
-  root.replaceChildren(
+  requireRoot().replaceChildren(
     brand(),
     el("div", { class: "card auth-box" }, [
       el(
@@ -151,7 +159,9 @@ function renderAuth(error?: string) {
           {
             class: "btn primary",
             onclick: () => {
-              chrome.tabs.create({ url: CONNECT_URL })
+              chrome.runtime.sendMessage({ type: "OPEN_TAB", url: CONNECT_URL }).catch(() => {
+                window.open(CONNECT_URL, "_blank", "noopener,noreferrer")
+              })
             }
           },
           "Войти через КАР-точки"
@@ -247,7 +257,7 @@ function renderForm(error = "") {
     "Сформировать"
   ) as HTMLButtonElement
 
-  root.replaceChildren(
+  requireRoot().replaceChildren(
     brand(),
     accountBar(),
     el("div", { class: "card" }, [
@@ -264,7 +274,7 @@ function renderForm(error = "") {
 
 function renderProgress(text: string) {
   const statusEl = el("p", {}, text)
-  root.replaceChildren(
+  requireRoot().replaceChildren(
     brand(),
     el("div", { class: "card status-wrap" }, [
       el("div", { class: "spinner" }),
@@ -424,7 +434,7 @@ function renderPreview() {
     "Создать карточки"
   ) as HTMLButtonElement
 
-  root.replaceChildren(
+  requireRoot().replaceChildren(
     brand(),
     el("div", { class: "card" }, [
       el("div", { class: "preview-head" }, [
@@ -493,7 +503,7 @@ async function saveSelected(
 
 function renderFatal(error: unknown) {
   const msg = error instanceof Error ? error.message : String(error)
-  root.replaceChildren(
+  requireRoot().replaceChildren(
     brand(),
     el("div", { class: "card" }, [
       el("p", { class: "error" }, "Не удалось открыть панель: " + msg),
@@ -514,8 +524,11 @@ function renderFatal(error: unknown) {
   )
 }
 
-chrome.storage.onChanged.addListener((changes, area) => {
-  if (area !== "local") return
+function onStorageChanged(
+  changes: { [key: string]: chrome.storage.StorageChange },
+  area: string
+) {
+  if (!root || area !== "local") return
   if (changes.kar_ext_auth) void boot().catch(renderFatal)
   if (changes.kar_ext_video) {
     const v = changes.kar_ext_video.newValue as { url?: string; title?: string } | undefined
@@ -528,6 +541,18 @@ chrome.storage.onChanged.addListener((changes, area) => {
       if (titleEl && videoTitle) titleEl.textContent = videoTitle
     }
   }
-})
+}
 
-void boot().catch(renderFatal)
+/** Монтирует UI панели в контейнер (оверлей на YouTube или #app). */
+export function mountKarPanel(container: HTMLElement): void {
+  root = container
+  if (!mounted) {
+    chrome.storage.onChanged.addListener(onStorageChanged)
+    mounted = true
+  }
+  void boot().catch(renderFatal)
+}
+
+// Standalone страница sidepanel/index.html
+const appEl = document.getElementById("app")
+if (appEl) mountKarPanel(appEl)

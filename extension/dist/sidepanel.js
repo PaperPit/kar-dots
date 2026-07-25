@@ -616,8 +616,8 @@
   }
 
   // src/sidepanel/sidepanel.ts
-  var root = document.getElementById("app");
-  if (!root) throw new Error("\u041D\u0435 \u043D\u0430\u0439\u0434\u0435\u043D #app \u0432 sidepanel/index.html");
+  var root = null;
+  var mounted = false;
   var cancelled = false;
   var mode = "both";
   var mergeCues = true;
@@ -629,6 +629,10 @@
   var previewItems = [];
   var videoId = null;
   var accountEmail = null;
+  function requireRoot() {
+    if (!root) throw new Error("\u041F\u0430\u043D\u0435\u043B\u044C \u041A\u0410\u0420-\u0442\u043E\u0447\u043A\u0438 \u043D\u0435 \u0441\u043C\u043E\u043D\u0442\u0438\u0440\u043E\u0432\u0430\u043D\u0430");
+    return root;
+  }
   function el(tag, attrs = {}, children = []) {
     const node = document.createElement(tag);
     for (const [k, v] of Object.entries(attrs || {})) {
@@ -662,10 +666,13 @@
       videoTitle = v.title || videoTitle;
     }
     if (!videoUrl) {
-      const [tab] = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
-      if (tab?.url && /youtube\.com\/(watch|shorts)/.test(tab.url)) {
-        videoUrl = tab.url;
-        videoTitle = (tab.title || "").replace(/ - YouTube$/, "");
+      try {
+        const [tab] = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
+        if (tab?.url && /youtube\.com\/(watch|shorts)/.test(tab.url)) {
+          videoUrl = tab.url;
+          videoTitle = (tab.title || "").replace(/ - YouTube$/, "");
+        }
+      } catch {
       }
     }
   }
@@ -707,7 +714,7 @@
     }
   }
   function renderAuth(error) {
-    root.replaceChildren(
+    requireRoot().replaceChildren(
       brand(),
       el("div", { class: "card auth-box" }, [
         el(
@@ -722,7 +729,9 @@
             {
               class: "btn primary",
               onclick: () => {
-                chrome.tabs.create({ url: CONNECT_URL });
+                chrome.runtime.sendMessage({ type: "OPEN_TAB", url: CONNECT_URL }).catch(() => {
+                  window.open(CONNECT_URL, "_blank", "noopener,noreferrer");
+                });
               }
             },
             "\u0412\u043E\u0439\u0442\u0438 \u0447\u0435\u0440\u0435\u0437 \u041A\u0410\u0420-\u0442\u043E\u0447\u043A\u0438"
@@ -810,7 +819,7 @@
       },
       "\u0421\u0444\u043E\u0440\u043C\u0438\u0440\u043E\u0432\u0430\u0442\u044C"
     );
-    root.replaceChildren(
+    requireRoot().replaceChildren(
       brand(),
       accountBar(),
       el("div", { class: "card" }, [
@@ -826,7 +835,7 @@
   }
   function renderProgress(text) {
     const statusEl = el("p", {}, text);
-    root.replaceChildren(
+    requireRoot().replaceChildren(
       brand(),
       el("div", { class: "card status-wrap" }, [
         el("div", { class: "spinner" }),
@@ -965,7 +974,7 @@
       },
       "\u0421\u043E\u0437\u0434\u0430\u0442\u044C \u043A\u0430\u0440\u0442\u043E\u0447\u043A\u0438"
     );
-    root.replaceChildren(
+    requireRoot().replaceChildren(
       brand(),
       el("div", { class: "card" }, [
         el("div", { class: "preview-head" }, [
@@ -1022,7 +1031,7 @@
   }
   function renderFatal(error) {
     const msg = error instanceof Error ? error.message : String(error);
-    root.replaceChildren(
+    requireRoot().replaceChildren(
       brand(),
       el("div", { class: "card" }, [
         el("p", { class: "error" }, "\u041D\u0435 \u0443\u0434\u0430\u043B\u043E\u0441\u044C \u043E\u0442\u043A\u0440\u044B\u0442\u044C \u043F\u0430\u043D\u0435\u043B\u044C: " + msg),
@@ -1042,8 +1051,8 @@
       ])
     );
   }
-  chrome.storage.onChanged.addListener((changes, area) => {
-    if (area !== "local") return;
+  function onStorageChanged(changes, area) {
+    if (!root || area !== "local") return;
     if (changes.kar_ext_auth) void boot().catch(renderFatal);
     if (changes.kar_ext_video) {
       const v = changes.kar_ext_video.newValue;
@@ -1056,6 +1065,15 @@
         if (titleEl && videoTitle) titleEl.textContent = videoTitle;
       }
     }
-  });
-  void boot().catch(renderFatal);
+  }
+  function mountKarPanel(container) {
+    root = container;
+    if (!mounted) {
+      chrome.storage.onChanged.addListener(onStorageChanged);
+      mounted = true;
+    }
+    void boot().catch(renderFatal);
+  }
+  var appEl = document.getElementById("app");
+  if (appEl) mountKarPanel(appEl);
 })();

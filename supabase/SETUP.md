@@ -73,13 +73,15 @@ supabase db diff --linked -f описание_изменения
 
 ## 5. Как добавить новую миграцию (для разработки)
 
-1. Создайте файл `supabase/migrations/0007_описание.sql` (следующий номер).
+1. Создайте файл `supabase/migrations/000N_описание.sql` (следующий номер).
 2. В конце файла повысьте версию:
    ```sql
-   insert into public.schema_meta (id, version) values (1, 7)
-   on conflict (id) do update set version = 7, updated_at = now();
+   insert into public.schema_meta (id, version) values (1, N)
+   on conflict (id) do update
+     set version = greatest(public.schema_meta.version, excluded.version),
+         updated_at = now();
    ```
-3. Поднимите `REQUIRED_SCHEMA_VERSION` в `js/data/schema-version.js` до **7**.
+3. Поднимите `REQUIRED_SCHEMA_VERSION` в `js/data/schema-version.js` до **N**.
 4. Обновите `supabase_schema.sql` (объединение всех миграций для ручного деплоя).
 5. Выполните:
    ```bash

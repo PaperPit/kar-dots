@@ -1,6 +1,4 @@
-/** FAB на YouTube + обновление URL при SPA-навигации. */
-
-const BTN_ID = "kar-ext-yt-fab"
+/** Обновление текущего видео при SPA-навигации YouTube. */
 
 function isWatchPage(href = location.href): boolean {
   try {
@@ -33,40 +31,6 @@ function videoTitle(): string {
   return (el?.textContent || document.title || "").replace(/ - YouTube$/, "").trim()
 }
 
-function ensureButton() {
-  const url = currentVideoUrl()
-  let btn = document.getElementById(BTN_ID) as HTMLButtonElement | null
-
-  if (!url) {
-    btn?.remove()
-    return
-  }
-
-  if (!btn) {
-    btn = document.createElement("button")
-    btn.id = BTN_ID
-    btn.type = "button"
-    btn.title = "КАР-точки: создать карточки из этого видео"
-    btn.setAttribute("aria-label", "Создать карточки КАР-точки")
-    btn.innerHTML =
-      '<span class="kar-ext-fab-mark" aria-hidden="true">К</span><span class="kar-ext-fab-label">Карточки</span>'
-    btn.addEventListener("click", (e) => {
-      e.preventDefault()
-      e.stopPropagation()
-      const videoUrl = currentVideoUrl()
-      if (!videoUrl) return
-      chrome.runtime.sendMessage({
-        type: "OPEN_SIDEPANEL",
-        url: videoUrl,
-        title: videoTitle()
-      })
-    })
-    document.documentElement.appendChild(btn)
-  }
-
-  btn.hidden = false
-}
-
 function notifyVideo() {
   const url = currentVideoUrl()
   if (!url) return
@@ -77,21 +41,16 @@ function notifyVideo() {
   }).catch(() => {})
 }
 
-function sync() {
-  ensureButton()
-  notifyVideo()
-}
+notifyVideo()
 
-sync()
-
-document.addEventListener("yt-navigate-finish", () => sync())
-window.addEventListener("popstate", () => sync())
+document.addEventListener("yt-navigate-finish", () => notifyVideo())
+window.addEventListener("popstate", () => notifyVideo())
 
 let lastHref = location.href
 const mo = new MutationObserver(() => {
   if (location.href !== lastHref) {
     lastHref = location.href
-    sync()
+    notifyVideo()
   }
 })
 mo.observe(document.documentElement, { childList: true, subtree: true })

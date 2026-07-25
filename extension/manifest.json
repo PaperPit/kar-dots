@@ -33,7 +33,6 @@
     {
       "matches": ["https://www.youtube.com/*", "https://youtube.com/*"],
       "js": ["dist/content-youtube.js"],
-      "css": ["content-youtube.css"],
       "run_at": "document_idle"
     },
     {

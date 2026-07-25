@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   alignSentenceCards, formatSentenceLines, buildSentencesPrompt,
-} from '../netlify/functions/yt-generate.mjs';
+} from '../functions/api/yt-generate.js';
 
 describe('formatSentenceLines', () => {
   it('нумерует сегменты с таймкодом', () => {

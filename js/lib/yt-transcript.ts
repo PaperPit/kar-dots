@@ -2,6 +2,7 @@
 
 import { parseYouTubeId, buildCardDescription, filterTranscriptSegments, type YtCandidate } from "./youtube-import.js"
 import { withApiKeys } from "./youtube-import-settings.js"
+import { getYtJobUserId } from "./yt-job-owner.js"
 import { getCachedTranscript, setCachedTranscript } from "../data/yt-transcript-cache.js"
 import type { YtVideo, YtTranscript } from "../data/yt-transcript-cache.js"
 import { parseCaptionFile } from "./yt-caption-parsers.js"
@@ -67,10 +68,11 @@ export async function fetchTranscriptFromUrl(
   }
 
   onStatus("Получаю данные видео…")
+  const userId = getYtJobUserId()
   let data = await apiJson("/api/yt-video", {
     method: "POST",
     headers: { "content-type": "application/json" },
-    body: JSON.stringify(withApiKeys(settings, { url }))
+    body: JSON.stringify(withApiKeys(settings, { url, userId }))
   })
 
   if (data.pending) {
@@ -81,7 +83,10 @@ export async function fetchTranscriptFromUrl(
       if (Date.now() > deadline)
         throw new Error("Расшифровка заняла слишком много времени — попробуй позже")
       await new Promise((r) => setTimeout(r, POLL_MS))
-      data = await apiJson("/api/yt-video?jobId=" + encodeURIComponent(String(data.jobId)))
+      const q =
+        "jobId=" + encodeURIComponent(String(data.jobId)) +
+        "&userId=" + encodeURIComponent(userId)
+      data = await apiJson("/api/yt-video?" + q)
     }
   }
 

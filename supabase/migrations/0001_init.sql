@@ -78,8 +78,8 @@ create policy "own settings" on public.settings
   for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 
 -- ------------------------------------------------------------
--- Хранилище картинок: публичный бакет card-images.
--- Файлы лежат в папке с id пользователя: {user_id}/xxx.jpg
+-- Хранилище картинок: бакет card-images (public для URL по пути).
+-- Файлы: {user_id}/xxx.jpg. List/SELECT — только своя папка.
 -- ------------------------------------------------------------
 insert into storage.buckets (id, name, public)
 values ('card-images', 'card-images', true)
@@ -100,9 +100,13 @@ create policy "delete own images" on storage.objects
   );
 
 drop policy if exists "read images" on storage.objects;
-create policy "read images" on storage.objects
-  for select using (bucket_id = 'card-images');
-
+drop policy if exists "read own images" on storage.objects;
+create policy "read own images" on storage.objects
+  for select to authenticated
+  using (
+    bucket_id = 'card-images'
+    and auth.uid()::text = (storage.foldername(name))[1]
+  );
 -- Отметить версию схемы (не понижаем, если уже выше).
 insert into public.schema_meta (id, version)
 values (1, 1)

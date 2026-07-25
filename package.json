@@ -16,7 +16,7 @@
     "ios:open": "open ios/App/App.xcodeproj",
     "db:status": "supabase migration list --linked",
     "db:push": "supabase db push --linked",
-    "db:repair-init": "supabase migration repair --status applied --linked 0001 0002 0003 0004 0005 0006",
+    "db:repair-init": "bash scripts/supabase-repair-init.sh",
     "typecheck": "tsc --noEmit",
     "lint": "eslint js/**/*.ts",
     "lint:fix": "eslint js/**/*.ts --fix",
@@ -32,7 +32,6 @@
   },
   "dependencies": {
     "@capacitor/keyboard": "^8.0.5",
-    "@netlify/blobs": "^8.1.0",
     "motion": "^12.42.2"
   },
   "devDependencies": {

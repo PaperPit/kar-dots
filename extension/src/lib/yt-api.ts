@@ -1,5 +1,6 @@
 import { APP_ORIGIN } from "./constants.js"
 import { withApiKeys } from "../../../js/lib/youtube-import-settings.js"
+import { getExtYtJobUserId } from "./yt-job-owner.js"
 import {
   parseYouTubeId,
   filterTranscriptSegments,
@@ -66,10 +67,11 @@ export async function fetchTranscriptFromUrl(
   if (!videoId) throw new Error("Не похоже на ссылку на YouTube-видео")
 
   onStatus("Получаю данные видео…")
+  const userId = await getExtYtJobUserId()
   let data = await apiJson("/api/yt-video", {
     method: "POST",
     headers: { "content-type": "application/json" },
-    body: JSON.stringify(withApiKeys(settings, { url }))
+    body: JSON.stringify(withApiKeys(settings, { url, userId }))
   })
 
   if (data.pending) {
@@ -81,7 +83,10 @@ export async function fetchTranscriptFromUrl(
         throw new Error("Расшифровка заняла слишком много времени — попробуй позже")
       }
       await new Promise((r) => setTimeout(r, POLL_MS))
-      data = await apiJson("/api/yt-video?jobId=" + encodeURIComponent(String(data.jobId)))
+      const q =
+        "jobId=" + encodeURIComponent(String(data.jobId)) +
+        "&userId=" + encodeURIComponent(userId)
+      data = await apiJson("/api/yt-video?" + q)
     }
   }
 

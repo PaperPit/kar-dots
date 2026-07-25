@@ -23,7 +23,7 @@
 
 ### Cloudflare Pages + Functions (основной)
 
-Статика из `dist/` + API в `functions/api/*` (`/api/yt-video`, `/api/yt-generate`, `/api/tts`, `/api/stock-search`, `/api/yt-transcribe`). YouTube-джобы — Workers KV (`YT_JOBS`).
+Статика из `dist/` + API в `functions/api/*` (`/api/yt-video`, `/api/yt-generate`, `/api/tts`, `/api/stock-search`). YouTube-джобы — Workers KV (`YT_JOBS`).
 
 Пошагово: **[cloudflare-pages-setup.md](./cloudflare-pages-setup.md)**. Кратко:
 
@@ -40,16 +40,12 @@
 
 ```bash
 npm run pages:dev   # http://localhost:8788 — эмуляция Pages + KV
-npm run dev         # http://localhost:8080 — dev-сервер + netlify/functions (legacy API)
+npm run dev         # http://localhost:8080 — dev-сервер + functions/api
 ```
 
 ### GitHub Pages
 
 Только статика из корня — **без** `/api/*` (YouTube-импорт и серверный TTS не работают). Settings → Pages → branch `main`, folder `/`.
-
-### Netlify (legacy)
-
-`netlify.toml` + `netlify/functions/` ещё в репозитории как запасной путь. Новый деплой — на Cloudflare. После полной проверки CF каталог Netlify можно удалить.
 
 > PWA и камера требуют **HTTPS**.
 
@@ -81,11 +77,11 @@ supabase/migrations/0005_updated_at.sql
 supabase/migrations/0006_cards_updated_at_idx.sql
 supabase/migrations/0007_settings_rls.sql
 supabase/migrations/0008_review_log.sql
+supabase/migrations/0009_card_images_read_own.sql
+supabase/migrations/0010_boxes_update_with_check.sql
 ```
 
-**Вариант B — один файл**
-
-Вставьте и выполните `supabase_schema.sql` (должен соответствовать актуальным миграциям).
+Источник правды — только `supabase/migrations/` (монолитного dump-файла нет).
 
 ### 3. Ключи в приложении
 
@@ -119,7 +115,7 @@ Anon key безопасен на клиенте — доступ огранич�
 
 ```bash
 npm install
-npm run dev        # http://localhost:8080 + API из netlify/functions/
+npm run dev        # http://localhost:8080 + API из functions/api/
 npm run pages:dev  # эмуляция Cloudflare Pages (dist + functions/ + KV)
 ```
 

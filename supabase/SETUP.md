@@ -34,7 +34,7 @@ supabase link --project-ref XXXX
 
 ## 3. Синхронизация истории миграций (вы уже применили SQL вручную)
 
-CLI ведёт **свой** журнал в таблице `supabase_migrations.schema_migrations`. Если миграции выполняли через SQL Editor или `supabase_schema.sql`, CLI об этом не знает.
+CLI ведёт **свой** журнал в таблице `supabase_migrations.schema_migrations`. Если миграции выполняли через SQL Editor вручную, CLI об этом не знает.
 
 **Один раз** отметьте уже применённые миграции:
 
@@ -45,7 +45,7 @@ npm run db:repair-init
 Это эквивалентно:
 
 ```bash
-supabase migration repair --status applied --linked 0001 0002 0003 0004 0005 0006
+supabase migration repair --status applied --linked 0001 0002 0003 0004 0005 0006 0007 0008 0009 0010
 ```
 
 Проверка:
@@ -54,7 +54,7 @@ supabase migration repair --status applied --linked 0001 0002 0003 0004 0005 000
 npm run db:status
 ```
 
-В колонке Remote все шесть миграций должны быть **applied**.
+В колонке Remote применённые миграции должны быть **applied**.
 
 ## 4. Ежедневная работа
 
@@ -73,15 +73,16 @@ supabase db diff --linked -f описание_изменения
 
 ## 5. Как добавить новую миграцию (для разработки)
 
-1. Создайте файл `supabase/migrations/0007_описание.sql` (следующий номер).
+1. Создайте файл `supabase/migrations/000N_описание.sql` (следующий номер).
 2. В конце файла повысьте версию:
    ```sql
-   insert into public.schema_meta (id, version) values (1, 7)
-   on conflict (id) do update set version = 7, updated_at = now();
+   insert into public.schema_meta (id, version) values (1, N)
+   on conflict (id) do update
+     set version = greatest(public.schema_meta.version, excluded.version),
+         updated_at = now();
    ```
-3. Поднимите `REQUIRED_SCHEMA_VERSION` в `js/data/schema-version.js` до **7**.
-4. Обновите `supabase_schema.sql` (объединение всех миграций для ручного деплоя).
-5. Выполните:
+3. Поднимите `REQUIRED_SCHEMA_VERSION` в `js/data/schema-version.js` до **N**.
+4. Выполните:
    ```bash
    npm run db:push
    ```

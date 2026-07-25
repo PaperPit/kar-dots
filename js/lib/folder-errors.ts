@@ -36,7 +36,7 @@ export function folderSaveErrorMessage(err: unknown) {
     return "В Supabase нет колонки icon для коробок. SQL Editor → выполните: alter table public.boxes add column if not exists icon text;"
   }
   if (isMissingBoxesTableError(err)) {
-    return "Коробка сохранена на этом устройстве. Для синхронизации между устройствами выполните SQL из docs/supabase-boxes.sql в Supabase."
+    return "Коробка сохранена на этом устройстве. Для синхронизации выполните миграцию supabase/migrations/0004_boxes.sql (или npm run db:push)."
   }
   if (isMissingBoxIdColumnError(err)) {
     return "Привязка папок сохранена локально. Добавьте колонку box_id: alter table public.folders add column if not exists box_id uuid;"

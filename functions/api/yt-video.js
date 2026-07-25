@@ -1,8 +1,15 @@
 // Cloudflare Pages Function: метаданные YouTube + транскрипт через Supadata.
-// POST { url, supadataApiKey } → { video, transcript } | { pending, jobId, video }
-// GET  ?jobId=…            → { transcript } | { pending } | ошибка
+// POST { url, userId, supadataApiKey } → { video, transcript } | { pending, jobId, video }
+// GET  ?jobId=…&userId=… → { transcript } | { pending } | ошибка
+//
+// jobId генерируется только на сервере; KV-ключ: job:${userId}:${jobId}.
 
-import { jobsStore } from './_kv.js';
+import {
+  jobsStore,
+  isJobUserId,
+  isJobUuid,
+  makeJobKey,
+} from './_kv.js';
 import { parseVideoId } from './lib/yt-url.js';
 import {
   resolveSupadataApiKey,
@@ -26,7 +33,23 @@ function err(code, message, status = 400, extra = {}) {
   return json({ error: code, message, ...extra }, status);
 }
 
-export { parseVideoId };
+export { parseVideoId, isJobUserId, isJobUuid, makeJobKey };
+
+async function loadOwnedJob(store, userId, jobId) {
+  if (!isJobUserId(userId) || !isJobUuid(jobId)) return { error: err('bad-request', 'Нет jobId или userId') };
+  const key = makeJobKey(userId, jobId);
+  let job = await store.get(key);
+  // KV eventually consistent — один короткий ретрай при «не найдено»
+  if (!job) {
+    await new Promise((r) => setTimeout(r, 200));
+    job = await store.get(key);
+  }
+  if (!job) return { error: err('not-found', 'Задача не найдена — возможно, истекло время ожидания', 404) };
+  if (job.userId && job.userId !== userId) {
+    return { error: err('forbidden', 'Нет доступа к этой задаче', 403) };
+  }
+  return { key, job };
+}
 
 async function handler(req, env) {
   const urlObj = new URL(req.url);
@@ -34,15 +57,11 @@ async function handler(req, env) {
 
   if (req.method === 'GET') {
     const jobId = urlObj.searchParams.get('jobId');
-    if (!jobId || !/^[\w-]+$/.test(jobId)) return err('bad-request', 'Нет jobId');
+    const userId = urlObj.searchParams.get('userId');
+    const loaded = await loadOwnedJob(store, userId, jobId);
+    if (loaded.error) return loaded.error;
+    const { key, job } = loaded;
 
-    let job = await store.get(jobId);
-    // KV eventually consistent — один короткий ретрай при «не найдено»
-    if (!job) {
-      await new Promise((r) => setTimeout(r, 200));
-      job = await store.get(jobId);
-    }
-    if (!job) return err('not-found', 'Задача не найдена — возможно, истекло время ожидания', 404);
     if (job.status === 'completed') return json({ transcript: job.transcript, video: job.video });
     if (job.status === 'failed') {
       return err(job.errorCode || 'transcript-failed', job.error || 'Не удалось получить транскрипт', 502);
@@ -53,7 +72,7 @@ async function handler(req, env) {
       if (result.status === 'completed') {
         const transcript = transcriptFromResult(result);
         if (!transcript.segments.length) {
-          await store.setJSON(jobId, {
+          await store.setJSON(key, {
             ...job,
             status: 'failed',
             errorCode: 'transcript-unavailable',
@@ -61,12 +80,12 @@ async function handler(req, env) {
           });
           return err('transcript-unavailable', 'Не удалось получить текст видео', 422);
         }
-        await store.setJSON(jobId, { ...job, status: 'completed', transcript });
+        await store.setJSON(key, { ...job, status: 'completed', transcript });
         return json({ transcript, video: job.video });
       }
       if (result.status === 'failed') {
         const mapped = mapSupadataError(result.error || { error: 'transcript-failed', message: 'Supadata не смогла обработать видео' });
-        await store.setJSON(jobId, { ...job, status: 'failed', errorCode: mapped.code, error: mapped.message });
+        await store.setJSON(key, { ...job, status: 'failed', errorCode: mapped.code, error: mapped.message });
         return err(mapped.code, mapped.message, mapped.status);
       }
     } catch (e) {
@@ -81,6 +100,11 @@ async function handler(req, env) {
 
   let payload;
   try { payload = await req.json(); } catch (e) { return err('bad-request', 'Неверный JSON'); }
+
+  const userId = String(payload.userId || '').trim();
+  if (!isJobUserId(userId)) {
+    return err('bad-request', 'Нужен userId (UUID) для создания задачи транскрипта', 400);
+  }
 
   const videoUrl = String(payload.url || '').trim();
   const videoId = parseVideoId(videoUrl);
@@ -125,8 +149,10 @@ async function handler(req, env) {
 
   if (transcriptResult.async) {
     const jobId = crypto.randomUUID();
-    await store.setJSON(jobId, {
+    const key = makeJobKey(userId, jobId);
+    await store.setJSON(key, {
       status: 'pending',
+      userId,
       supadataJobId: transcriptResult.jobId,
       apiKey,
       video,

@@ -19,7 +19,7 @@ describe('folder-errors', () => {
 
   it('returns SQL hint for boxes table error', () => {
     const err = new Error("Could not find the table 'public.boxes' in the schema cache");
-    expect(folderSaveErrorMessage(err)).toContain('supabase-boxes.sql');
+    expect(folderSaveErrorMessage(err)).toContain('0004_boxes.sql');
   });
 
   it('returns SQL hint for box icon column error', () => {

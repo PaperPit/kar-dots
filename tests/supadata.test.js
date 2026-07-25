@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { chunksToSegments, cleanSupadataApiKey, mapSupadataError } from '../netlify/functions/lib/supadata.mjs';
-import { parseVideoId } from '../netlify/functions/lib/yt-url.mjs';
+import { chunksToSegments, cleanSupadataApiKey, mapSupadataError } from '../functions/api/lib/supadata.js';
+import { parseVideoId } from '../functions/api/lib/yt-url.js';
 
 describe('supadata lib', () => {
   it('chunksToSegments конвертирует offset в секунды', () => {

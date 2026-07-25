@@ -77,11 +77,11 @@ supabase/migrations/0005_updated_at.sql
 supabase/migrations/0006_cards_updated_at_idx.sql
 supabase/migrations/0007_settings_rls.sql
 supabase/migrations/0008_review_log.sql
+supabase/migrations/0009_card_images_read_own.sql
+supabase/migrations/0010_boxes_update_with_check.sql
 ```
 
-**Вариант B — один файл**
-
-Вставьте и выполните `supabase_schema.sql` (должен соответствовать актуальным миграциям).
+Источник правды — только `supabase/migrations/` (монолитного dump-файла нет).
 
 ### 3. Ключи в приложении
 

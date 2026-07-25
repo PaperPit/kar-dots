@@ -27,7 +27,7 @@ create policy "boxes_insert_own" on public.boxes
 
 drop policy if exists "boxes_update_own" on public.boxes;
 create policy "boxes_update_own" on public.boxes
-  for update using (auth.uid() = user_id);
+  for update using (auth.uid() = user_id) with check (auth.uid() = user_id);
 
 drop policy if exists "boxes_delete_own" on public.boxes;
 create policy "boxes_delete_own" on public.boxes

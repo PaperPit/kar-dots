@@ -15,6 +15,7 @@
 | `0007_settings_rls.sql` | 7 | явные RLS-политики для `settings` (фикс ошибки upsert) |
 | `0008_review_log.sql` | 8 | таблица `review_log` + RLS |
 | `0009_card_images_read_own.sql` | 9 | SELECT `card-images` только своей папки (без публичного list) |
+| `0010_boxes_update_with_check.sql` | 10 | `boxes_update_own` — WITH CHECK (нельзя сменить `user_id`) |
 
 Нужная версия в коде: `REQUIRED_SCHEMA_VERSION` в `js/data/schema-version.js`.
 
@@ -29,7 +30,6 @@ npm run db:status    # проверить статус
 
 ### Без CLI — SQL Editor
 
-- **Новый проект:** выполните `supabase_schema.sql` целиком.
-- **Существующий:** баннер подскажет диапазон; выполните файлы `000N_*.sql` по порядку.
+Выполните файлы `supabase/migrations/000N_*.sql` **по порядку** (новый проект — с `0001`). Монолитного `supabase_schema.sql` больше нет: источник правды — только миграции.
 
 После применения перезагрузите приложение.

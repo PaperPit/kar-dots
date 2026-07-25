@@ -4,6 +4,8 @@ import {
   mergeSrsDelta,
   nextCardsWatermark,
   stampUpdatedAt,
+  lwwUpdateFilter,
+  resolveSettingsLww,
   FULL_RESYNC_MS,
   SRS_DELTA_SELECT,
 } from '../js/data/cloud-delta.ts';
@@ -42,6 +44,17 @@ describe('cloud-delta', () => {
     expect(maxAt).toBe(80);
   });
 
+  it('mergeSrsDelta не затирает более свежую локальную meta', () => {
+    const base = [
+      { id: 'a', folder_id: 'f', sm2_reps: 9, updated_at: 100, created_at: 1 },
+    ];
+    const { meta, maxAt } = mergeSrsDelta(base, [
+      { id: 'a', folder_id: 'f', sm2_reps: 1, updated_at: 40, created_at: 1 },
+    ]);
+    expect(meta.find(c => c.id === 'a').sm2_reps).toBe(9);
+    expect(maxAt).toBe(40);
+  });
+
   it('nextCardsWatermark prefers row max else advances clock', () => {
     expect(nextCardsWatermark(10, 40, 100)).toBe(40);
     expect(nextCardsWatermark(10, 0, 100)).toBe(100);
@@ -53,5 +66,16 @@ describe('cloud-delta', () => {
     expect(p.sm2_reps).toBe(2);
     expect(typeof p.updated_at).toBe('number');
     expect(p.updated_at).toBeGreaterThan(0);
+  });
+
+  it('lwwUpdateFilter добавляет updated_at=lte при stamp', () => {
+    expect(lwwUpdateFilter('c1', { updated_at: 42 })).toBe('id=eq.c1&updated_at=lte.42');
+    expect(lwwUpdateFilter('c1', {})).toBe('id=eq.c1');
+  });
+
+  it('resolveSettingsLww выбирает более свежий blob', () => {
+    expect(resolveSettingsLww({ a: 1 }, 10, { a: 2 }, 20).source).toBe('remote');
+    expect(resolveSettingsLww({ a: 1 }, 30, { a: 2 }, 20).source).toBe('local');
+    expect(resolveSettingsLww({ a: 1 }, 10, { a: 2 }, 10).source).toBe('remote');
   });
 });

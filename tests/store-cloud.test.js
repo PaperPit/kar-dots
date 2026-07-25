@@ -347,7 +347,12 @@ describe('CloudStore online review + optimistic updateCard', () => {
     release();
     await store._bgSyncTail;
     expect(cloudDone).toBe(true);
-    expect(update).toHaveBeenCalledWith('cards', 'id=eq.d1', expect.objectContaining({ sm2_reps: 3 }));
+    expect(update).toHaveBeenCalledWith(
+      'cards',
+      expect.stringMatching(/^id=eq\.d1(&updated_at=lte\.\d+)?$/),
+      expect.objectContaining({ sm2_reps: 3, updated_at: expect.any(Number) }),
+      { returning: true },
+    );
   });
 });
 

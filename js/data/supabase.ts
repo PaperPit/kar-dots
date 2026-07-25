@@ -227,12 +227,13 @@ export class MiniSupabase {
     return Array.isArray(rows) ? rows[0] : rows
   }
 
-  async update(table: string, filter: string, patch: unknown): Promise<unknown> {
+  async update(table: string, filter: string, patch: unknown, opts: { returning?: boolean } = {}): Promise<unknown> {
     await this.ensureFresh()
+    const prefer = opts.returning ? "return=representation" : "return=minimal"
     const r = await this._fetch(this.url + "/rest/v1/" + table + "?" + filter, {
       method: "PATCH",
       headers: Object.assign(
-        { "Content-Type": "application/json", Prefer: "return=minimal" },
+        { "Content-Type": "application/json", Prefer: prefer },
         this._authHeaders()
       ),
       body: JSON.stringify(patch)

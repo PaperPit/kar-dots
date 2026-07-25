@@ -38,7 +38,7 @@ import type { ProgressInfo } from './store-vocab.js';
 import type { MiniSupabase } from './supabase.js';
 import {
   CLOUD_SYNC_KEY, SRS_DELTA_SELECT, shouldUseCardsDelta, mergeSrsDelta,
-  nextCardsWatermark, stampUpdatedAt,
+  nextCardsWatermark, stampUpdatedAt, lwwUpdateFilter, resolveSettingsLww,
 } from './cloud-delta.js';
 import {
   setActivityCloudSync, applyRemoteActivity, loadActivity,
@@ -100,6 +100,8 @@ export class CloudStore {
   _bgSyncTail: Promise<void>
   /** Промис текущей фоновой синхронизации с облаком (если идёт). */
   _cloudSyncPromise: Promise<void> | null
+  /** Локальный stamp settings (мс) для LWW с облаком. */
+  _settingsUpdatedAt: number
 
   constructor(sb: MiniSupabase) {
     this.kind = 'cloud';
@@ -124,6 +126,7 @@ export class CloudStore {
     this._activityPushTimer = null;
     this._bgSyncTail = Promise.resolve();
     this._cloudSyncPromise = null;
+    this._settingsUpdatedAt = 0;
   }
 
   _invalidateHomeStats() {
@@ -329,9 +332,10 @@ export class CloudStore {
   _syncFromCloudInBackground() {
     const run = (async () => {
       try {
+        // Сначала сбросить локальную очередь — иначе pull затрёт незапушенные правки.
+        await this.flushSync();
         await this._fetchFromCloud();
         this._offline = false;
-        await this.flushSync();
         this._notifySync();
         this._emitDataChange();
       } catch (e) {
@@ -366,7 +370,7 @@ export class CloudStore {
 
     const [folders, settingsRows, boxesRaw, cardsPull] = await Promise.all([
       this.sb.select<Folder>('folders', 'select=*&order=created_at.asc'),
-      this.sb.select<{ data?: Settings }>('settings', 'select=*&user_id=eq.' + uid),
+      this.sb.select<{ data?: Settings; updated_at?: number }>('settings', 'select=*&user_id=eq.' + uid),
       this._fetchBoxesFromCloud(),
       useDelta ? this._pullCardsDelta(uid, sync?.cardsAt ?? Date.now()) : this._pullCardsFull(),
     ]);
@@ -386,12 +390,27 @@ export class CloudStore {
       this._cache.setCount(fid, n);
     }
     invalidateDerivedCaches(this);
+
     const settingsRow = settingsRows[0];
-    if (settingsRow?.data) {
-      this.settings = Object.assign({}, DEFAULT_SETTINGS, settingsRow.data);
+    const remoteAt = Number(settingsRow?.updated_at) || 0;
+    const resolved = resolveSettingsLww(
+      this.settings as unknown as Record<string, unknown>,
+      this._settingsUpdatedAt,
+      (settingsRow?.data || null) as Record<string, unknown> | null,
+      remoteAt,
+    );
+    if (resolved.data) {
+      this.settings = Object.assign({}, DEFAULT_SETTINGS, resolved.data);
+      this._settingsUpdatedAt = resolved.updatedAt;
     }
     await mirrorSetKV(this.mirror, 'settings', this.settings);
+    await mirrorSetKV(this.mirror, 'settings_updated_at', this._settingsUpdatedAt);
     await this._ingestRemoteActivity();
+    // Если локальные настройки новее — вернуть их в облако после pull.
+    if (resolved.source === 'local' && this._settingsUpdatedAt > 0) {
+      void this.queue.enqueue({ op: 'saveSettings', payload: { settings: this.settings } });
+    }
+
     await mirrorSetKV(this.mirror, 'srs_meta', cardsPull.meta);
     const now = Date.now();
     await mirrorSetKV(this.mirror, CLOUD_SYNC_KEY, {
@@ -464,6 +483,8 @@ export class CloudStore {
     this.boxes.sort((a, b) => (a.created_at || 0) - (b.created_at || 0));
     const settings = await mirrorGetKV(this.mirror, 'settings');
     if (settings) this.settings = Object.assign({}, DEFAULT_SETTINGS, settings as Partial<Settings>);
+    const settingsAt = await mirrorGetKV(this.mirror, 'settings_updated_at');
+    this._settingsUpdatedAt = Number(settingsAt) || 0;
     await this._ingestRemoteActivity();
     const meta = await mirrorGetKV(this.mirror, 'srs_meta');
     this._srsMeta = (meta as SrsMeta[] | null) || [];
@@ -561,13 +582,22 @@ export class CloudStore {
     }
   }
 
+  /**
+   * PATCH с last-write-wins: сервер применяет только если наша updated_at не старше.
+   * Пустой ответ = на сервере уже более новая версия — считаем успехом (не ретраим).
+   */
+  async _applyPatchWithLww(table: string, id: string, patch: Record<string, unknown>) {
+    const filter = lwwUpdateFilter(id, patch as { updated_at?: number });
+    await this.sb.update(table, filter, patch, { returning: true });
+  }
+
   async _cloudPatchFolder(id: string, patch: Partial<Folder>) {
-    let payload = Object.assign({}, patch);
+    let payload = Object.assign({}, patch) as Record<string, unknown>;
     if (this._folderIconCloudUnsupported) payload = withoutFolderIcon(payload);
     if (this._boxIdCloudUnsupported) payload = withoutBoxId(payload);
     if (!Object.keys(payload).length) return;
     try {
-      await this.sb.update('folders', 'id=eq.' + id, payload);
+      await this._applyPatchWithLww('folders', id, payload);
     } catch (e) {
       if (!this._folderIconCloudUnsupported && isMissingFolderIconColumnError(e) && patch && 'icon' in patch) {
         this._folderIconCloudUnsupported = true;
@@ -609,11 +639,11 @@ export class CloudStore {
 
   async _cloudUpdateBox(id: string, patch: Partial<Box>) {
     if (this._boxesCloudUnsupported) return;
-    let payload = Object.assign({}, patch);
+    let payload = Object.assign({}, patch) as Record<string, unknown>;
     if (this._boxIconCloudUnsupported) payload = withoutFolderIcon(payload);
     if (!Object.keys(payload).length) return;
     try {
-      await this.sb.update('boxes', 'id=eq.' + id, payload);
+      await this._applyPatchWithLww('boxes', id, payload);
     } catch (e) {
       if (isMissingBoxesTableError(e)) {
         this._boxesCloudUnsupported = true;
@@ -656,7 +686,7 @@ export class CloudStore {
       case 'updateBox': await this._cloudUpdateBox(payload.id, payload.patch); break;
       case 'deleteBox': await this._cloudDeleteBox(payload.id); break;
       case 'createCard': await this.sb.insert('cards', payload.row); break;
-      case 'updateCard': await this.sb.update('cards', 'id=eq.' + payload.id, payload.patch); break;
+      case 'updateCard': await this._applyPatchWithLww('cards', payload.id, payload.patch); break;
       case 'deleteCard':
         if (payload.urls) for (const url of payload.urls) await this.deleteImage(url);
         await this.sb.remove('cards', 'id=eq.' + payload.id);
@@ -667,7 +697,11 @@ export class CloudStore {
       case 'uploadImage':
         payload.url = await this.sb.uploadFile('card-images', payload.path, payload.blob, payload.contentType);
         if (payload.cardId && payload.side) {
-          await this.sb.update('cards', 'id=eq.' + payload.cardId, stampUpdatedAt({ [payload.side]: payload.url }));
+          await this._applyPatchWithLww(
+            'cards',
+            payload.cardId,
+            stampUpdatedAt({ [payload.side]: payload.url }) as Record<string, unknown>,
+          );
         }
         break;
       case 'logReview': await this._cloudLogReview(payload as ReviewLogEntry); break;
@@ -701,13 +735,20 @@ export class CloudStore {
   async _cloudSaveSettings(settings: unknown) {
     const uid = this.sb.userId();
     if (!uid) throw new Error('Нет активной сессии — войдите снова');
+    const at = Number(this._settingsUpdatedAt) || Date.now();
+    try {
+      const rows = await this.sb.select<{ updated_at?: number }>('settings', 'select=updated_at&user_id=eq.' + uid);
+      const remoteAt = Number(rows[0]?.updated_at) || 0;
+      if (remoteAt > at) return;
+    } catch (e) {
+      if (isNetworkError(e)) throw e;
+    }
     const row = {
       user_id: uid,
       data: settings,
-      updated_at: Date.now(),
+      updated_at: at,
     };
     const push = async () => {
-      // on_conflict обязателен для upsert под RLS; иначе PostgREST часто делает INSERT и падает.
       try {
         await this.sb.upsert('settings', row, { onConflict: 'user_id' });
         return;
@@ -715,23 +756,23 @@ export class CloudStore {
         const msg = e instanceof Error ? e.message : String(e);
         if (!/row-level security|42501/i.test(msg)) throw e;
       }
-      // Fallback: UPDATE, при пустом ответе — INSERT (надёжнее при глюках upsert+RLS).
       try {
-        await this.sb.update('settings', 'user_id=eq.' + uid, {
-          data: settings,
-          updated_at: row.updated_at,
-        });
+        await this.sb.update(
+          'settings',
+          'user_id=eq.' + uid + '&updated_at=lte.' + at,
+          { data: settings, updated_at: at },
+        );
       } catch (e) {
         /* try insert below */
       }
       try {
         await this.sb.insert('settings', row);
       } catch (e2) {
-        // Строка уже есть — повторный update
-        await this.sb.update('settings', 'user_id=eq.' + uid, {
-          data: settings,
-          updated_at: Date.now(),
-        });
+        await this.sb.update(
+          'settings',
+          'user_id=eq.' + uid + '&updated_at=lte.' + at,
+          { data: settings, updated_at: at },
+        );
       }
     };
     try {
@@ -1064,7 +1105,9 @@ export class CloudStore {
 
   async saveSettings(s: Settings) {
     this.settings = s;
+    this._settingsUpdatedAt = Date.now();
     await mirrorSetKV(this.mirror, 'settings', s);
+    await mirrorSetKV(this.mirror, 'settings_updated_at', this._settingsUpdatedAt);
     if (s.algo === 'fsrs') {
       const { preloadFsrs } = await import('../lib/srs.js');
       await preloadFsrs();

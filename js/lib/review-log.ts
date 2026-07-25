@@ -25,6 +25,11 @@ export interface ReviewLogEntry {
   state_before: number
   /** Стабильность FSRS до оценки (если алгоритм FSRS), иначе null. */
   stability_before: number | null
+  /**
+   * Бинарная оценка SM-2/Leitner (и подобные), где rating 1/3 — аппроксимация.
+   * Оптимизатор FSRS и CSV-экспорт такие записи отбрасывают.
+   */
+  synthetic?: boolean
 }
 
 export interface ReviewLogCloudSync {
@@ -89,9 +94,10 @@ export function buildReviewEntry(input: {
   elapsed_days: number
   state_before: number
   stability_before?: number | null
+  synthetic?: boolean
   ts?: number
 }): ReviewLogEntry {
-  return {
+  const entry: ReviewLogEntry = {
     id: rid(),
     ts: input.ts ?? Date.now(),
     card_id: input.card_id,
@@ -103,6 +109,8 @@ export function buildReviewEntry(input: {
     state_before: input.state_before,
     stability_before: input.stability_before ?? null
   }
+  if (input.synthetic) entry.synthetic = true
+  return entry
 }
 
 /** Записать событие. Возвращает id (для отмены). Не бросает — журнал не должен ломать оценку. */

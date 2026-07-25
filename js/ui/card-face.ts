@@ -1,10 +1,17 @@
 import { el, sanitizeRich, stripHtml } from "./ui.js"
 import { Card } from "./types.js"
 
+function cardImg(src: string): HTMLElement {
+  // Reserved slot avoids CLS mid-review; max size comes from CSS (.card-img-slot / review).
+  return el("div", { class: "card-img-slot" }, [
+    el("img", { src, alt: "", decoding: "async" }),
+  ])
+}
+
 /** Лицевая сторона: термин + опциональная картинка. */
 export function buildFrontContent(card: Card): HTMLElement[] {
   const parts = []
-  if (card.front_img) parts.push(el("img", { src: card.front_img, alt: "" }))
+  if (card.front_img) parts.push(cardImg(card.front_img))
   const plain = stripHtml(card.front)
   if (plain) {
     const sizeCls = plain.length > 160 ? " long" : plain.length > 60 ? " small" : ""
@@ -18,7 +25,7 @@ export function buildFrontContent(card: Card): HTMLElement[] {
 /** Оборот: определение (жирное, по центру) + описание (мельче, по ширине). */
 export function buildBackContent(card: Card): HTMLElement[] {
   const parts = []
-  if (card.back_img) parts.push(el("img", { src: card.back_img, alt: "" }))
+  if (card.back_img) parts.push(cardImg(card.back_img))
 
   const defPlain = stripHtml(card.back)
   if (defPlain) {

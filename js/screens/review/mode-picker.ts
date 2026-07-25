@@ -134,7 +134,7 @@ export async function studyModePicker({ folderId = null, cram = false }: { folde
   let cardCount: number | null = null;
 
   if (cram && folderId) {
-    cardCount = await store.countCards(folderId);
+    cardCount = (await store.countCards(folderId)) ?? null;
   }
 
   let m: ModalHandle | null = null;

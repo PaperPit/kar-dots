@@ -5,8 +5,8 @@
 -- «кто последний подключился, тот и прав» (без учёта времени самой
 -- правки). Теперь каждая запись несёт updated_at (мс, как created_at),
 -- и обновление из очереди применяется на сервере только если наша
--- версия не старше текущей (last-write-wins на уровне записи) —
--- см. js/data/store-cloud.js::_applyPatchWithLww.
+-- версия не старше текущей (last-write-wins / optimistic concurrency) —
+-- см. js/data/store-cloud.ts::_applyPatchWithLww (baseUpdatedAt + 0 rows → conflict).
 -- ============================================================
 
 alter table public.folders add column if not exists updated_at bigint not null default 0;

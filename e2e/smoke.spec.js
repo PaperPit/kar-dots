@@ -3,7 +3,8 @@ import { expect, test } from '@playwright/test';
 async function enterLocal(page) {
   await page.goto('/');
   await page.getByRole('button', { name: 'Попробовать без регистрации' }).click();
-  await expect(page.getByRole('heading', { name: /Сегодня к повторению|Кар!|КАР-р-р|Поля ждут/ })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Библиотека' })).toBeVisible();
+  await expect(page.getByText('Первая папка')).toBeVisible();
 }
 
 test.beforeEach(async ({ context }) => {
@@ -12,7 +13,6 @@ test.beforeEach(async ({ context }) => {
 
 test('local mode opens seeded home', async ({ page }) => {
   await enterLocal(page);
-  await expect(page.getByText('Первая папка')).toBeVisible();
   await expect(page.getByRole('button', { name: '+ Новая коробка' })).toBeVisible();
 });
 

@@ -258,17 +258,18 @@ export class LocalStore {
   }
 
   async getFolderCards(folderId: string) {
-    if (this._cache.folderCache.has(folderId)) return this._cache.folderCache.get(folderId);
+    const hit = this._cache.getFolderList(folderId);
+    if (hit) return hit;
     const cards = (await indexGetAll(this.db, 'cards', 'folder_id', folderId)) as CardRecord[];
     cards.sort((a, b) => (b.created_at || 0) - (a.created_at || 0));
     cards.forEach(c => { if (c.description == null) c.description = ''; });
-    this._cache.folderCache.set(folderId, cards as Card[]);
+    this._cache.setFolderList(folderId, cards as Card[]);
     return cards;
   }
 
   async countCards(folderId?: string | null) {
     if (folderId) {
-      if (this._cache.hasCount(folderId)) return this._cache.getCount(folderId);
+      if (this._cache.hasCount(folderId)) return this._cache.getCount(folderId) ?? 0;
       return cardCount(this.db, folderId);
     }
     return this._cache.countCards(undefined);
@@ -299,16 +300,18 @@ export class LocalStore {
     return {
       due: hydrateReviewQueue(due, byId),
       fresh: hydrateReviewQueue(fresh, byId),
+      missingOffline: 0,
     };
   }
 
   /** Cram: shuffle ids из slim meta, hydrate только выбранных (с limit). */
-  async getCramCards(folderId: string | null, limit: number) {
+  async getCramCards(folderId: string | null, limit?: number | null) {
     const source = filterByFolder(this._srsMeta, folderId);
     const picked = shuffle(source);
-    const slice = limit > 0 ? picked.slice(0, limit) : picked;
+    const lim = limit ?? 0;
+    const slice = lim > 0 ? picked.slice(0, lim) : picked;
     const byId = await getCardsByIds(this.db, this._cache, slice.map(c => c.id));
-    return hydrateReviewQueue(slice, byId);
+    return { cards: hydrateReviewQueue(slice, byId), missingOffline: 0 };
   }
 
   async _getCardById(id: string): Promise<CardRecord | null> {
@@ -465,6 +468,22 @@ export class LocalStore {
   }
 
   async deleteImage() {}
+
+  async convertAlgoProgress(from: Algo, to: Algo) {
+    if (!from || !to || from === to) return { updated: 0 };
+    const { convertAlgoPatch } = await import('../lib/srs-convert.js');
+    const settings = { leitnerIntervals: this.settings.leitnerIntervals };
+    const jobs: { id: string; patch: Record<string, number | null> }[] = [];
+    await forEachCard(this.db, null, (card) => {
+      const patch = convertAlgoPatch(card, from, to, settings);
+      if (!patch || !card.id) return;
+      jobs.push({ id: card.id, patch });
+    });
+    for (const job of jobs) {
+      await this.updateCard(job.id, job.patch);
+    }
+    return { updated: jobs.length };
+  }
 
   async saveSettings(s: Settings) {
     this.settings = s;

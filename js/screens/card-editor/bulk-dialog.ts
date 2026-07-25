@@ -5,8 +5,10 @@ import { parseBulkLines, countReadyRows } from '../../lib/card-import.js';
 import { getTranslateDir, translateBatch, sleep } from '../../lib/translate.js';
 import { createTranslateDirToggle } from '../../ui/translate-dir-toggle.js';
 import { route } from '../../core/router.js';
+import { ensureCss, SCREEN_CSS } from '../../ui/ensure-css.js';
 
 export function bulkCardDialog(folderId: string) {
+  void ensureCss(SCREEN_CSS.cardEditor);
   let m: ModalHandle;
   let addBtn: HTMLButtonElement;
   let previewEl: HTMLElement;

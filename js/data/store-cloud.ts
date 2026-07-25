@@ -24,12 +24,12 @@ import {
 } from './store-vocab.js';
 import { shuffle } from '../lib/shuffle.js';
 import {
-  REVIEW_CARD_FIELDS, upsertSrsMeta, removeSrsMeta, removeSrsMetaForFolder, countSrsMetaByFolder,
+  REVIEW_CARD_FIELDS, CARD_MIRROR_SELECT, upsertSrsMeta, removeSrsMeta, removeSrsMetaForFolder, countSrsMetaByFolder,
 } from './srs-meta.js';
 import { StoreCache } from './store-cache.js';
 import { buildHomeStats, type HomeStats } from './home-stats.js';
 import { invalidateDerivedCaches } from './cache-invalidate.js';
-import { getCardsByIds, hydrateReviewQueue } from './card-hydrate.js';
+import { getCardsByIds, hydrateReviewQueueReport, cardsByIdsFilter } from './card-hydrate.js';
 import { isYoutubeCard } from '../lib/youtube-import.js';
 import type { Card, Folder, Box, Settings } from './types.js';
 import type { SrsMeta } from './srs-meta.js';
@@ -37,8 +37,9 @@ import type { Algo, SrsRow } from '../lib/srs.js';
 import type { ProgressInfo } from './store-vocab.js';
 import type { MiniSupabase } from './supabase.js';
 import {
-  CLOUD_SYNC_KEY, SRS_DELTA_SELECT, shouldUseCardsDelta, mergeSrsDelta,
-  nextCardsWatermark, stampUpdatedAt,
+  CLOUD_SYNC_KEY, shouldUseCardsDelta, mergeSrsDelta,
+  nextCardsWatermark, stampUpdatedAt, lwwUpdateFilter, resolveSettingsLww,
+  LWW_CONFLICT_MESSAGE,
 } from './cloud-delta.js';
 import {
   setActivityCloudSync, applyRemoteActivity, loadActivity,
@@ -100,6 +101,8 @@ export class CloudStore {
   _bgSyncTail: Promise<void>
   /** Промис текущей фоновой синхронизации с облаком (если идёт). */
   _cloudSyncPromise: Promise<void> | null
+  /** Локальный stamp settings (мс) для LWW с облаком. */
+  _settingsUpdatedAt: number
 
   constructor(sb: MiniSupabase) {
     this.kind = 'cloud';
@@ -124,6 +127,7 @@ export class CloudStore {
     this._activityPushTimer = null;
     this._bgSyncTail = Promise.resolve();
     this._cloudSyncPromise = null;
+    this._settingsUpdatedAt = 0;
   }
 
   _invalidateHomeStats() {
@@ -218,6 +222,7 @@ export class CloudStore {
     this.queue.onFlush(item => this._executeSyncItem(item));
     this.queue.onDeadLetter(() => this._notifySync());
     window.addEventListener('online', () => this._onOnline());
+    window.addEventListener('offline', () => this._onOffline());
     this._bindActivityCloudSync();
     this._bindReviewLogCloudSync();
     void initReviewLog();
@@ -303,6 +308,11 @@ export class CloudStore {
     try { await this._fetchFromCloud(); this._notifySync(); this._emitDataChange(); } catch (e) { /* mirror */ }
   }
 
+  _onOffline() {
+    this._offline = true;
+    void this._notifySync();
+  }
+
   async flushSync() {
     const r = await this.queue.flush();
     if (r.ok > 0 || r.fail > 0) this._notifySync();
@@ -329,9 +339,10 @@ export class CloudStore {
   _syncFromCloudInBackground() {
     const run = (async () => {
       try {
+        // Сначала сбросить локальную очередь — иначе pull затрёт незапушенные правки.
+        await this.flushSync();
         await this._fetchFromCloud();
         this._offline = false;
-        await this.flushSync();
         this._notifySync();
         this._emitDataChange();
       } catch (e) {
@@ -366,7 +377,7 @@ export class CloudStore {
 
     const [folders, settingsRows, boxesRaw, cardsPull] = await Promise.all([
       this.sb.select<Folder>('folders', 'select=*&order=created_at.asc'),
-      this.sb.select<{ data?: Settings }>('settings', 'select=*&user_id=eq.' + uid),
+      this.sb.select<{ data?: Settings; updated_at?: number }>('settings', 'select=*&user_id=eq.' + uid),
       this._fetchBoxesFromCloud(),
       useDelta ? this._pullCardsDelta(uid, sync?.cardsAt ?? Date.now()) : this._pullCardsFull(),
     ]);
@@ -380,18 +391,38 @@ export class CloudStore {
     }
     await mirrorReplaceAll(this.mirror, 'folders', folders);
     await mirrorReplaceAll(this.mirror, 'boxes', this.boxes);
+    if (cardsPull.full && cardsPull.bodies) {
+      await mirrorReplaceAll(this.mirror, 'cards', cardsPull.bodies);
+    } else if (cardsPull.bodies?.length) {
+      await mirrorPutMany(this.mirror, 'cards', cardsPull.bodies);
+    }
     this._srsMeta = cardsPull.meta;
     this._cache.clearAll();
     for (const [fid, n] of countSrsMetaByFolder(cardsPull.meta, folders)) {
       this._cache.setCount(fid, n);
     }
     invalidateDerivedCaches(this);
+
     const settingsRow = settingsRows[0];
-    if (settingsRow?.data) {
-      this.settings = Object.assign({}, DEFAULT_SETTINGS, settingsRow.data);
+    const remoteAt = Number(settingsRow?.updated_at) || 0;
+    const resolved = resolveSettingsLww(
+      this.settings as unknown as Record<string, unknown>,
+      this._settingsUpdatedAt,
+      (settingsRow?.data || null) as Record<string, unknown> | null,
+      remoteAt,
+    );
+    if (resolved.data) {
+      this.settings = Object.assign({}, DEFAULT_SETTINGS, resolved.data);
+      this._settingsUpdatedAt = resolved.updatedAt;
     }
     await mirrorSetKV(this.mirror, 'settings', this.settings);
+    await mirrorSetKV(this.mirror, 'settings_updated_at', this._settingsUpdatedAt);
     await this._ingestRemoteActivity();
+    // Если локальные настройки новее — вернуть их в облако после pull.
+    if (resolved.source === 'local' && this._settingsUpdatedAt > 0) {
+      void this.queue.enqueue({ op: 'saveSettings', payload: { settings: this.settings } });
+    }
+
     await mirrorSetKV(this.mirror, 'srs_meta', cardsPull.meta);
     const now = Date.now();
     await mirrorSetKV(this.mirror, CLOUD_SYNC_KEY, {
@@ -403,13 +434,19 @@ export class CloudStore {
   }
 
   async _pullCardsFull() {
-    const rows = await this.sb.select('cards', 'select=' + SRS_DELTA_SELECT);
+    // Полные тела — иначе зеркало cards устаревает навсегда (SRS meta ≠ front/back).
+    const rows = await this.sb.select<Card>('cards', 'select=' + CARD_MIRROR_SELECT);
     const { meta, maxAt } = mergeSrsDelta([], rows);
-    return { meta, cardsAt: nextCardsWatermark(0, maxAt), full: true };
+    return {
+      meta,
+      bodies: rows,
+      cardsAt: nextCardsWatermark(0, maxAt),
+      full: true,
+    };
   }
 
   /**
-   * Pull only cards with updated_at > since, merge into mirror srs_meta.
+   * Pull only cards with updated_at > since, merge into mirror srs_meta + card bodies.
    * Falls back to full when remote count disagrees (deletes) or query fails.
    */
   async _pullCardsDelta(uid: string, since: number) {
@@ -418,9 +455,9 @@ export class CloudStore {
         || (await mirrorGetKV(this.mirror, 'srs_meta'))
         || [];
       const [delta, remoteCount] = await Promise.all([
-        this.sb.select(
+        this.sb.select<Card>(
           'cards',
-          'user_id=eq.' + uid + '&updated_at=gt.' + since + '&select=' + SRS_DELTA_SELECT,
+          'user_id=eq.' + uid + '&updated_at=gt.' + since + '&select=' + CARD_MIRROR_SELECT,
         ),
         this.sb.count('cards', 'user_id=eq.' + uid),
       ]);
@@ -428,6 +465,7 @@ export class CloudStore {
       if (remoteCount !== meta.length) return this._pullCardsFull();
       return {
         meta,
+        bodies: delta,
         cardsAt: nextCardsWatermark(since, maxAt),
         full: false,
       };
@@ -464,6 +502,8 @@ export class CloudStore {
     this.boxes.sort((a, b) => (a.created_at || 0) - (b.created_at || 0));
     const settings = await mirrorGetKV(this.mirror, 'settings');
     if (settings) this.settings = Object.assign({}, DEFAULT_SETTINGS, settings as Partial<Settings>);
+    const settingsAt = await mirrorGetKV(this.mirror, 'settings_updated_at');
+    this._settingsUpdatedAt = Number(settingsAt) || 0;
     await this._ingestRemoteActivity();
     const meta = await mirrorGetKV(this.mirror, 'srs_meta');
     this._srsMeta = (meta as SrsMeta[] | null) || [];
@@ -561,24 +601,41 @@ export class CloudStore {
     }
   }
 
-  async _cloudPatchFolder(id: string, patch: Partial<Folder>) {
-    let payload = Object.assign({}, patch);
+  /**
+   * PATCH с optimistic concurrency / LWW: фильтр по baseUpdatedAt (или lt stamp).
+   * 0 затронутых строк = конфликт → dead letter (не молчаливый «успех»).
+   */
+  async _applyPatchWithLww(
+    table: string,
+    id: string,
+    patch: Record<string, unknown>,
+    baseUpdatedAt?: number | null,
+  ) {
+    const filter = lwwUpdateFilter(id, patch as { updated_at?: number }, baseUpdatedAt);
+    const rows = await this.sb.update(table, filter, patch, { returning: true });
+    if (!Array.isArray(rows) || rows.length === 0) {
+      throw new Error(LWW_CONFLICT_MESSAGE);
+    }
+  }
+
+  async _cloudPatchFolder(id: string, patch: Partial<Folder>, baseUpdatedAt?: number | null) {
+    let payload = Object.assign({}, patch) as Record<string, unknown>;
     if (this._folderIconCloudUnsupported) payload = withoutFolderIcon(payload);
     if (this._boxIdCloudUnsupported) payload = withoutBoxId(payload);
     if (!Object.keys(payload).length) return;
     try {
-      await this.sb.update('folders', 'id=eq.' + id, payload);
+      await this._applyPatchWithLww('folders', id, payload, baseUpdatedAt);
     } catch (e) {
       if (!this._folderIconCloudUnsupported && isMissingFolderIconColumnError(e) && patch && 'icon' in patch) {
         this._folderIconCloudUnsupported = true;
         await this._saveCloudFlags();
-        await this._cloudPatchFolder(id, withoutFolderIcon(patch));
+        await this._cloudPatchFolder(id, withoutFolderIcon(patch), baseUpdatedAt);
         return;
       }
       if (!this._boxIdCloudUnsupported && isMissingBoxIdColumnError(e) && patch && 'box_id' in patch) {
         this._boxIdCloudUnsupported = true;
         await this._saveCloudFlags();
-        await this._cloudPatchFolder(id, withoutBoxId(patch));
+        await this._cloudPatchFolder(id, withoutBoxId(patch), baseUpdatedAt);
         return;
       }
       throw e;
@@ -607,13 +664,13 @@ export class CloudStore {
     }
   }
 
-  async _cloudUpdateBox(id: string, patch: Partial<Box>) {
+  async _cloudUpdateBox(id: string, patch: Partial<Box>, baseUpdatedAt?: number | null) {
     if (this._boxesCloudUnsupported) return;
-    let payload = Object.assign({}, patch);
+    let payload = Object.assign({}, patch) as Record<string, unknown>;
     if (this._boxIconCloudUnsupported) payload = withoutFolderIcon(payload);
     if (!Object.keys(payload).length) return;
     try {
-      await this.sb.update('boxes', 'id=eq.' + id, payload);
+      await this._applyPatchWithLww('boxes', id, payload, baseUpdatedAt);
     } catch (e) {
       if (isMissingBoxesTableError(e)) {
         this._boxesCloudUnsupported = true;
@@ -623,7 +680,7 @@ export class CloudStore {
       if (!this._boxIconCloudUnsupported && isMissingBoxIconColumnError(e) && patch && 'icon' in patch) {
         this._boxIconCloudUnsupported = true;
         await this._saveCloudFlags();
-        await this._cloudUpdateBox(id, withoutFolderIcon(patch));
+        await this._cloudUpdateBox(id, withoutFolderIcon(patch), baseUpdatedAt);
         return;
       }
       throw e;
@@ -647,16 +704,22 @@ export class CloudStore {
   async _executeSyncItem({ op, payload }: { op: string; payload: any }) {
     switch (op) {
       case 'createFolder': await this._cloudInsertFolder(payload.row); break;
-      case 'updateFolder': await this._cloudPatchFolder(payload.id, payload.patch); break;
+      case 'updateFolder':
+        await this._cloudPatchFolder(payload.id, payload.patch, payload.baseUpdatedAt);
+        break;
       case 'deleteFolder':
         await this.sb.remove('cards', 'folder_id=eq.' + payload.id);
         await this.sb.remove('folders', 'id=eq.' + payload.id);
         break;
       case 'createBox': await this._cloudInsertBox(payload.row); break;
-      case 'updateBox': await this._cloudUpdateBox(payload.id, payload.patch); break;
+      case 'updateBox':
+        await this._cloudUpdateBox(payload.id, payload.patch, payload.baseUpdatedAt);
+        break;
       case 'deleteBox': await this._cloudDeleteBox(payload.id); break;
       case 'createCard': await this.sb.insert('cards', payload.row); break;
-      case 'updateCard': await this.sb.update('cards', 'id=eq.' + payload.id, payload.patch); break;
+      case 'updateCard':
+        await this._applyPatchWithLww('cards', payload.id, payload.patch, payload.baseUpdatedAt);
+        break;
       case 'deleteCard':
         if (payload.urls) for (const url of payload.urls) await this.deleteImage(url);
         await this.sb.remove('cards', 'id=eq.' + payload.id);
@@ -667,7 +730,15 @@ export class CloudStore {
       case 'uploadImage':
         payload.url = await this.sb.uploadFile('card-images', payload.path, payload.blob, payload.contentType);
         if (payload.cardId && payload.side) {
-          await this.sb.update('cards', 'id=eq.' + payload.cardId, stampUpdatedAt({ [payload.side]: payload.url }));
+          await this._applyPatchWithLww(
+            'cards',
+            payload.cardId,
+            stampUpdatedAt({ [payload.side]: payload.url }) as Record<string, unknown>,
+            payload.baseUpdatedAt,
+          );
+          await this._setCardImageLocal(payload.cardId, payload.side, payload.url);
+        } else if (payload.dataUrl) {
+          await this._replaceDataUrlInCards(payload.dataUrl, payload.url);
         }
         break;
       case 'logReview': await this._cloudLogReview(payload as ReviewLogEntry); break;
@@ -680,8 +751,10 @@ export class CloudStore {
     if (this._reviewLogCloudUnsupported) return;
     const uid = this.sb.userId();
     if (!uid) throw new Error('Нет активной сессии — войдите снова');
+    // synthetic — локальный флаг оптимизатора; в облачную схему может ещё не входить.
+    const { synthetic: _synthetic, ...rest } = entry as ReviewLogEntry & { synthetic?: boolean };
     try {
-      await this.sb.upsert('review_log', Object.assign({ user_id: uid }, entry), { onConflict: 'id' });
+      await this.sb.upsert('review_log', Object.assign({ user_id: uid }, rest), { onConflict: 'id' });
     } catch (e) {
       if (isReviewLogMissing(e)) { this._reviewLogCloudUnsupported = true; await this._saveCloudFlags(); return; }
       throw e;
@@ -701,13 +774,20 @@ export class CloudStore {
   async _cloudSaveSettings(settings: unknown) {
     const uid = this.sb.userId();
     if (!uid) throw new Error('Нет активной сессии — войдите снова');
+    const at = Number(this._settingsUpdatedAt) || Date.now();
+    try {
+      const rows = await this.sb.select<{ updated_at?: number }>('settings', 'select=updated_at&user_id=eq.' + uid);
+      const remoteAt = Number(rows[0]?.updated_at) || 0;
+      if (remoteAt > at) return;
+    } catch (e) {
+      if (isNetworkError(e)) throw e;
+    }
     const row = {
       user_id: uid,
       data: settings,
-      updated_at: Date.now(),
+      updated_at: at,
     };
     const push = async () => {
-      // on_conflict обязателен для upsert под RLS; иначе PostgREST часто делает INSERT и падает.
       try {
         await this.sb.upsert('settings', row, { onConflict: 'user_id' });
         return;
@@ -715,23 +795,23 @@ export class CloudStore {
         const msg = e instanceof Error ? e.message : String(e);
         if (!/row-level security|42501/i.test(msg)) throw e;
       }
-      // Fallback: UPDATE, при пустом ответе — INSERT (надёжнее при глюках upsert+RLS).
       try {
-        await this.sb.update('settings', 'user_id=eq.' + uid, {
-          data: settings,
-          updated_at: row.updated_at,
-        });
+        await this.sb.update(
+          'settings',
+          'user_id=eq.' + uid + '&updated_at=lte.' + at,
+          { data: settings, updated_at: at },
+        );
       } catch (e) {
         /* try insert below */
       }
       try {
         await this.sb.insert('settings', row);
       } catch (e2) {
-        // Строка уже есть — повторный update
-        await this.sb.update('settings', 'user_id=eq.' + uid, {
-          data: settings,
-          updated_at: Date.now(),
-        });
+        await this.sb.update(
+          'settings',
+          'user_id=eq.' + uid + '&updated_at=lte.' + at,
+          { data: settings, updated_at: at },
+        );
       }
     };
     try {
@@ -764,7 +844,8 @@ export class CloudStore {
   }
 
   async getFolderCards(folderId: string) {
-    if (this._cache.folderCache.has(folderId)) return this._cache.folderCache.get(folderId);
+    const hit = this._cache.getFolderList(folderId);
+    if (hit) return hit;
     let cards;
     if (navigator.onLine && !this._offline) {
       try {
@@ -780,7 +861,7 @@ export class CloudStore {
       cards = await indexGetAll<Card>(this.mirror, 'cards', 'folder_id', folderId);
     }
     cards.sort((a: Card, b: Card) => (b.created_at || 0) - (a.created_at || 0));
-    this._cache.folderCache.set(folderId, cards);
+    this._cache.setFolderList(folderId, cards);
     return cards;
   }
 
@@ -826,26 +907,56 @@ export class CloudStore {
           this.sb.select('cards', newQ),
         ]);
         await mirrorPutMany(this.mirror, 'cards', dueCards.concat(newCards));
-        return { due: shuffle(dueCards), fresh: shuffle(newCards).slice(0, newLimit) };
+        return { due: shuffle(dueCards), fresh: shuffle(newCards).slice(0, newLimit), missingOffline: 0 };
       } catch (e) { if (!isNetworkError(e)) throw e; this._offline = true; }
     }
 
     const source = filterByFolder(this._srsMeta || [], folderId);
     const { due, fresh } = buildReviewQueue(source, algo, newLimit, now);
-    const ids = [...due.map(c => c.id), ...fresh.map(c => c.id)];
-    const byId = await getCardsByIds(this.mirror, this._cache, ids);
+    const dueH = await this._hydrateQueueRows(due);
+    const freshH = await this._hydrateQueueRows(fresh);
     return {
-      due: hydrateReviewQueue(due, byId),
-      fresh: hydrateReviewQueue(fresh, byId),
+      due: dueH.cards,
+      fresh: freshH.cards,
+      missingOffline: dueH.missingIds.length + freshH.missingIds.length,
     };
   }
 
-  async getCramCards(folderId: string | null, limit: number) {
+  async getCramCards(folderId: string | null, limit?: number | null) {
     const source = filterByFolder(this._srsMeta || [], folderId);
     const picked = shuffle(source);
-    const slice = limit > 0 ? picked.slice(0, limit) : picked;
-    const byId = await getCardsByIds(this.mirror, this._cache, slice.map(c => c.id));
-    return hydrateReviewQueue(slice, byId);
+    const lim = limit ?? 0;
+    const slice = lim > 0 ? picked.slice(0, lim) : picked;
+    const { cards, missingIds } = await this._hydrateQueueRows(slice);
+    return { cards, missingOffline: missingIds.length };
+  }
+
+  /**
+   * Собрать тела карточек для SRS-очереди: зеркало → при промахе догрузка с сервера.
+   * Оставшиеся id возвращаются в missingIds (честный офлайн-пропуск).
+   */
+  async _hydrateQueueRows(queueRows: SrsRow[]): Promise<{ cards: Card[]; missingIds: string[] }> {
+    const ids = queueRows.map(c => c.id);
+    let byId = await getCardsByIds(this.mirror, this._cache, ids);
+    let report = hydrateReviewQueueReport(queueRows, byId);
+    if (!report.missingIds.length) return report;
+
+    if (navigator.onLine && this.sb?.select) {
+      try {
+        const rows = await this.sb.select<Card>('cards', cardsByIdsFilter(report.missingIds));
+        if (rows.length) {
+          await mirrorPutMany(this.mirror, 'cards', rows);
+          for (const row of rows) {
+            if (row.id) byId.set(row.id, row);
+          }
+          report = hydrateReviewQueueReport(queueRows, byId);
+        }
+      } catch (e) {
+        if (!isNetworkError(e)) throw e;
+        this._offline = true;
+      }
+    }
+    return report;
   }
 
   async scanFolderFronts(folderId: string | null, { youtubeOnly = false }: { youtubeOnly?: boolean } = {}) {
@@ -894,10 +1005,11 @@ export class CloudStore {
   async updateFolder(id: string, patch: Partial<Folder>) {
     const f = this.folders.find(x => x.id === id);
     if (!f) return null;
+    const baseUpdatedAt = Number(f.updated_at) || 0;
     const stamped = stampUpdatedAt(patch);
     Object.assign(f, stamped);
     await mirrorPut(this.mirror, 'folders', f);
-    return this._cloudOrQueue('updateFolder', { id, patch: stamped }, async () => f);
+    return this._cloudOrQueue('updateFolder', { id, patch: stamped, baseUpdatedAt }, async () => f);
   }
 
   async deleteFolder(id: string) {
@@ -927,11 +1039,12 @@ export class CloudStore {
   async updateBox(id: string, patch: Partial<Box>) {
     const b = this.boxes.find(x => x.id === id);
     if (!b) return null;
+    const baseUpdatedAt = Number(b.updated_at) || 0;
     const stamped = stampUpdatedAt(patch);
     Object.assign(b, stamped);
     await mirrorPut(this.mirror, 'boxes', b);
     if (this._boxesCloudUnsupported) return b;
-    return this._cloudOrQueue('updateBox', { id, patch: stamped }, async () => b);
+    return this._cloudOrQueue('updateBox', { id, patch: stamped, baseUpdatedAt }, async () => b);
   }
 
   async deleteBox(id: string) {
@@ -949,29 +1062,32 @@ export class CloudStore {
     const f = this.folders.find(x => x.id === folderId);
     if (!f) return null;
     if (boxId && !this.boxes.find(b => b.id === boxId)) return null;
+    const baseUpdatedAt = Number(f.updated_at) || 0;
     const stamped = stampUpdatedAt({ box_id: boxId || null });
     Object.assign(f, stamped);
     await mirrorPut(this.mirror, 'folders', f);
-    return this._cloudOrQueue('updateFolder', { id: folderId, patch: stamped }, async () => f);
+    return this._cloudOrQueue('updateFolder', { id: folderId, patch: stamped, baseUpdatedAt }, async () => f);
   }
 
   async setBoxFolders(boxId: string, folderIds: string[]) {
     const idSet = new Set(folderIds);
     for (const f of this.folders) {
       if (f.box_id === boxId && !idSet.has(f.id)) {
+        const baseUpdatedAt = Number(f.updated_at) || 0;
         const stamped = stampUpdatedAt({ box_id: null });
         Object.assign(f, stamped);
         await mirrorPut(this.mirror, 'folders', f);
-        await this._cloudOrQueue('updateFolder', { id: f.id, patch: stamped }, async () => f);
+        await this._cloudOrQueue('updateFolder', { id: f.id, patch: stamped, baseUpdatedAt }, async () => f);
       }
     }
     for (const fid of folderIds) {
       const f = this.folders.find(x => x.id === fid);
       if (!f || (f.box_id && f.box_id !== boxId)) continue;
+      const baseUpdatedAt = Number(f.updated_at) || 0;
       const stamped = stampUpdatedAt({ box_id: boxId });
       Object.assign(f, stamped);
       await mirrorPut(this.mirror, 'folders', f);
-      await this._cloudOrQueue('updateFolder', { id: fid, patch: stamped }, async () => f);
+      await this._cloudOrQueue('updateFolder', { id: fid, patch: stamped, baseUpdatedAt }, async () => f);
     }
   }
 
@@ -994,19 +1110,24 @@ export class CloudStore {
     this._cache.prependCard(row.folder_id ?? "", row);
     this._cache.bumpCount(row.folder_id ?? "", 1);
     invalidateDerivedCaches(this, { folderId: row.folder_id });
-    return this._cloudOrQueue('createCard', { row }, async () => row);
+    await this._attachImageUploads(row);
+    const cloudRow = this._cloudSafeCardRow(row);
+    return this._cloudOrQueue('createCard', { row: cloudRow }, async () => row);
   }
 
   async updateCard(id: string, patch: Partial<Card>) {
     let c = await this._getCardById(id);
     if (!c) return null;
+    const baseUpdatedAt = Number(c.updated_at) || 0;
     const stamped = stampUpdatedAt(patch);
     Object.assign(c, stamped as Partial<Card>);
     await mirrorPut(this.mirror, 'cards', c);
     this._patchSrsMeta(c);
     this._cache.patchCardInLists(id, stamped as Partial<Card>);
     invalidateDerivedCaches(this, { folderId: c.folder_id });
-    return this._cloudOrQueue('updateCard', { id, patch: stamped }, async () => c, { optimistic: true });
+    await this._attachImageUploads(c);
+    const cloudPatch = this._cloudSafeCardRow(stamped as unknown as Card);
+    return this._cloudOrQueue('updateCard', { id, patch: cloudPatch, baseUpdatedAt }, async () => c, { optimistic: true });
   }
 
   async deleteCard(id: string) {
@@ -1030,13 +1151,20 @@ export class CloudStore {
     }
   }
 
-  async uploadImage(file: Blob) {
+  async uploadImage(file: Blob, opts: { cardId?: string; side?: string } = {}) {
     const blob = await resizeImage(file);
     const ext = blob.type === 'image/png' ? 'png' : 'jpg';
     const path = this.sb.userId() + '/' + uuid() + '.' + ext;
+    const link = {
+      cardId: opts.cardId,
+      side: opts.side,
+    };
     if (!navigator.onLine) {
       const dataUrl = await blobToDataURL(blob);
-      await this.queue.enqueue({ op: 'uploadImage', payload: { path, blob, contentType: blob.type } });
+      await this.queue.enqueue({
+        op: 'uploadImage',
+        payload: { path, blob, contentType: blob.type, dataUrl, ...link },
+      });
       this._offline = true;
       this._notifySync();
       return dataUrl;
@@ -1046,12 +1174,91 @@ export class CloudStore {
     } catch (e) {
       if (isNetworkError(e)) {
         const dataUrl = await blobToDataURL(blob);
-        await this.queue.enqueue({ op: 'uploadImage', payload: { path, blob, contentType: blob.type } });
+        await this.queue.enqueue({
+          op: 'uploadImage',
+          payload: { path, blob, contentType: blob.type, dataUrl, ...link },
+        });
         this._offline = true;
         this._notifySync();
         return dataUrl;
       }
       throw e;
+    }
+  }
+
+  /** Не слать data:-URL в Postgres — только Storage-ссылки или null. */
+  _cloudSafeCardRow(row: Card | Record<string, unknown>): Record<string, unknown> {
+    const out = Object.assign({}, row) as Record<string, unknown>;
+    for (const side of ['front_img', 'back_img'] as const) {
+      const v = out[side];
+      if (typeof v === 'string' && v.startsWith('data:')) out[side] = null;
+    }
+    return out;
+  }
+
+  /**
+   * После сохранения карточки: привязать отложенные uploadImage к cardId/side
+   * или поставить в очередь новую загрузку из data:-URL.
+   */
+  async _attachImageUploads(card: Card) {
+    if (!card?.id) return;
+    for (const side of ['front_img', 'back_img'] as const) {
+      const val = card[side];
+      if (!val || !String(val).startsWith('data:')) continue;
+      const bound = await this.queue.bindUploadImages(val, { cardId: card.id, side });
+      if (bound > 0) continue;
+      try {
+        const blob = await (await fetch(val)).blob();
+        const resized = await resizeImage(blob);
+        const ext = resized.type === 'image/png' ? 'png' : 'jpg';
+        const path = this.sb.userId() + '/' + uuid() + '.' + ext;
+        await this.queue.enqueue({
+          op: 'uploadImage',
+          payload: {
+            path,
+            blob: resized,
+            contentType: resized.type,
+            dataUrl: val,
+            cardId: card.id,
+            side,
+            baseUpdatedAt: Number(card.updated_at) || 0,
+          },
+        });
+        this._notifySync();
+      } catch (e) {
+        console.warn('attachImageUploads', e);
+      }
+    }
+  }
+
+  async _setCardImageLocal(cardId: string, side: string, url: string) {
+    const c = await this._getCardById(cardId);
+    if (!c) return;
+    (c as unknown as Record<string, unknown>)[side] = url;
+    await mirrorPut(this.mirror, 'cards', c);
+    this._cache.patchCardInLists(cardId, { [side]: url } as Partial<Card>);
+  }
+
+  /** Запасной путь: заменить data: в зеркале и на сервере, если cardId не был в очереди. */
+  async _replaceDataUrlInCards(dataUrl: string, url: string) {
+    if (!this.mirror || !dataUrl) return;
+    const cards = await getAll<Card>(this.mirror, 'cards');
+    for (const c of cards) {
+      if (!c?.id) continue;
+      for (const side of ['front_img', 'back_img'] as const) {
+        if (c[side] !== dataUrl) continue;
+        await this._setCardImageLocal(c.id, side, url);
+        try {
+          await this._applyPatchWithLww(
+            'cards',
+            c.id,
+            stampUpdatedAt({ [side]: url }) as Record<string, unknown>,
+            Number(c.updated_at) || 0,
+          );
+        } catch (e) {
+          if (!isNetworkError(e)) console.warn('replaceDataUrlInCards', e);
+        }
+      }
     }
   }
 
@@ -1062,9 +1269,31 @@ export class CloudStore {
     try { await this.sb.deleteFile('card-images', url.slice(i + marker.length)); } catch (e) {}
   }
 
+  /**
+   * При смене алгоритма — сидировать пустые колонки цели из прогресса источника.
+   * Старые колонки не трогаем (обратное переключение вернёт прежний прогресс).
+   */
+  async convertAlgoProgress(from: Algo, to: Algo) {
+    if (!from || !to || from === to) return { updated: 0 };
+    const { convertAlgoPatch } = await import('../lib/srs-convert.js');
+    const cards = await getAll<Card>(this.mirror, 'cards');
+    const settings = { leitnerIntervals: this.settings.leitnerIntervals };
+    let updated = 0;
+    for (const card of cards) {
+      if (!card?.id) continue;
+      const patch = convertAlgoPatch(card as SrsRow, from, to, settings);
+      if (!patch) continue;
+      await this.updateCard(card.id, patch as Partial<Card>);
+      updated++;
+    }
+    return { updated };
+  }
+
   async saveSettings(s: Settings) {
     this.settings = s;
+    this._settingsUpdatedAt = Date.now();
     await mirrorSetKV(this.mirror, 'settings', s);
+    await mirrorSetKV(this.mirror, 'settings_updated_at', this._settingsUpdatedAt);
     if (s.algo === 'fsrs') {
       const { preloadFsrs } = await import('../lib/srs.js');
       await preloadFsrs();

@@ -31,8 +31,8 @@
  * @property {(folderId?: string|null, algo?: string, from?: number, to?: number) => Promise<number>} countDueBetween
  * @property {(folderId?: string|null, algo?: string) => Promise<number>} countNew
  * @property {(budget?: number) => Promise<import('./home-stats.js').HomeStats>} getHomeStats
- * @property {(folderId?: string|null, algo?: string, newLimit?: number, now?: number) => Promise<{due: Object[], fresh: Object[]}>} getReviewCards
- * @property {(folderId: string, limit?: number|null) => Promise<Object[]>} getCramCards
+ * @property {(folderId?: string|null, algo?: string, newLimit?: number, now?: number) => Promise<{due: Object[], fresh: Object[], missingOffline?: number}>} getReviewCards
+ * @property {(folderId: string, limit?: number|null) => Promise<{cards: Object[], missingOffline?: number}|Object[]>} getCramCards
  * @property {(data: Object) => Promise<Object>} createFolder
  * @property {(id: string, patch: Object) => Promise<Object|null>} updateFolder
  * @property {(id: string) => Promise<boolean|void>} deleteFolder
@@ -47,6 +47,7 @@
  * @property {(id: string, patch: Object) => Promise<Object|null>} updateCard
  * @property {(id: string) => Promise<void>} deleteCard
  * @property {(file: File) => Promise<string>} uploadImage
+ * @property {(from: string, to: string) => Promise<{updated: number}>} [convertAlgoProgress]
  * @property {(url?: string) => Promise<void>} deleteImage
  * @property {(s: StoreSettings) => Promise<StoreSettings>} saveSettings
  * @property {() => Promise<string>} exportJSONFull
@@ -67,11 +68,11 @@ import type { Folder, Box, Card } from "./types.js"
 export function buildFolderRecord(data: Partial<Folder>, extras: Record<string, unknown> = {}): Folder {
   const t = Date.now()
   return {
-    id: uuid(),
+    id: data.id || uuid(),
     name: data.name ?? "",
     color: data.color || "#7C8DB5",
     icon: normalizeFolderIcon(data.icon),
-    created_at: t,
+    created_at: data.created_at ?? t,
     updated_at: t,
     pack_id: data.pack_id ?? null,
     pack_version: data.pack_version ?? null,

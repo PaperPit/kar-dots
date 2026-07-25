@@ -207,7 +207,25 @@ export function shell(viewName: string, content: Node | Node[], prependToMain?: 
 export { nav } from "./navigation.js"
 
 export function offlineBanner(): HTMLElement | null {
-  if (!store || store.kind !== "cloud") return null
+  if (!store) return null
+
+  // Local mode: simple connectivity banner
+  if (store.kind !== "cloud") {
+    const statusEl = el("span", null, "Нет сети")
+    const banner = el("div", { class: "offline-banner sync-banner", role: "status" }, [statusEl])
+    const refreshLocal = () => {
+      const offline = !navigator.onLine
+      banner.hidden = !offline
+      statusEl.textContent = offline
+        ? "Нет сети — данные остаются на этом устройстве."
+        : ""
+    }
+    window.addEventListener("online", refreshLocal)
+    window.addEventListener("offline", refreshLocal)
+    refreshLocal()
+    return banner
+  }
+
   const statusEl = el(
     "span",
     null,
@@ -223,7 +241,8 @@ export function offlineBanner(): HTMLElement | null {
     if (!store || store.kind !== "cloud") return
     const pending = typeof store.pendingSync === "function" ? await store.pendingSync() : 0
     const failed = typeof store.deadLetterCount === "function" ? await store.deadLetterCount() : 0
-    const hasWork = store.offline || pending > 0 || failed > 0
+    const offline = store.offline || !navigator.onLine
+    const hasWork = offline || pending > 0 || failed > 0
 
     banner.hidden = !hasWork
     actionsEl.replaceChildren()
@@ -231,12 +250,12 @@ export function offlineBanner(): HTMLElement | null {
     if (!hasWork) return
 
     const parts = []
-    if (store.offline) parts.push("Нет сети — новые изменения ждут подключения.")
+    if (offline) parts.push("Нет сети — новые изменения ждут подключения.")
     if (pending > 0) parts.push(`В очереди синхронизации: ${pending}.`)
     if (failed > 0) parts.push(`Не удалось отправить: ${failed}.`)
     statusEl.textContent = parts.join(" ")
 
-    if (pending > 0 && !store.offline) {
+    if (pending > 0 && !offline) {
       actionsEl.append(
         el(
           "button",
@@ -267,7 +286,7 @@ export function offlineBanner(): HTMLElement | null {
               class: "link-btn sync-banner-btn",
               title: letter.error || "Ошибка синхронизации",
               onclick: async () => {
-                const ok = await store.retryDeadLetter(letter.id)
+                const ok = await store.retryDeadLetter(letter.id!)
                 toast(
                   ok ? "Повторная синхронизация запущена" : "Запись уже обработана",
                   ok ? "ok" : "error"
@@ -285,7 +304,7 @@ export function offlineBanner(): HTMLElement | null {
               class: "link-btn sync-banner-btn",
               title: letter.error || "Ошибка синхронизации",
               onclick: async () => {
-                const ok = await store.discardDeadLetter(letter.id)
+                const ok = await store.discardDeadLetter(letter.id!)
                 toast(ok ? "Ошибка синхронизации скрыта" : "Запись уже обработана")
                 await refresh()
               }
@@ -297,7 +316,12 @@ export function offlineBanner(): HTMLElement | null {
     }
   }
 
-  if (typeof store.onSyncChange === "function") store.onSyncChange(() => refresh())
+  if (store.kind === "cloud") {
+    const cloud = store as import("../data/store-cloud.js").CloudStore
+    if (typeof cloud.onSyncChange === "function") cloud.onSyncChange(() => refresh())
+  }
+  window.addEventListener("online", () => { void refresh() })
+  window.addEventListener("offline", () => { void refresh() })
   refresh().catch((e) => {
     console.error("Sync banner error:", e)
     statusEl.textContent = "Не удалось прочитать состояние синхронизации."

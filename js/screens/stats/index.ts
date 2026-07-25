@@ -1,6 +1,6 @@
 import { store } from '../../core/state.js';
 import { el } from '../../ui/ui.js';
-import { shell } from '../../ui/shell.js';
+import { shell, offlineBanner } from '../../ui/shell.js';
 import { initActivity, loadActivity, calcVisitStreak } from '../../lib/activity.js';
 import { initReviewLog, getAllReviews } from '../../lib/review-log.js';
 import {
@@ -78,7 +78,10 @@ function folderBreakdown(reviews: ReviewLogEntry[], folders: { id: string; name:
 export async function renderStats(): Promise<void> {
   await Promise.all([initActivity(), initReviewLog()]);
   try {
-    if (store && typeof store.syncReviewLogFromCloud === 'function') await store.syncReviewLogFromCloud();
+    if (store && store.kind === 'cloud') {
+      const cloud = store as import('../../data/store-cloud.js').CloudStore;
+      if (typeof cloud.syncReviewLogFromCloud === 'function') await cloud.syncReviewLogFromCloud();
+    }
   } catch (e) { /* офлайн — покажем локальные данные */ }
 
   const reviews = await getAllReviews();
@@ -119,6 +122,7 @@ export async function renderStats(): Promise<void> {
   );
 
   const content = el('div', null, [
+    offlineBanner(),
     el('div', { class: 'page-head' }, [
       el('h2', { class: 'page-title' }, 'Статистика'),
     ]),
@@ -131,7 +135,7 @@ export async function renderStats(): Promise<void> {
       barChart(forecast),
     ),
     reviews.length ? section('По папкам', folderBreakdown(reviews, folders)) : null,
-    el('p', { class: 'muted settings-footer' }, 'КАР-точки · статистика ведётся локально' + (typeof store?.syncReviewLogFromCloud === 'function' ? ' и синхронизируется с облаком' : '')),
+    el('p', { class: 'muted settings-footer' }, 'КАР-точки · статистика ведётся локально' + (store?.kind === 'cloud' ? ' и синхронизируется с облаком' : '')),
   ]);
 
   shell('stats', content);

@@ -15,4 +15,4 @@
 ## Чеклист
 
 - [ ] Diff минимальный, без лишнего рефакторинга
-- [ ] При изменении precache: `npm run sw:generate` + bump `VERSION` в `sw.js`
+- [ ] При изменении precache: `npm run sw:generate` + bump `VERSION`; CI гоняет `build:bundle` + `sw:check`

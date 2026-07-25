@@ -1,7 +1,9 @@
 /** Windowed list inside a scroll container (.main) — only visible rows in DOM. */
 
 const DEFAULT_OVERSCAN = 16
-const DEFAULT_GAP = 10
+/** Matches css/screens/folder.css row (~70px) + --sp-2 gap (8px). */
+export const DEFAULT_ROW_HEIGHT = 70
+export const DEFAULT_GAP = 8
 
 /** Offset of list top from the top of scrollRoot content (px). */
 export function getListOffset(scrollRoot: HTMLElement, root: HTMLElement) {
@@ -56,15 +58,6 @@ export function computeVisibleRange({
   return { start, end, stride }
 }
 
-/**
- * @param {object} opts
- * @param {HTMLElement} opts.scrollRoot — usually `.main`
- * @param {HTMLElement} opts.mount — replaced by virtual list root
- * @param {Array} opts.items
- * @param {number} opts.rowHeight — row content height (gap separate)
- * @param {number} [opts.gap]
- * @param {(item: *, index: number) => HTMLElement} opts.renderRow
- */
 export interface VirtualList {
   setItems(next: unknown[]): void
   refresh(): void
@@ -75,9 +68,11 @@ export interface VirtualListOpts<T> {
   scrollRoot: HTMLElement
   mount: HTMLElement
   items: T[]
-  rowHeight: number
+  rowHeight?: number
   gap?: number
   overscan?: number
+  /** CSS selector for a measurable row inside the window (after first paint). */
+  measureSelector?: string
   renderRow: (item: T, index: number) => HTMLElement
 }
 
@@ -85,18 +80,19 @@ export function createVirtualList<T>({
   scrollRoot,
   mount,
   items,
-  rowHeight,
-  gap = DEFAULT_GAP,
+  rowHeight: initialRowHeight = DEFAULT_ROW_HEIGHT,
+  gap: initialGap = DEFAULT_GAP,
   overscan = DEFAULT_OVERSCAN,
+  measureSelector = '.card-row',
   renderRow
 }: VirtualListOpts<T>): VirtualList {
-  const root = document.createElement("div")
-  root.className = "virtual-list card-list"
-  const spacer = document.createElement("div")
-  spacer.className = "virtual-list-spacer"
-  spacer.setAttribute("aria-hidden", "true")
-  const windowEl = document.createElement("div")
-  windowEl.className = "virtual-list-window"
+  const root = document.createElement('div')
+  root.className = 'virtual-list card-list'
+  const spacer = document.createElement('div')
+  spacer.className = 'virtual-list-spacer'
+  spacer.setAttribute('aria-hidden', 'true')
+  const windowEl = document.createElement('div')
+  windowEl.className = 'virtual-list-window'
   root.append(spacer, windowEl)
   mount.replaceWith(root)
 
@@ -105,11 +101,20 @@ export function createVirtualList<T>({
   let renderedStart = -1
   let renderedEnd = -1
   let renderedTranslate = -1
-  const stride = rowHeight + gap
+  let rowHeight = initialRowHeight
+  let gap = initialGap
+  let stride = rowHeight + gap
+  let cachedListOffset: number | null = null
+  let lastSpacerHeight = -1
+  let didMeasure = false
 
   function totalHeight() {
     if (!data.length) return 0
     return data.length * stride - gap
+  }
+
+  function invalidateOffset() {
+    cachedListOffset = null
   }
 
   function paintWindow(start: number, end: number) {
@@ -122,7 +127,7 @@ export function createVirtualList<T>({
 
     if (end <= start) {
       windowEl.replaceChildren()
-      windowEl.style.transform = ""
+      windowEl.style.transform = ''
       return
     }
 
@@ -133,27 +138,71 @@ export function createVirtualList<T>({
     }
   }
 
+  function tryMeasure() {
+    if (didMeasure || !data.length) return
+    const row = windowEl.querySelector(measureSelector) as HTMLElement | null
+    if (!row) return
+    const h = row.getBoundingClientRect().height
+    if (!(h > 0)) return
+    const cs = getComputedStyle(windowEl)
+    const g = parseFloat(cs.gap || cs.rowGap || '') || gap
+    rowHeight = Math.round(h)
+    gap = Math.round(g)
+    stride = rowHeight + gap
+    didMeasure = true
+    invalidateOffset()
+    renderedStart = renderedEnd = -1
+    renderedTranslate = -1
+  }
+
   function render() {
-    spacer.style.height = totalHeight() + "px"
+    const nextH = totalHeight()
+    if (nextH !== lastSpacerHeight) {
+      spacer.style.height = nextH + 'px'
+      lastSpacerHeight = nextH
+    }
     if (!data.length) {
       windowEl.replaceChildren()
-      windowEl.style.transform = ""
+      windowEl.style.transform = ''
       renderedStart = renderedEnd = -1
       renderedTranslate = -1
       return
     }
 
-    const listOffset = getListOffset(scrollRoot, root)
+    if (cachedListOffset == null) {
+      cachedListOffset = getListOffset(scrollRoot, root)
+    }
     const range = computeVisibleRange({
       scrollTop: scrollRoot.scrollTop,
       viewportHeight: scrollRoot.clientHeight,
-      listOffset,
+      listOffset: cachedListOffset,
       totalItems: data.length,
       rowHeight,
       gap,
       overscan
     })
     paintWindow(range.start, range.end)
+    if (!didMeasure) {
+      tryMeasure()
+      if (didMeasure) {
+        // Recompute spacer/range with real metrics once.
+        const h2 = totalHeight()
+        if (h2 !== lastSpacerHeight) {
+          spacer.style.height = h2 + 'px'
+          lastSpacerHeight = h2
+        }
+        const range2 = computeVisibleRange({
+          scrollTop: scrollRoot.scrollTop,
+          viewportHeight: scrollRoot.clientHeight,
+          listOffset: cachedListOffset ?? getListOffset(scrollRoot, root),
+          totalItems: data.length,
+          rowHeight,
+          gap,
+          overscan
+        })
+        paintWindow(range2.start, range2.end)
+      }
+    }
   }
 
   function scheduleRender() {
@@ -165,8 +214,13 @@ export function createVirtualList<T>({
   }
 
   const onScroll = () => scheduleRender()
-  scrollRoot.addEventListener("scroll", onScroll, { passive: true })
-  window.addEventListener("resize", onScroll, { passive: true })
+  const onResize = () => {
+    invalidateOffset()
+    didMeasure = false
+    scheduleRender()
+  }
+  scrollRoot.addEventListener('scroll', onScroll, { passive: true })
+  window.addEventListener('resize', onResize, { passive: true })
 
   scheduleRender()
 
@@ -175,12 +229,16 @@ export function createVirtualList<T>({
       data = next as T[]
       renderedStart = renderedEnd = -1
       renderedTranslate = -1
+      invalidateOffset()
       scheduleRender()
     },
-    refresh: scheduleRender,
+    refresh() {
+      invalidateOffset()
+      scheduleRender()
+    },
     destroy() {
-      scrollRoot.removeEventListener("scroll", onScroll)
-      window.removeEventListener("resize", onScroll)
+      scrollRoot.removeEventListener('scroll', onScroll)
+      window.removeEventListener('resize', onResize)
       if (raf) cancelAnimationFrame(raf)
     }
   }

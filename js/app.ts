@@ -15,6 +15,32 @@ function dismissBootSplash() {
   animateBootSplashOut(document.getElementById('bootSplash') as HTMLElement);
 }
 
+/** Global error / rejection → toast (deduped). */
+function installGlobalErrorHandlers() {
+  let lastMsg = '';
+  let lastAt = 0;
+  const report = (raw: string) => {
+    const msg = (raw || 'Неизвестная ошибка').slice(0, 200);
+    const now = Date.now();
+    if (msg === lastMsg && now - lastAt < 2000) return;
+    lastMsg = msg;
+    lastAt = now;
+    console.error('[kar]', msg);
+    try {
+      toast(msg, 'error');
+    } catch (_) { /* toast may be unavailable during early boot */ }
+  };
+  window.addEventListener('error', (ev) => {
+    report(ev.message || String(ev.error || 'Ошибка'));
+  });
+  window.addEventListener('unhandledrejection', (ev) => {
+    const r = ev.reason;
+    report(r instanceof Error ? r.message : String(r || 'Ошибка'));
+  });
+}
+
+installGlobalErrorHandlers();
+
 async function boot() {
   initTheme();
   initMotionUi();

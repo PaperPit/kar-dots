@@ -1,6 +1,6 @@
 import { el, toast, confirmDialog } from '../../../ui/ui.js';
 import { nav } from '../../../ui/shell.js';
-import type { LocalStore } from '../../../data/store-local.js';
+import type { AppStore } from '../../../core/state.js';
 
 interface SbLike {
   getSession(): import('../../../data/supabase.js').AuthSession | null;
@@ -8,9 +8,9 @@ interface SbLike {
 }
 
 export function buildAccountGroup(
-  store: LocalStore,
+  store: AppStore,
   sb: SbLike | null,
-  setStore: (s: LocalStore | null) => void,
+  setStore: (s: AppStore | null) => void,
   renderAuth: () => void,
   route: () => void | Promise<void>,
 ) {

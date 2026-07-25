@@ -88,15 +88,17 @@ function gradeFailed(algo: Algo, g: Grade): boolean {
   return (g.q ?? 0) < 3;
 }
 
-function buildLogEntry(ctx: GradeContext, card: SrsCard, g: Grade, failed: boolean, now: number) {
+export function buildLogEntry(ctx: GradeContext, card: SrsCard, g: Grade, failed: boolean, now: number) {
   const algo = ctx.algo;
   const known = !failed;
   let rating: number;
+  // SM-2 / Leitner — бинарные кнопки; rating 1/3 синтетический для журнала.
+  const synthetic = algo !== 'fsrs';
   if (algo === 'fsrs') rating = g.fsrs ?? SRS.FsrsRating.Again;
   else rating = known ? 3 : 1;
 
   let elapsedDays = 0;
-  let stateBefore = 0;
+  let stateBefore: number;
   let stabilityBefore: number | null = null;
   if (algo === 'fsrs') {
     const fresh = SRS.fsrsIsUntouched(card);
@@ -106,15 +108,20 @@ function buildLogEntry(ctx: GradeContext, card: SrsCard, g: Grade, failed: boole
   } else if (algo === 'leitner') {
     const box = card.box || 0;
     stateBefore = box ? 2 : 0;
-    if (box) {
+    if (box && card.box_due) {
       const ivs = store.settings.leitnerIntervals && store.settings.leitnerIntervals.length === 5
         ? store.settings.leitnerIntervals : [1, 2, 4, 8, 16];
-      elapsedDays = ivs[box - 1] ?? 0;
+      const scheduled = ivs[box - 1] ?? 0;
+      const lastApprox = card.box_due - scheduled * SRS.DAY;
+      elapsedDays = Math.max(0, (now - lastApprox) / SRS.DAY);
     }
   } else {
     const reviewed = !!(card.sm2_reps || card.sm2_due);
     stateBefore = reviewed ? 2 : 0;
-    if (reviewed) elapsedDays = card.sm2_ivl ?? 0;
+    if (reviewed && card.sm2_due != null && card.sm2_ivl != null) {
+      const lastApprox = card.sm2_due - card.sm2_ivl * SRS.DAY;
+      elapsedDays = Math.max(0, (now - lastApprox) / SRS.DAY);
+    }
   }
   return buildReviewEntry({
     card_id: card.id ?? '',
@@ -125,12 +132,13 @@ function buildLogEntry(ctx: GradeContext, card: SrsCard, g: Grade, failed: boole
     elapsed_days: elapsedDays,
     state_before: stateBefore,
     stability_before: stabilityBefore,
+    synthetic,
     ts: now,
   });
 }
 
 function applyAlgoGrade(card: SrsCard, algo: Algo, g: Grade, now: number) {
-  if (algo === 'leitner') return SRS.leitnerNext(card, g.leitner ?? false, store.settings.leitnerIntervals, now);
+  if (algo === 'leitner') return SRS.leitnerNext(card, g.leitner ?? false, store.settings.leitnerIntervals || [1, 3, 7, 14, 30], now);
   if (algo === 'fsrs') return SRS.fsrsNext(card, g.fsrs ?? SRS.FsrsRating.Again, now);
   return SRS.sm2Next(card, g.q ?? 0, now);
 }
@@ -157,7 +165,12 @@ export function submitGrade(
       firstTryRecorded,
       firstTryOk: firstTryRecorded && know,
       quiet,
-    }).finally(() => { ctx.grading = false; });
+    })
+      .catch((e) => {
+        console.error(e);
+        toast('Не удалось сохранить оценку: ' + (e instanceof Error ? e.message : String(e)), 'error');
+      })
+      .finally(() => { ctx.grading = false; });
   };
   if (dir && ctx.currentSwipeWrap && ctx.currentBox) {
     animateCardExit(ctx.currentSwipeWrap, dir, run, ctx.currentBox);
@@ -269,7 +282,11 @@ export async function applyGrade(ctx: GradeContext, card: SrsCard, g: Grade, opt
   try { await store.updateCard(card.id ?? '', patch); }
   catch (e) { toast('Не сохранилось: ' + (e instanceof Error ? e.message : String(e)), 'error'); }
   const reviewSplit = failed ? { failed: 1 } : { known: 1 };
-  await recordReview(1, reviewSplit);
+  try { await recordReview(1, reviewSplit); }
+  catch (e) {
+    console.warn('recordReview', e);
+    toast('Статистика не записалась', 'error');
+  }
   let reviewLogId: string | null = null;
   try { reviewLogId = await logReview(buildLogEntry(ctx, card, g, failed, now)); }
   catch (e) { /* журнал не критичен для оценки */ }
@@ -326,9 +343,10 @@ export async function undoLastGrade(ctx: GradeContext) {
   if (u.failed) ctx.stats.failed = Math.max(0, ctx.stats.failed - 1);
   else ctx.stats.known = Math.max(0, ctx.stats.known - 1);
 
-  try { await store.updateCard(u.card.id ?? '', u.prevSnap); }
+  try { await store.updateCard(u.card.id ?? '', u.prevSnap as Partial<import('../../data/types.js').Card>); }
   catch (e) { toast('Не удалось отменить: ' + (e instanceof Error ? e.message : String(e)), 'error'); return; }
-  await undoReview(1, u.reviewSplit);
+  try { await undoReview(1, u.reviewSplit); }
+  catch (e) { console.warn('undoReview', e); }
   if (u.reviewLogId) { try { await removeReview(u.reviewLogId); } catch (e) { /* ignore */ } }
   ctx.updateBar();
   if (ctx.showNextTimer) { clearTimeout(ctx.showNextTimer); ctx.showNextTimer = null; }

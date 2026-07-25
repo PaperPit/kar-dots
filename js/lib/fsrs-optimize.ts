@@ -9,8 +9,9 @@ import { dayKey } from "./activity.js"
 
 const MATURE_DAYS = 21
 
-/** «Настоящее» повторение (не первый показ): карточка уже была изучена. */
+/** «Настоящее» повторение для аналитики/оптимизатора (не синтетика, не первый показ). */
 export function isRealReview(r: ReviewLogEntry): boolean {
+  if (r.synthetic) return false
   return (r.state_before ?? 0) >= 2 || (r.elapsed_days ?? 0) >= 1
 }
 
@@ -141,7 +142,7 @@ export function suggestRetention(stats: RetentionStats): RetentionAdvice {
  */
 export function toOptimizerCsv(reviews: ReviewLogEntry[]): string {
   const rows = reviews
-    .filter((r) => r.card_id)
+    .filter((r) => r.card_id && !r.synthetic)
     .slice()
     .sort((a, b) => (a.card_id < b.card_id ? -1 : a.card_id > b.card_id ? 1 : (a.ts || 0) - (b.ts || 0)))
   const header = "card_id,review_time,review_rating,review_state"

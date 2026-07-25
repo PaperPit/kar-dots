@@ -3,24 +3,38 @@ const VERSION = 'kar-v15.4';
 /** AUTO-GENERATED CORE_FILES — node scripts/generate-sw-files.js */
 const CORE_FILES = [
   './',
-  'index.html',
-  'manifest.webmanifest',
-  'css/style.css',
   'css/components/modal.css',
-  'css/screens/home.css',
-  'css/screens/folder.css',
-  'css/screens/card-editor.css',
-  'css/screens/review.css',
-  'css/screens/settings.css',
-  'css/screens/youtube-import.css',
-  'css/screens/stats.css',
-  'css/fonts/fonts.css',
   'css/fonts/baloo2-latin.woff2',
+  'css/fonts/fonts.css',
   'css/fonts/nunito-cyr-ext.woff2',
   'css/fonts/nunito-cyr.woff2',
   'css/fonts/nunito-latin-ext.woff2',
   'css/fonts/nunito-latin.woff2',
-  'packs/manifest.json',
+  'css/screens/card-editor.css',
+  'css/screens/folder.css',
+  'css/screens/home.css',
+  'css/screens/review.css',
+  'css/screens/settings.css',
+  'css/screens/stats.css',
+  'css/screens/youtube-import.css',
+  'css/style.css',
+  'icons/app-icon.svg',
+  'icons/apple-touch-icon.png',
+  'icons/Bird cage.svg',
+  'icons/cup.svg',
+  'icons/empty cage.svg',
+  'icons/feather.svg',
+  'icons/ghost.svg',
+  'icons/icon-192.png',
+  'icons/icon-512.png',
+  'icons/icon.svg',
+  'icons/logo.svg',
+  'icons/raven.svg',
+  'icons/Scarecrow.svg',
+  'icons/star.png',
+  'icons/star.svg',
+  'icons/The crow with the tombstone.svg',
+  'index.html',
   'js/app.js',
   'js/core/router.js',
   'js/core/state.js',
@@ -49,7 +63,10 @@ const CORE_FILES = [
   'js/lib/activity.js',
   'js/lib/answer-check.js',
   'js/lib/card-import.js',
+  'js/lib/card-search.js',
   'js/lib/charts.js',
+  'js/lib/debounce.js',
+  'js/lib/ext-connect.js',
   'js/lib/folder-errors.js',
   'js/lib/folder-icons.js',
   'js/lib/fsrs-optimize.js',
@@ -65,6 +82,7 @@ const CORE_FILES = [
   'js/lib/review-progress.js',
   'js/lib/shuffle.js',
   'js/lib/sounds.js',
+  'js/lib/srs-convert.js',
   'js/lib/srs.js',
   'js/lib/stats.js',
   'js/lib/stock-media-providers.js',
@@ -82,6 +100,7 @@ const CORE_FILES = [
   'js/lib/youtube-import-settings.js',
   'js/lib/youtube-import.js',
   'js/lib/yt-caption-parsers.js',
+  'js/lib/yt-job-owner.js',
   'js/lib/yt-known-terms-idb.js',
   'js/lib/yt-known-terms.js',
   'js/lib/yt-segment-merge.js',
@@ -91,6 +110,7 @@ const CORE_FILES = [
   'js/ui/brand.js',
   'js/ui/card-face.js',
   'js/ui/constants.js',
+  'js/ui/ensure-css.js',
   'js/ui/folder-cards.js',
   'js/ui/folder-drag.js',
   'js/ui/helpers.js',
@@ -111,22 +131,8 @@ const CORE_FILES = [
   'js/ui/ui.js',
   'js/ui/vocab-packs-dialog.js',
   'js/vendor/motion.mjs',
-  'icons/Bird cage.svg',
-  'icons/Scarecrow.svg',
-  'icons/The crow with the tombstone.svg',
-  'icons/app-icon.svg',
-  'icons/apple-touch-icon.png',
-  'icons/cup.svg',
-  'icons/empty cage.svg',
-  'icons/feather.svg',
-  'icons/ghost.svg',
-  'icons/icon-192.png',
-  'icons/icon-512.png',
-  'icons/icon.svg',
-  'icons/logo.svg',
-  'icons/raven.svg',
-  'icons/star.png',
-  'icons/star.svg',
+  'manifest.webmanifest',
+  'packs/manifest.json',
 ];
 
 /** Кэшируются при первом обращении (офлайн после первого использования). */
@@ -171,17 +177,55 @@ self.addEventListener('fetch', e => {
   if (!isSameOrigin && !isStorageImage) return;
 
   const path = url.pathname.replace(/^\//, '');
-  const isAppJs = isSameOrigin && /\.(js|css|html)$/.test(url.pathname);
   const lazy = isSameOrigin && isLazyPath(path);
   const hasRange = e.request.headers.has('range');
+  const hashedChunk = isSameOrigin && /\/[A-Za-z0-9_-]+-[A-Z0-9]{8}\.js$/.test(url.pathname);
+  const shellAsset = isSameOrigin && /\.(js|css|html)$/.test(url.pathname) && !hashedChunk;
+
+  function putInCache(req, resp) {
+    if (resp.status === 200 && !hasRange) {
+      const copy = resp.clone();
+      caches.open(VERSION).then(c => c.put(req, copy)).catch(() => {});
+    }
+  }
+
+  if (hashedChunk) {
+    e.respondWith(
+      caches.match(e.request, { ignoreSearch: true }).then(cached => {
+        if (cached) return cached;
+        return fetch(e.request).then(resp => {
+          putInCache(e.request, resp);
+          return resp;
+        });
+      }).catch(async () => {
+        const cached = await caches.match(e.request, { ignoreSearch: true });
+        if (cached) return cached;
+        if (lazy) throw new Error('offline');
+        throw new Error('offline');
+      }),
+    );
+    return;
+  }
+
+  if (shellAsset) {
+    e.respondWith(
+      caches.match(e.request, { ignoreSearch: true }).then(cached => {
+        const network = fetch(e.request)
+          .then(resp => {
+            putInCache(e.request, resp);
+            return resp;
+          })
+          .catch(() => cached);
+        return cached || network;
+      }),
+    );
+    return;
+  }
 
   e.respondWith(
-    fetch(isAppJs ? new Request(e.request, { cache: 'no-cache' }) : e.request)
+    fetch(e.request)
       .then(resp => {
-        if (resp.status === 200 && !hasRange) {
-          const copy = resp.clone();
-          caches.open(VERSION).then(c => c.put(e.request, copy)).catch(() => {});
-        }
+        putInCache(e.request, resp);
         return resp;
       })
       .catch(async () => {

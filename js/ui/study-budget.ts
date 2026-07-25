@@ -26,11 +26,11 @@ export function spendNewBudget() {
 
 export function refundNewBudget() {
   const today = new Date().toDateString()
-  let rec = { date: today, count: 0 }
+  let rec: { date: string; count: number }
   try {
     rec = JSON.parse(localStorage.getItem("kar_new_today") || "{}")
     if (rec.date !== today) return
-  } catch (e) {
+  } catch (_e) {
     return
   }
   rec.count = Math.max(0, (rec.count || 0) - 1)

@@ -105,7 +105,14 @@ async function idbSave(data: ActivityData): Promise<void> {
     const t = db.transaction("kv", "readwrite");
     t.objectStore("kv").put(JSON.stringify(data), IDB_KEY);
     t.oncomplete = () => resolve(undefined);
-    t.onerror = () => {};
+    t.onerror = () => {
+      console.warn("activity idb save", t.error);
+      resolve(undefined);
+    };
+    t.onabort = () => {
+      console.warn("activity idb save aborted", t.error);
+      resolve(undefined);
+    };
   }).catch((e: unknown) => { console.warn("activity idb save", e); });
 }
 

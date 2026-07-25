@@ -11,6 +11,13 @@ import { build } from 'esbuild';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import {
+  assertPrecacheInDist,
+  buildPrecacheFromDist,
+  injectModulePreloads,
+  pickModulePreloads,
+  renderBundleSw,
+} from './lib/sw-precache.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const DIST = path.join(ROOT, 'dist');
@@ -46,7 +53,7 @@ const configExternal = {
   },
 };
 
-await build({
+const result = await build({
   entryPoints: [path.join(JS, 'app.js')],
   bundle: true,
   format: 'esm',
@@ -69,6 +76,17 @@ cpDir(path.join(ROOT, 'packs'), path.join(DIST, 'packs'));
 for (const f of ['manifest.webmanifest', 'index.html']) {
   if (fs.existsSync(path.join(ROOT, f))) cpFile(path.join(ROOT, f), path.join(DIST, f));
 }
+
+// Prod: modulepreload entry + largest shared chunks (dev index.html untouched).
+{
+  const indexPath = path.join(DIST, 'index.html');
+  if (fs.existsSync(indexPath) && result.metafile) {
+    const hrefs = pickModulePreloads(result.metafile, DIST);
+    const html = fs.readFileSync(indexPath, 'utf8');
+    fs.writeFileSync(indexPath, injectModulePreloads(html, hrefs));
+    console.log(`bundle: modulepreload → ${hrefs.join(', ')}`);
+  }
+}
 // config грузится рантайм-import'ом через переменную (state.ts initConfig:
 // '../config.js'), поэтому esbuild не может сделать его external и оставляет
 // относительный резолв. В бандле чанки лежат в dist/js/, значит '../config.js'
@@ -78,99 +96,18 @@ if (fs.existsSync(path.join(JS, 'config.example.js')))
 if (fs.existsSync(path.join(JS, 'config.js')))
   cpFile(path.join(JS, 'config.js'), path.join(DIST, 'config.js'));
 
-// --- Собираем список прекеша для SW из собранного dist/ ---
-const walk = (dir, acc = []) => {
-  for (const n of fs.readdirSync(dir, { withFileTypes: true })) {
-    const full = path.join(dir, n.name);
-    if (n.isDirectory()) walk(full, acc);
-    else acc.push(path.relative(DIST, full).split('\\').join('/'));
-  }
-  return acc;
-};
-
-const EXCLUDE_ICONS = new Set([
-  'icons/ghost.png', 'icons/feather.png', 'icons/raven.png',
-  'icons/Scarecrow.png', 'icons/Bird cage.png', 'icons/star-empty.svg',
-]);
-
-const all = walk(DIST).filter((f) => !f.startsWith('js/vendor/'));
-const jsChunks = all.filter((f) => /^js\/.*\.js$/.test(f));
-const configFiles = all.filter((f) => /^config(\.example)?\.js$/.test(f));
-const uiIcons = all.filter((f) => /^icons\/.*\.(svg|png)$/.test(f) && !EXCLUDE_ICONS.has(f));
-const cssFiles = all.filter((f) => f.endsWith('.css'));
-const fontFiles = all.filter((f) => f.endsWith('.woff2'));
-
-const CORE_FILES = ['./', 'index.html', 'manifest.webmanifest', 'packs/manifest.json', ...cssFiles, ...fontFiles, ...jsChunks, ...configFiles, ...uiIcons];
-// убираем дубликаты и './'
-const unique = [...new Set(CORE_FILES.filter((f) => f !== './'))].sort();
-
-const swPath = path.join(DIST, 'sw.js');
-const VERSION = 'kar-v15.3-bundle';
-const list = unique.map((f) => `  '${f}',`).join('\n');
-const swBody = `const VERSION = '${VERSION}';
-
-/** AUTO-GENERATED CORE_FILES — node scripts/bundle.mjs */
-const CORE_FILES = [
-${list}
-];
-
-/** Кэшируются при первом обращении (офлайн после первого использования). */
-const LAZY_PREFIXES = [
-  'audio/',
-  'packs/en-',
-  'icons/folders/',
-];
-
-function isLazyPath(pathname) {
-  return LAZY_PREFIXES.some(p => pathname.includes(p));
+// --- Precache list from built dist/ only (never dirty js/*.js) ---
+const unique = buildPrecacheFromDist(DIST);
+const VERSION = 'kar-v15.4-bundle';
+const swBody = renderBundleSw({ version: VERSION, coreFiles: unique });
+const check = assertPrecacheInDist(swBody, DIST);
+if (!check.ok) {
+  console.error(
+    'bundle: dist/sw.js would reference missing files:\n' +
+      check.missing.map((m) => `  - ${m}`).join('\n'),
+  );
+  process.exit(1);
 }
-
-self.addEventListener('install', e => {
-  e.waitUntil(
-    caches.open(VERSION)
-      .then(c => c.addAll(CORE_FILES))
-      .then(() => self.skipWaiting()),
-  );
-});
-
-self.addEventListener('activate', e => {
-  e.waitUntil(
-    caches.keys()
-      .then(keys => Promise.all(keys.filter(k => k !== VERSION).map(k => caches.delete(k))))
-      .then(() => self.clients.claim()),
-  );
-});
-
-self.addEventListener('fetch', e => {
-  const url = new URL(e.request.url);
-  if (e.request.method !== 'GET') return;
-  const isStorageImage = url.pathname.includes('/storage/v1/object/public/');
-  const isSameOrigin = url.origin === location.origin;
-  if (!isSameOrigin && !isStorageImage) return;
-
-  const path = url.pathname.replace(/^\\//, '');
-  const isAppJs = isSameOrigin && /\\.(js|css|html)$/.test(url.pathname);
-  const lazy = isSameOrigin && isLazyPath(path);
-  const hasRange = e.request.headers.has('range');
-
-  e.respondWith(
-    fetch(isAppJs ? new Request(e.request, { cache: 'no-cache' }) : e.request)
-      .then(resp => {
-        if (resp.status === 200 && !hasRange) {
-          const copy = resp.clone();
-          caches.open(VERSION).then(c => c.put(e.request, copy)).catch(() => {});
-        }
-        return resp;
-      })
-      .catch(async () => {
-        const cached = await caches.match(e.request, { ignoreSearch: isSameOrigin });
-        if (cached) return cached;
-        if (lazy) throw new Error('offline');
-        return caches.match(e.request, { ignoreSearch: isSameOrigin });
-      }),
-  );
-});
-`;
-
-fs.writeFileSync(swPath, swBody);
+fs.writeFileSync(path.join(DIST, 'sw.js'), swBody);
+const jsChunks = unique.filter((f) => /^js\/.*\.js$/.test(f));
 console.log(`bundle: dist/ готов. Прекеш: ${unique.length} файлов, JS-чанков: ${jsChunks.length}`);

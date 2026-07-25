@@ -3,6 +3,7 @@ import { recordVisit } from "../lib/activity.js"
 import { parseReviewRoute, isStudyMode } from "../lib/study-modes.js"
 import { animateBootSplashOut } from "../lib/motion-ui.js"
 import { cancelNavFallback } from "../ui/navigation.js"
+import { ensureCss, SCREEN_CSS } from "../ui/ensure-css.js"
 
 type HashParts = {
   name: string;
@@ -36,15 +37,18 @@ export async function route(): Promise<void> {
     await recordVisit()
 
     if (name === "folder" && arg) {
+      await ensureCss(SCREEN_CSS.folder)
       const { renderFolder } = await import("../screens/folder/index.js")
       await renderFolder(arg)
     } else if (name === "box" && arg) {
+      await ensureCss(SCREEN_CSS.folder)
       const { renderBox } = await import("../screens/box/index.js")
       await renderBox(arg)
     } else if (name === "review") {
       const opts = reviewOpts;
       if (!opts) return;
       const { folderId, cram, mode, cramLimit } = opts;
+      await ensureCss(SCREEN_CSS.review)
       const { renderReview } = await import("../screens/review/index.js")
       await renderReview(folderId, {
         cram: cram && !!folderId,
@@ -52,9 +56,11 @@ export async function route(): Promise<void> {
         cramLimit: cramLimit && cramLimit > 0 ? cramLimit : undefined
       })
     } else if (name === "stats") {
+      await ensureCss(SCREEN_CSS.stats)
       const { renderStats } = await import("../screens/stats/index.js")
       await renderStats()
     } else if (name === "settings") {
+      await ensureCss(SCREEN_CSS.settings)
       const { renderSettings } = await import("../screens/settings/index.js")
       await renderSettings()
     } else {

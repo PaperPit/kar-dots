@@ -91,7 +91,7 @@ export function createFlipCard(card: SrsCard, firstSide: 'front' | 'back', opts:
       e.preventDefault();
       toggleFlip();
     }
-    if (gradesShown && opts.onGradeKey && ['1', '2'].includes(e.key)) {
+    if (gradesShown && opts.onGradeKey && ['1', '2', '3', '4'].includes(e.key)) {
       opts.onGradeKey(e.key, grades);
     }
     if (gradesShown && opts.onGradeDir) {
@@ -106,7 +106,17 @@ export function createFlipCard(card: SrsCard, firstSide: 'front' | 'back', opts:
   };
   document.addEventListener('keydown', onKey);
 
-  return { box, flip, swipeWrap, grades, hint, getVisibleSide: () => (flip.classList.contains('flipped') ? backSide : firstSide) };
+  return {
+    box,
+    flip,
+    swipeWrap,
+    grades,
+    hint,
+    getVisibleSide: () => (flip.classList.contains('flipped') ? backSide : firstSide),
+    destroy() {
+      document.removeEventListener('keydown', onKey);
+    },
+  };
 }
 
 const sizedImgListeners = new WeakSet<HTMLImageElement>();
@@ -151,13 +161,19 @@ export function sizeFlipCard(flipEl: HTMLElement) {
   flipEl.style.height = cardH + 'px';
   flipEl.style.maxHeight = cardH + 'px';
 
+  // Batch reads then writes — avoid layout thrash (write → read → write per face).
+  type FaceMeasure = { img: HTMLImageElement; slot: HTMLElement | null; maxImg: number };
+  const updates: FaceMeasure[] = [];
   flipEl.querySelectorAll('.flip-face').forEach((face) => {
     const scroll = face.querySelector('.flip-face-scroll') as HTMLElement | null;
     if (!scroll) return;
-    const img = scroll.querySelector(':scope > img') as HTMLImageElement | null;
+    const slot = scroll.querySelector(':scope > .card-img-slot') as HTMLElement | null;
+    const img =
+      (slot?.querySelector('img') as HTMLImageElement | null) ||
+      (scroll.querySelector(':scope > img') as HTMLImageElement | null);
     if (!img) return;
     let textH = 0;
-    scroll.querySelectorAll(':scope > :not(img)').forEach((node) => {
+    scroll.querySelectorAll(':scope > :not(img):not(.card-img-slot)').forEach((node) => {
       textH += (node as HTMLElement).offsetHeight;
     });
     const chip = (face.querySelector('.flip-side-chip') as HTMLElement | null)?.offsetHeight || 0;
@@ -165,15 +181,32 @@ export function sizeFlipCard(flipEl: HTMLElement) {
     const gaps = inPreview ? 16 : 20;
     const room = cardH - facePad - chip - textH - gaps;
     const maxImg = Math.max(56, Math.min(imgCap, room));
-    img.style.maxHeight = `${maxImg}px`;
+    updates.push({ img, slot, maxImg });
   });
+  for (const u of updates) {
+    if (u.slot) u.slot.style.maxHeight = `${u.maxImg}px`;
+    u.img.style.maxHeight = `${u.maxImg}px`;
+  }
 
   flipEl.querySelectorAll('img').forEach((node) => {
     const img = node as HTMLImageElement;
     if (img.complete || sizedImgListeners.has(img)) return;
     sizedImgListeners.add(img);
-    const remeasure = () => sizeFlipCard(flipEl);
+    const remeasure = () => scheduleSizeFlipCard(flipEl);
     img.addEventListener('load', remeasure, { once: true });
     img.addEventListener('error', remeasure, { once: true });
   });
+}
+
+const sizeRaf = new WeakMap<HTMLElement, number>();
+function scheduleSizeFlipCard(flipEl: HTMLElement) {
+  const prev = sizeRaf.get(flipEl);
+  if (prev) cancelAnimationFrame(prev);
+  sizeRaf.set(
+    flipEl,
+    requestAnimationFrame(() => {
+      sizeRaf.delete(flipEl);
+      sizeFlipCard(flipEl);
+    }),
+  );
 }

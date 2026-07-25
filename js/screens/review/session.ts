@@ -244,7 +244,7 @@ export function runReviewSession(ctx: ReviewSessionContext) {
       };
       widget = createVoiceModeCard(card, { promptSide, onSuccess, onFail, getSettings: () => store.settings });
     } else {
-      widget = showFlipCard(card, first, promptSide);
+      showFlipCard(card, first, promptSide);
       return;
     }
 
@@ -257,7 +257,7 @@ export function runReviewSession(ctx: ReviewSessionContext) {
     ctx.reshowAfterEdit = () => showStudyCard(true, 'flip');
     ctx.editBtn.style.visibility = '';
     ctx.editBtn.onclick = () => cardDialog(card.folder_id ?? "", card, reviewCardDialogOpts(card));
-    const { box, flip, swipeWrap, grades, getVisibleSide } = createFlipModeCard(card, {
+    const { box, flip, swipeWrap, grades, getVisibleSide, destroy } = createFlipModeCard(card, {
       promptSide: side,
       stageContains: node => ctx.stage.contains(node),
       onFirstFlip: () => {
@@ -284,7 +284,7 @@ export function runReviewSession(ctx: ReviewSessionContext) {
       enabled: () => ctx.gradesVisible && ctx.stage.contains(box) && !ctx.grading,
       onSwipe: dir => submitGrade(ctx, card, gradePayload(ctx.algo, dir === 'right'), dir, { flipGrade: true }),
     });
-    mountStage(box, first);
+    mountStage(box, first, { destroy });
     ctx.currentSwipeWrap = swipeWrap;
   }
 

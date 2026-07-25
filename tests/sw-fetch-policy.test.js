@@ -3,6 +3,7 @@
 import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { renderBundleSw, renderUnbundledSw } from '../scripts/lib/sw-precache.mjs';
 
 /** Политика из sw.js — 206 ломает Cache API на iOS WebKit. */
 function shouldCacheResponse(status, hasRangeHeader) {
@@ -38,5 +39,26 @@ describe('service worker: ошибка «Response is a 206 partial»', () => {
     expect(coreBlock).not.toContain('js/vendor/ts-fsrs.mjs');
     expect(sw).toContain("'js/vendor/ts-fsrs.mjs'");
     expect(sw).toContain("'icons/folders/'");
+  });
+});
+
+describe('service worker: cache-first / SWR (4.1)', () => {
+  const sample = renderBundleSw({ version: 't', coreFiles: ['js/app.js'] });
+
+  it('hashed chunks use cache-first (no forced no-cache)', () => {
+    expect(sample).toContain('hashedChunk');
+    expect(sample).toContain('[A-Z0-9]{8}');
+    expect(sample).not.toContain("cache: 'no-cache'");
+  });
+
+  it('shell assets use stale-while-revalidate', () => {
+    expect(sample).toContain('shellAsset');
+    expect(sample).toContain('return cached || network');
+  });
+
+  it('unbundled sw render also drops no-cache', () => {
+    const u = renderUnbundledSw({ version: 't', coreFiles: ['./', 'index.html'] });
+    expect(u).not.toContain("cache: 'no-cache'");
+    expect(u).toContain('hashedChunk');
   });
 });

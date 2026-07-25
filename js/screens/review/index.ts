@@ -1,5 +1,5 @@
 import { store } from '../../core/state.js';
-import { el, spinner, plural } from '../../ui/ui.js';
+import { el, spinner, plural, toast } from '../../ui/ui.js';
 import { ICONS } from '../../ui/constants.js';
 import { crowBox, featherIcon, newBudget, reviewsBudget, reviewsTodayCount, shuffle, svgNode, trophyBox } from '../../ui/helpers.js';
 import { shell, nav, offlineBanner, refreshDueBadge } from '../../ui/shell.js';
@@ -23,6 +23,15 @@ interface ReviewOpts {
   onSaved?: unknown;
   onDeleted?: unknown;
   box_id?: string | null;
+}
+
+function normalizeCramResult(result: unknown): { queue: unknown[]; missingOffline: number } {
+  if (Array.isArray(result)) return { queue: result, missingOffline: 0 };
+  const obj = result as { cards?: unknown[]; missingOffline?: number } | null;
+  return {
+    queue: obj?.cards || [],
+    missingOffline: Number(obj?.missingOffline) || 0,
+  };
 }
 
 export async function renderReview(folderId: string | null, opts: ReviewOpts = {}) {
@@ -56,26 +65,41 @@ export async function renderReview(folderId: string | null, opts: ReviewOpts = {
   }
   if (session !== reviewSession) return;
 
-  let queue;
+  let queue: import('../../lib/srs.js').SrsCard[] = [];
   let dayLimitHit = false;
+  let missingOffline = 0;
   if (cram) {
-    const limit = (cramLimit ?? 0) > 0 ? cramLimit : null;
-    queue = typeof store.getCramCards === 'function'
-      ? await store.getCramCards(folderId, limit)
-      : shuffle([...(await store.getFolderCards(folderId))]).slice(0, limit || undefined);
+    const limit = (cramLimit ?? 0) > 0 ? cramLimit! : null;
+    if (typeof store.getCramCards === 'function') {
+      const cramResult = normalizeCramResult(await store.getCramCards(folderId, limit));
+      queue = cramResult.queue as import('../../lib/srs.js').SrsCard[];
+      missingOffline = cramResult.missingOffline;
+    } else {
+      queue = shuffle([...(await store.getFolderCards(folderId))]).slice(0, limit || undefined) as import('../../lib/srs.js').SrsCard[];
+    }
   } else {
     const dayLeft = reviewsBudget();
     if (dayLeft <= 0) {
       dayLimitHit = true;
       queue = [];
     } else {
-      const { due: dueCards, fresh: newCards } = await store.getReviewCards(folderId || null, algo, budget, now);
-      queue = shuffle(dueCards.concat(newCards)).slice(0, dayLeft);
+      const { due: dueCards, fresh: newCards, missingOffline: missing = 0 } =
+        await store.getReviewCards(folderId || null, algo, budget, now);
+      missingOffline = missing || 0;
+      queue = shuffle(dueCards.concat(newCards)).slice(0, dayLeft) as import('../../lib/srs.js').SrsCard[];
     }
   }
 
   if (session !== reviewSession) return;
 
+  if (missingOffline > 0) {
+    toast(
+      missingOffline + ' ' +
+        plural(missingOffline, 'карточка недоступна', 'карточки недоступны', 'карточек недоступны') +
+        ' офлайн',
+      'warn',
+    );
+  }
   if (!queue.length) {
     if (dayLimitHit) {
       const limit = store.settings.reviewsPerDay || 50;

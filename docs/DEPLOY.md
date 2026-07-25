@@ -119,7 +119,7 @@ npm run dev        # http://localhost:8080 + API из functions/api/
 npm run pages:dev  # эмуляция Cloudflare Pages (dist + functions/ + KV)
 ```
 
-Перед релизом: `npm test`, при изменении списка файлов — `npm run sw:generate` и bump `VERSION` в `sw.js`.
+Перед релизом: `npm test`, `npm run build:bundle && npm run sw:check`. При изменении unbundled precache: `npm run sw:generate` и bump `VERSION` в `sw.js`.
 
 ---
 

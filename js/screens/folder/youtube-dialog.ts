@@ -18,6 +18,7 @@ import {
 } from '../../lib/yt-transcript.js';
 import type { YtVideo as YTVideo, YtTranscript } from '../../data/yt-transcript-cache.js';
 import { loadKnownTermsForImport } from '../../lib/yt-known-terms.js';
+import { ensureCss, SCREEN_CSS } from '../../ui/ensure-css.js';
 
 interface YTPrefill {
   source?: string;
@@ -67,6 +68,7 @@ const SOURCE_HINTS: Record<string, string> = {
 };
 
 export function youtubeImportDialog(folderId: string) {
+  void ensureCss(SCREEN_CSS.youtubeImport);
   let m: ModalHandle;
   let closed = false;
   let source = 'url';

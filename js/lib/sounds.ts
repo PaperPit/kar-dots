@@ -60,20 +60,23 @@ const CUP_IDS = new Set(CUP_MELODIES.map((m) => m.id))
 const UI_CLICK_IDS = new Set(UI_CLICK_MELODIES.map((m) => m.id))
 const SOUND_MODES = new Set(["both", "correct", "wrong", "none"])
 
-export function normalizeSuccessSoundId(id: string): string {
-  if (SUCCESS_IDS.has(id)) return id
-  if (LEGACY_SUCCESS[id]) return LEGACY_SUCCESS[id]
+export function normalizeSuccessSoundId(id?: string | null): string {
+  const key = id || ""
+  if (SUCCESS_IDS.has(key)) return key
+  if (LEGACY_SUCCESS[key]) return LEGACY_SUCCESS[key]!
   return "confirm-tap"
 }
 
-export function normalizeFailSoundId(id: string): string {
-  if (FAIL_IDS.has(id)) return id
-  if (LEGACY_FAIL[id]) return LEGACY_FAIL[id]
+export function normalizeFailSoundId(id?: string | null): string {
+  const key = id || ""
+  if (FAIL_IDS.has(key)) return key
+  if (LEGACY_FAIL[key]) return LEGACY_FAIL[key]!
   return "load-fail"
 }
 
-export function normalizeAnswerSoundMode(mode: string): "both" | "correct" | "wrong" | "none" {
-  return SOUND_MODES.has(mode) ? (mode as "both" | "correct" | "wrong" | "none") : "both"
+export function normalizeAnswerSoundMode(mode?: string | null): "both" | "correct" | "wrong" | "none" {
+  const key = mode || ""
+  return SOUND_MODES.has(key) ? (key as "both" | "correct" | "wrong" | "none") : "both"
 }
 
 export function successSoundLabel(id: string): string {
@@ -185,12 +188,15 @@ function shouldPlaySound(isCorrect: boolean, mode: string): boolean {
   return m === "both" || m === "wrong"
 }
 
-export interface Settings {
-  answerSoundMode: "both" | "correct" | "wrong" | "none"
-  successSound: string
-  failSound: string
-  cupMelody: string
+export interface AnswerSoundSettings {
+  answerSoundMode?: string | null
+  successSound?: string | null
+  failSound?: string | null
+  cupMelody?: string | null
 }
+
+/** @deprecated use AnswerSoundSettings — kept as alias for call sites */
+export type Settings = AnswerSoundSettings
 
 export function playLessonCompleteFromStore(_stars: number): void {
   if (typeof document === "undefined") return
@@ -227,17 +233,17 @@ export function stopAnswerAudio(): void {
 }
 
 /** Разблокировать аудио ответов на жесте пользователя. */
-export function unlockAnswerAudio(settings: Settings | null): void {
+export function unlockAnswerAudio(settings: AnswerSoundSettings | null): void {
   if (typeof document === "undefined" || !settings) return
   const mode = normalizeAnswerSoundMode(settings.answerSoundMode)
   if (shouldPlaySound(true, mode)) {
     const meta = SUCCESS_MELODIES.find(
-      (m) => m.id === normalizeSuccessSoundId(settings.successSound)
+      (m) => m.id === normalizeSuccessSoundId(settings.successSound ?? undefined)
     )
     if (meta?.file) primeMp3(meta.file, "success")
   }
   if (shouldPlaySound(false, mode)) {
-    const meta = FAIL_MELODIES.find((m) => m.id === normalizeFailSoundId(settings.failSound))
+    const meta = FAIL_MELODIES.find((m) => m.id === normalizeFailSoundId(settings.failSound ?? undefined))
     if (meta?.file) primeMp3(meta.file, "fail")
   }
 }
@@ -251,12 +257,12 @@ export function unlockAnswerAudioFromStore(): void {
     .catch(() => {})
 }
 
-export function playAnswerFeedback(isCorrect: boolean, settings: Settings | null): void {
+export function playAnswerFeedback(isCorrect: boolean, settings: AnswerSoundSettings | null): void {
   if (!settings) return
   const mode = normalizeAnswerSoundMode(settings.answerSoundMode)
   if (!shouldPlaySound(isCorrect, mode)) return
-  if (isCorrect) playSuccessSound(settings.successSound)
-  else playFailSound(settings.failSound)
+  if (isCorrect) playSuccessSound(settings.successSound ?? undefined)
+  else playFailSound(settings.failSound ?? undefined)
 }
 
 export function playAnswerFeedbackFromStore(isCorrect: boolean): void {

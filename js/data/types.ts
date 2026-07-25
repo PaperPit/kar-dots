@@ -56,9 +56,9 @@ export interface Box {
 }
 
 export interface Settings {
-  algo: "sm2" | "fsrs" | "leiter"; // Leitner system
+  algo: "sm2" | "fsrs" | "leitner";
   theme: "light" | "dark";
-  direction?: "ftb" | "btf";
+  direction?: "ftb" | "btf" | "mixed";
   showCalendar?: "left" | "right" | "hidden"; // legacy; use calendarPlace
   calendarPlace?: "left" | "right";
   dateLocale?: string;
@@ -92,7 +92,7 @@ export interface Settings {
   ttsVoiceEn?: string;
   successSound?: string;
   failSound?: string;
-  answerSoundMode?: "question" | "answer" | "both" | "none";
+  answerSoundMode?: "both" | "correct" | "wrong" | "none";
   cupMelody?: string;
   supadataApiKey?: string;
   geminiApiKey?: string;

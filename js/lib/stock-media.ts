@@ -387,13 +387,9 @@ async function searchStockMediaProviders({ searchQuery, type, page, pageSize, se
   const hasGiphy = (type === "gif" || type === "sticker") && getGiphyApiKey(settings || null)
 
   if (hasPixabay || hasGiphy) {
-    try {
-      const remote = await searchStockMediaRemote({ searchQuery, type, page, pageSize, settings })
-      if (remote) return remote
-      return await searchStockMediaDirect({ searchQuery, type, page, pageSize, settings })
-    } catch (e) {
-      throw e
-    }
+    const remote = await searchStockMediaRemote({ searchQuery, type, page, pageSize, settings })
+    if (remote) return remote
+    return await searchStockMediaDirect({ searchQuery, type, page, pageSize, settings })
   }
 
   const remote = await searchStockMediaRemote({ searchQuery, type, page, pageSize, settings })
@@ -442,7 +438,7 @@ export async function searchStockMedia({
   const { query, original, translated } = await resolveStockSearchQuery(raw)
   const { searchQuery, enriched, baseWord } = enrichVocabStockQuery(query)
 
-  let providerResult: StockRawResult | null = null
+  let providerResult: StockRawResult | null
   try {
     providerResult = await searchStockMediaProviders({
       searchQuery,

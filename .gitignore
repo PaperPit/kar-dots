@@ -5,6 +5,7 @@ js/config.js
 .env
 .dev.vars
 .wrangler/
+.vercel/
 
 # Зависимости и сборка
 node_modules/

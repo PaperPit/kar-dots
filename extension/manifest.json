@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "КАР-точки — YouTube",
   "description": "Создавай карточки из YouTube-роликов прямо на странице видео.",
-  "version": "1.0.0",
+  "version": "1.0.3",
   "icons": {
     "48": "icons/icon-48.png",
     "128": "icons/icon-128.png",
@@ -22,7 +22,11 @@
   "side_panel": {
     "default_path": "sidepanel/index.html"
   },
-  "permissions": ["sidePanel", "storage", "tabs"],
+  "permissions": [
+    "sidePanel",
+    "storage",
+    "tabs"
+  ],
   "host_permissions": [
     "https://www.youtube.com/*",
     "https://youtube.com/*",
@@ -31,14 +35,25 @@
   ],
   "content_scripts": [
     {
-      "matches": ["https://www.youtube.com/*", "https://youtube.com/*"],
-      "js": ["dist/content-youtube.js"],
-      "css": ["content-youtube.css"],
+      "matches": [
+        "https://www.youtube.com/*",
+        "https://youtube.com/*"
+      ],
+      "js": [
+        "dist/content-youtube.js"
+      ],
+      "css": [
+        "content-youtube.css"
+      ],
       "run_at": "document_idle"
     },
     {
-      "matches": ["https://kar-tochki.pages.dev/*"],
-      "js": ["dist/content-app-bridge.js"],
+      "matches": [
+        "https://kar-tochki.pages.dev/*"
+      ],
+      "js": [
+        "dist/content-app-bridge.js"
+      ],
       "run_at": "document_idle"
     }
   ]

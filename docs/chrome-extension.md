@@ -7,14 +7,18 @@
 1. Соберите расширение из корня репозитория:
 
 ```bash
+git pull origin main
 npm install
 npm run ext:build
 ```
 
 2. Откройте Chrome → `chrome://extensions` → включите **Developer mode**.
-3. **Load unpacked** → выберите папку `extension/` (не `extension/src`).
-4. На [kar-tochki.pages.dev](https://kar-tochki.pages.dev/?ext_connect=1) войдите в облачный аккаунт (если ещё не вошли). Баннер подтвердит подключение.
-5. Откройте любое видео на YouTube → нажмите **Карточки** → выберите режим и папку → **Сформировать** → отметьте карточки → **Создать**.
+3. **Load unpacked** → выберите папку `extension/` (не `extension/src` и не `extension/dist`).
+4. После обновления кода нажмите **Reload** на карточке расширения (иначе останется старая пустая панель).
+5. На [kar-tochki.pages.dev](https://kar-tochki.pages.dev/?ext_connect=1) войдите в облачный аккаунт (если ещё не вошли). Баннер подтвердит подключение.
+6. Откройте любое видео на YouTube → нажмите **Карточки** → выберите режим и папку → **Сформировать** → отметьте карточки → **Создать**.
+
+Если Side Panel пустой: правый клик внутри панели → **Inspect** → вкладка Console; также смотри **Errors** на `chrome://extensions`.
 
 ## Что нужно заранее
 

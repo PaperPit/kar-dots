@@ -27,12 +27,21 @@ export async function setPrefs(patch: Partial<ExtPrefs>): Promise<ExtPrefs> {
   return next
 }
 
+/** Видео держим в local — session в Side Panel иногда недоступен/падает. */
 export async function getVideo(): Promise<ExtVideo | null> {
-  const data = await chrome.storage.session.get(STORAGE_KEYS.video)
-  return (data[STORAGE_KEYS.video] as ExtVideo | undefined) || null
+  try {
+    const data = await chrome.storage.local.get(STORAGE_KEYS.video)
+    return (data[STORAGE_KEYS.video] as ExtVideo | undefined) || null
+  } catch {
+    return null
+  }
 }
 
 export async function setVideo(video: ExtVideo | null): Promise<void> {
-  if (video) await chrome.storage.session.set({ [STORAGE_KEYS.video]: video })
-  else await chrome.storage.session.remove(STORAGE_KEYS.video)
+  try {
+    if (video) await chrome.storage.local.set({ [STORAGE_KEYS.video]: video })
+    else await chrome.storage.local.remove(STORAGE_KEYS.video)
+  } catch {
+    /* ignore */
+  }
 }

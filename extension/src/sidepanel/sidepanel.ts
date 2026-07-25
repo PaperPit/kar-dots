@@ -24,7 +24,8 @@ import {
 import { hasSupadataApiKey } from "../../../js/lib/youtube-import-settings.js"
 import type { Settings } from "../../../js/data/types.js"
 
-const root = document.getElementById("app")!
+const root = document.getElementById("app")
+if (!root) throw new Error("Не найден #app в sidepanel/index.html")
 
 interface PreviewItem {
   cand: YtCandidate
@@ -46,11 +47,11 @@ let accountEmail: string | null = null
 
 function el<K extends keyof HTMLElementTagNameMap>(
   tag: K,
-  attrs: Record<string, unknown> = {},
+  attrs: Record<string, unknown> | null = {},
   children: Array<Node | string | null | false | undefined> | string = []
 ): HTMLElementTagNameMap[K] {
   const node = document.createElement(tag)
-  for (const [k, v] of Object.entries(attrs)) {
+  for (const [k, v] of Object.entries(attrs || {})) {
     if (k === "class") node.className = String(v)
     else if (k === "onclick" && typeof v === "function") node.addEventListener("click", v as EventListener)
     else if (k === "onchange" && typeof v === "function") node.addEventListener("change", v as EventListener)
@@ -72,7 +73,7 @@ function el<K extends keyof HTMLElementTagNameMap>(
 function brand() {
   return el("div", { class: "brand" }, [
     el("div", { class: "brand-mark" }, "К"),
-    el("div", null, [el("h1", null, "КАР-точки"), el("p", null, "Карточки из YouTube")])
+    el("div", {}, [el("h1", {}, "КАР-точки"), el("p", {}, "Карточки из YouTube")])
   ])
 }
 
@@ -92,13 +93,22 @@ async function refreshVideoFromStorage() {
 }
 
 async function boot() {
-  const prefs = await getPrefs()
-  mode = prefs.mode
-  mergeCues = prefs.mergeCues
-  folderId = prefs.folderId
-  await refreshVideoFromStorage()
+  try {
+    const prefs = await getPrefs()
+    mode = prefs.mode
+    mergeCues = prefs.mergeCues
+    folderId = prefs.folderId
+  } catch {
+    /* defaults already set */
+  }
 
-  const auth = await getAuth()
+  try {
+    await refreshVideoFromStorage()
+  } catch {
+    /* video optional on first paint */
+  }
+
+  const auth = await getAuth().catch(() => null)
   if (!auth) {
     renderAuth()
     return
@@ -158,7 +168,7 @@ function renderAuth(error?: string) {
 
 function accountBar() {
   return el("div", { class: "account-row" }, [
-    el("span", null, accountEmail ? `Аккаунт: ${accountEmail}` : "Аккаунт подключён"),
+    el("span", {}, accountEmail ? `Аккаунт: ${accountEmail}` : "Аккаунт подключён"),
     el(
       "button",
       {
@@ -206,7 +216,7 @@ function renderForm(error = "") {
   const sentencesOpts = el("div", { class: "field" }, [
     el("label", { class: "check-label" }, [
       mergeChk,
-      el("span", null, "Склеивать короткие реплики в предложения")
+      el("span", {}, "Склеивать короткие реплики в предложения")
     ])
   ])
   sentencesOpts.style.display = mode === "sentences" ? "" : "none"
@@ -243,9 +253,9 @@ function renderForm(error = "") {
     el("div", { class: "card" }, [
       el("p", { class: "video-title" }, videoTitle || "Текущее видео"),
       el("p", { class: "video-url" }, videoUrl || "Открой ролик на YouTube"),
-      el("div", { class: "field" }, [el("label", null, "Что достать из ролика"), modeSeg]),
+      el("div", { class: "field" }, [el("label", {}, "Что достать из ролика"), modeSeg]),
       sentencesOpts,
-      el("div", { class: "field" }, [el("label", null, "Папка"), folderSelect]),
+      el("div", { class: "field" }, [el("label", {}, "Папка"), folderSelect]),
       errEl,
       el("div", { class: "actions" }, [goBtn])
     ])
@@ -253,7 +263,7 @@ function renderForm(error = "") {
 }
 
 function renderProgress(text: string) {
-  const statusEl = el("p", null, text)
+  const statusEl = el("p", {}, text)
   root.replaceChildren(
     brand(),
     el("div", { class: "card status-wrap" }, [
@@ -369,9 +379,9 @@ function renderPreview() {
   const toast = el("div", { class: "toast" }, "")
   toast.style.display = "none"
 
-  const list = el("div", null, [])
+  const list = el("div", {}, [])
   for (const [title, items] of groups) {
-    const groupEl = el("div", { class: "preview-group" }, [el("h3", null, `${title} (${items.length})`)])
+    const groupEl = el("div", { class: "preview-group" }, [el("h3", {}, `${title} (${items.length})`)])
     for (const item of items) {
       const chk = el("input", { type: "checkbox", checked: item.checked }) as HTMLInputElement
       chk.addEventListener("change", () => {
@@ -393,7 +403,7 @@ function renderPreview() {
       groupEl.append(
         el("div", { class: "preview-row" }, [
           chk,
-          el("div", null, [
+          el("div", {}, [
             el("div", { class: "front" }, item.cand.front || ""),
             metaParts.length ? el("div", { class: "meta" }, metaParts.join(" · ")) : null,
             back
@@ -418,7 +428,7 @@ function renderPreview() {
     brand(),
     el("div", { class: "card" }, [
       el("div", { class: "preview-head" }, [
-        el("div", null, [
+        el("div", {}, [
           el("p", { class: "video-title" }, videoTitle || "Превью"),
           el("p", { class: "muted" }, "Отметь, что сохранить, при необходимости поправь перевод")
         ]),
@@ -481,9 +491,33 @@ async function saveSelected(
   }
 }
 
+function renderFatal(error: unknown) {
+  const msg = error instanceof Error ? error.message : String(error)
+  root.replaceChildren(
+    brand(),
+    el("div", { class: "card" }, [
+      el("p", { class: "error" }, "Не удалось открыть панель: " + msg),
+      el("p", { class: "muted" }, "Открой chrome://extensions → Errors у «КАР-точки — YouTube»."),
+      el("div", { class: "actions" }, [
+        el(
+          "button",
+          {
+            class: "btn primary",
+            onclick: () => {
+              void boot().catch(renderFatal)
+            }
+          },
+          "Повторить"
+        )
+      ])
+    ])
+  )
+}
+
 chrome.storage.onChanged.addListener((changes, area) => {
-  if (area === "local" && changes.kar_ext_auth) void boot()
-  if (area === "session" && changes.kar_ext_video) {
+  if (area !== "local") return
+  if (changes.kar_ext_auth) void boot().catch(renderFatal)
+  if (changes.kar_ext_video) {
     const v = changes.kar_ext_video.newValue as { url?: string; title?: string } | undefined
     if (v?.url) {
       videoUrl = v.url
@@ -496,4 +530,4 @@ chrome.storage.onChanged.addListener((changes, area) => {
   }
 })
 
-void boot()
+void boot().catch(renderFatal)

@@ -99,8 +99,8 @@ create policy "own review_log" on public.review_log
   for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 
 -- ------------------------------------------------------------
--- Хранилище картинок: публичный бакет card-images.
--- Файлы лежат в папке с id пользователя: {user_id}/xxx.jpg
+-- Хранилище картинок: бакет card-images (public для URL по пути).
+-- Файлы: {user_id}/xxx.jpg. List/SELECT — только своя папка.
 -- ------------------------------------------------------------
 insert into storage.buckets (id, name, public)
 values ('card-images', 'card-images', true)
@@ -118,5 +118,9 @@ create policy "delete own images" on storage.objects
     and auth.uid()::text = (storage.foldername(name))[1]
   );
 
-create policy "read images" on storage.objects
-  for select using (bucket_id = 'card-images');
+create policy "read own images" on storage.objects
+  for select to authenticated
+  using (
+    bucket_id = 'card-images'
+    and auth.uid()::text = (storage.foldername(name))[1]
+  );

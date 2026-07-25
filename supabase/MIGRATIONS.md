@@ -13,6 +13,8 @@
 | `0005_updated_at.sql` | 5 | `updated_at` у `folders`/`cards`/`boxes`/`settings` — LWW в офлайн-синке |
 | `0006_cards_updated_at_idx.sql` | 6 | индекс `(user_id, updated_at)` на `cards` — delta sync |
 | `0007_settings_rls.sql` | 7 | явные RLS-политики для `settings` (фикс ошибки upsert) |
+| `0008_review_log.sql` | 8 | таблица `review_log` + RLS |
+| `0009_card_images_read_own.sql` | 9 | SELECT `card-images` только своей папки (без публичного list) |
 
 Нужная версия в коде: `REQUIRED_SCHEMA_VERSION` в `js/data/schema-version.js`.
 

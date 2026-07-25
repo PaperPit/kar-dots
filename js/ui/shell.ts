@@ -316,7 +316,10 @@ export function offlineBanner(): HTMLElement | null {
     }
   }
 
-  if (store.kind === "cloud" && typeof store.onSyncChange === "function") store.onSyncChange(() => refresh())
+  if (store.kind === "cloud") {
+    const cloud = store as import("../data/store-cloud.js").CloudStore
+    if (typeof cloud.onSyncChange === "function") cloud.onSyncChange(() => refresh())
+  }
   window.addEventListener("online", () => { void refresh() })
   window.addEventListener("offline", () => { void refresh() })
   refresh().catch((e) => {

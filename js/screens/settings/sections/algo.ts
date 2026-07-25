@@ -310,10 +310,12 @@ export function buildAlgoGroup(s: SettingsLike, save: () => void) {
 
   if (s.algo === 'leitner') {
     const row = el('div', { class: 'row leitner-intervals-row' }, []);
-    const intervals = s.leitnerIntervals || DEFAULT_SETTINGS.leitnerIntervals;
+    const intervals = s.leitnerIntervals || DEFAULT_SETTINGS.leitnerIntervals || [1, 3, 7, 14, 30];
+    if (!s.leitnerIntervals) s.leitnerIntervals = [...intervals];
     intervals.forEach((d: number, i: number) => {
       const inp = el('input', { type: 'number', min: 1, max: 365, value: d, class: 'input leitner-interval-input' }, []) as HTMLInputElement;
       inp.addEventListener('change', () => {
+        if (!s.leitnerIntervals) s.leitnerIntervals = [...intervals];
         s.leitnerIntervals[i] = Math.max(1, Number(inp.value) || 1);
         save();
       });

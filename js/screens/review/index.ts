@@ -72,7 +72,7 @@ export async function renderReview(folderId: string | null, opts: ReviewOpts = {
     const limit = (cramLimit ?? 0) > 0 ? cramLimit! : null;
     if (typeof store.getCramCards === 'function') {
       const cramResult = normalizeCramResult(await store.getCramCards(folderId, limit));
-      queue = cramResult.queue;
+      queue = cramResult.queue as import('../../lib/srs.js').SrsCard[];
       missingOffline = cramResult.missingOffline;
     } else {
       queue = shuffle([...(await store.getFolderCards(folderId))]).slice(0, limit || undefined) as import('../../lib/srs.js').SrsCard[];
@@ -86,7 +86,7 @@ export async function renderReview(folderId: string | null, opts: ReviewOpts = {
       const { due: dueCards, fresh: newCards, missingOffline: missing = 0 } =
         await store.getReviewCards(folderId || null, algo, budget, now);
       missingOffline = missing || 0;
-      queue = shuffle(dueCards.concat(newCards)).slice(0, dayLeft);
+      queue = shuffle(dueCards.concat(newCards)).slice(0, dayLeft) as import('../../lib/srs.js').SrsCard[];
     }
   }
 

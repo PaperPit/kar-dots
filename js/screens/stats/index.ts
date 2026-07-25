@@ -78,7 +78,10 @@ function folderBreakdown(reviews: ReviewLogEntry[], folders: { id: string; name:
 export async function renderStats(): Promise<void> {
   await Promise.all([initActivity(), initReviewLog()]);
   try {
-    if (store && store.kind === 'cloud' && typeof store.syncReviewLogFromCloud === 'function') await store.syncReviewLogFromCloud();
+    if (store && store.kind === 'cloud') {
+      const cloud = store as import('../../data/store-cloud.js').CloudStore;
+      if (typeof cloud.syncReviewLogFromCloud === 'function') await cloud.syncReviewLogFromCloud();
+    }
   } catch (e) { /* офлайн — покажем локальные данные */ }
 
   const reviews = await getAllReviews();

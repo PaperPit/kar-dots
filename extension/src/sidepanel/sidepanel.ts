@@ -73,7 +73,7 @@ function el<K extends keyof HTMLElementTagNameMap>(
 function brand() {
   return el("div", { class: "brand" }, [
     el("div", { class: "brand-mark" }, "К"),
-    el("div", null, [el("h1", null, "КАР-точки"), el("p", null, "Карточки из YouTube")])
+    el("div", {}, [el("h1", {}, "КАР-точки"), el("p", {}, "Карточки из YouTube")])
   ])
 }
 
@@ -168,7 +168,7 @@ function renderAuth(error?: string) {
 
 function accountBar() {
   return el("div", { class: "account-row" }, [
-    el("span", null, accountEmail ? `Аккаунт: ${accountEmail}` : "Аккаунт подключён"),
+    el("span", {}, accountEmail ? `Аккаунт: ${accountEmail}` : "Аккаунт подключён"),
     el(
       "button",
       {
@@ -216,7 +216,7 @@ function renderForm(error = "") {
   const sentencesOpts = el("div", { class: "field" }, [
     el("label", { class: "check-label" }, [
       mergeChk,
-      el("span", null, "Склеивать короткие реплики в предложения")
+      el("span", {}, "Склеивать короткие реплики в предложения")
     ])
   ])
   sentencesOpts.style.display = mode === "sentences" ? "" : "none"
@@ -253,9 +253,9 @@ function renderForm(error = "") {
     el("div", { class: "card" }, [
       el("p", { class: "video-title" }, videoTitle || "Текущее видео"),
       el("p", { class: "video-url" }, videoUrl || "Открой ролик на YouTube"),
-      el("div", { class: "field" }, [el("label", null, "Что достать из ролика"), modeSeg]),
+      el("div", { class: "field" }, [el("label", {}, "Что достать из ролика"), modeSeg]),
       sentencesOpts,
-      el("div", { class: "field" }, [el("label", null, "Папка"), folderSelect]),
+      el("div", { class: "field" }, [el("label", {}, "Папка"), folderSelect]),
       errEl,
       el("div", { class: "actions" }, [goBtn])
     ])
@@ -263,7 +263,7 @@ function renderForm(error = "") {
 }
 
 function renderProgress(text: string) {
-  const statusEl = el("p", null, text)
+  const statusEl = el("p", {}, text)
   root.replaceChildren(
     brand(),
     el("div", { class: "card status-wrap" }, [
@@ -379,9 +379,9 @@ function renderPreview() {
   const toast = el("div", { class: "toast" }, "")
   toast.style.display = "none"
 
-  const list = el("div", null, [])
+  const list = el("div", {}, [])
   for (const [title, items] of groups) {
-    const groupEl = el("div", { class: "preview-group" }, [el("h3", null, `${title} (${items.length})`)])
+    const groupEl = el("div", { class: "preview-group" }, [el("h3", {}, `${title} (${items.length})`)])
     for (const item of items) {
       const chk = el("input", { type: "checkbox", checked: item.checked }) as HTMLInputElement
       chk.addEventListener("change", () => {
@@ -403,7 +403,7 @@ function renderPreview() {
       groupEl.append(
         el("div", { class: "preview-row" }, [
           chk,
-          el("div", null, [
+          el("div", {}, [
             el("div", { class: "front" }, item.cand.front || ""),
             metaParts.length ? el("div", { class: "meta" }, metaParts.join(" · ")) : null,
             back
@@ -428,7 +428,7 @@ function renderPreview() {
     brand(),
     el("div", { class: "card" }, [
       el("div", { class: "preview-head" }, [
-        el("div", null, [
+        el("div", {}, [
           el("p", { class: "video-title" }, videoTitle || "Превью"),
           el("p", { class: "muted" }, "Отметь, что сохранить, при необходимости поправь перевод")
         ]),

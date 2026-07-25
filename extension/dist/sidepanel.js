@@ -652,7 +652,7 @@
   function brand() {
     return el("div", { class: "brand" }, [
       el("div", { class: "brand-mark" }, "\u041A"),
-      el("div", null, [el("h1", null, "\u041A\u0410\u0420-\u0442\u043E\u0447\u043A\u0438"), el("p", null, "\u041A\u0430\u0440\u0442\u043E\u0447\u043A\u0438 \u0438\u0437 YouTube")])
+      el("div", {}, [el("h1", {}, "\u041A\u0410\u0420-\u0442\u043E\u0447\u043A\u0438"), el("p", {}, "\u041A\u0430\u0440\u0442\u043E\u0447\u043A\u0438 \u0438\u0437 YouTube")])
     ]);
   }
   async function refreshVideoFromStorage() {
@@ -738,7 +738,7 @@
   }
   function accountBar() {
     return el("div", { class: "account-row" }, [
-      el("span", null, accountEmail ? `\u0410\u043A\u043A\u0430\u0443\u043D\u0442: ${accountEmail}` : "\u0410\u043A\u043A\u0430\u0443\u043D\u0442 \u043F\u043E\u0434\u043A\u043B\u044E\u0447\u0451\u043D"),
+      el("span", {}, accountEmail ? `\u0410\u043A\u043A\u0430\u0443\u043D\u0442: ${accountEmail}` : "\u0410\u043A\u043A\u0430\u0443\u043D\u0442 \u043F\u043E\u0434\u043A\u043B\u044E\u0447\u0451\u043D"),
       el(
         "button",
         {
@@ -783,7 +783,7 @@
     const sentencesOpts = el("div", { class: "field" }, [
       el("label", { class: "check-label" }, [
         mergeChk,
-        el("span", null, "\u0421\u043A\u043B\u0435\u0438\u0432\u0430\u0442\u044C \u043A\u043E\u0440\u043E\u0442\u043A\u0438\u0435 \u0440\u0435\u043F\u043B\u0438\u043A\u0438 \u0432 \u043F\u0440\u0435\u0434\u043B\u043E\u0436\u0435\u043D\u0438\u044F")
+        el("span", {}, "\u0421\u043A\u043B\u0435\u0438\u0432\u0430\u0442\u044C \u043A\u043E\u0440\u043E\u0442\u043A\u0438\u0435 \u0440\u0435\u043F\u043B\u0438\u043A\u0438 \u0432 \u043F\u0440\u0435\u0434\u043B\u043E\u0436\u0435\u043D\u0438\u044F")
       ])
     ]);
     sentencesOpts.style.display = mode === "sentences" ? "" : "none";
@@ -816,16 +816,16 @@
       el("div", { class: "card" }, [
         el("p", { class: "video-title" }, videoTitle || "\u0422\u0435\u043A\u0443\u0449\u0435\u0435 \u0432\u0438\u0434\u0435\u043E"),
         el("p", { class: "video-url" }, videoUrl || "\u041E\u0442\u043A\u0440\u043E\u0439 \u0440\u043E\u043B\u0438\u043A \u043D\u0430 YouTube"),
-        el("div", { class: "field" }, [el("label", null, "\u0427\u0442\u043E \u0434\u043E\u0441\u0442\u0430\u0442\u044C \u0438\u0437 \u0440\u043E\u043B\u0438\u043A\u0430"), modeSeg]),
+        el("div", { class: "field" }, [el("label", {}, "\u0427\u0442\u043E \u0434\u043E\u0441\u0442\u0430\u0442\u044C \u0438\u0437 \u0440\u043E\u043B\u0438\u043A\u0430"), modeSeg]),
         sentencesOpts,
-        el("div", { class: "field" }, [el("label", null, "\u041F\u0430\u043F\u043A\u0430"), folderSelect]),
+        el("div", { class: "field" }, [el("label", {}, "\u041F\u0430\u043F\u043A\u0430"), folderSelect]),
         errEl,
         el("div", { class: "actions" }, [goBtn])
       ])
     );
   }
   function renderProgress(text) {
-    const statusEl = el("p", null, text);
+    const statusEl = el("p", {}, text);
     root.replaceChildren(
       brand(),
       el("div", { class: "card status-wrap" }, [
@@ -922,9 +922,9 @@
     const countLabel = el("span", { class: "muted" }, `\u0412\u044B\u0431\u0440\u0430\u043D\u043E: ${selectedCount()}`);
     const toast = el("div", { class: "toast" }, "");
     toast.style.display = "none";
-    const list = el("div", null, []);
+    const list = el("div", {}, []);
     for (const [title, items] of groups) {
-      const groupEl = el("div", { class: "preview-group" }, [el("h3", null, `${title} (${items.length})`)]);
+      const groupEl = el("div", { class: "preview-group" }, [el("h3", {}, `${title} (${items.length})`)]);
       for (const item of items) {
         const chk = el("input", { type: "checkbox", checked: item.checked });
         chk.addEventListener("change", () => {
@@ -946,7 +946,7 @@
         groupEl.append(
           el("div", { class: "preview-row" }, [
             chk,
-            el("div", null, [
+            el("div", {}, [
               el("div", { class: "front" }, item.cand.front || ""),
               metaParts.length ? el("div", { class: "meta" }, metaParts.join(" \xB7 ")) : null,
               back
@@ -969,7 +969,7 @@
       brand(),
       el("div", { class: "card" }, [
         el("div", { class: "preview-head" }, [
-          el("div", null, [
+          el("div", {}, [
             el("p", { class: "video-title" }, videoTitle || "\u041F\u0440\u0435\u0432\u044C\u044E"),
             el("p", { class: "muted" }, "\u041E\u0442\u043C\u0435\u0442\u044C, \u0447\u0442\u043E \u0441\u043E\u0445\u0440\u0430\u043D\u0438\u0442\u044C, \u043F\u0440\u0438 \u043D\u0435\u043E\u0431\u0445\u043E\u0434\u0438\u043C\u043E\u0441\u0442\u0438 \u043F\u043E\u043F\u0440\u0430\u0432\u044C \u043F\u0435\u0440\u0435\u0432\u043E\u0434")
           ]),

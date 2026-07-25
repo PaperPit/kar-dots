@@ -25,21 +25,6 @@ chrome.runtime.onInstalled.addListener(() => {
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   void (async () => {
     try {
-      if (msg.type === "OPEN_SIDEPANEL") {
-        const tabId = sender.tab?.id;
-        if (msg.url) {
-          await setVideo({
-            url: msg.url,
-            title: msg.title,
-            tabId
-          });
-        }
-        if (tabId != null) {
-          await chrome.sidePanel.open({ tabId });
-        }
-        sendResponse({ ok: true });
-        return;
-      }
       if (msg.type === "SET_VIDEO") {
         await setVideo({
           url: msg.url,

@@ -28,11 +28,11 @@
     "build:bundle": "tsc && node scripts/bundle.mjs",
     "ext:build": "node extension/scripts/build.mjs",
     "pages:dev": "npm run build:bundle && wrangler pages dev dist --kv YT_JOBS",
-    "pages:deploy": "npm run build:bundle && wrangler pages deploy dist"
+    "pages:deploy": "npm run build:bundle && wrangler pages deploy dist",
+    "kar-push": "bash scripts/kar-push.sh"
   },
   "dependencies": {
     "@capacitor/keyboard": "^8.0.5",
-    "@netlify/blobs": "^8.1.0",
     "motion": "^12.42.2"
   },
   "devDependencies": {

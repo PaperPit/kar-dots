@@ -102,7 +102,7 @@ describe('CloudStore SRS counts (mirror / offline)', () => {
 });
 
 describe('CloudStore online fetch', () => {
-  it('countCards after _fetchFromCloud uses srs_meta per folder', async () => {
+  it('countCards after fetchFromCloud uses srs_meta per folder', async () => {
     const cloudSrsMeta = [
       { id: 'n1', folder_id: 'fa', sm2_reps: 0, sm2_due: null, box: 0, created_at: 1, updated_at: 1 },
       { id: 'd1', folder_id: 'fa', sm2_reps: 2, sm2_due: now - 60_000, box: 1, box_due: now - 60_000, created_at: 2, updated_at: 2 },
@@ -126,7 +126,8 @@ describe('CloudStore online fetch', () => {
     };
     const store = new CloudStore(sb);
     store.mirror = await (await import('../js/data/sync-queue.ts')).openMirrorDB();
-    await store._fetchFromCloud();
+    const { fetchFromCloud } = await import('../js/data/cloud-pull.ts');
+    await fetchFromCloud(store);
     expect(await store.countCards('fa')).toBe(4);
     expect(await store.countCards('fb')).toBe(2);
     expect(await store.countCards(null)).toBe(6);
@@ -173,7 +174,8 @@ describe('CloudStore online fetch', () => {
     const store = new CloudStore({ userId: () => 'user-1', select, count });
     store.mirror = await (await import('../js/data/sync-queue.ts')).openMirrorDB();
     store._srsMeta = baseMeta.slice();
-    await store._fetchFromCloud();
+    const { fetchFromCloud } = await import('../js/data/cloud-pull.ts');
+    await fetchFromCloud(store);
     expect(store._srsMeta.find(c => c.id === 'd1').sm2_reps).toBe(9);
     expect(store._srsMeta).toHaveLength(2);
     const deltaCalls = select.mock.calls.filter(([t, q]) => t === 'cards' && String(q).includes('updated_at=gt.'));
@@ -217,7 +219,8 @@ describe('CloudStore online fetch', () => {
     const store = new CloudStore({ userId: () => 'user-1', select, count });
     store.mirror = await (await import('../js/data/sync-queue.ts')).openMirrorDB();
     store._srsMeta = baseMeta.slice();
-    await store._fetchFromCloud();
+    const { fetchFromCloud } = await import('../js/data/cloud-pull.ts');
+    await fetchFromCloud(store);
     expect(store._srsMeta).toHaveLength(1);
     expect(store._srsMeta[0].id).toBe('n1');
     expect(select.mock.calls.some(([, q]) => String(q).includes('updated_at=gt.'))).toBe(true);
@@ -241,7 +244,8 @@ describe('CloudStore online fetch', () => {
     const { CloudStore } = await import('../js/data/store-cloud.ts');
     const store = new CloudStore(sb);
     store.mirror = await (await import('../js/data/sync-queue.ts')).openMirrorDB();
-    await store._loadCloudFlags();
+    const { loadCloudFlags } = await import('../js/data/cloud-remote.ts');
+    await loadCloudFlags(store);
     const box = await store.createBox({ name: 'English', color: '#C45528' });
     expect(box.name).toBe('English');
     expect(store.boxes).toHaveLength(1);

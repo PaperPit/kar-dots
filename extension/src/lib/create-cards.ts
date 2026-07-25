@@ -1,53 +1,10 @@
 import { buildCardDescription, type YtCandidate } from "../../../js/lib/youtube-import.js"
+import { buildCardRecord } from "../../../js/data/store-contract.js"
 import type { ExtSupabase } from "./supabase-client.js"
 
 export interface SelectedCandidate {
   cand: YtCandidate
   back: string
-}
-
-function uuid(): string {
-  if (crypto.randomUUID) return crypto.randomUUID()
-  return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {
-    const r = (Math.random() * 16) | 0
-    return (c === "x" ? r : (r & 0x3) | 0x8).toString(16)
-  })
-}
-
-/** Минимальная запись карточки — те же поля, что buildCardRecord в приложении. */
-function buildCardRow(
-  data: { folder_id: string; front: string; back: string; description: string },
-  userId: string
-) {
-  const t = Date.now()
-  return {
-    id: uuid(),
-    created_at: t,
-    updated_at: t,
-    front: data.front,
-    back: data.back,
-    description: data.description,
-    front_img: null,
-    back_img: null,
-    folder_id: data.folder_id,
-    user_id: userId,
-    sm2_ef: 2.5,
-    sm2_reps: 0,
-    sm2_ivl: 0,
-    sm2_due: null,
-    box: 0,
-    box_due: null,
-    fsrs_state: null,
-    fsrs_stability: null,
-    fsrs_difficulty: null,
-    fsrs_due: null,
-    fsrs_scheduled_days: null,
-    fsrs_elapsed_days: null,
-    fsrs_reps: null,
-    fsrs_lapses: null,
-    fsrs_learning_steps: null,
-    fsrs_last_review: null
-  }
 }
 
 export async function createYoutubeCardsBatch(
@@ -66,14 +23,14 @@ export async function createYoutubeCardsBatch(
     const text = String(back || "").trim()
     if (!text) continue
     try {
-      const row = buildCardRow(
+      const row = buildCardRecord(
         {
           folder_id: folderId,
           front: cand.front || "",
           back: text,
           description: buildCardDescription(cand, videoId)
         },
-        uid
+        { user_id: uid }
       )
       await sb.insert("cards", row)
       ok++

@@ -105,7 +105,10 @@ const CORE_FILES = ['./', 'index.html', 'manifest.webmanifest', 'packs/manifest.
 const unique = [...new Set(CORE_FILES.filter((f) => f !== './'))].sort();
 
 const swPath = path.join(DIST, 'sw.js');
-const VERSION = 'kar-v15.3-bundle';
+const versionSrc = fs.readFileSync(path.join(JS, 'core', 'version.ts'), 'utf8');
+const versionMatch = versionSrc.match(/export const APP_VERSION\s*=\s*["']([^"']+)["']/);
+if (!versionMatch) throw new Error('APP_VERSION не найден в js/core/version.ts');
+const VERSION = versionMatch[1];
 const list = unique.map((f) => `  '${f}',`).join('\n');
 const swBody = `const VERSION = '${VERSION}';
 

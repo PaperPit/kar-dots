@@ -1,7 +1,7 @@
 /**
  * Личные API-ключи для «Карточки из YouTube» (Настройки → Карточки из YouTube).
  * Supadata — обязателен для транскрипта; Gemini/Groq — для генерации карточек
- * (личный ключ приоритетнее серверного из env Netlify).
+ * (личный ключ приоритетнее серверного из env Cloudflare Pages).
  */
 
 import { cleanGeminiApiKey, cleanGroqApiKey, cleanSupadataApiKey } from "./llm-api-keys.js"

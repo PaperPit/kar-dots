@@ -10,6 +10,7 @@
     "test:e2e:install": "playwright install chromium",
     "test:watch": "vitest",
     "sw:generate": "node scripts/generate-sw-files.js",
+    "sw:check": "node scripts/check-sw-precache.mjs",
     "vendor:motion": "esbuild node_modules/motion/dist/es/mini.mjs --bundle --format=esm --outfile=js/vendor/motion.mjs",
     "vendor:cap-speech": "esbuild node_modules/@capgo/capacitor-speech-recognition/dist/esm/index.js --bundle --format=esm --outfile=js/vendor/capacitor-speech-recognition.mjs",
     "ios:prepare": "npm run build && node scripts/generate-config.js && node scripts/prepare-ios-www.js && npm run vendor:cap-speech",

@@ -30,7 +30,7 @@
 - Навигация только через `js/ui/navigation.js`
 - SRS-предикаты — `js/data/srs-query.js` + `js/lib/srs.js`
 - Минимальный diff: не рефакторить «заодно»
-- После изменения списка precache: `npm run sw:generate` и bump `VERSION` в `sw.js`
+- После изменения списка precache: `npm run sw:generate` (корневой `sw.js` из `.ts`) и bump `VERSION`; для прода — `npm run build:bundle && npm run sw:check`
 - `www/` — генерируемый артефакт Capacitor. Не правьте его руками: пересоздайте через `npm run ios:prepare` перед `npm run ios:sync`.
 
 ## Pull request

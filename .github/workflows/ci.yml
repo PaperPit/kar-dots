@@ -28,6 +28,8 @@ jobs:
         run: npm run functions:check
       - name: Extension build
         run: npm run ext:check
+      - name: Prod bundle + SW precache paths exist in dist/
+        run: npm run build:bundle && npm run sw:check
 
   e2e:
     runs-on: ubuntu-latest

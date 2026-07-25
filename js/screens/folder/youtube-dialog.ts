@@ -15,8 +15,10 @@ import {
   fetchTranscriptFromUrl, importFromCaptionFile,
   generateYoutubeCards, createYoutubeCardsBatch, prepareTranscriptForMode,
   type YtGenResult,
+  type YtVideo as YTVideo,
+  type YtTranscript,
 } from '../../lib/yt-transcript.js';
-import type { YtVideo as YTVideo, YtTranscript } from '../../data/yt-transcript-cache.js';
+import { getCachedTranscript, setCachedTranscript } from '../../data/yt-transcript-cache.js';
 import { loadKnownTermsForImport } from '../../lib/yt-known-terms.js';
 
 interface YTPrefill {
@@ -316,6 +318,13 @@ export function youtubeImportDialog(folderId: string) {
       const result = await fetchTranscriptFromUrl(url, store.settings, {
         isClosed: (): boolean => closed,
         onStatus: (msg?: string): void => { if (msg) setStatus(msg); },
+        cache: {
+          get: async (id) => {
+            const row = await getCachedTranscript(id)
+            return row ? { video: row.video, transcript: row.transcript } : null
+          },
+          set: (id, data) => setCachedTranscript(id, data),
+        },
       });
       if (closed) return;
       if (result.source === 'cache') setStatus('Транскрипт из кэша — составляю карточки…');

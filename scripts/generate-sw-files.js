@@ -72,8 +72,10 @@ const unique = [...new Set(list)];
 
 const swPath = join(ROOT, 'sw.js');
 const sw = await readFile(swPath, 'utf8');
+const versionSrc = await readFile(join(ROOT, 'js/core/version.ts'), 'utf8');
+const versionFromSrc = versionSrc.match(/export const APP_VERSION\s*=\s*["']([^"']+)["']/);
 const versionMatch = sw.match(/const VERSION = '([^']+)'/);
-const version = versionMatch ? versionMatch[1] : 'kar-v14.0';
+const version = versionFromSrc?.[1] || versionMatch?.[1] || 'kar-v15.0';
 
 const body = unique.map(f => `  '${f}',`).join('\n');
 const next = `const VERSION = '${version}';

@@ -3,15 +3,11 @@
 // Опрос: GET /api/yt-video?jobId=
 
 import { jobsStore } from './_kv.js';
+import { cleanGroqApiKey } from '../../js/lib/llm-api-keys.js';
 
 const GROQ_TRANSCRIBE_URL = 'https://api.groq.com/openai/v1/audio/transcriptions';
 const MODEL = 'whisper-large-v3-turbo';
 const MAX_AUDIO_BYTES = 24 * 1024 * 1024;
-
-function cleanApiKey(raw) {
-  const s = String(raw || '').trim();
-  return /^[A-Za-z0-9_-]{20,200}$/.test(s) ? s : '';
-}
 
 function extForMime(mimeType) {
   const m = String(mimeType || '');
@@ -32,7 +28,7 @@ async function saveFailed(env, jobId, errorCode, message) {
 async function runTranscription(env, payload) {
   const jobId = payload.jobId;
   const { audioUrl, mimeType } = payload;
-  const apiKey = cleanApiKey(payload.groqApiKey) || cleanApiKey(env?.GROQ_API_KEY);
+  const apiKey = cleanGroqApiKey(payload.groqApiKey) || cleanGroqApiKey(env?.GROQ_API_KEY);
 
   if (!apiKey) {
     await saveFailed(env, jobId, 'config', 'Нет Groq API ключа — укажи его в Настройках → «Карточки из YouTube»');

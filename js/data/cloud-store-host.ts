@@ -27,10 +27,18 @@ export interface SyncPayload {
   [key: string]: unknown
 }
 
-/** Состояние CloudStore, с которым работают cloud-pull / cloud-remote / cloud-sync-runtime. */
+/** Флаги совместимости со схемой Supabase (отсутствующие таблицы/колонки). */
+export interface CloudCompatFlags {
+  folderIcon: boolean
+  reviewLog: boolean
+  boxes: boolean
+  boxId: boolean
+  boxIcon: boolean
+}
+
+/** Минимальный хост для cloud-pull / cloud-remote / cloud-sync-runtime / cloud-queries. */
 export interface CloudStoreHost {
   sb: MiniSupabase
-  kind: string
   folders: Folder[]
   boxes: Box[]
   settings: Settings
@@ -40,12 +48,7 @@ export interface CloudStoreHost {
   queue: SyncQueue
   mirror: IDBDatabase
   _onSyncChange: ((state: SyncState) => void) | null
-  _onDataChange: (() => void) | null
-  _folderIconCloudUnsupported: boolean
-  _reviewLogCloudUnsupported: boolean
-  _boxesCloudUnsupported: boolean
-  _boxIdCloudUnsupported: boolean
-  _boxIconCloudUnsupported: boolean
+  _compat: CloudCompatFlags
   _homeStatsCache: HomeStats | null
   _homeStatsCacheAlgo: Algo | null
   _srsMetaPersistTimer: ReturnType<typeof setTimeout> | null
@@ -56,4 +59,9 @@ export interface CloudStoreHost {
   _emitDataChange(): void
   _invalidateHomeStats?(): void
   saveSettings(s: Settings): Promise<unknown>
+}
+
+/** Алиасы под старые имена флагов — для постепенной миграции внутри модулей. */
+export function readCompat(store: CloudStoreHost) {
+  return store._compat
 }

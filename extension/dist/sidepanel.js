@@ -173,73 +173,6 @@ async function loadUserSettings(sb) {
   return rows[0]?.data || null;
 }
 
-// ../js/lib/llm-api-keys.js
-function strip(raw) {
-  return String(raw || "").replace(/[\u200B-\u200D\uFEFF]/g, "").trim().replace(/\s+/g, "");
-}
-var GEMINI_KEY_RE = /^(?:AIza[A-Za-z0-9_-]{10,}|AQ\.[A-Za-z0-9._-]{20,})$/;
-function cleanGeminiApiKey(raw) {
-  const s = strip(raw);
-  if (!s)
-    return "";
-  if (GEMINI_KEY_RE.test(s))
-    return s.slice(0, 512);
-  if (/^AQ\./.test(s) && s.length >= 24 && s.length <= 512 && /^[A-Za-z0-9._-]+$/.test(s)) {
-    return s;
-  }
-  if (/^AIza/.test(s) && s.length >= 20 && s.length <= 512 && /^[A-Za-z0-9_-]+$/.test(s)) {
-    return s;
-  }
-  return "";
-}
-function cleanGroqApiKey(raw) {
-  const s = strip(raw);
-  if (!s)
-    return "";
-  if (/^gsk_[A-Za-z0-9_-]{10,200}$/.test(s))
-    return s;
-  if (/^[A-Za-z0-9_-]{20,200}$/.test(s))
-    return s;
-  return "";
-}
-function cleanSupadataApiKey(raw) {
-  const s = strip(raw);
-  if (!s)
-    return "";
-  if (/^sd_[A-Za-z0-9_-]{10,200}$/.test(s))
-    return s;
-  if (/^[A-Za-z0-9_-]{16,200}$/.test(s))
-    return s;
-  return "";
-}
-
-// ../js/lib/youtube-import-settings.js
-function getSupadataApiKey(settings2) {
-  return cleanSupadataApiKey(settings2?.supadataApiKey || "");
-}
-function hasSupadataApiKey(settings2) {
-  return getSupadataApiKey(settings2).length > 0;
-}
-function getGeminiApiKey(settings2) {
-  return cleanGeminiApiKey(settings2?.geminiApiKey || "");
-}
-function getGroqApiKey(settings2) {
-  return cleanGroqApiKey(settings2?.groqApiKey || "");
-}
-function withApiKeys(settings2, body) {
-  const out = { ...body };
-  const supadata = getSupadataApiKey(settings2);
-  if (supadata)
-    out.supadataApiKey = supadata;
-  const gemini = getGeminiApiKey(settings2);
-  if (gemini)
-    out.geminiApiKey = gemini;
-  const groq = getGroqApiKey(settings2);
-  if (groq)
-    out.groqApiKey = groq;
-  return out;
-}
-
 // ../js/lib/yt-segment-merge.js
 var DEFAULT_MAX_CHARS = 120;
 function countWords(text) {
@@ -466,15 +399,82 @@ function buildCardDescription(candidate, videoId2) {
   return out;
 }
 
-// src/lib/yt-api.ts
+// ../js/lib/llm-api-keys.js
+function strip(raw) {
+  return String(raw || "").replace(/[\u200B-\u200D\uFEFF]/g, "").trim().replace(/\s+/g, "");
+}
+var GEMINI_KEY_RE = /^(?:AIza[A-Za-z0-9_-]{10,}|AQ\.[A-Za-z0-9._-]{20,})$/;
+function cleanGeminiApiKey(raw) {
+  const s = strip(raw);
+  if (!s)
+    return "";
+  if (GEMINI_KEY_RE.test(s))
+    return s.slice(0, 512);
+  if (/^AQ\./.test(s) && s.length >= 24 && s.length <= 512 && /^[A-Za-z0-9._-]+$/.test(s)) {
+    return s;
+  }
+  if (/^AIza/.test(s) && s.length >= 20 && s.length <= 512 && /^[A-Za-z0-9_-]+$/.test(s)) {
+    return s;
+  }
+  return "";
+}
+function cleanGroqApiKey(raw) {
+  const s = strip(raw);
+  if (!s)
+    return "";
+  if (/^gsk_[A-Za-z0-9_-]{10,200}$/.test(s))
+    return s;
+  if (/^[A-Za-z0-9_-]{20,200}$/.test(s))
+    return s;
+  return "";
+}
+function cleanSupadataApiKey(raw) {
+  const s = strip(raw);
+  if (!s)
+    return "";
+  if (/^sd_[A-Za-z0-9_-]{10,200}$/.test(s))
+    return s;
+  if (/^[A-Za-z0-9_-]{16,200}$/.test(s))
+    return s;
+  return "";
+}
+
+// ../js/lib/youtube-import-settings.js
+function getSupadataApiKey(settings2) {
+  return cleanSupadataApiKey(settings2?.supadataApiKey || "");
+}
+function hasSupadataApiKey(settings2) {
+  return getSupadataApiKey(settings2).length > 0;
+}
+function getGeminiApiKey(settings2) {
+  return cleanGeminiApiKey(settings2?.geminiApiKey || "");
+}
+function getGroqApiKey(settings2) {
+  return cleanGroqApiKey(settings2?.groqApiKey || "");
+}
+function withApiKeys(settings2, body) {
+  const out = { ...body };
+  const supadata = getSupadataApiKey(settings2);
+  if (supadata)
+    out.supadataApiKey = supadata;
+  const gemini = getGeminiApiKey(settings2);
+  if (gemini)
+    out.geminiApiKey = gemini;
+  const groq = getGroqApiKey(settings2);
+  if (groq)
+    out.groqApiKey = groq;
+  return out;
+}
+
+// ../js/lib/yt-transcript.js
 var POLL_MS = 2500;
 var POLL_MAX_MS = 3 * 60 * 1e3;
-async function apiJson(path, opts) {
+async function apiJson(url, opts) {
   let res;
   try {
-    res = await fetch(APP_ORIGIN + path, opts);
+    res = await fetch(url, opts);
   } catch {
-    throw new Error("\u041D\u0435\u0442 \u0441\u043E\u0435\u0434\u0438\u043D\u0435\u043D\u0438\u044F \u0441 \u0441\u0435\u0440\u0432\u0435\u0440\u043E\u043C \u041A\u0410\u0420-\u0442\u043E\u0447\u043A\u0438");
+    throw new Error("\u041D\u0435\u0442 \u0441\u043E\u0435\u0434\u0438\u043D\u0435\u043D\u0438\u044F \u0441 \u0441\u0435\u0440\u0432\u0435\u0440\u043E\u043C");
   }
   let data = null;
   try {
@@ -486,15 +486,22 @@ async function apiJson(path, opts) {
   }
   return data;
 }
-async function fetchTranscriptFromUrl(url, settings2, {
-  isClosed = () => false,
-  onStatus = () => {
-  }
-} = {}) {
+async function fetchTranscriptFromUrl(url, settings2, { isClosed = () => false, onStatus = () => {
+}, apiBase = "", cache = null } = {}) {
   const videoId2 = parseYouTubeId(url);
-  if (!videoId2) throw new Error("\u041D\u0435 \u043F\u043E\u0445\u043E\u0436\u0435 \u043D\u0430 \u0441\u0441\u044B\u043B\u043A\u0443 \u043D\u0430 YouTube-\u0432\u0438\u0434\u0435\u043E");
+  if (videoId2 && cache) {
+    onStatus("\u041F\u0440\u043E\u0432\u0435\u0440\u044F\u044E \u043A\u044D\u0448 \u0442\u0440\u0430\u043D\u0441\u043A\u0440\u0438\u043F\u0442\u0430\u2026");
+    const cached = await cache.get(videoId2);
+    if (cached) {
+      return {
+        video: cached.video ?? { videoId: videoId2 },
+        transcript: cached.transcript,
+        source: "cache"
+      };
+    }
+  }
   onStatus("\u041F\u043E\u043B\u0443\u0447\u0430\u044E \u0434\u0430\u043D\u043D\u044B\u0435 \u0432\u0438\u0434\u0435\u043E\u2026");
-  let data = await apiJson("/api/yt-video", {
+  let data = await apiJson(apiBase + "/api/yt-video", {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify(withApiKeys(settings2, { url }))
@@ -503,50 +510,61 @@ async function fetchTranscriptFromUrl(url, settings2, {
     onStatus("\u041F\u043E\u043B\u0443\u0447\u0430\u044E \u0442\u0440\u0430\u043D\u0441\u043A\u0440\u0438\u043F\u0442 \u0447\u0435\u0440\u0435\u0437 Supadata, \u044D\u0442\u043E \u043C\u043E\u0436\u0435\u0442 \u0437\u0430\u043D\u044F\u0442\u044C \u043C\u0438\u043D\u0443\u0442\u0443\u2026");
     const deadline = Date.now() + POLL_MAX_MS;
     while (data.pending) {
-      if (isClosed()) throw new Error("\u041E\u0442\u043C\u0435\u043D\u0435\u043D\u043E");
-      if (Date.now() > deadline) {
+      if (isClosed())
+        throw new Error("\u041E\u0442\u043C\u0435\u043D\u0435\u043D\u043E");
+      if (Date.now() > deadline)
         throw new Error("\u0420\u0430\u0441\u0448\u0438\u0444\u0440\u043E\u0432\u043A\u0430 \u0437\u0430\u043D\u044F\u043B\u0430 \u0441\u043B\u0438\u0448\u043A\u043E\u043C \u043C\u043D\u043E\u0433\u043E \u0432\u0440\u0435\u043C\u0435\u043D\u0438 \u2014 \u043F\u043E\u043F\u0440\u043E\u0431\u0443\u0439 \u043F\u043E\u0437\u0436\u0435");
-      }
       await new Promise((r) => setTimeout(r, POLL_MS));
-      data = await apiJson("/api/yt-video?jobId=" + encodeURIComponent(String(data.jobId)));
+      data = await apiJson(apiBase + "/api/yt-video?jobId=" + encodeURIComponent(String(data.jobId)));
     }
   }
-  const video = data.video || { videoId: videoId2 };
+  const video = data.video;
   const transcript = data.transcript;
-  if (!transcript?.segments?.length) {
-    throw new Error("\u041D\u0435 \u0443\u0434\u0430\u043B\u043E\u0441\u044C \u043F\u043E\u043B\u0443\u0447\u0438\u0442\u044C \u0442\u0435\u043A\u0441\u0442 \u0432\u0438\u0434\u0435\u043E \u2014 \u0432\u043E\u0437\u043C\u043E\u0436\u043D\u043E, \u043D\u0435\u0442 \u0441\u0443\u0431\u0442\u0438\u0442\u0440\u043E\u0432");
+  if (!transcript?.segments?.length)
+    throw new Error("\u041D\u0435 \u0443\u0434\u0430\u043B\u043E\u0441\u044C \u043F\u043E\u043B\u0443\u0447\u0438\u0442\u044C \u0442\u0435\u043A\u0441\u0442 \u0432\u0438\u0434\u0435\u043E");
+  const cacheId = video?.videoId || videoId2;
+  if (cacheId && cache) {
+    await cache.set(cacheId, { video, transcript });
   }
   return { video, transcript, source: "supadata" };
 }
 function prepareTranscriptForMode(transcript, mode2, { mergeCues: mergeCues2 = true } = {}) {
-  if (mode2 !== "sentences") return transcript;
+  if (mode2 !== "sentences")
+    return transcript;
   let segments = transcript?.segments || [];
-  if (mergeCues2) segments = mergeCaptionSegments(segments);
+  if (mergeCues2)
+    segments = mergeCaptionSegments(segments);
   segments = filterTranscriptSegments(segments, { minWords: 3, dedupe: true });
   if (!segments.length) {
     throw new Error("\u041F\u043E\u0441\u043B\u0435 \u0444\u0438\u043B\u044C\u0442\u0440\u0430\u0446\u0438\u0438 \u043D\u0435 \u043E\u0441\u0442\u0430\u043B\u043E\u0441\u044C \u043F\u0440\u0435\u0434\u043B\u043E\u0436\u0435\u043D\u0438\u0439 \u2014 \u043F\u043E\u043F\u0440\u043E\u0431\u0443\u0439 \u0434\u0440\u0443\u0433\u0438\u0435 \u0441\u0443\u0431\u0442\u0438\u0442\u0440\u044B");
   }
   return { ...transcript, segments };
 }
-async function generateYoutubeCards({
-  video,
-  transcript,
-  mode: mode2,
-  settings: settings2
-}, { isClosed = () => false } = {}) {
-  if (isClosed()) throw new Error("\u041E\u0442\u043C\u0435\u043D\u0435\u043D\u043E");
-  return apiJson("/api/yt-generate", {
+async function generateYoutubeCards({ video, transcript, mode: mode2, settings: settings2, apiBase = "" }, { isClosed = () => false } = {}) {
+  if (isClosed())
+    throw new Error("\u041E\u0442\u043C\u0435\u043D\u0435\u043D\u043E");
+  return apiJson(apiBase + "/api/yt-generate", {
     method: "POST",
     headers: { "content-type": "application/json" },
-    body: JSON.stringify(
-      withApiKeys(settings2, {
-        title: video?.title || "",
-        lang: transcript.lang || "",
-        mode: mode2,
-        segments: transcript.segments
-      })
-    )
+    body: JSON.stringify(withApiKeys(settings2, {
+      title: video?.title || "",
+      lang: transcript.lang || "",
+      mode: mode2,
+      segments: transcript.segments
+    }))
   });
+}
+
+// src/lib/yt-api.ts
+async function fetchTranscriptFromUrl2(url, settings2, opts = {}) {
+  return fetchTranscriptFromUrl(url, settings2, {
+    ...opts,
+    apiBase: APP_ORIGIN,
+    cache: null
+  });
+}
+async function generateYoutubeCards2(args, opts = {}) {
+  return generateYoutubeCards({ ...args, apiBase: APP_ORIGIN }, opts);
 }
 
 // src/lib/known-terms.ts
@@ -928,7 +946,7 @@ async function runImport() {
   try {
     const sb = await ExtSupabase.fromStorage();
     if (!sb) throw new Error("\u041D\u0435\u0442 \u0441\u0435\u0441\u0441\u0438\u0438");
-    const { video, transcript } = await fetchTranscriptFromUrl(videoUrl, settings, {
+    const { video, transcript } = await fetchTranscriptFromUrl2(videoUrl, settings, {
       isClosed,
       onStatus: setStatus
     });
@@ -937,7 +955,7 @@ async function runImport() {
     if (video.title) videoTitle = String(video.title);
     setStatus("\u0421\u043E\u0441\u0442\u0430\u0432\u043B\u044F\u044E \u043A\u0430\u0440\u0442\u043E\u0447\u043A\u0438\u2026");
     const prepared = prepareTranscriptForMode(transcript, mode, { mergeCues });
-    const gen = await generateYoutubeCards(
+    const gen = await generateYoutubeCards2(
       { video, transcript: prepared, mode, settings },
       { isClosed }
     );

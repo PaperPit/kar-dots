@@ -77,14 +77,14 @@ export async function pullCardsDelta(store: CloudStoreHost, uid: string, since: 
 export async function fetchBoxesFromCloud(store: CloudStoreHost) {
   try {
     const rows = await store.sb.select<Box>('boxes', 'select=*&order=created_at.asc')
-    if (store._boxesCloudUnsupported) {
-      store._boxesCloudUnsupported = false
+    if (store._compat.boxes) {
+      store._compat.boxes = false
       await saveCloudFlags(store)
     }
     return rows
   } catch (e) {
     if (isMissingBoxesTableError(e)) {
-      store._boxesCloudUnsupported = true
+      store._compat.boxes = true
       await saveCloudFlags(store)
     }
     try {
@@ -128,7 +128,7 @@ export async function fetchFromCloud(store: CloudStoreHost) {
   store.boxes = boxesRaw.map(normalizeBoxRecord).filter((b): b is Box => !!b)
     .sort((a: Box, b: Box) => (a.created_at || 0) - (b.created_at || 0))
   if (folders.some((f: Folder) => Object.prototype.hasOwnProperty.call(f, 'icon'))) {
-    store._folderIconCloudUnsupported = false
+    store._compat.folderIcon = false
     await saveCloudFlags(store)
   }
   await mirrorReplaceAll(store.mirror, 'folders', folders)

@@ -17,7 +17,7 @@ Vanilla JS PWA (ES modules, **без bundler в dev**). Исходники — T
 - `npm test` — Vitest (happy-dom)
 - `npm run build:bundle` — прод-сборка: `tsc` + esbuild-бандл в `dist/` + генерация `dist/sw.js` (прекеш бандла + чанков + ассетов)
 - `npm run ext:build` — сборка Chrome-расширения в `extension/dist/` (load unpacked из `extension/`)
-- `npm run sw:generate` — пересобрать список precache в корневом `sw.js` (dev/unbundled-режим, версия `kar-v12.x`)
+- `npm run sw:generate` — пересобрать список precache в корневом `sw.js` (dev/unbundled; VERSION из `js/core/version.ts`)
 
 ## Конвенции
 

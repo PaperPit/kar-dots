@@ -1,6 +1,6 @@
 // Парсинг .srt / .vtt → { lang, segments: [{ t: сек, text }] } (как Supadata transcript).
 
-import type { YtTranscript, YtTranscriptSegment } from "../data/yt-transcript-cache.js"
+import type { YtTranscript, YtTranscriptSegment } from "./yt-transcript.js"
 
 /** «00:01:23,456» / «1:23.456» → секунды (целые). */
 export function parseCueTime(raw: string | null | undefined): number {

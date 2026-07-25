@@ -6,6 +6,7 @@ import { brandMark, ghostBox } from '../../ui/helpers.js';
 import { nav } from '../../ui/shell.js';
 import { route, parseHash } from '../../core/router.js';
 import { animateFadeIn } from '../../lib/motion-ui.js';
+import { applyUiLocale, t } from '../../lib/i18n.js';
 import type { CloudStore } from '../../data/store-cloud.js';
 
 function errMsg(e: unknown): string {
@@ -27,7 +28,7 @@ export function renderAuth(busyMsg?: string) {
   content.append(
     ghostBox(),
     brandMark({ heading: true }),
-    el('p', { class: 'auth-sub' }, 'Карточки для запоминания слов, терминов и цитат — с умным интервальным повторением.')
+    el('p', { class: 'auth-sub' }, t('auth.sub'))
   );
 
   if (busyMsg) {
@@ -37,14 +38,14 @@ export function renderAuth(busyMsg?: string) {
     return;
   }
 
-  const email = el('input', { class: 'input', type: 'email', placeholder: 'Почта', autocomplete: 'email' }, []) as HTMLInputElement;
-  const pass = el('input', { class: 'input', type: 'password', placeholder: 'Пароль (мин. 6 символов)', autocomplete: 'current-password' }, []) as HTMLInputElement;
-  const btnIn = el('button', { class: 'btn primary block big' }, 'Войти') as HTMLButtonElement;
-  const btnUp = el('button', { class: 'link-btn' }, 'Создать аккаунт') as HTMLButtonElement;
+  const email = el('input', { class: 'input', type: 'email', placeholder: t('auth.emailPlaceholder'), autocomplete: 'email' }, []) as HTMLInputElement;
+  const pass = el('input', { class: 'input', type: 'password', placeholder: t('auth.passwordPlaceholder'), autocomplete: 'current-password' }, []) as HTMLInputElement;
+  const btnIn = el('button', { class: 'btn primary block big' }, t('auth.signIn')) as HTMLButtonElement;
+  const btnUp = el('button', { class: 'link-btn' }, t('auth.signUp')) as HTMLButtonElement;
 
   async function doAuth(signup: boolean) {
     if (!email.value.trim() || pass.value.length < 6) {
-      toast('Введите почту и пароль не короче 6 символов', 'error'); return;
+      toast(t('auth.needCredentials'), 'error'); return;
     }
     btnIn.disabled = true;
     try {
@@ -52,7 +53,7 @@ export function renderAuth(busyMsg?: string) {
       if (signup) {
         const r = await sb.signUp(email.value.trim(), pass.value);
         if (r.needConfirm) {
-          toast('Письмо отправлено — подтвердите почту и войдите', 'ok');
+          toast(t('auth.confirmEmail'), 'ok');
           btnIn.disabled = false;
           return;
         }
@@ -74,11 +75,11 @@ export function renderAuth(busyMsg?: string) {
         el('div', { class: 'field' }, email),
         el('div', { class: 'field' }, pass),
         btnIn,
-        el('p', { class: 'auth-note' }, ['Нет аккаунта? ', btnUp]),
+        el('p', { class: 'auth-note' }, [t('auth.noAccount'), btnUp]),
       ]
     : [
         el('p', { class: 'modal-text modal-text-flush' },
-          'Облачный режим пока не настроен. Скопируйте js/config.example.js → js/config.js и заполните ключи Supabase (см. docs/USER-GUIDE.md).'),
+          t('auth.cloudNotConfigured')),
       ]
   );
 
@@ -86,13 +87,13 @@ export function renderAuth(busyMsg?: string) {
     class: 'btn block big',
     onclick: async () => {
       localStorage.setItem('kar_mode', 'local');
-      renderAuth('Открываю…');
+      renderAuth(t('auth.opening'));
       await enterLocal();
     },
-  }, 'Попробовать без регистрации') as HTMLButtonElement;
+  }, t('auth.tryLocal')) as HTMLButtonElement;
 
   content.append(cloudCard, el('div', { class: 'auth-or' }, '· · ·'), demoBtn,
-    el('p', { class: 'auth-note' }, 'Демо-режим: данные хранятся только в этом браузере.'));
+    el('p', { class: 'auth-note' }, t('auth.demoNote')));
   app.append(el('main', { class: 'main' }, content));
   requestAnimationFrame(() => animateFadeIn(content));
 }
@@ -101,10 +102,15 @@ export async function enterLocal() {
   const local = new LocalStore();
   await local.init();
   setStore(local);
+  applyUiLocale(local.settings.language);
   if (!store.folders.length && !localStorage.getItem('kar_seeded')) {
     localStorage.setItem('kar_seeded', '1');
-    const f = await local.createFolder({ name: 'Первая папка', color: FOLDER_COLORS[0] });
-    await local.createCard({ folder_id: f.id, front: 'КАР-точки', back: 'Карточки для запоминания.\nНажмите на карточку, чтобы перевернуть.' });
+    const f = await local.createFolder({ name: t('auth.seed.folderName'), color: FOLDER_COLORS[0] });
+    await local.createCard({
+      folder_id: f.id,
+      front: t('auth.seed.cardFront'),
+      back: t('auth.seed.cardBack'),
+    });
   }
   nav('#home');
   await route();
@@ -112,13 +118,14 @@ export async function enterLocal() {
 
 export async function enterCloud() {
   localStorage.setItem('kar_mode', 'cloud');
-  renderAuth('Загружаю ваши карточки…');
+  renderAuth(t('auth.loadingCloud'));
   try {
     const { CloudStore } = await import('../../data/store-cloud.js');
-    if (!sb) throw new Error('Облачный режим не настроен (нет ключей Supabase)');
+    if (!sb) throw new Error(t('auth.cloudMissingKeys'));
     const cloud = new CloudStore(sb);
     await cloud.init();
     setStore(cloud);
+    applyUiLocale(cloud.settings.language);
     attachCloudDataReload(cloud);
     // Первое устройство / пустое зеркало: не уходим на пустой home, пока облако не ответит.
     if (navigator.onLine && !cloud.folders.length && !cloud.boxes.length) {
@@ -134,7 +141,7 @@ export async function enterCloud() {
     tryExtConnectAfterLogin();
     } catch (e) {
       setStore(null);
-      toast('Не удалось загрузить данные: ' + errMsg(e), 'error');
+      toast(t('auth.loadFailed', { message: errMsg(e) }), 'error');
       renderAuth();
     }
 }

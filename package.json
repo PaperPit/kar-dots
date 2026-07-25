@@ -18,6 +18,8 @@
     "db:push": "supabase db push --linked",
     "db:repair-init": "bash scripts/supabase-repair-init.sh",
     "typecheck": "tsc --noEmit",
+    "i18n:extract": "node scripts/i18n-extract.mjs",
+    "i18n:check": "node scripts/i18n-extract.mjs --check --dirs=js/screens/home,js/screens/auth,js/ui/shell.ts,js/ui/navigation.ts,js/ui/home-day-card.ts",
     "lint": "eslint js/**/*.ts",
     "lint:fix": "eslint js/**/*.ts --fix",
     "format": "prettier js/**/*.ts --write",

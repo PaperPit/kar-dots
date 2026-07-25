@@ -1,0 +1,142 @@
+import type { MessageValue } from "./ru.js"
+
+/** English UI catalog — partial; missing keys fall back to Russian. */
+export const en: Record<string, MessageValue> = {
+  "common.cancel": "Cancel",
+  "common.ok": "OK",
+  "common.delete": "Delete",
+  "common.save": "Save",
+  "common.create": "Create",
+  "common.back": "Back",
+  "common.name": "Name",
+  "common.color": "Color",
+  "common.icon": "Icon",
+  "common.open": "Open",
+  "common.card": { one: "card", other: "cards" },
+  "common.folder": { one: "folder", other: "folders" },
+  "common.error": "Error",
+  "common.unknownError": "Unknown error",
+
+  "app.bootFailed":
+    "Could not start the app. Open the browser console (F12) for details.",
+  "app.bootError": "Startup error: {message}",
+
+  "shell.nav.home": "Folders",
+  "shell.nav.review": "Review",
+  "shell.nav.stats": "Stats",
+  "shell.nav.settings": "Settings",
+  "shell.offline.short": "Offline",
+  "shell.offline.local": "Offline — data stays on this device.",
+  "shell.offline.cloud": "Offline — changes will be saved locally.",
+  "shell.sync.checking": "Checking sync…",
+  "shell.sync.waiting": "Offline — new changes will wait for a connection.",
+  "shell.sync.pending": "In sync queue: {n}.",
+  "shell.sync.failed": "Failed to send: {n}.",
+  "shell.sync.doneFail": "Synced: {ok}, errors: {fail}",
+  "shell.sync.doneOk": "Synced: {ok}",
+  "shell.sync.retry": "Retry",
+  "shell.sync.errorTitle": "Sync error",
+  "shell.sync.retryStarted": "Retry sync started",
+  "shell.sync.alreadyHandled": "Entry already handled",
+  "shell.sync.retryError": "Retry failed item",
+  "shell.sync.discarded": "Sync error dismissed",
+  "shell.sync.hide": "Hide",
+  "shell.sync.readFailed": "Could not read sync status.",
+
+  "auth.sub":
+    "Flashcards for words, terms, and quotes — with smart spaced repetition.",
+  "auth.emailPlaceholder": "Email",
+  "auth.passwordPlaceholder": "Password (min. 6 characters)",
+  "auth.signIn": "Sign in",
+  "auth.signUp": "Create account",
+  "auth.needCredentials": "Enter email and a password of at least 6 characters",
+  "auth.confirmEmail": "Email sent — confirm your address and sign in",
+  "auth.noAccount": "No account? ",
+  "auth.cloudNotConfigured":
+    "Cloud mode is not configured yet. Copy js/config.example.js → js/config.js and fill in Supabase keys (see docs/USER-GUIDE.md).",
+  "auth.tryLocal": "Try without signing up",
+  "auth.opening": "Opening…",
+  "auth.demoNote": "Demo mode: data stays in this browser only.",
+  "auth.loadingCloud": "Loading your cards…",
+  "auth.cloudMissingKeys": "Cloud mode is not configured (missing Supabase keys)",
+  "auth.loadFailed": "Could not load data: {message}",
+  "auth.seed.folderName": "First folder",
+  "auth.seed.cardFront": "KAR-dots",
+  "auth.seed.cardBack":
+    "Flashcards for memorizing.\nTap the card to flip it.",
+
+  "home.toast.alreadyInBox": "Folder is already in this box",
+  "home.toast.moveFailed": "Could not move folder",
+  "home.toast.moved": "«{folder}» → «{box}»",
+  "home.btn.newBox": "+ New box",
+  "home.btn.newFolder": "+ New folder",
+  "home.welcome.text":
+    "I’m the crow of your memory. Create a folder or box, add words — or install a ready English A0–A2 pack.",
+  "home.welcome.createFolder": "Create first folder",
+  "home.welcome.packs": "Vocab packs",
+  "home.section.library": "Library",
+  "home.section.libraryAside": "boxes and folders",
+  "home.hint.drag": "Drag a folder onto a box to group them.",
+  "home.empty.title": "Nothing here yet",
+  "home.empty.text":
+    "Create a box or folder — for example, “English” or “Philosophy”.",
+
+  "home.greeting.morning": "Good morning 👋",
+  "home.greeting.afternoon": "Good afternoon 👋",
+  "home.greeting.evening": "Good evening 👋",
+  "home.greeting.done": "All caught up for today — time to rest",
+  "home.greeting.dueOne": "1 card waiting for review",
+  "home.greeting.dueMany": "{n} {cards} waiting for review",
+
+  "home.day.title": "Today’s review",
+  "home.day.subToday": "today’s results",
+  "home.day.weekTitle": "Weekly activity",
+  "home.day.weekSub": "weekly activity",
+  "home.day.weekStats": "stats",
+  "home.day.showWeek": "Show week",
+  "home.day.showToday": "Show today",
+  "home.day.of": "of {n}",
+  "home.day.known": "Know",
+  "home.day.unknown": "Don’t know",
+  "home.day.left": "Left",
+  "home.day.knownLower": "know",
+  "home.day.unknownLower": "don’t know",
+  "home.day.continue": "Continue",
+  "home.day.repeat": "Review",
+  "home.day.accuracy": "accuracy {n}%",
+
+  "folder.dialog.titleEdit": "Folder",
+  "folder.dialog.titleNew": "New folder",
+  "folder.dialog.namePlaceholder": "e.g. English",
+  "folder.dialog.iconHint":
+    "If nothing is selected — the first letter of the name. Tap again to clear.",
+  "folder.dialog.nameRequired": "Enter a name",
+
+  "box.dialog.titleEdit": "Box",
+  "box.dialog.titleNew": "New box",
+  "box.dialog.namePlaceholder": "e.g. English",
+  "box.dialog.foldersLabel": "Folders in box",
+  "box.dialog.foldersHint":
+    "A box groups folders by topic. Cards stay inside folders.",
+  "box.dialog.noFolders":
+    "No folders available — create a folder on the home screen.",
+  "box.dialog.iconHint":
+    "If nothing is selected — the first letter of the name. Tap again to clear.",
+  "box.confirm.deleteTitle": "Delete box?",
+  "box.confirm.deleteWithFolders":
+    "«{name}» will be deleted. {n} {folders} will stay on the home screen.",
+  "box.confirm.deleteEmpty": "«{name}» will be deleted.",
+
+  "settings.title": "Settings",
+  "settings.saveFailed": "Could not save: {message}",
+  "settings.language.title": "Language",
+  "settings.language.label": "Interface language",
+  "settings.language.hint":
+    "Russian is the default. English is filled in as screens are translated.",
+  "settings.language.ru": "Русский",
+  "settings.language.en": "English",
+  "settings.about.title": "Project",
+  "settings.about.github": "GitHub",
+  "settings.about.githubHint": "App source code on GitHub.",
+  "settings.footer": "KAR-dots · v{version}"
+}

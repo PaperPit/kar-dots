@@ -14,6 +14,7 @@ import { looseFolders, boxFolderStatsFromHome } from '../../data/store-box.js';
 import type { Folder } from '../../data/types.js';
 import { folderCardStatsFromHome, folderCardEl, boxCardEl } from '../../ui/folder-cards.js';
 import { todayStudyCount } from '../../data/home-stats.js';
+import { t } from '../../lib/i18n.js';
 
 export async function renderHome() {
   const budget = newBudget();
@@ -46,15 +47,15 @@ export async function renderHome() {
       const folder = store.folders.find((f: Folder) => f.id === folderId);
       if (!folder) return;
       if (folder.box_id === boxId) {
-        toast('Папка уже в этой коробке');
+        toast(t('home.toast.alreadyInBox'));
         return;
       }
       const ok = await store.assignFolderToBox(folderId, boxId);
       if (!ok) {
-        toast('Не удалось переместить папку', 'error');
+        toast(t('home.toast.moveFailed'), 'error');
         return;
       }
-      toast(`«${folder.name}» → «${b.name}»`);
+      toast(t('home.toast.moved', { folder: folder.name, box: b.name }));
       await route();
     });
     libraryGrid.append(card);
@@ -72,13 +73,13 @@ export async function renderHome() {
     class: 'add-tile add-tile-box stagger-in',
     style: { '--stagger-delay': ((store.boxes.length + loose.length) * 40) + 'ms' },
     onclick: () => boxDialog(null),
-  }, '+ Новая коробка') as HTMLButtonElement);
+  }, t('home.btn.newBox')) as HTMLButtonElement);
 
   libraryGrid.append(el('button', {
     class: 'add-tile stagger-in',
     style: { '--stagger-delay': ((store.boxes.length + loose.length + 1) * 40) + 'ms' },
     onclick: () => folderDialog(null),
-  }, '+ Новая папка') as HTMLButtonElement);
+  }, t('home.btn.newFolder')) as HTMLButtonElement);
 
   const sections: HTMLElement[] = [
     homeGreeting(totalToStudy),
@@ -87,24 +88,23 @@ export async function renderHome() {
 
   if (isWelcome) {
     sections.push(el('div', { class: 'home-welcome' }, [
-      el('p', { class: 'home-welcome-text' },
-        'Я — ворона вашей памяти. Создайте папку или коробку, добавьте слова — или установите готовый пак English A0–A2.'),
+      el('p', { class: 'home-welcome-text' }, t('home.welcome.text')),
       el('div', { class: 'home-welcome-btns' }, [
-        el('button', { class: 'btn accent big', onclick: () => folderDialog(null) }, 'Создать первую папку'),
-        el('button', { class: 'btn big', onclick: () => vocabPacksDialog() }, 'Лексические паки'),
+        el('button', { class: 'btn accent big', onclick: () => folderDialog(null) }, t('home.welcome.createFolder')),
+        el('button', { class: 'btn big', onclick: () => vocabPacksDialog() }, t('home.welcome.packs')),
       ]),
     ]));
   }
 
   sections.push(
     el('div', { class: 'home-section-head home-library-head' }, [
-      el('h2', { class: 'home-section-title' }, 'Библиотека'),
-      el('span', { class: 'home-section-aside' }, 'коробки и папки'),
+      el('h2', { class: 'home-section-title' }, t('home.section.library')),
+      el('span', { class: 'home-section-aside' }, t('home.section.libraryAside')),
     ]),
   );
 
   if (folderDragEnabled() && store.boxes.length) {
-    sections.push(el('p', { class: 'section-hint' }, 'Перетащите папку на коробку, чтобы объединить.'));
+    sections.push(el('p', { class: 'section-hint' }, t('home.hint.drag')));
   }
 
   sections.push(libraryGrid);
@@ -112,8 +112,8 @@ export async function renderHome() {
   if (!store.folders.length && !store.boxes.length) {
     sections.push(el('div', { class: 'empty' }, [
       emptyFoldersBox(),
-      el('h3', null, 'Пока пусто'),
-      el('p', null, 'Создайте коробку или папку — например, «Английский» или «Философия».'),
+      el('h3', null, t('home.empty.title')),
+      el('p', null, t('home.empty.text')),
     ]));
   }
 

@@ -5,6 +5,8 @@ import { shell, offlineBanner } from '../../ui/shell.js';
 import { renderAuth } from '../auth/index.js';
 import { route } from '../../core/router.js';
 import { initActivity } from '../../lib/activity.js';
+import { t } from '../../lib/i18n.js';
+import { buildLanguageGroup } from './sections/language.js';
 import { buildCalendarGroup } from './sections/calendar.js';
 import { buildAlgoGroup } from './sections/algo.js';
 import { buildSoundGroup } from './sections/sounds.js';
@@ -16,11 +18,11 @@ import { buildStockMediaGroup } from './sections/stock-media.js';
 
 function buildAboutGroup() {
   return el('div', { class: 'settings-group' }, [
-    el('h4', null, 'Проект'),
+    el('h4', null, t('settings.about.title')),
     el('div', { class: 'setting-row' }, [
       el('div', { class: 'lab' }, [
-        el('b', null, 'GitHub'),
-        el('span', null, 'Исходный код приложения на GitHub.'),
+        el('b', null, t('settings.about.github')),
+        el('span', null, t('settings.about.githubHint')),
       ]),
       el('button', {
         class: 'btn',
@@ -28,7 +30,7 @@ function buildAboutGroup() {
         onclick: () => {
           window.open(APP_GITHUB_URL, '_blank', 'noopener,noreferrer');
         },
-      }, 'Открыть'),
+      }, t('common.open')),
     ]),
   ]);
 }
@@ -40,9 +42,12 @@ export async function renderSettings() {
   async function save() {
     if (s.tts === false) s.ttsAuto = false;
     try { await store.saveSettings(s); }
-    catch (e) { toast('Не сохранилось: ' + (e instanceof Error ? e.message : String(e)), 'error'); }
+    catch (e) {
+      toast(t('settings.saveFailed', { message: e instanceof Error ? e.message : String(e) }), 'error');
+    }
   }
 
+  const languageGroup = buildLanguageGroup(s, save);
   const calendarGroup = buildCalendarGroup(s, save);
   const algoGroup = buildAlgoGroup(s, save);
   const soundGroup = buildSoundGroup(s, save);
@@ -55,9 +60,9 @@ export async function renderSettings() {
 
   shell('settings', el('div', null, [
     offlineBanner(),
-    el('div', { class: 'page-head' }, el('h2', { class: 'page-title' }, 'Настройки')),
-    calendarGroup, algoGroup, soundGroup, packsGroup, integrationsGroup, stockMediaGroup, dataGroup, accGroup,
+    el('div', { class: 'page-head' }, el('h2', { class: 'page-title' }, t('settings.title'))),
+    languageGroup, calendarGroup, algoGroup, soundGroup, packsGroup, integrationsGroup, stockMediaGroup, dataGroup, accGroup,
     aboutGroup,
-    el('p', { class: 'muted settings-footer' }, `КАР-точки · v${APP_VERSION_SHORT}`),
+    el('p', { class: 'muted settings-footer' }, t('settings.footer', { version: APP_VERSION_SHORT })),
   ]));
 }

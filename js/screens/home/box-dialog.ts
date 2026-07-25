@@ -1,11 +1,12 @@
 import { store } from '../../core/state.js';
-import { el, toast, modal, plural } from '../../ui/ui.js';
+import { el, toast, modal } from '../../ui/ui.js';
 import { FOLDER_COLORS } from '../../ui/constants.js';
 import { createIconPicker } from '../../ui/icon-picker.js';
 import { route } from '../../core/router.js';
 import { foldersInBox } from '../../data/store-box.js';
 import { folderSaveErrorMessage } from '../../lib/folder-errors.js';
 import { normalizeFolderIcon } from '../../lib/folder-icons.js';
+import { t, tp } from '../../lib/i18n.js';
 import type { Box, Folder } from '../../data/types.js';
 
 export function boxDialog(box: Box | null) {
@@ -13,7 +14,7 @@ export function boxDialog(box: Box | null) {
   const name = el('input', {
     class: 'input',
     value: box ? box.name : '',
-    placeholder: 'Например, Английский',
+    placeholder: t('box.dialog.namePlaceholder'),
   }, []) as HTMLInputElement;
 
   const dots = el('div', { class: 'color-row' }, FOLDER_COLORS.map(c =>
@@ -40,7 +41,7 @@ export function boxDialog(box: Box | null) {
       !f.box_id || (box && f.box_id === box.id)
     );
     if (!candidates.length) {
-      folderList.append(el('p', { class: 'field-hint' }, 'Нет доступных папок — создайте папку на главном экране.'));
+      folderList.append(el('p', { class: 'field-hint' }, t('box.dialog.noFolders')));
       return;
     }
     for (const f of candidates) {
@@ -69,7 +70,7 @@ export function boxDialog(box: Box | null) {
     class: 'btn primary',
     onclick: async () => {
       const nm = name.value.trim();
-      if (!nm) { toast('Введите название', 'error'); return; }
+      if (!nm) { toast(t('folder.dialog.nameRequired'), 'error'); return; }
       save.disabled = true;
       try {
         const patch = { name: nm, color, icon: normalizeFolderIcon(iconPicker.getIcon()) };
@@ -87,24 +88,24 @@ export function boxDialog(box: Box | null) {
         save.disabled = false;
       }
     },
-  }, box ? 'Сохранить' : 'Создать') as HTMLButtonElement;
+  }, box ? t('common.save') : t('common.create')) as HTMLButtonElement;
 
   m = modal(el('div', null, [
-    el('h3', { class: 'modal-title', id: titleId }, box ? 'Коробка' : 'Новая коробка'),
-    el('div', { class: 'field' }, [el('label', null, 'Название'), name]),
-    el('div', { class: 'field' }, [el('label', null, 'Цвет'), dots]),
+    el('h3', { class: 'modal-title', id: titleId }, box ? t('box.dialog.titleEdit') : t('box.dialog.titleNew')),
+    el('div', { class: 'field' }, [el('label', null, t('common.name')), name]),
+    el('div', { class: 'field' }, [el('label', null, t('common.color')), dots]),
     el('div', { class: 'field' }, [
-      el('label', null, 'Значок'),
-      el('p', { class: 'field-hint' }, 'Если ничего не выбрано — первая буква названия. Повторное нажатие снимает выбор.'),
+      el('label', null, t('common.icon')),
+      el('p', { class: 'field-hint' }, t('box.dialog.iconHint')),
       iconPicker.node,
     ]),
     el('div', { class: 'field' }, [
-      el('label', null, 'Папки в коробке'),
-      el('p', { class: 'field-hint' }, 'Коробка объединяет папки по теме. Карточки остаются в папках.'),
+      el('label', null, t('box.dialog.foldersLabel')),
+      el('p', { class: 'field-hint' }, t('box.dialog.foldersHint')),
       folderList,
     ]),
     el('div', { class: 'modal-actions' }, [
-      el('button', { type: 'button', class: 'btn ghost', onclick: () => m.close() }, 'Отмена'),
+      el('button', { type: 'button', class: 'btn ghost', onclick: () => m.close() }, t('common.cancel')),
       save,
     ]),
   ]), { labelledBy: titleId });
@@ -114,10 +115,14 @@ export function boxDialog(box: Box | null) {
 export function boxDeleteConfirm(box: Box) {
   const n = foldersInBox(store.folders, box.id).length;
   return {
-    title: 'Удалить коробку?',
+    title: t('box.confirm.deleteTitle'),
     text: n
-      ? `«${box.name}» будет удалена. ${n} ${plural(n, 'папка', 'папки', 'папок')} останутся на главном экране.`
-      : `«${box.name}» будет удалена.`,
-    ok: 'Удалить',
+      ? t('box.confirm.deleteWithFolders', {
+          name: box.name,
+          n,
+          folders: tp('common.folder', n),
+        })
+      : t('box.confirm.deleteEmpty', { name: box.name }),
+    ok: t('common.delete'),
   };
 }

@@ -8,6 +8,7 @@ import {
   animateToastIn,
   animateToastOut
 } from "../lib/motion-ui.js"
+import { t } from "../lib/i18n.js"
 
 export type ElChild = Node | string | number | null | undefined | false
 
@@ -233,7 +234,7 @@ export function confirmDialog(
               resolve(false)
             }
           },
-          "Отмена"
+          t("common.cancel")
         ),
         el(
           "button",
@@ -244,7 +245,7 @@ export function confirmDialog(
               resolve(true)
             }
           },
-          okLabel || "Ок"
+          okLabel || t("common.ok")
         )
       ])
     ])

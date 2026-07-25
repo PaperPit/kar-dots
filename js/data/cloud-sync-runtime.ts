@@ -12,7 +12,7 @@ import {
   ingestRemoteActivity,
   pushActivityToCloud,
 } from './cloud-pull.js'
-import type { CloudStoreHost } from './cloud-store-host.js'
+import { ensureCompat, type CloudStoreHost } from './cloud-store-host.js'
 
 export async function notifySync(store: CloudStoreHost) {
   if (!store._onSyncChange) return
@@ -155,7 +155,7 @@ export async function syncActivityNow(store: CloudStoreHost) {
 }
 
 export async function syncReviewLogFromCloud(store: CloudStoreHost): Promise<number> {
-  if (store._compat.reviewLog || !store.sb.userId()) return 0
+  if (ensureCompat(store).reviewLog || !store.sb.userId()) return 0
   try {
     const since = await lastReviewTs()
     const rows = await store.sb.select<ReviewLogEntry>(
@@ -164,7 +164,7 @@ export async function syncReviewLogFromCloud(store: CloudStoreHost): Promise<num
     )
     return await applyRemoteReviews(rows)
   } catch (e) {
-    if (isReviewLogMissing(e)) { store._compat.reviewLog = true; await saveCloudFlags(store); return 0 }
+    if (isReviewLogMissing(e)) { ensureCompat(store).reviewLog = true; await saveCloudFlags(store); return 0 }
     if (isNetworkError(e)) return 0
     console.warn('review-log pull', e)
     return 0

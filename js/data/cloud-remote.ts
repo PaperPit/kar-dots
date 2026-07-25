@@ -9,7 +9,7 @@ import {
 import { stampUpdatedAt } from './cloud-delta.js'
 import type { Card, Folder, Box } from './types.js'
 import type { ReviewLogEntry } from '../lib/review-log.js'
-import type { CloudStoreHost, SyncPayload } from './cloud-store-host.js'
+import { ensureCompat, type CloudStoreHost, type SyncPayload } from './cloud-store-host.js'
 
 /** Ошибка «таблицы review_log ещё нет» (пользователь не применил миграцию 0008). */
 export function isReviewLogMissing(err: unknown): boolean {
@@ -19,6 +19,7 @@ export function isReviewLogMissing(err: unknown): boolean {
 
 export async function loadCloudFlags(store: CloudStoreHost) {
   if (!store.mirror) return
+  const compat = ensureCompat(store)
   const flags = (await mirrorGetKV(store.mirror, 'cloud_flags')) as {
     folderIconCloudUnsupported?: boolean
     boxesCloudUnsupported?: boolean
@@ -26,32 +27,33 @@ export async function loadCloudFlags(store: CloudStoreHost) {
     boxIconCloudUnsupported?: boolean
     reviewLogCloudUnsupported?: boolean
   } | null
-  store._compat.folderIcon = !!flags?.folderIconCloudUnsupported
-  store._compat.boxes = !!flags?.boxesCloudUnsupported
-  store._compat.boxId = !!flags?.boxIdCloudUnsupported
-  store._compat.boxIcon = !!flags?.boxIconCloudUnsupported
-  store._compat.reviewLog = !!flags?.reviewLogCloudUnsupported
+  compat.folderIcon = !!flags?.folderIconCloudUnsupported
+  compat.boxes = !!flags?.boxesCloudUnsupported
+  compat.boxId = !!flags?.boxIdCloudUnsupported
+  compat.boxIcon = !!flags?.boxIconCloudUnsupported
+  compat.reviewLog = !!flags?.reviewLogCloudUnsupported
 }
 
 export async function saveCloudFlags(store: CloudStoreHost) {
   if (!store.mirror) return
+  const compat = ensureCompat(store)
   await mirrorSetKV(store.mirror, 'cloud_flags', {
-    folderIconCloudUnsupported: !!store._compat.folderIcon,
-    boxesCloudUnsupported: !!store._compat.boxes,
-    boxIdCloudUnsupported: !!store._compat.boxId,
-    boxIconCloudUnsupported: !!store._compat.boxIcon,
-    reviewLogCloudUnsupported: !!store._compat.reviewLog,
+    folderIconCloudUnsupported: !!compat.folderIcon,
+    boxesCloudUnsupported: !!compat.boxes,
+    boxIdCloudUnsupported: !!compat.boxId,
+    boxIconCloudUnsupported: !!compat.boxIcon,
+    reviewLogCloudUnsupported: !!compat.reviewLog,
   })
 }
 
 export async function cloudInsertFolder(store: CloudStoreHost, row: Folder) {
   let payload = row
-  if (store._compat.folderIcon) payload = withoutFolderIcon(row)
+  if (ensureCompat(store).folderIcon) payload = withoutFolderIcon(row)
   try {
     await store.sb.insert('folders', payload)
   } catch (e) {
-    if (!store._compat.folderIcon && isMissingFolderIconColumnError(e) && row && 'icon' in row) {
-      store._compat.folderIcon = true
+    if (!ensureCompat(store).folderIcon && isMissingFolderIconColumnError(e) && row && 'icon' in row) {
+      ensureCompat(store).folderIcon = true
       await saveCloudFlags(store)
       await store.sb.insert('folders', withoutFolderIcon(row))
       return
@@ -62,20 +64,20 @@ export async function cloudInsertFolder(store: CloudStoreHost, row: Folder) {
 
 export async function cloudPatchFolder(store: CloudStoreHost, id: string, patch: Partial<Folder>) {
   let payload = Object.assign({}, patch)
-  if (store._compat.folderIcon) payload = withoutFolderIcon(payload)
-  if (store._compat.boxId) payload = withoutBoxId(payload)
+  if (ensureCompat(store).folderIcon) payload = withoutFolderIcon(payload)
+  if (ensureCompat(store).boxId) payload = withoutBoxId(payload)
   if (!Object.keys(payload).length) return
   try {
     await store.sb.update('folders', 'id=eq.' + id, payload)
   } catch (e) {
-    if (!store._compat.folderIcon && isMissingFolderIconColumnError(e) && patch && 'icon' in patch) {
-      store._compat.folderIcon = true
+    if (!ensureCompat(store).folderIcon && isMissingFolderIconColumnError(e) && patch && 'icon' in patch) {
+      ensureCompat(store).folderIcon = true
       await saveCloudFlags(store)
       await cloudPatchFolder(store, id, withoutFolderIcon(patch))
       return
     }
-    if (!store._compat.boxId && isMissingBoxIdColumnError(e) && patch && 'box_id' in patch) {
-      store._compat.boxId = true
+    if (!ensureCompat(store).boxId && isMissingBoxIdColumnError(e) && patch && 'box_id' in patch) {
+      ensureCompat(store).boxId = true
       await saveCloudFlags(store)
       await cloudPatchFolder(store, id, withoutBoxId(patch))
       return
@@ -85,19 +87,19 @@ export async function cloudPatchFolder(store: CloudStoreHost, id: string, patch:
 }
 
 export async function cloudInsertBox(store: CloudStoreHost, row: Box) {
-  if (store._compat.boxes) return
+  if (ensureCompat(store).boxes) return
   let payload = row
-  if (store._compat.boxIcon) payload = withoutFolderIcon(row)
+  if (ensureCompat(store).boxIcon) payload = withoutFolderIcon(row)
   try {
     await store.sb.insert('boxes', payload)
   } catch (e) {
     if (isMissingBoxesTableError(e)) {
-      store._compat.boxes = true
+      ensureCompat(store).boxes = true
       await saveCloudFlags(store)
       return
     }
-    if (!store._compat.boxIcon && isMissingBoxIconColumnError(e) && row && 'icon' in row) {
-      store._compat.boxIcon = true
+    if (!ensureCompat(store).boxIcon && isMissingBoxIconColumnError(e) && row && 'icon' in row) {
+      ensureCompat(store).boxIcon = true
       await saveCloudFlags(store)
       await cloudInsertBox(store, withoutFolderIcon(row))
       return
@@ -107,20 +109,20 @@ export async function cloudInsertBox(store: CloudStoreHost, row: Box) {
 }
 
 export async function cloudUpdateBox(store: CloudStoreHost, id: string, patch: Partial<Box>) {
-  if (store._compat.boxes) return
+  if (ensureCompat(store).boxes) return
   let payload = Object.assign({}, patch)
-  if (store._compat.boxIcon) payload = withoutFolderIcon(payload)
+  if (ensureCompat(store).boxIcon) payload = withoutFolderIcon(payload)
   if (!Object.keys(payload).length) return
   try {
     await store.sb.update('boxes', 'id=eq.' + id, payload)
   } catch (e) {
     if (isMissingBoxesTableError(e)) {
-      store._compat.boxes = true
+      ensureCompat(store).boxes = true
       await saveCloudFlags(store)
       return
     }
-    if (!store._compat.boxIcon && isMissingBoxIconColumnError(e) && patch && 'icon' in patch) {
-      store._compat.boxIcon = true
+    if (!ensureCompat(store).boxIcon && isMissingBoxIconColumnError(e) && patch && 'icon' in patch) {
+      ensureCompat(store).boxIcon = true
       await saveCloudFlags(store)
       await cloudUpdateBox(store, id, withoutFolderIcon(patch))
       return
@@ -130,12 +132,12 @@ export async function cloudUpdateBox(store: CloudStoreHost, id: string, patch: P
 }
 
 export async function cloudDeleteBox(store: CloudStoreHost, id: string) {
-  if (store._compat.boxes) return
+  if (ensureCompat(store).boxes) return
   try {
     await store.sb.remove('boxes', 'id=eq.' + id)
   } catch (e) {
     if (isMissingBoxesTableError(e)) {
-      store._compat.boxes = true
+      ensureCompat(store).boxes = true
       await saveCloudFlags(store)
       return
     }
@@ -144,23 +146,23 @@ export async function cloudDeleteBox(store: CloudStoreHost, id: string) {
 }
 
 export async function cloudLogReview(store: CloudStoreHost, entry: ReviewLogEntry) {
-  if (store._compat.reviewLog) return
+  if (ensureCompat(store).reviewLog) return
   const uid = store.sb.userId()
   if (!uid) throw new Error('Нет активной сессии — войдите снова')
   try {
     await store.sb.upsert('review_log', Object.assign({ user_id: uid }, entry), { onConflict: 'id' })
   } catch (e) {
-    if (isReviewLogMissing(e)) { store._compat.reviewLog = true; await saveCloudFlags(store); return }
+    if (isReviewLogMissing(e)) { ensureCompat(store).reviewLog = true; await saveCloudFlags(store); return }
     throw e
   }
 }
 
 export async function cloudRemoveReview(store: CloudStoreHost, id: string) {
-  if (store._compat.reviewLog) return
+  if (ensureCompat(store).reviewLog) return
   try {
     await store.sb.remove('review_log', 'id=eq.' + id)
   } catch (e) {
-    if (isReviewLogMissing(e)) { store._compat.reviewLog = true; await saveCloudFlags(store); return }
+    if (isReviewLogMissing(e)) { ensureCompat(store).reviewLog = true; await saveCloudFlags(store); return }
     throw e
   }
 }

@@ -60,3 +60,13 @@ export interface CloudStoreHost {
   _invalidateHomeStats?(): void
   saveSettings(s: Settings): Promise<unknown>
 }
+
+export function emptyCompat(): CloudCompatFlags {
+  return { folderIcon: false, reviewLog: false, boxes: false, boxId: false, boxIcon: false }
+}
+
+/** Гарантирует `_compat` (устаревший скомпилированный .js / частичный mock в тестах). */
+export function ensureCompat(store: CloudStoreHost): CloudCompatFlags {
+  if (!store._compat) store._compat = emptyCompat()
+  return store._compat
+}

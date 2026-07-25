@@ -30,6 +30,8 @@ import {
   type SyncPayload,
   type CloudStoreHost,
   type CloudCompatFlags,
+  emptyCompat,
+  ensureCompat,
 } from './cloud-store-host.js'
 import {
   loadCloudFlags, executeSyncItem, removeCardImages, uploadImage as uploadImageFn,
@@ -56,10 +58,6 @@ import { exportJSONFull as exportJSONFullFn, importJSON as importJSONFn } from '
 
 export { folderSaveErrorMessage } from '../lib/folder-errors.js'
 export type { SyncState, SyncPayload }
-
-function emptyCompat(): CloudCompatFlags {
-  return { folderIcon: false, reviewLog: false, boxes: false, boxId: false, boxIcon: false }
-}
 
 export class CloudStore implements CloudStoreHost {
   sb: MiniSupabase
@@ -105,8 +103,8 @@ export class CloudStore implements CloudStoreHost {
   }
 
   /** @deprecated use `_compat.boxes` — оставлено для тестов/совместимости */
-  get _boxesCloudUnsupported() { return this._compat.boxes }
-  set _boxesCloudUnsupported(v: boolean) { this._compat.boxes = v }
+  get _boxesCloudUnsupported() { return ensureCompat(this).boxes }
+  set _boxesCloudUnsupported(v: boolean) { ensureCompat(this).boxes = v }
 
   _invalidateHomeStats() {
     this._homeStatsCache = null

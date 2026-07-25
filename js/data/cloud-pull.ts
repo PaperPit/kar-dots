@@ -17,7 +17,7 @@ import { isMissingBoxesTableError } from '../lib/folder-errors.js'
 import { saveCloudFlags } from './cloud-remote.js'
 import type { Folder, Box, Settings } from './types.js'
 import type { SrsMeta } from './srs-meta.js'
-import type { CloudStoreHost } from './cloud-store-host.js'
+import { ensureCompat, type CloudStoreHost } from './cloud-store-host.js'
 
 export async function pushActivityToCloud(store: CloudStoreHost, data: ActivityData) {
   try {
@@ -77,14 +77,14 @@ export async function pullCardsDelta(store: CloudStoreHost, uid: string, since: 
 export async function fetchBoxesFromCloud(store: CloudStoreHost) {
   try {
     const rows = await store.sb.select<Box>('boxes', 'select=*&order=created_at.asc')
-    if (store._compat.boxes) {
-      store._compat.boxes = false
+    if (ensureCompat(store).boxes) {
+      ensureCompat(store).boxes = false
       await saveCloudFlags(store)
     }
     return rows
   } catch (e) {
     if (isMissingBoxesTableError(e)) {
-      store._compat.boxes = true
+      ensureCompat(store).boxes = true
       await saveCloudFlags(store)
     }
     try {
@@ -128,7 +128,7 @@ export async function fetchFromCloud(store: CloudStoreHost) {
   store.boxes = boxesRaw.map(normalizeBoxRecord).filter((b): b is Box => !!b)
     .sort((a: Box, b: Box) => (a.created_at || 0) - (b.created_at || 0))
   if (folders.some((f: Folder) => Object.prototype.hasOwnProperty.call(f, 'icon'))) {
-    store._compat.folderIcon = false
+    ensureCompat(store).folderIcon = false
     await saveCloudFlags(store)
   }
   await mirrorReplaceAll(store.mirror, 'folders', folders)

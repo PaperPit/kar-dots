@@ -1,4 +1,5 @@
 import { el } from '../../../ui/ui.js';
+import { t } from '../../../lib/i18n.js';
 import {
   SUCCESS_MELODIES, FAIL_MELODIES, CUP_MELODIES, UI_CLICK_MELODIES,
   playSuccessSound, playFailSound, playCupMelody, playUiClickSound,
@@ -18,15 +19,15 @@ interface SettingsLike {
 
 export function buildSoundGroup(s: SettingsLike, save: () => void) {
   return el('div', { class: 'settings-group' }, [
-    el('h4', null, 'Звуки'),
+    el('h4', null, t('settings.sounds.title')),
     el('div', { class: 'setting-row setting-row-stack sound-settings-compact' }, [
       el('div', { class: 'lab' }, [
-        el('b', null, 'Клики интерфейса'),
-        el('span', null, 'Звук при нажатии кнопок, вкладок и пунктов меню. «Без звука» — тихий интерфейс.'),
+        el('b', null, t('settings.sounds.uiClicks')),
+        el('span', null, t('settings.sounds.uiClicksHint')),
       ]),
       el('div', { class: 'sound-pickers' }, [
         melodyPickerField({
-          label: 'Клики',
+          label: t('settings.sounds.uiClicksLabel'),
           value: normalizeUiClickSoundId(s.uiClickSound ?? ''),
           melodies: UI_CLICK_MELODIES,
           play: id => { if (id !== 'none') playUiClickSound(id, { preview: true }); },
@@ -36,26 +37,26 @@ export function buildSoundGroup(s: SettingsLike, save: () => void) {
     ]),
     el('div', { class: 'setting-row setting-row-stack sound-settings-compact' }, [
       el('div', { class: 'lab' }, [
-        el('b', null, 'Мелодии ответов'),
-        el('span', null, 'Короткие отбивки в режимах «Ввод», «Голос» и «Пары»; отдельно — мелодия при появлении кубка. Нажмите ▶ в меню, чтобы прослушать.'),
+        el('b', null, t('settings.sounds.answerMelodies')),
+        el('span', null, t('settings.sounds.answerMelodiesHint')),
       ]),
       el('div', { class: 'sound-pickers' }, [
         melodyPickerField({
-          label: 'Верно',
+          label: t('settings.sounds.correct'),
           value: normalizeSuccessSoundId(s.successSound ?? ''),
           melodies: SUCCESS_MELODIES,
           play: id => playSuccessSound(id, { preview: true }),
           onChange: id => { s.successSound = id; save(); },
         }),
         melodyPickerField({
-          label: 'Неверно',
+          label: t('settings.sounds.wrong'),
           value: normalizeFailSoundId(s.failSound ?? ''),
           melodies: FAIL_MELODIES,
           play: id => playFailSound(id, { preview: true }),
           onChange: id => { s.failSound = id; save(); },
         }),
         melodyPickerField({
-          label: 'Кубок',
+          label: t('settings.sounds.cup'),
           value: normalizeCupMelodyId(s.cupMelody ?? ''),
           melodies: CUP_MELODIES,
           play: id => playCupMelody(id, { preview: true }),
@@ -64,14 +65,14 @@ export function buildSoundGroup(s: SettingsLike, save: () => void) {
       ]),
       el('div', { class: 'setting-row sound-mode-row' }, [
         el('div', { class: 'lab' }, [
-          el('b', null, 'Озвучивать'),
-          el('span', null, 'Когда проигрывать выбранные мелодии.'),
+          el('b', null, t('settings.sounds.playWhen')),
+          el('span', null, t('settings.sounds.playWhenHint')),
         ]),
         segControl(normalizeAnswerSoundMode(s.answerSoundMode ?? ''), [
-          { v: 'both', label: 'Оба' },
-          { v: 'correct', label: 'Верный' },
-          { v: 'wrong', label: 'Неверный' },
-          { v: 'none', label: 'Выкл' },
+          { v: 'both', label: t('settings.sounds.modeBoth') },
+          { v: 'correct', label: t('settings.sounds.modeCorrect') },
+          { v: 'wrong', label: t('settings.sounds.modeWrong') },
+          { v: 'none', label: t('settings.sounds.modeNone') },
         ], v => { s.answerSoundMode = v; save(); }),
       ]),
     ]),

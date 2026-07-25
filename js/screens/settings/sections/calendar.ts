@@ -1,4 +1,5 @@
 import { el } from '../../../ui/ui.js';
+import { t } from '../../../lib/i18n.js';
 import { segControl } from '../shared.js';
 
 interface SettingsLike {
@@ -21,15 +22,15 @@ export function buildCalendarGroup(s: SettingsLike, save: () => void) {
   }
 
   return el('div', { class: 'settings-group' }, [
-    el('h4', null, 'Календарь'),
+    el('h4', null, t('settings.calendar.title')),
     el('div', { class: 'setting-row settings-desktop-only' }, [
       el('div', { class: 'lab' }, [
-        el('b', null, 'На главной (компьютер)'),
-        el('span', null, 'Слева или справа от «Повторения дня». На телефоне календарь всегда сверху свёрнутой полоской.'),
+        el('b', null, t('settings.calendar.desktopLabel')),
+        el('span', null, t('settings.calendar.desktopHint')),
       ]),
       segControl(calendarPlace, [
-        { v: 'left', label: 'Слева' },
-        { v: 'right', label: 'Справа' },
+        { v: 'left', label: t('settings.calendar.left') },
+        { v: 'right', label: t('settings.calendar.right') },
       ], v => {
         s.calendarPlace = v;
         save();

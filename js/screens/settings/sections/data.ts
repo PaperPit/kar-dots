@@ -1,4 +1,5 @@
 import { el, toast } from '../../../ui/ui.js';
+import { t } from '../../../lib/i18n.js';
 import type { LocalStore } from '../../../data/store-local.js';
 
 export function buildDataGroup(store: LocalStore, route: () => void | Promise<void>) {
@@ -9,17 +10,19 @@ export function buildDataGroup(store: LocalStore, route: () => void | Promise<vo
     if (!f) return;
     try {
       await store.importJSON(await f.text());
-      toast('Импорт завершён', 'ok');
+      toast(t('settings.data.importDone'), 'ok');
       await route();
-    } catch (e) { toast('Импорт не удался: ' + (e instanceof Error ? e.message : String(e)), 'error'); }
+    } catch (e) {
+      toast(t('settings.data.importFailed', { message: e instanceof Error ? e.message : String(e) }), 'error');
+    }
   });
 
   return el('div', { class: 'settings-group' }, [
-    el('h4', null, 'Данные'),
+    el('h4', null, t('settings.data.title')),
     el('div', { class: 'setting-row' }, [
       el('div', { class: 'lab' }, [
-        el('b', null, 'Экспорт'),
-        el('span', null, 'Скачать все папки и карточки одним файлом (резервная копия).'),
+        el('b', null, t('settings.data.export')),
+        el('span', null, t('settings.data.exportHint')),
       ]),
       el('button', {
         class: 'btn',
@@ -29,14 +32,14 @@ export function buildDataGroup(store: LocalStore, route: () => void | Promise<vo
           const a = el('a', { href: URL.createObjectURL(blob), download: 'kartochki-backup.json' });
           document.body.append(a); a.click(); a.remove();
         },
-      }, 'Скачать'),
+      }, t('common.download')),
     ]),
     el('div', { class: 'setting-row' }, [
       el('div', { class: 'lab' }, [
-        el('b', null, 'Импорт'),
-        el('span', null, 'Загрузить файл экспорта — например, перенести карточки из демо-режима в облако.'),
+        el('b', null, t('settings.data.import')),
+        el('span', null, t('settings.data.importHint')),
       ]),
-      el('button', { class: 'btn', onclick: () => importInput.click() }, 'Выбрать файл'),
+      el('button', { class: 'btn', onclick: () => importInput.click() }, t('settings.data.importFile')),
       importInput,
     ]),
   ]);

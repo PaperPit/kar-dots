@@ -1,4 +1,5 @@
 import { el, modal } from '../../../ui/ui.js';
+import { t } from '../../../lib/i18n.js';
 import { stockMediaKeySummary } from '../../../lib/stock-media-settings.js';
 import { cleanGiphyApiKey, cleanPixabayApiKey } from '../../../lib/llm-api-keys.js';
 import type { Settings } from '../../../data/types.js';
@@ -10,50 +11,61 @@ interface KeyDef {
   title: string;
   placeholder: string;
   lead: string;
+  helpOpen: string;
+  helpHow: string;
+  keyNote: string;
   help: { linkText: string; linkHref: string; steps: string[] };
 }
 
-const KEY_DEFS: KeyDef[] = [
-  {
-    prop: 'pixabayApiKey',
-    title: 'Pixabay API ключ',
-    placeholder: '12345678-abcdef…',
-    lead: '5+ млн фото и иллюстраций (бесплатная лицензия Pixabay).',
-    help: {
-      linkText: 'pixabay.com/api/docs',
-      linkHref: 'https://pixabay.com/api/docs/',
-      steps: [
-        'Зарегистрируйся на Pixabay и открой API documentation.',
-        'Скопируй API key и вставь сюда.',
-        'Бесплатно: до 100 запросов в минуту — хватит для личных карточек.',
-      ],
+function getKeyDefs(): KeyDef[] {
+  return [
+    {
+      prop: 'pixabayApiKey',
+      title: t('settings.media.pixabay.title'),
+      placeholder: '12345678-abcdef…',
+      lead: t('settings.media.pixabay.lead'),
+      helpOpen: t('settings.media.helpOpen'),
+      helpHow: t('settings.media.helpHow'),
+      keyNote: t('settings.media.keyNote'),
+      help: {
+        linkText: 'pixabay.com/api/docs',
+        linkHref: 'https://pixabay.com/api/docs/',
+        steps: [
+          t('settings.media.pixabay.step1'),
+          t('settings.media.pixabay.step2'),
+          t('settings.media.pixabay.step3'),
+        ],
+      },
     },
-  },
-  {
-    prop: 'giphyApiKey',
-    title: 'Giphy API ключ',
-    placeholder: '…',
-    lead: 'Огромная база GIF и стикеров.',
-    help: {
-      linkText: 'developers.giphy.com',
-      linkHref: 'https://developers.giphy.com/dashboard/',
-      steps: [
-        'Создай приложение в Giphy Developers Dashboard.',
-        'Скопируй API Key.',
-        'Бесплатный тариф подходит для личного использования.',
-      ],
+    {
+      prop: 'giphyApiKey',
+      title: t('settings.media.giphy.title'),
+      placeholder: '…',
+      lead: t('settings.media.giphy.lead'),
+      helpOpen: t('settings.media.helpOpen'),
+      helpHow: t('settings.media.helpHow'),
+      keyNote: t('settings.media.keyNote'),
+      help: {
+        linkText: 'developers.giphy.com',
+        linkHref: 'https://developers.giphy.com/dashboard/',
+        steps: [
+          t('settings.media.giphy.step1'),
+          t('settings.media.giphy.step2'),
+          t('settings.media.giphy.step3'),
+        ],
+      },
     },
-  },
-];
+  ];
+}
 
 function validateKey(prop: KeyProp, value: unknown) {
   const v = String(value || '').trim();
   if (!v) return { ok: true, message: '' };
   if (prop === 'pixabayApiKey' && !cleanPixabayApiKey(v)) {
-    return { ok: false, message: 'Формат: 12345678-abcdef…' };
+    return { ok: false, message: t('settings.media.invalidPixabay') };
   }
   if (prop === 'giphyApiKey' && !cleanGiphyApiKey(v)) {
-    return { ok: false, message: 'Неверный формат ключа Giphy' };
+    return { ok: false, message: t('settings.media.invalidGiphy') };
   }
   return { ok: true, message: '' };
 }
@@ -61,7 +73,7 @@ function validateKey(prop: KeyProp, value: unknown) {
 function updateKeyStatus(statusEl: HTMLElement, def: KeyDef, value: unknown) {
   const next = String(value || '').trim();
   if (!next) {
-    statusEl.textContent = 'Не указан — базовый поиск Openverse';
+    statusEl.textContent = t('settings.media.statusMissing');
     statusEl.classList.remove('is-set', 'is-invalid');
     return;
   }
@@ -72,7 +84,7 @@ function updateKeyStatus(statusEl: HTMLElement, def: KeyDef, value: unknown) {
     statusEl.classList.remove('is-set');
     return;
   }
-  statusEl.textContent = 'Ключ сохранён';
+  statusEl.textContent = t('settings.media.statusSaved');
   statusEl.classList.add('is-set');
   statusEl.classList.remove('is-invalid');
 }
@@ -96,9 +108,9 @@ function buildKeyField(def: KeyDef, s: Settings, save: (patch?: Partial<Settings
     onclick: () => {
       visible = !visible;
       keyInput.type = visible ? 'text' : 'password';
-      toggleBtn.textContent = visible ? 'Скрыть' : 'Показать';
+      toggleBtn.textContent = visible ? t('common.hide') : t('common.show');
     },
-  }, 'Показать') as HTMLButtonElement;
+  }, t('common.show')) as HTMLButtonElement;
 
   function flush() {
     const next = keyInput.value.trim();
@@ -129,17 +141,16 @@ function buildKeyField(def: KeyDef, s: Settings, save: (patch?: Partial<Settings
       el('b', null, def.title),
       el('span', { class: 'api-key-lead' }, def.lead),
       el('details', { class: 'api-key-help' }, [
-        el('summary', null, 'Как получить'),
+        el('summary', null, def.helpHow),
         el('ol', null, [
           el('li', null, [
-            'Открой ',
+            def.helpOpen + ' ',
             el('a', { href: def.help.linkHref, target: '_blank', rel: 'noopener noreferrer' }, def.help.linkText),
             '.',
           ]),
-           ...def.help.steps.map((step: string) => el('li', null, step)),
+          ...def.help.steps.map((step: string) => el('li', null, step)),
         ]),
-        el('p', { class: 'muted api-key-note' },
-          'Ключ сохраняется локально и передаётся на сервер только при поиске картинок.'),
+        el('p', { class: 'muted api-key-note' }, def.keyNote),
       ]),
     ]),
     el('div', { class: 'api-key-field' }, [keyInput, toggleBtn, statusEl]),
@@ -149,17 +160,16 @@ function buildKeyField(def: KeyDef, s: Settings, save: (patch?: Partial<Settings
 }
 
 function openKeysModal(s: Settings, save: (patch?: Partial<Settings>) => void, onClose: () => void) {
-  const fields = KEY_DEFS.map(def => buildKeyField(def, s, save));
+  const fields = getKeyDefs().map(def => buildKeyField(def, s, save));
   const m = modal(el('div', null, [
-    el('h3', { class: 'modal-title' }, 'API-ключи для картинок'),
-    el('p', { class: 'modal-text muted' },
-      'Pixabay — фото и иллюстрации. Giphy — GIF и стикеры. Без ключей работает ограниченный Openverse.'),
+    el('h3', { class: 'modal-title' }, t('settings.media.modalTitle')),
+    el('p', { class: 'modal-text muted' }, t('settings.media.modalIntro')),
     el('div', { class: 'integrations-keys-modal' }, fields.map(f => f.node)),
     el('div', { class: 'modal-actions' }, [
       el('button', {
         class: 'btn primary',
         onclick: () => { if (fields.every(f => f.flush())) m.close(); },
-      }, 'Готово'),
+      }, t('common.done')),
     ]),
   ]), { wide: true });
 
@@ -176,19 +186,19 @@ export function buildStockMediaGroup(s: Settings, save: (patch?: Partial<Setting
   const refreshStatus = () => { statusEl.textContent = stockMediaKeySummary(s); };
 
   return el('div', { class: 'settings-group' }, [
-    el('h4', null, 'Картинки для карточек'),
+    el('h4', null, t('settings.media.title')),
     el('div', { class: 'setting-row integrations-compact' }, [
       el('div', { class: 'lab' }, [
-        el('b', null, 'Pixabay + Giphy'),
+        el('b', null, t('settings.media.providers')),
         statusEl,
         el('span', { class: 'muted', style: 'display:block;font-size:12px;margin-top:4px' },
-          'Бесплатные ключи открывают миллионы фото, иллюстраций, GIF и стикеров.'),
+          t('settings.media.providersHint')),
       ]),
       el('button', {
         type: 'button',
         class: 'btn',
         onclick: () => openKeysModal(s, save, refreshStatus),
-      }, 'Настроить'),
+      }, t('settings.media.configure')),
     ]),
   ]);
 }

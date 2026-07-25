@@ -24,6 +24,10 @@ export const ru = {
   "common.folder": { one: "папка", few: "папки", many: "папок" },
   "common.error": "Ошибка",
   "common.unknownError": "Неизвестная ошибка",
+  "common.show": "Показать",
+  "common.hide": "Скрыть",
+  "common.done": "Готово",
+  "common.download": "Скачать",
 
   // —— app / boot ——
   "app.bootFailed":
@@ -153,6 +157,225 @@ export const ru = {
   "settings.about.github": "GitHub",
   "settings.about.githubHint": "Исходный код приложения на GitHub.",
   "settings.footer": "КАР-точки · v{version}",
+
+  "settings.calendar.title": "Календарь",
+  "settings.calendar.desktopLabel": "На главной (компьютер)",
+  "settings.calendar.desktopHint":
+    "Слева или справа от «Повторения дня». На телефоне календарь всегда сверху свёрнутой полоской.",
+  "settings.calendar.left": "Слева",
+  "settings.calendar.right": "Справа",
+
+  "settings.algo.title": "Интервальное повторение",
+  "settings.algo.algorithm": "Алгоритм",
+  "settings.algo.footnote":
+    "При переключении алгоритма старый прогресс не теряется — у SM-2, FSRS и Лейтнера он хранится отдельно.",
+  "settings.algo.desc.sm2":
+    "Классика из Anki. Две кнопки: «Знаю» и «Не знаю». Интервал считается для каждой карточки отдельно — «Не знаю» вернёт её через 10 минут, «Знаю» отодвинет на день и дальше. Простой и привычный режим.",
+  "settings.algo.desc.fsrs":
+    "Современный алгоритм (как в Anki 23.10+). Четыре оценки: Снова, Трудно, Хорошо, Легко — чем увереннее ответ, тем дольше пауза до следующего показа. Обычно точнее подбирает интервалы, чем SM-2.",
+  "settings.algo.desc.leitner":
+    "Пять «коробок». Две кнопки: «Помню» — карточка поднимается в следующую коробку, «Не помню» — возвращается в первую. Через сколько дней показывать карточку из каждой коробки — настраивается ниже. Самый простой для понимания.",
+  "settings.algo.leitner": "Лейтнер",
+  "settings.algo.direction": "Направление",
+  "settings.algo.directionHint": "Какую сторону карточки показывать первой.",
+  "settings.algo.directionMixed": "Вперемешку",
+  "settings.algo.newPerDay": "Новых карточек в день",
+  "settings.algo.newPerDayHint": "Чтобы не перегружаться в начале.",
+  "settings.algo.reviewsPerDay": "Повторений в день",
+  "settings.algo.reviewsPerDayHint":
+    "Сколько оценок максимум за календарный день (Знаю / Не знаю).",
+  "settings.algo.tts": "Озвучка на повторении",
+  "settings.algo.ttsHint":
+    "На экране повторения появляется кнопка 🔊. Язык — по тексту (кириллица / латиница). Голоса и скорость настраиваются ниже.",
+  "settings.algo.ttsAuto": "Озвучивать при перевороте",
+  "settings.algo.ttsAutoOn":
+    "Без нажатия на 🔊: после каждого переворота карточки (тап, пробел или Enter) сразу читается видимая сторона. Не срабатывает при оценке «Знаю» / «Не знаю» и не читает карточку до первого переворота.",
+  "settings.algo.ttsAutoOff":
+    "Сначала включите «Озвучку на повторении» — тогда можно включить автоматическое чтение при перевороте.",
+  "settings.algo.ttsRate": "Скорость озвучки",
+  "settings.algo.ttsRateHint": "От 0,5× (медленнее) до 2× (быстрее).",
+  "settings.algo.voiceAuto": "Авто (лучший доступный)",
+  "settings.algo.previewRu": "Прослушать «Привет»",
+  "settings.algo.previewRuBtn": "▶ Привет",
+  "settings.algo.previewEn": "Прослушать «Hello»",
+  "settings.algo.previewEnBtn": "▶ Hello",
+  "settings.algo.speechUnavailable": "Speech Synthesis недоступен в этом браузере.",
+  "settings.algo.speechVoicesCount":
+    "Системных голосов: {n}. «Авто» выбирает лучший для языка текста.",
+  "settings.algo.speechVoicesLoading":
+    "Голоса загружаются… обновите страницу, если список пуст.",
+  "settings.algo.speechVoicesTitle": "Голоса браузера",
+  "settings.algo.speechVoicesHint":
+    "Speech Synthesis API — без интернета и лимитов. Язык текста определяется автоматически: кириллица → русский, латиница → английский.",
+  "settings.algo.voiceRu": "Русский",
+  "settings.algo.voiceEn": "Английский",
+  "settings.algo.leitnerBoxShort": "Кор. {n}",
+  "settings.algo.leitnerIntervals": "Интервалы коробок (дни)",
+  "settings.algo.leitnerIntervalsHint":
+    "Через сколько дней показывать карточку из каждой коробки.",
+  "settings.algo.fsrs.retention": "Желаемое удержание (FSRS)",
+  "settings.algo.fsrs.retentionHint":
+    "Какую долю карточек вы хотите помнить к моменту повтора. 85–90% оптимально: выше 95% почти удваивает нагрузку, ниже 80% — частое забывание.",
+  "settings.algo.fsrs.fuzz": "Выравнивание нагрузки (fuzz)",
+  "settings.algo.fsrs.fuzzHint":
+    "Небольшой случайный разброс интервалов — повторения не собираются пиками в один день.",
+  "settings.algo.fsrs.measured": "Измеренное удержание",
+  "settings.algo.fsrs.measuredLoading": "Считаю измеренное удержание…",
+  "settings.algo.fsrs.measuredFact": "Факт: {pct} {reviews}. {advice}",
+  "settings.algo.fsrs.reviewCount": {
+    one: "по {n} повторению",
+    few: "по {n} повторениям",
+    many: "по {n} повторениям"
+  },
+  "settings.algo.fsrs.logUnavailable": "Данные журнала недоступны.",
+  "settings.algo.fsrs.adviceNodata":
+    "Пока мало данных — оценка появится после ~30 повторений изученных карточек.",
+  "settings.algo.fsrs.adviceHigh":
+    "Измеренное удержание {pct}% выше цели. Можно снизить желаемое удержание до 0.85–0.90 — интервалы вырастут, а нагрузка заметно упадёт почти без потерь.",
+  "settings.algo.fsrs.adviceLow":
+    "Измеренное удержание {pct}% ниже 80% — карточки часто забываются. Повысьте желаемое удержание ближе к 0.90 или оценивайте строже.",
+  "settings.algo.fsrs.adviceOk":
+    "Измеренное удержание {pct}% — в здоровом диапазоне 80–95%. Менять цель не нужно.",
+  "settings.algo.fsrs.weightsPlaceholder":
+    "напр. 0.40, 1.18, 3.17, … — веса из официального оптимизатора FSRS",
+  "settings.algo.fsrs.weightsInvalid": "Не похоже на список чисел — не сохранено.",
+  "settings.algo.fsrs.weightsSaved": {
+    one: "Сохранён {n} вес.",
+    few: "Сохранено {n} веса.",
+    many: "Сохранено {n} весов."
+  },
+  "settings.algo.fsrs.weightsReset": "Веса сброшены на стандартные.",
+  "settings.algo.fsrs.exportCsv": "Экспорт журнала (CSV)",
+  "settings.algo.fsrs.weightsTitle": "Персональные веса FSRS (продвинутое)",
+  "settings.algo.fsrs.weightsHint":
+    "Полная оптимизация под вашу историю выполняется официальным оптимизатором FSRS. Экспортируйте журнал, прогоните его оптимизатором и вставьте полученные веса сюда.",
+
+  "settings.sounds.title": "Звуки",
+  "settings.sounds.uiClicks": "Клики интерфейса",
+  "settings.sounds.uiClicksHint":
+    "Звук при нажатии кнопок, вкладок и пунктов меню. «Без звука» — тихий интерфейс.",
+  "settings.sounds.uiClicksLabel": "Клики",
+  "settings.sounds.answerMelodies": "Мелодии ответов",
+  "settings.sounds.answerMelodiesHint":
+    "Короткие отбивки в режимах «Ввод», «Голос» и «Пары»; отдельно — мелодия при появлении кубка. Нажмите ▶ в меню, чтобы прослушать.",
+  "settings.sounds.correct": "Верно",
+  "settings.sounds.wrong": "Неверно",
+  "settings.sounds.cup": "Кубок",
+  "settings.sounds.playWhen": "Озвучивать",
+  "settings.sounds.playWhenHint": "Когда проигрывать выбранные мелодии.",
+  "settings.sounds.modeBoth": "Оба",
+  "settings.sounds.modeCorrect": "Верный",
+  "settings.sounds.modeWrong": "Неверный",
+  "settings.sounds.modeNone": "Выкл",
+
+  "settings.packs.title": "Лексические паки",
+  "settings.packs.cefr": "Уровни CEFR",
+  "settings.packs.cefrHint":
+    "English A0, A1, A2 — готовые карточки из Oxford 3000 с переводом. Устанавливаются как папка, удаляются целиком.",
+  "settings.packs.catalog": "Каталог паков",
+
+  "settings.data.title": "Данные",
+  "settings.data.export": "Экспорт",
+  "settings.data.exportHint":
+    "Скачать все папки и карточки одним файлом (резервная копия).",
+  "settings.data.import": "Импорт",
+  "settings.data.importHint":
+    "Загрузить файл экспорта — например, перенести карточки из демо-режима в облако.",
+  "settings.data.importFile": "Выбрать файл",
+  "settings.data.importDone": "Импорт завершён",
+  "settings.data.importFailed": "Импорт не удался: {message}",
+
+  "settings.account.title": "Режим работы",
+  "settings.account.cloudLabel": "Облако: {email}",
+  "settings.account.demoMode": "Демо-режим",
+  "settings.account.cloudOffline":
+    "Сейчас офлайн — данные синхронизируются при появлении сети.",
+  "settings.account.cloudOnline": "Карточки синхронизируются между устройствами.",
+  "settings.account.demoHint":
+    "Данные хранятся только в этом браузере. Настройте Supabase (см. README) для синхронизации.",
+  "settings.account.signOut": "Выйти",
+  "settings.account.signOutCloudTitle": "Выйти из аккаунта?",
+  "settings.account.signOutDemoTitle": "Выйти из демо-режима?",
+  "settings.account.signOutCloudText": "Карточки останутся в облаке.",
+  "settings.account.signOutDemoText":
+    "Данные останутся в этом браузере — вы сможете вернуться.",
+  "settings.account.sync": "Синхронизация",
+  "settings.account.syncHint": "Принудительно отправить отложенные изменения в облако.",
+  "settings.account.syncBtn": "Синхронизировать",
+  "settings.account.syncStatsUpdated": "Статистика и очередь обновлены",
+
+  "settings.yt.title": "Карточки из YouTube",
+  "settings.yt.apiKeys": "API-ключи",
+  "settings.yt.configure": "Настроить",
+  "settings.yt.extension": "Расширение Chrome",
+  "settings.yt.extensionHint":
+    "Кнопка на YouTube → Side Panel с теми же настройками режима",
+  "settings.yt.installGuide": "Как установить",
+  "settings.yt.modalTitle": "API-ключи YouTube",
+  "settings.yt.modalIntro":
+    "Supadata обязателен для транскрипта. Для карточек нужен свой Gemini и/или Groq — без них импорт не работает.",
+  "settings.yt.supadata.title": "Supadata API ключ",
+  "settings.yt.supadata.lead":
+    "Обязателен: достаёт субтитры и транскрипт из YouTube.",
+  "settings.yt.supadata.step1": "Зарегистрируйся и открой раздел API Keys.",
+  "settings.yt.supadata.step2": "Скопируй ключ и вставь сюда.",
+  "settings.yt.supadata.step3":
+    "Бесплатный тариф покрывает личное использование; одно видео = один запрос.",
+  "settings.yt.gemini.title": "Gemini API ключ",
+  "settings.yt.gemini.lead": "Генерация карточек: слова и переводы из транскрипта.",
+  "settings.yt.gemini.step1": "Создай API key в Google AI Studio.",
+  "settings.yt.gemini.step2": "Вставь ключ (AIza… или новый формат AQ.…).",
+  "settings.yt.gemini.step3":
+    "Без ключа генерация карточек не работает (нужен Gemini или Groq).",
+  "settings.yt.groq.title": "Groq API ключ",
+  "settings.yt.groq.lead": "Резерв, если у Gemini кончилась квота.",
+  "settings.yt.groq.step1": "Создай API Key в Groq Console.",
+  "settings.yt.groq.step2": "Вставь ключ (начинается с gsk_…).",
+  "settings.yt.groq.step3":
+    "Если модели отключены в проекте — Project → Limits: включи GPT OSS.",
+  "settings.yt.groq.step4":
+    "Без ключа генерация карточек не работает (нужен Gemini или Groq).",
+  "settings.yt.invalidGemini":
+    "Неверный формат — ключ AI Studio: AIza… или AQ.…",
+  "settings.yt.invalidGroq": "Неверный формат — ключ Groq начинается с gsk_…",
+  "settings.yt.invalidSupadata": "Неверный формат ключа Supadata",
+  "settings.yt.statusMissingRequired": "Не указан — импорт недоступен",
+  "settings.yt.statusMissingOptional": "Не указан — нужен Gemini или Groq",
+  "settings.yt.statusSaved": "Ключ сохранён",
+  "settings.yt.helpOpen": "Открой",
+  "settings.yt.helpHow": "Как получить",
+  "settings.yt.keyNote":
+    "Ключ сохраняется при нажатии «Готово». Передаётся на сервер только при импорте.",
+
+  "settings.media.title": "Картинки для карточек",
+  "settings.media.providers": "Pixabay + Giphy",
+  "settings.media.providersHint":
+    "Бесплатные ключи открывают миллионы фото, иллюстраций, GIF и стикеров.",
+  "settings.media.configure": "Настроить",
+  "settings.media.modalTitle": "API-ключи для картинок",
+  "settings.media.modalIntro":
+    "Pixabay — фото и иллюстрации. Giphy — GIF и стикеры. Без ключей работает ограниченный Openverse.",
+  "settings.media.pixabay.title": "Pixabay API ключ",
+  "settings.media.pixabay.lead":
+    "5+ млн фото и иллюстраций (бесплатная лицензия Pixabay).",
+  "settings.media.pixabay.step1":
+    "Зарегистрируйся на Pixabay и открой API documentation.",
+  "settings.media.pixabay.step2": "Скопируй API key и вставь сюда.",
+  "settings.media.pixabay.step3":
+    "Бесплатно: до 100 запросов в минуту — хватит для личных карточек.",
+  "settings.media.giphy.title": "Giphy API ключ",
+  "settings.media.giphy.lead": "Огромная база GIF и стикеров.",
+  "settings.media.giphy.step1": "Создай приложение в Giphy Developers Dashboard.",
+  "settings.media.giphy.step2": "Скопируй API Key.",
+  "settings.media.giphy.step3": "Бесплатный тариф подходит для личного использования.",
+  "settings.media.invalidPixabay": "Формат: 12345678-abcdef…",
+  "settings.media.invalidGiphy": "Неверный формат ключа Giphy",
+  "settings.media.statusMissing": "Не указан — базовый поиск Openverse",
+  "settings.media.statusSaved": "Ключ сохранён",
+  "settings.media.helpOpen": "Открой",
+  "settings.media.helpHow": "Как получить",
+  "settings.media.keyNote":
+    "Ключ сохраняется локально и передаётся на сервер только при поиске картинок.",
 
   // —— review ——
   "common.grade": { one: "оценка", few: "оценки", many: "оценок" },

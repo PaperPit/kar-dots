@@ -1,5 +1,6 @@
 import { el, toast, confirmDialog } from '../../../ui/ui.js';
 import { nav } from '../../../ui/shell.js';
+import { t } from '../../../lib/i18n.js';
 import type { LocalStore } from '../../../data/store-local.js';
 
 interface SbLike {
@@ -16,20 +17,24 @@ export function buildAccountGroup(
 ) {
   const isCloud = store.kind === 'cloud';
   const accGroup = el('div', { class: 'settings-group' }, [
-    el('h4', null, 'Режим работы'),
+    el('h4', null, t('settings.account.title')),
     el('div', { class: 'setting-row' }, [
       el('div', { class: 'lab' }, [
-        el('b', null, isCloud ? 'Облако: ' + String(sb?.getSession()?.user?.email ?? '') : 'Демо-режим'),
+        el('b', null, isCloud
+          ? t('settings.account.cloudLabel', { email: String(sb?.getSession()?.user?.email ?? '') })
+          : t('settings.account.demoMode')),
         el('span', null, isCloud
-          ? (store.offline ? 'Сейчас офлайн — данные синхронизируются при появлении сети.' : 'Карточки синхронизируются между устройствами.')
-          : 'Данные хранятся только в этом браузере. Настройте Supabase (см. README) для синхронизации.'),
+          ? (store.offline ? t('settings.account.cloudOffline') : t('settings.account.cloudOnline'))
+          : t('settings.account.demoHint')),
       ]),
       el('button', {
         class: 'btn ghost',
         onclick: async () => {
-          const yes = await confirmDialog(isCloud ? 'Выйти из аккаунта?' : 'Выйти из демо-режима?',
-            isCloud ? 'Карточки останутся в облаке.' : 'Данные останутся в этом браузере — вы сможете вернуться.',
-            'Выйти');
+          const yes = await confirmDialog(
+            isCloud ? t('settings.account.signOutCloudTitle') : t('settings.account.signOutDemoTitle'),
+            isCloud ? t('settings.account.signOutCloudText') : t('settings.account.signOutDemoText'),
+            t('settings.account.signOut'),
+          );
           if (!yes) return;
           if (isCloud) {
             const { setActivityCloudSync } = await import('../../../lib/activity.js');
@@ -41,15 +46,15 @@ export function buildAccountGroup(
           nav('#home');
           renderAuth();
         },
-      }, 'Выйти'),
+      }, t('settings.account.signOut')),
     ]),
   ]);
 
   if (isCloud) {
     accGroup.append(el('div', { class: 'setting-row' }, [
       el('div', { class: 'lab' }, [
-        el('b', null, 'Синхронизация'),
-        el('span', null, 'Принудительно отправить отложенные изменения в облако.'),
+        el('b', null, t('settings.account.sync')),
+        el('span', null, t('settings.account.syncHint')),
       ]),
       el('button', {
         class: 'btn',
@@ -60,11 +65,11 @@ export function buildAccountGroup(
               await cloudish.syncActivityNow();
             }
             const r = await store.flushSync();
-            toast(r.ok ? `Синхронизировано: ${r.ok}` : 'Статистика и очередь обновлены', 'ok');
+            toast(r.ok ? t('shell.sync.doneOk', { ok: r.ok }) : t('settings.account.syncStatsUpdated'), 'ok');
             await route();
-          }           catch (e) { toast(e instanceof Error ? e.message : String(e), 'error'); }
+          } catch (e) { toast(e instanceof Error ? e.message : String(e), 'error'); }
         },
-      }, 'Синхронизировать'),
+      }, t('settings.account.syncBtn')),
     ]));
   }
 

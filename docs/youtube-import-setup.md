@@ -7,15 +7,16 @@
 
 ```
 Браузер (youtube-dialog)
-   │  POST /api/yt-video {url, supadataApiKey, …}
+   │  POST /api/yt-video {url, userId, supadataApiKey, …}
    ▼
 functions/api/yt-video.js
    │   1. Supadata GET /youtube/video → title, duration
    │   2. Supadata GET /transcript?url=…&mode=auto
    │   3а. Транскрипт готов → {video, transcript}
-   │   3b. Длинное видео → Supadata jobId → {pending, jobId, video}  (состояние в Workers KV)
+   │   3b. Длинное видео → Supadata jobId → {pending, jobId, video}
+   │       KV-ключ: job:${userId}:${jobId} (jobId только с сервера)
    ▼ (только в случае 3b)
-Браузер: раз в ~2 с опрашивает GET /api/yt-video?jobId=…
+Браузер: раз в ~2 с опрашивает GET /api/yt-video?jobId=…&userId=…
    │
    ▼
 Браузер: POST /api/yt-generate {title, lang, mode, segments, geminiApiKey?, groqApiKey?}

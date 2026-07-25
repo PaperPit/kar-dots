@@ -7,6 +7,7 @@ import { recordReview, undoReview, type ReviewSplit } from '../../lib/activity.j
 import { animateCardExit } from '../../ui/swipe-grades.js';
 import { comboMatchBatchProgress } from '../../lib/review-progress.js';
 import { buildReviewEntry, logReview, removeReview } from '../../lib/review-log.js';
+import { t } from '../../lib/i18n.js';
 
 export const UNDO_TOAST_MS = 3000;
 
@@ -186,17 +187,16 @@ export function renderGrades(ctx: GradeContext, card: SrsCard, grades: HTMLEleme
   if (ctx.algo === 'fsrs') {
     const R = SRS.FsrsRating;
     grades.append(
-      mk('Снова', SRS.fsrsPreview(card, R.Again, now), 'again', 'left', gradePayload('fsrs', R.Again)),
-      mk('Трудно', SRS.fsrsPreview(card, R.Hard, now), 'hard', null, gradePayload('fsrs', R.Hard)),
-      mk('Хорошо', SRS.fsrsPreview(card, R.Good, now), 'good', 'right', gradePayload('fsrs', R.Good)),
-      mk('Легко', SRS.fsrsPreview(card, R.Easy, now), 'easy', null, gradePayload('fsrs', R.Easy)),
+      mk(t('review.grade.again'), SRS.fsrsPreview(card, R.Again, now), 'again', 'left', gradePayload('fsrs', R.Again)),
+      mk(t('review.grade.hard'), SRS.fsrsPreview(card, R.Hard, now), 'hard', null, gradePayload('fsrs', R.Hard)),
+      mk(t('review.grade.good'), SRS.fsrsPreview(card, R.Good, now), 'good', 'right', gradePayload('fsrs', R.Good)),
+      mk(t('review.grade.easy'), SRS.fsrsPreview(card, R.Easy, now), 'easy', null, gradePayload('fsrs', R.Easy)),
     );
     const parent = grades.parentElement;
     if (parent && !parent.querySelector('.swipe-hint')) {
       parent.append(
-        el('div', { class: 'swipe-hint' }, '← снова · → хорошо'),
-        el('div', { class: 'keyboard-hint' },
-          '← снова · → хорошо · 1–4 — оценки · пробел — перевернуть'),
+        el('div', { class: 'swipe-hint' }, t('review.grade.swipeFsrs')),
+        el('div', { class: 'keyboard-hint' }, t('review.grade.keysFsrs')),
       );
       requestAnimationFrame(() => parent.querySelector('.swipe-hint')?.classList.add('visible'));
     }
@@ -208,15 +208,14 @@ export function renderGrades(ctx: GradeContext, card: SrsCard, grades: HTMLEleme
       ? SRS.leitnerPreview(card, ok as boolean, store.settings.leitnerIntervals)
       : SRS.sm2Preview(card, ok as number, now);
   grades.append(
-    mk('Не знаю', preview(ctx.algo === 'leitner' ? false : 0), 'again', 'left', gradePayload(ctx.algo, false)),
-    mk('Знаю', preview(ctx.algo === 'leitner' ? true : 4), 'good', 'right', gradePayload(ctx.algo, true)),
+    mk(t('review.grade.dontKnow'), preview(ctx.algo === 'leitner' ? false : 0), 'again', 'left', gradePayload(ctx.algo, false)),
+    mk(t('review.grade.know'), preview(ctx.algo === 'leitner' ? true : 4), 'good', 'right', gradePayload(ctx.algo, true)),
   );
 
   const parent = grades.parentElement;
   if (parent && !parent.querySelector('.swipe-hint')) {
-    const swipeHint = el('div', { class: 'swipe-hint' }, '← не знаю · → знаю');
-    const keyboardHint = el('div', { class: 'keyboard-hint' },
-      'клавиши: пробел — перевернуть · ← не знаю · → знаю');
+    const swipeHint = el('div', { class: 'swipe-hint' }, t('review.grade.swipeBinary'));
+    const keyboardHint = el('div', { class: 'keyboard-hint' }, t('review.grade.keysBinary'));
     parent.append(swipeHint, keyboardHint);
     requestAnimationFrame(() => swipeHint.classList.add('visible'));
   }
@@ -267,7 +266,7 @@ export async function applyGrade(ctx: GradeContext, card: SrsCard, g: Grade, opt
   }
 
   try { await store.updateCard(card.id ?? '', patch); }
-  catch (e) { toast('Не сохранилось: ' + (e instanceof Error ? e.message : String(e)), 'error'); }
+  catch (e) { toast(t('review.grade.saveFailed', { message: e instanceof Error ? e.message : String(e) }), 'error'); }
   const reviewSplit = failed ? { failed: 1 } : { known: 1 };
   await recordReview(1, reviewSplit);
   let reviewLogId: string | null = null;
@@ -291,7 +290,7 @@ export async function applyGrade(ctx: GradeContext, card: SrsCard, g: Grade, opt
     ctx.pendingUndo = null;
     ctx.undoToastDismiss = null;
   } else {
-    const undoToast = toastAction('Оценка сохранена', 'Отменить', () => undoLastGrade(ctx), UNDO_TOAST_MS, () => {
+    const undoToast = toastAction(t('review.grade.saved'), t('common.undo'), () => undoLastGrade(ctx), UNDO_TOAST_MS, () => {
       ctx.pendingUndo = null;
       ctx.undoHoldUntilFlip = false;
     });
@@ -327,13 +326,13 @@ export async function undoLastGrade(ctx: GradeContext) {
   else ctx.stats.known = Math.max(0, ctx.stats.known - 1);
 
   try { await store.updateCard(u.card.id ?? '', u.prevSnap); }
-  catch (e) { toast('Не удалось отменить: ' + (e instanceof Error ? e.message : String(e)), 'error'); return; }
+  catch (e) { toast(t('review.grade.undoFailed', { message: e instanceof Error ? e.message : String(e) }), 'error'); return; }
   await undoReview(1, u.reviewSplit);
   if (u.reviewLogId) { try { await removeReview(u.reviewLogId); } catch (e) { /* ignore */ } }
   ctx.updateBar();
   if (ctx.showNextTimer) { clearTimeout(ctx.showNextTimer); ctx.showNextTimer = null; }
   ctx.showNext(true);
-  toast('Оценка отменена', 'ok');
+  toast(t('review.grade.undone'), 'ok');
 }
 
 export interface MatchResult {

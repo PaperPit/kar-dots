@@ -6,6 +6,7 @@ import { nav } from "./navigation.js"
 import { syncRavenEggScreen, tryRavenEggClick } from "../lib/raven-easter-egg.js"
 import { animateViewIn, staggerIn } from "../lib/motion-ui.js"
 import { createThemeToggle } from "./theme-toggle.js"
+import { t } from "../lib/i18n.js"
 interface TabItem {
   id: string
   label: string
@@ -50,17 +51,17 @@ function reviewDueBadge(viewName: string | null = lastViewName): string | null {
 
 function tabConfig(viewName: string | null = lastViewName): TabItem[] {
   return [
-    { id: "home", label: "Папки", icon: ICONS.home, hash: "#home" },
+    { id: "home", label: t("shell.nav.home"), icon: ICONS.home, hash: "#home" },
     {
       id: "review",
-      label: "Повторение",
+      label: t("shell.nav.review"),
       icon: ICONS.cards,
       onclick: () => openStudyModePicker(),
       hash: "#review",
       badge: reviewDueBadge(viewName)
     },
-    { id: "stats", label: "Статистика", icon: ICONS.chart, hash: "#stats" },
-    { id: "settings", label: "Настройки", icon: ICONS.gear, hash: "#settings" }
+    { id: "stats", label: t("shell.nav.stats"), icon: ICONS.chart, hash: "#stats" },
+    { id: "settings", label: t("shell.nav.settings"), icon: ICONS.gear, hash: "#settings" }
   ]
 }
 
@@ -156,6 +157,12 @@ export function setDueBadge(n: number): void {
   syncShellChrome(null)
 }
 
+/** Drop cached shell so next `shell()` rebuilds chrome (e.g. after locale change). */
+export function invalidateShell(): void {
+  shellEl = null
+  lastViewName = null
+}
+
 export async function refreshDueBadge(): Promise<number> {
   if (!store) {
     dueBadge = 0
@@ -211,7 +218,7 @@ export function offlineBanner(): HTMLElement | null {
   const statusEl = el(
     "span",
     null,
-    store.offline ? "Нет сети — изменения сохранятся локально." : "Проверяю синхронизацию…"
+    store.offline ? t("shell.offline.cloud") : t("shell.sync.checking")
   )
   const actionsEl = el("div", { class: "sync-banner-actions" })
   const banner = el("div", { class: "offline-banner sync-banner", role: "status" }, [
@@ -231,9 +238,9 @@ export function offlineBanner(): HTMLElement | null {
     if (!hasWork) return
 
     const parts = []
-    if (store.offline) parts.push("Нет сети — новые изменения ждут подключения.")
-    if (pending > 0) parts.push(`В очереди синхронизации: ${pending}.`)
-    if (failed > 0) parts.push(`Не удалось отправить: ${failed}.`)
+    if (store.offline) parts.push(t("shell.sync.waiting"))
+    if (pending > 0) parts.push(t("shell.sync.pending", { n: pending }))
+    if (failed > 0) parts.push(t("shell.sync.failed", { n: failed }))
     statusEl.textContent = parts.join(" ")
 
     if (pending > 0 && !store.offline) {
@@ -246,13 +253,13 @@ export function offlineBanner(): HTMLElement | null {
               const r = await store.flushSync()
               toast(
                 r.fail
-                  ? `Синхронизировано: ${r.ok}, ошибок: ${r.fail}`
-                  : `Синхронизировано: ${r.ok}`
+                  ? t("shell.sync.doneFail", { ok: r.ok, fail: r.fail })
+                  : t("shell.sync.doneOk", { ok: r.ok })
               )
               await refresh()
             }
           },
-          "Повторить"
+          t("shell.sync.retry")
         )
       )
     }
@@ -265,17 +272,17 @@ export function offlineBanner(): HTMLElement | null {
             "button",
             {
               class: "link-btn sync-banner-btn",
-              title: letter.error || "Ошибка синхронизации",
+              title: letter.error || t("shell.sync.errorTitle"),
               onclick: async () => {
                 const ok = await store.retryDeadLetter(letter.id)
                 toast(
-                  ok ? "Повторная синхронизация запущена" : "Запись уже обработана",
+                  ok ? t("shell.sync.retryStarted") : t("shell.sync.alreadyHandled"),
                   ok ? "ok" : "error"
                 )
                 await refresh()
               }
             },
-            "Повторить ошибку"
+            t("shell.sync.retryError")
           )
         )
         actionsEl.append(
@@ -283,14 +290,14 @@ export function offlineBanner(): HTMLElement | null {
             "button",
             {
               class: "link-btn sync-banner-btn",
-              title: letter.error || "Ошибка синхронизации",
+              title: letter.error || t("shell.sync.errorTitle"),
               onclick: async () => {
                 const ok = await store.discardDeadLetter(letter.id)
-                toast(ok ? "Ошибка синхронизации скрыта" : "Запись уже обработана")
+                toast(ok ? t("shell.sync.discarded") : t("shell.sync.alreadyHandled"))
                 await refresh()
               }
             },
-            "Скрыть"
+            t("shell.sync.hide")
           )
         )
       }
@@ -300,7 +307,7 @@ export function offlineBanner(): HTMLElement | null {
   if (typeof store.onSyncChange === "function") store.onSyncChange(() => refresh())
   refresh().catch((e) => {
     console.error("Sync banner error:", e)
-    statusEl.textContent = "Не удалось прочитать состояние синхронизации."
+    statusEl.textContent = t("shell.sync.readFailed")
     banner.hidden = false
   })
   return banner

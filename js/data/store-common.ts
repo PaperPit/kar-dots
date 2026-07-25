@@ -12,6 +12,8 @@ export const DEFAULT_SETTINGS: Settings = {
   fsrsFuzz: true,
   fsrsWeights: null,
   calendarPlace: "left",
+  language: "ru",
+  dateLocale: "ru-RU",
   streakRingDays: 21,
   tts: true,
   ttsRate: 1,

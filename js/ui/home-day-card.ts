@@ -1,10 +1,11 @@
-import { el, plural } from "./ui.js"
+import { el } from "./ui.js"
 import {
   loadActivity,
   dayKey,
   dayKnownFailed,
   WEEKDAY_NAMES
 } from "../lib/activity.js"
+import { t, tp } from "../lib/i18n.js"
 
 const HERO_VIEW_KEY = "kar_hero_view"
 
@@ -26,23 +27,24 @@ export function setHeroView(view: HeroView): void {
 
 function greetingText(): string {
   const h = new Date().getHours()
-  if (h < 12) return "Доброе утро 👋"
-  if (h < 18) return "Добрый день 👋"
-  return "Добрый вечер 👋"
+  if (h < 12) return t("home.greeting.morning")
+  if (h < 18) return t("home.greeting.afternoon")
+  return t("home.greeting.evening")
 }
 
 export function homeGreeting(dueCount: number): HTMLElement {
+  let sub: string
+  if (dueCount <= 0) sub = t("home.greeting.done")
+  else if (dueCount === 1) sub = t("home.greeting.dueOne")
+  else {
+    sub = t("home.greeting.dueMany", {
+      n: dueCount,
+      cards: tp("common.card", dueCount)
+    })
+  }
   return el("div", { class: "home-greeting" }, [
     el("div", { class: "home-greeting-title" }, greetingText()),
-    el(
-      "div",
-      { class: "home-greeting-sub" },
-      dueCount <= 0
-        ? "На сегодня всё повторено — можно отдыхать"
-        : dueCount === 1
-          ? "1 карточка ждёт повторения"
-          : `${dueCount} ${plural(dueCount, "карточка", "карточки", "карточек")} ждут повторения`
-    )
+    el("div", { class: "home-greeting-sub" }, sub)
   ])
 }
 
@@ -99,23 +101,23 @@ function renderRingBody(
       },
       el("div", { class: "day-donut-inner" }, [
         el("div", { class: "day-donut-num" }, String(done)),
-        el("div", { class: "day-donut-of" }, `из ${Math.max(total, done)}`)
+        el("div", { class: "day-donut-of" }, t("home.day.of", { n: Math.max(total, done) }))
       ])
     ),
     el("div", { class: "day-legend" }, [
       el("div", { class: "day-legend-row" }, [
         el("span", { class: "day-swatch day-swatch-ok" }),
-        "Знаю",
+        t("home.day.known"),
         el("span", { class: "day-legend-val day-legend-ok" }, String(known))
       ]),
       el("div", { class: "day-legend-row" }, [
         el("span", { class: "day-swatch day-swatch-fail" }),
-        "Не знаю",
+        t("home.day.unknown"),
         el("span", { class: "day-legend-val day-legend-fail" }, String(failed))
       ]),
       el("div", { class: "day-legend-row day-legend-left" }, [
         el("span", { class: "day-swatch day-swatch-left" }),
-        "Осталось",
+        t("home.day.left"),
         el("span", { class: "day-legend-val" }, String(left))
       ])
     ])
@@ -158,11 +160,11 @@ function renderWeekBody(): HTMLElement {
     el("div", { class: "week-legend" }, [
       el("span", null, [
         el("span", { class: "day-swatch day-swatch-ok-sm" }),
-        "знаю"
+        t("home.day.knownLower")
       ]),
       el("span", null, [
         el("span", { class: "day-swatch day-swatch-fail-sm" }),
-        "не знаю"
+        t("home.day.unknownLower")
       ])
     ])
   ])
@@ -179,18 +181,18 @@ export function homeDayCard(leftToday: number, onContinue: () => void): HTMLElem
   let view = getHeroView()
   const card = el("div", { class: "day-card" })
 
-  const title = el("div", { class: "day-card-title" }, "Повторение дня")
+  const title = el("div", { class: "day-card-title" }, t("home.day.title"))
   const subtitle = el(
     "div",
     { class: "day-card-sub" },
-    view === "ring" ? "результаты сегодня" : "активность за неделю"
+    view === "ring" ? t("home.day.subToday") : t("home.day.weekSub")
   )
   const toggleBtn = el(
     "button",
     {
       type: "button",
       class: "day-card-toggle",
-      title: view === "ring" ? "Показать неделю" : "Показать сегодня"
+      title: view === "ring" ? t("home.day.showWeek") : t("home.day.showToday")
     },
     view === "ring" ? "→" : "←"
   ) as HTMLButtonElement
@@ -201,18 +203,18 @@ export function homeDayCard(leftToday: number, onContinue: () => void): HTMLElem
     const isWeek = view === "week"
     card.classList.toggle("day-card--week", isWeek)
     if (isWeek) {
-      title.textContent = "Активность за неделю"
+      title.textContent = t("home.day.weekTitle")
       title.hidden = false
-      subtitle.textContent = "статистика"
+      subtitle.textContent = t("home.day.weekStats")
       subtitle.classList.remove("day-card-sub--as-title")
     } else {
-      title.textContent = "Повторение дня"
+      title.textContent = t("home.day.title")
       title.hidden = false
-      subtitle.textContent = "результаты сегодня"
+      subtitle.textContent = t("home.day.subToday")
       subtitle.classList.remove("day-card-sub--as-title")
     }
     toggleBtn.textContent = isWeek ? "←" : "→"
-    toggleBtn.title = isWeek ? "Показать сегодня" : "Показать неделю"
+    toggleBtn.title = isWeek ? t("home.day.showToday") : t("home.day.showWeek")
   }
 
   function paintBody() {
@@ -230,7 +232,7 @@ export function homeDayCard(leftToday: number, onContinue: () => void): HTMLElem
 
   paintBody()
 
-  const ctaLabel = leftToday > 0 ? "Продолжить" : "Повторить"
+  const ctaLabel = leftToday > 0 ? t("home.day.continue") : t("home.day.repeat")
   const continueBtn = el(
     "button",
     {
@@ -243,7 +245,7 @@ export function homeDayCard(leftToday: number, onContinue: () => void): HTMLElem
   const footerKids: HTMLElement[] = []
   if (done > 0) {
     footerKids.push(
-      el("span", { class: "day-accuracy" }, `точность ${accuracy}%`)
+      el("span", { class: "day-accuracy" }, t("home.day.accuracy", { n: accuracy }))
     )
   }
   footerKids.push(continueBtn)

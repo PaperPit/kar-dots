@@ -2,6 +2,7 @@ import { route } from "../core/router.js"
 import { el } from "./ui.js"
 import { ICONS } from "./constants.js"
 import { svgNode } from "./icons.js"
+import { t } from "../lib/i18n.js"
 
 let navFallbackTimer: ReturnType<typeof setTimeout> | null = null
 let navFallbackSeq = 0
@@ -29,13 +30,14 @@ export function nav(hash: string): void {
   }, 150)
 }
 
-export function backBtn(hash = "#home", label = "Назад"): HTMLElement {
+export function backBtn(hash = "#home", label?: string): HTMLElement {
+  const resolved = label ?? t("common.back")
   return el(
     "button",
     {
       type: "button",
       class: "icon-btn back-btn",
-      "aria-label": label,
+      "aria-label": resolved,
       onclick: () => nav(hash)
     },
     svgNode(ICONS.back)

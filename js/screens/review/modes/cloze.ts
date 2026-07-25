@@ -13,6 +13,7 @@ import { playAnswerFeedback, unlockAnswerAudio } from '../../../lib/sounds.js';
 import { flashStudyCard, showStudyFeedback, pulseStudyInput } from '../../../ui/answer-feedback.js';
 import { haptic } from '../../../ui/helpers.js';
 import { focusWithoutScroll } from '../../../lib/study-keyboard.js';
+import { t } from '../../../lib/i18n.js';
 
 
 interface ClozeInput {
@@ -56,14 +57,14 @@ function buildPrompt(card: SrsCard, promptSide: 'front' | 'back') {
 
 function renderClozeSegments(cloze: ClozeData) {
   const inputs: ClozeInput[] = [];
-  const label = cloze.mode === 'words' ? 'Фраза с пропусками' : 'Слово с пропусками';
+  const label = cloze.mode === 'words' ? t('review.cloze.phraseLabel') : t('review.cloze.wordLabel');
 
   const children = cloze.segments.map(seg => {
     if (seg.type === 'blank') {
       const inp = el('input', {
         type: 'text',
         class: 'study-cloze-inline study-cloze-inline-word',
-        'aria-label': 'Пропущенное слово',
+        'aria-label': t('review.cloze.ariaWord'),
         autocomplete: 'off',
         autocapitalize: 'off',
         spellcheck: 'false',
@@ -76,7 +77,7 @@ function renderClozeSegments(cloze: ClozeData) {
       const inp = el('input', {
         type: 'text',
         class: 'study-cloze-inline study-cloze-inline-letter',
-        'aria-label': 'Пропущенная буква',
+        'aria-label': t('review.cloze.ariaLetter'),
         maxlength: '1',
         autocomplete: 'off',
         autocapitalize: 'off',
@@ -174,7 +175,7 @@ export function createClozeModeCard(card: SrsCard, ctx: ClozeCtx) {
 
   const feedback = el('div', { class: 'study-feedback', hidden: true }, undefined);
   const actions = el('div', { class: 'study-actions' }, undefined);
-  const checkBtn = el('button', { type: 'button', class: 'btn primary study-check-btn' }, 'Проверить') as HTMLButtonElement;
+  const checkBtn = el('button', { type: 'button', class: 'btn primary study-check-btn' }, t('review.type.check')) as HTMLButtonElement;
 
   function clearWrongState() {
     for (const { inp } of clozeInputs) {
@@ -188,15 +189,15 @@ export function createClozeModeCard(card: SrsCard, ctx: ClozeCtx) {
   }
 
   function showWrong() {
-    showStudyFeedback(feedback, false, 'Неверно');
+    showStudyFeedback(feedback, false, t('review.type.wrong'));
     actions.innerHTML = '';
     const revealBtn = el('button', {
       type: 'button',
       class: 'btn ghost study-reveal-btn',
-    }, 'Показать ответ');
+    }, t('review.type.showAnswer'));
     revealBtn.addEventListener('click', () => {
       const reveal = formatClozeReveal(cloze);
-      showStudyFeedback(feedback, false, 'Правильно: ' + reveal);
+      showStudyFeedback(feedback, false, t('review.type.correctIs', { answer: reveal }));
       revealBtn.remove();
     });
     checkBtn.disabled = false;
@@ -207,7 +208,7 @@ export function createClozeModeCard(card: SrsCard, ctx: ClozeCtx) {
         type: 'button',
         class: 'btn ghost',
         onclick: () => { if (!answered) { answered = true; onFail({ firstTry: false }); } },
-      }, 'Не знаю'),
+      }, t('review.type.dontKnow')),
     );
   }
 
@@ -225,7 +226,7 @@ export function createClozeModeCard(card: SrsCard, ctx: ClozeCtx) {
       haptic(10);
       pulseClozeInputs(clozeInputs, true);
       flashStudyCard(prompt, true);
-      showStudyFeedback(feedback, true, 'Верно!');
+      showStudyFeedback(feedback, true, t('review.type.correct'));
       setClozeInputsDisabled(clozeInputs, true);
       checkBtn.disabled = true;
       setTimeout(() => onSuccess({ firstTry }), 560);
@@ -246,8 +247,8 @@ export function createClozeModeCard(card: SrsCard, ctx: ClozeCtx) {
   actions.append(checkBtn);
 
   const hint = isPhrase
-    ? 'Допишите пропущенные слова прямо в тексте — только их, не всю фразу'
-    : 'Допишите пропущенные буквы прямо в слове — только их, не слово целиком';
+    ? t('review.cloze.hintWords')
+    : t('review.cloze.hintLetters');
 
   const box = el('div', { class: 'study-cloze-card' }, [
     prompt,

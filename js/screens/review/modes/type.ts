@@ -7,6 +7,7 @@ import { playAnswerFeedback, unlockAnswerAudio } from '../../../lib/sounds.js';
 import { flashStudyCard, showStudyFeedback, pulseStudyInput } from '../../../ui/answer-feedback.js';
 import { haptic } from '../../../ui/helpers.js';
 import { focusWithoutScroll } from '../../../lib/study-keyboard.js';
+import { t } from '../../../lib/i18n.js';
 
 
 interface TypeModeCtx {
@@ -31,7 +32,7 @@ export function createTypeModeCard(card: SrsCard, ctx: TypeModeCtx) {
   const input = el('input', {
     type: 'text',
     class: 'input study-answer-input',
-    placeholder: promptSide === 'front' ? 'Введите перевод…' : 'Введите термин…',
+    placeholder: promptSide === 'front' ? t('review.type.placeholderBack') : t('review.type.placeholderFront'),
     autocomplete: 'off',
     autocapitalize: 'off',
     spellcheck: 'false',
@@ -39,7 +40,7 @@ export function createTypeModeCard(card: SrsCard, ctx: TypeModeCtx) {
 
   const feedback = el('div', { class: 'study-feedback', hidden: true }, undefined);
   const actions = el('div', { class: 'study-actions' }, undefined);
-  const checkBtn = el('button', { type: 'button', class: 'btn primary study-check-btn' }, 'Проверить') as HTMLButtonElement;
+  const checkBtn = el('button', { type: 'button', class: 'btn primary study-check-btn' }, t('review.type.check')) as HTMLButtonElement;
 
   function playFeedback(isCorrect: boolean) {
     playAnswerFeedback(isCorrect, getSettings?.());
@@ -52,14 +53,14 @@ export function createTypeModeCard(card: SrsCard, ctx: TypeModeCtx) {
   }
 
   function showWrong(expected: string) {
-    showStudyFeedback(feedback, false, 'Неверно');
+    showStudyFeedback(feedback, false, t('review.type.wrong'));
     actions.innerHTML = '';
     const revealBtn = el('button', {
       type: 'button',
       class: 'btn ghost study-reveal-btn',
-    }, 'Показать ответ');
+    }, t('review.type.showAnswer'));
     revealBtn.addEventListener('click', () => {
-      showStudyFeedback(feedback, false, 'Правильно: ' + formatExpectedDisplay(expected));
+      showStudyFeedback(feedback, false, t('review.type.correctIs', { answer: formatExpectedDisplay(expected) }));
       revealBtn.remove();
     });
     checkBtn.disabled = false;
@@ -70,7 +71,7 @@ export function createTypeModeCard(card: SrsCard, ctx: TypeModeCtx) {
         type: 'button',
         class: 'btn ghost',
         onclick: () => { if (!answered) { answered = true; onFail({ firstTry: false }); } },
-      }, 'Не знаю'),
+      }, t('review.type.dontKnow')),
     );
   }
 
@@ -87,7 +88,7 @@ export function createTypeModeCard(card: SrsCard, ctx: TypeModeCtx) {
       haptic(10);
       pulseStudyInput(input, true);
       flashStudyCard(prompt, true);
-      showStudyFeedback(feedback, true, 'Верно!');
+      showStudyFeedback(feedback, true, t('review.type.correct'));
       input.disabled = true;
       checkBtn.disabled = true;
       setTimeout(() => onSuccess({ firstTry }), 560);
@@ -116,7 +117,7 @@ export function createTypeModeCard(card: SrsCard, ctx: TypeModeCtx) {
 
   const box = el('div', { class: 'study-type-card' }, [
     prompt,
-    el('p', { class: 'study-hint' }, 'Введите ответ и нажмите «Проверить»'),
+    el('p', { class: 'study-hint' }, t('review.type.hint')),
     input,
     feedback,
     actions,

@@ -3,6 +3,7 @@ import { el, stripHtml } from '../../../ui/ui.js';
 import { shuffle, haptic } from '../../../ui/helpers.js';
 import { playAnswerFeedbackFromStore } from '../../../lib/sounds.js';
 import { flashMatchPair, flashMatchHint } from '../../../ui/answer-feedback.js';
+import { t } from '../../../lib/i18n.js';
 
 
 interface MatchCtx {
@@ -37,12 +38,12 @@ export function createMatchRound(cards: SrsCard[], ctx: MatchCtx) {
   const hint = el('p', {
     class: 'study-hint match-hint',
   }, promptSide === 'front'
-    ? 'Нажмите термин, затем перевод'
-    : 'Нажмите перевод, затем термин');
+    ? t('review.match.hintTermFirst')
+    : t('review.match.hintDefFirst'));
 
   const answers: { cardId: string; text: string }[] = shuffle(cards.map(c => ({
     cardId: c.id ?? "",
-    text: cardSideText(c, answerSide) || "(пусто)",
+    text: cardSideText(c, answerSide) || t('review.match.empty'),
   })));
 
   function promptBtn(card: SrsCard) {
@@ -55,7 +56,7 @@ export function createMatchRound(cards: SrsCard[], ctx: MatchCtx) {
         + (isPaired ? ' is-paired' : ''),
       disabled: isPaired,
       onclick: () => selectTerm(card.id ?? ""),
-    }, cardSideText(card, promptSide) || '(пусто)');
+    }, cardSideText(card, promptSide) || t('review.match.empty'));
   }
 
   function answerBtn(item: { cardId: string; text: string }) {
@@ -90,8 +91,8 @@ export function createMatchRound(cards: SrsCard[], ctx: MatchCtx) {
         selectedTerm = null;
         selectedDef = null;
         hint.textContent = paired.size === cards.length
-          ? 'Все пары собраны!'
-          : 'Отлично! Продолжайте';
+          ? t('review.match.allDone')
+          : t('review.match.keepGoing');
         flashMatchHint(hint, true);
         renderBoard();
         if (paired.size === cards.length) {
@@ -112,7 +113,7 @@ export function createMatchRound(cards: SrsCard[], ctx: MatchCtx) {
     flashMatchPair(termEl, defEl, false, () => {
       selectedTerm = null;
       selectedDef = null;
-      hint.textContent = 'Не та пара — попробуйте снова';
+      hint.textContent = t('review.match.wrongPair');
       flashMatchHint(hint, false);
       renderBoard();
     });
@@ -135,7 +136,7 @@ export function createMatchRound(cards: SrsCard[], ctx: MatchCtx) {
   renderBoard();
 
   const box = el('div', { class: 'study-match-card' }, [
-    el('p', { class: 'match-round-label' }, `Соберите пары · ${cards.length}`),
+    el('p', { class: 'match-round-label' }, t('review.match.roundLabel', { n: cards.length })),
     hint,
     el('div', { class: 'match-board' }, [termsCol, defsCol]),
   ]);

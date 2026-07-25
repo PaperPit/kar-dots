@@ -2,12 +2,13 @@ import { el, modal } from '../../ui/ui.js';
 import { nav } from '../../ui/navigation.js';
 import { store } from '../../core/state.js';
 import {
-  STUDY_MODE_META, PROMPT_SIDE_META, buildReviewHash,
+  getStudyModeMeta, getPromptSideMeta, buildReviewHash,
   getLastStudyMode, setLastStudyMode, setSessionStudyMode,
   getLastPromptSide, setSessionPromptSide, normalizePromptSide,
   getLastCramLimit, setSessionCramLimit,
 } from '../../lib/study-modes.js';
 import { speechRecognitionSupported } from '../../lib/speech-input.js';
+import { t } from '../../lib/i18n.js';
 import type { PromptSideMeta, StudyModeMeta } from '../../lib/study-modes.js';
 import type { ModalHandle } from '../../ui/ui.js';
 
@@ -18,15 +19,16 @@ function sidePickerBlock(initialSide: 'front' | 'back', onChange: (side: 'front'
   const hint = el('p', { class: 'mode-pick-side-hint' }, '');
   const seg = el('div', { class: 'seg mode-pick-side-seg' }, undefined);
   const btns: HTMLElement[] = [];
+  const sides = getPromptSideMeta();
 
   function refresh() {
-    const meta = PROMPT_SIDE_META.find(s => s.id === side) || PROMPT_SIDE_META[0]!;
+    const meta = sides.find(s => s.id === side) || sides[0]!;
     hint.textContent = meta.desc;
     btns.forEach(b => b.classList.toggle('active', b.dataset.side === side));
     onChange(side);
   }
 
-  PROMPT_SIDE_META.forEach((meta: PromptSideMeta) => {
+  sides.forEach((meta: PromptSideMeta) => {
     const btn = el('button', {
       type: 'button',
       'data-side': meta.id,
@@ -38,7 +40,7 @@ function sidePickerBlock(initialSide: 'front' | 'back', onChange: (side: 'front'
 
   refresh();
   return el('div', { class: 'mode-pick-side-block' }, [
-    el('p', { class: 'modal-text mode-pick-side-label' }, 'Что показывать на карточке?'),
+    el('p', { class: 'modal-text mode-pick-side-label' }, t('review.picker.sideLabel')),
     seg,
     hint,
   ]);
@@ -46,7 +48,7 @@ function sidePickerBlock(initialSide: 'front' | 'back', onChange: (side: 'front'
 
 function limitPickerBlock(totalCards: number, initialLimit: number | null, onChange: (limit: number | null) => void) {
   const presets = [
-    { label: 'Все', value: 'all' as const },
+    { label: t('review.picker.limitAll'), value: 'all' as const },
     { label: '10', value: 10 },
     { label: '20', value: 20 },
     { label: '50', value: 50 },
@@ -64,9 +66,9 @@ function limitPickerBlock(totalCards: number, initialLimit: number | null, onCha
     class: 'mode-pick-limit-input',
     min: '1',
     max: String(totalCards),
-    placeholder: 'Другое',
+    placeholder: t('review.picker.limitOther'),
     inputmode: 'numeric',
-    'aria-label': `Другое количество, от 1 до ${totalCards}`,
+    'aria-label': t('review.picker.limitOtherAria', { n: totalCards }),
   }) as HTMLInputElement;
 
   function resolveLimit(): number | null {
@@ -119,8 +121,8 @@ function limitPickerBlock(totalCards: number, initialLimit: number | null, onCha
   refresh();
   const block: LimitBlock = Object.assign(el('div', { class: 'mode-pick-side-block mode-pick-limit-block' }, [
     el('p', { class: 'modal-text mode-pick-side-label' }, [
-      'Сколько слов за раз? ',
-      el('span', { class: 'muted' }, `(в папке ${totalCards})`),
+      t('review.picker.limitLabel'),
+      el('span', { class: 'muted' }, t('review.picker.limitInFolder', { n: totalCards })),
     ]),
     seg,
   ]), { getLimit: resolveLimit });
@@ -143,7 +145,7 @@ export async function studyModePicker({ folderId = null, cram = false }: { folde
     ? limitPickerBlock(cardCount, chosenLimit, l => { chosenLimit = l; })
     : null;
 
-  const items = STUDY_MODE_META.map((meta: StudyModeMeta) => {
+  const items = getStudyModeMeta().map((meta: StudyModeMeta) => {
     const needsSpeech = meta.id === 'voice';
     const disabled = needsSpeech && !speechRecognitionSupported();
     const btn = el('button', {
@@ -175,23 +177,23 @@ export async function studyModePicker({ folderId = null, cram = false }: { folde
     }, [
       el('span', { class: 'mode-pick-title' }, meta.title),
       el('span', { class: 'mode-pick-desc' }, disabled
-        ? 'Недоступно в этом браузере'
+        ? t('review.picker.unavailable')
         : meta.desc),
     ]);
     return btn;
   });
 
   m = modal(el('div', null, [
-    el('h3', { class: 'modal-title' }, cram ? 'Закрепление папки' : 'Режим повторения'),
+    el('h3', { class: 'modal-title' }, cram ? t('review.picker.cramTitle') : t('review.picker.title')),
     el('p', { class: 'modal-text' }, cram
-      ? 'Выберите сторону, сколько слов повторить и способ закрепления.'
-      : 'Выберите, как хотите повторять карточки в этой сессии.'),
+      ? t('review.picker.cramSub')
+      : t('review.picker.sub')),
     sideBlock,
     limitBlock,
-    cram ? el('p', { class: 'modal-text mode-pick-modes-label' }, 'Способ закрепления') : null,
+    cram ? el('p', { class: 'modal-text mode-pick-modes-label' }, t('review.picker.modesLabel')) : null,
     el('div', { class: 'mode-pick-grid' }, items),
     el('div', { class: 'modal-actions' }, [
-      el('button', { class: 'btn ghost', onclick: () => m!.close() }, 'Отмена'),
+      el('button', { class: 'btn ghost', onclick: () => m!.close() }, t('common.cancel')),
     ]),
   ]));
 }

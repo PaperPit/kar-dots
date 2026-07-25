@@ -3,6 +3,7 @@
 // GET  ?jobId=…&userId=… → { transcript } | { pending } | ошибка
 //
 // jobId генерируется только на сервере; KV-ключ: job:${userId}:${jobId}.
+// Личный ключ Supadata обязателен; серверный SUPADATA_API_KEY не используется.
 
 import {
   jobsStore,

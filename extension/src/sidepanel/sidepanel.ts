@@ -21,7 +21,7 @@ import {
   parseYouTubeId,
   type YtCandidate
 } from "../../../js/lib/youtube-import.js"
-import { hasSupadataApiKey } from "../../../js/lib/youtube-import-settings.js"
+import { hasSupadataApiKey, hasGenerateApiKey } from "../../../js/lib/youtube-import-settings.js"
 import type { Settings } from "../../../js/data/types.js"
 
 const root = document.getElementById("app")!
@@ -291,6 +291,12 @@ async function runImport() {
   if (!hasSupadataApiKey(settings)) {
     renderForm(
       "Укажи Supadata API ключ в КАР-точки: Настройки → «Карточки из YouTube» → «Настроить»"
+    )
+    return
+  }
+  if (!hasGenerateApiKey(settings)) {
+    renderForm(
+      "Укажи Gemini или Groq API ключ в КАР-точки: Настройки → «Карточки из YouTube» → «Настроить»"
     )
     return
   }

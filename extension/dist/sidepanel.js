@@ -223,8 +223,17 @@ function hasSupadataApiKey(settings2) {
 function getGeminiApiKey(settings2) {
   return cleanGeminiApiKey(settings2?.geminiApiKey || "");
 }
+function hasGeminiApiKey(settings2) {
+  return getGeminiApiKey(settings2).length > 0;
+}
 function getGroqApiKey(settings2) {
   return cleanGroqApiKey(settings2?.groqApiKey || "");
+}
+function hasGroqApiKey(settings2) {
+  return getGroqApiKey(settings2).length > 0;
+}
+function hasGenerateApiKey(settings2) {
+  return hasGeminiApiKey(settings2) || hasGroqApiKey(settings2);
 }
 function withApiKeys(settings2, body) {
   const out = { ...body };
@@ -917,6 +926,12 @@ async function runImport() {
   if (!hasSupadataApiKey(settings)) {
     renderForm(
       "\u0423\u043A\u0430\u0436\u0438 Supadata API \u043A\u043B\u044E\u0447 \u0432 \u041A\u0410\u0420-\u0442\u043E\u0447\u043A\u0438: \u041D\u0430\u0441\u0442\u0440\u043E\u0439\u043A\u0438 \u2192 \xAB\u041A\u0430\u0440\u0442\u043E\u0447\u043A\u0438 \u0438\u0437 YouTube\xBB \u2192 \xAB\u041D\u0430\u0441\u0442\u0440\u043E\u0438\u0442\u044C\xBB"
+    );
+    return;
+  }
+  if (!hasGenerateApiKey(settings)) {
+    renderForm(
+      "\u0423\u043A\u0430\u0436\u0438 Gemini \u0438\u043B\u0438 Groq API \u043A\u043B\u044E\u0447 \u0432 \u041A\u0410\u0420-\u0442\u043E\u0447\u043A\u0438: \u041D\u0430\u0441\u0442\u0440\u043E\u0439\u043A\u0438 \u2192 \xAB\u041A\u0430\u0440\u0442\u043E\u0447\u043A\u0438 \u0438\u0437 YouTube\xBB \u2192 \xAB\u041D\u0430\u0441\u0442\u0440\u043E\u0438\u0442\u044C\xBB"
     );
     return;
   }

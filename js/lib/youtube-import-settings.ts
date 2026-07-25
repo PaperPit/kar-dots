@@ -1,6 +1,7 @@
 /**
  * Личные API-ключи для «Карточки из YouTube» (Настройки → Карточки из YouTube).
- * Supadata — обязателен для транскрипта; Gemini/Groq — для генерации карточек.
+ * Supadata — обязателен для транскрипта; Gemini и/или Groq — обязательны для генерации.
+ * Серверные env-ключи не используются: без ключа в настройках фича не работает.
  */
 
 import { cleanGeminiApiKey, cleanGroqApiKey, cleanSupadataApiKey } from "./llm-api-keys.js"
@@ -28,6 +29,11 @@ export function getGroqApiKey(settings: Settings | null | undefined): string {
 
 export function hasGroqApiKey(settings: Settings | null | undefined): boolean {
   return getGroqApiKey(settings).length > 0
+}
+
+/** Нужен хотя бы один LLM-ключ для генерации карточек. */
+export function hasGenerateApiKey(settings: Settings | null | undefined): boolean {
+  return hasGeminiApiKey(settings) || hasGroqApiKey(settings)
 }
 
 /** Добавляет к телу запроса /api/* личные ключи — только те, что заданы. */

@@ -42,7 +42,7 @@ const KEY_DEFS: KeyDef[] = [
       steps: [
         'Создай API key в Google AI Studio.',
         'Вставь ключ (AIza… или новый формат AQ.…).',
-        'Если пусто — используется серверный ключ (если настроен).',
+        'Без ключа генерация карточек не работает (нужен Gemini или Groq).',
       ],
     },
   },
@@ -58,7 +58,7 @@ const KEY_DEFS: KeyDef[] = [
         'Создай API Key в Groq Console.',
         'Вставь ключ (начинается с gsk_…).',
         'Если модели отключены в проекте — Project → Limits: включи GPT OSS.',
-        'Если пусто — используется серверный ключ (если настроен).',
+        'Без ключа генерация карточек не работает (нужен Gemini или Groq).',
       ],
     },
   },
@@ -82,7 +82,9 @@ function validateKey(prop: KeyProp, value: unknown) {
 function updateKeyStatus(statusEl: HTMLElement, def: KeyDef, value: unknown) {
   const next = String(value || '').trim();
   if (!next) {
-    statusEl.textContent = def.required ? 'Не указан — импорт недоступен' : 'Не указан — серверный (если есть)';
+    statusEl.textContent = def.required
+      ? 'Не указан — импорт недоступен'
+      : 'Не указан — нужен Gemini или Groq';
     statusEl.classList.remove('is-set', 'is-invalid');
     return;
   }
@@ -184,7 +186,7 @@ function openKeysModal(s: Settings, save: (patch?: Partial<Settings>) => void, o
   const m = modal(el('div', null, [
     el('h3', { class: 'modal-title' }, 'API-ключи YouTube'),
     el('p', { class: 'modal-text muted' },
-      'Supadata обязателен для транскрипта. Gemini — основной для карточек, Groq — резерв.'),
+      'Supadata обязателен для транскрипта. Для карточек нужен свой Gemini и/или Groq — без них импорт не работает.'),
     body,
     el('div', { class: 'modal-actions' }, [
       el('button', {

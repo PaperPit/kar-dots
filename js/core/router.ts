@@ -1,7 +1,7 @@
 import { store } from "./state.js"
 import { recordVisit } from "../lib/activity.js"
 import { parseReviewRoute, isStudyMode } from "../lib/study-modes.js"
-import { animateBootSplashOut } from "../lib/motion-ui.js"
+import { animateBootSplashOut } from "../ui/motion-lazy.js"
 import { cancelNavFallback } from "../ui/navigation.js"
 
 type HashParts = {

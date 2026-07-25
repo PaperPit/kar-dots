@@ -47,6 +47,9 @@ export const en: Record<string, MessageValue> = {
   "shell.sync.hide": "Hide",
   "shell.sync.readFailed": "Could not read sync status.",
 
+  "app.error.unexpected": "Something went wrong. Your data is safe — please try again.",
+  "app.error.reload": "Reload",
+
   "auth.sub":
     "Flashcards for words, terms, and quotes — with smart spaced repetition.",
   "auth.emailPlaceholder": "Email",
@@ -154,7 +157,11 @@ export const en: Record<string, MessageValue> = {
   "settings.algo.title": "Spaced repetition",
   "settings.algo.algorithm": "Algorithm",
   "settings.algo.footnote":
-    "When you switch algorithms, previous progress is kept — SM-2, FSRS, and Leitner store it separately.",
+    "SM-2, FSRS, and Leitner each have their own columns in the database, so the previous algorithm's schedule is kept and comes back if you switch back. The new algorithm, however, has no schedule for these cards — it starts them from scratch, as if they were new.",
+  "settings.algo.confirmTitle": "Switch algorithm?",
+  "settings.algo.confirmBody":
+    "The new algorithm starts every card from scratch, as new: due dates are computed from zero. The previous algorithm's schedule stays in the database — switch back and it returns.",
+  "settings.algo.confirmOk": "Switch",
   "settings.algo.desc.sm2":
     "The Anki classic. Two buttons: Know and Don’t know. Each card has its own interval — Don’t know brings it back in 10 minutes; Know pushes it to a day and beyond. Simple and familiar.",
   "settings.algo.desc.fsrs":

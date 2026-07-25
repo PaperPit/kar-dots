@@ -1,5 +1,6 @@
 import { el, toast, spinner } from '../../ui/ui.js';
 import { store } from '../../core/state.js';
+import { resolveImageUrl, resolveImageUrlSync } from '../../data/image-url.js';
 import { openStockImagePicker } from './stock-image-picker.js';
 
 interface CardEditorState {
@@ -22,8 +23,17 @@ export function imgDrop(side: string, state: CardEditorState, opts: ImgDropOpts 
   function paint() {
     box.innerHTML = '';
     if (state[side]) {
+      // В карточке лежит постоянная ссылка на storage, но бакет приватный —
+      // показывать надо подписанную. Сначала рисуем то, что есть под рукой
+      // (свежая подпись из кэша, data:-URL после офлайн-загрузки), а подпись
+      // подставляем, когда она приедет: иначе картинка мигала бы пустотой.
+      const raw = state[side] as string;
+      const img = el('img', { src: resolveImageUrlSync(raw), alt: '' }, undefined);
+      void resolveImageUrl(raw).then(url => {
+        if (state[side] === raw && url && img.getAttribute('src') !== url) img.setAttribute('src', url);
+      });
       box.append(
-        el('img', { src: (state[side] as string) ?? '', alt: '' }, undefined),
+        img,
         el('button', {
           type: 'button', class: 'img-x', title: 'Убрать картинку',
           onclick: (e: Event) => { e.stopPropagation(); state[side] = null; paint(); },
@@ -55,7 +65,9 @@ export function imgDrop(side: string, state: CardEditorState, opts: ImgDropOpts 
     if (!file || !String(file.type || '').startsWith('image/')) return;
     box.innerHTML = '';
     box.append(spinner());
-    try { state[side] = await store.uploadImage(file); }
+    // side («front_img»/«back_img») нужен, чтобы отложенную офлайн-загрузку
+    // можно было привязать к карточке, когда её создадут.
+    try { state[side] = await store.uploadImage(file, { side }); }
     catch (e) { toast(e instanceof Error ? e.message : String(e), 'error'); }
     paint();
   }

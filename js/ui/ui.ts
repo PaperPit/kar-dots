@@ -7,7 +7,7 @@ import {
   animateModalOut,
   animateToastIn,
   animateToastOut
-} from "../lib/motion-ui.js"
+} from "./motion-lazy.js"
 import { t } from "../lib/i18n.js"
 
 export type ElChild = Node | string | number | null | undefined | false
@@ -120,6 +120,8 @@ export interface ModalOpts {
   wide?: boolean
   labelledBy?: string
   sticky?: boolean
+  /** Вызывается один раз при закрытии — место для teardown виджетов внутри. */
+  onClose?: () => void
 }
 
 export interface ModalHandle {
@@ -151,8 +153,16 @@ export function modal(content: Node, opts?: ModalOpts): ModalHandle {
       .filter((n) => !(n as HTMLButtonElement).disabled && (n as HTMLElement).offsetParent !== null)
       .map((n) => n as HTMLElement)
 
+  let closed = false
   function close() {
+    if (closed) return
+    closed = true
     document.removeEventListener("keydown", onKey)
+    try {
+      opts?.onClose?.()
+    } catch (e) {
+      console.error("Modal onClose error:", e)
+    }
     animateModalOut(overlay, box).then(() => {
       overlay.remove()
       if (prevFocus instanceof HTMLElement) {

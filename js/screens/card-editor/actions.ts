@@ -60,7 +60,7 @@ export async function saveCard({
       front, back, description,
       front_img: state.front_img, back_img: state.back_img,
     };
-    if (card) await store.updateCard(card.id, patch);
+    if (card?.id) await store.updateCard(card.id, patch);
     else await store.createCard(Object.assign({ folder_id: folderId }, patch));
     m.close();
     if (fromLesson) {
@@ -93,7 +93,7 @@ export async function deleteCardAction(card: Card | null, opts: DeleteCardOpts, 
   );
   if (!yes) return;
   try {
-    await store.deleteCard(card.id);
+    if (card.id) await store.deleteCard(card.id);
     m.close();
     if (opts.onDeleted) {
       opts.onDeleted();

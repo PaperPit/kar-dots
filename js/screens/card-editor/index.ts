@@ -127,7 +127,17 @@ export function cardDialog(folderId: string, card?: Card | null, opts: CardDialo
     header,
     body,
     actionsRow,
-  ]), { wide: true, sticky: fromLesson, labelledBy: titleId });
+  ]), {
+    wide: true,
+    sticky: fromLesson,
+    labelledBy: titleId,
+    // Три rich-редактора вешают слушатель на document — снимаем при закрытии.
+    onClose: () => {
+      frontRich.destroy();
+      defRich.destroy();
+      descRich.destroy();
+    },
+  });
 
   if (!isEditing) setTimeout(() => frontRich.focus(), 260);
 }

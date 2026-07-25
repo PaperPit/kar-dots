@@ -4,7 +4,7 @@ import { ICONS } from "./constants.js"
 import { brandMark, svgNode } from "./helpers.js"
 import { nav } from "./navigation.js"
 import { syncRavenEggScreen, tryRavenEggClick } from "../lib/raven-easter-egg.js"
-import { animateViewIn, staggerIn } from "../lib/motion-ui.js"
+import { animateViewIn, staggerIn } from "./motion-lazy.js"
 import { createThemeToggle } from "./theme-toggle.js"
 import { t } from "../lib/i18n.js"
 interface TabItem {
@@ -213,12 +213,45 @@ export function shell(viewName: string, content: Node | Node[], prependToMain?: 
 
 export { nav } from "./navigation.js"
 
+/** Сеть недоступна: либо стор уже это понял, либо браузер сообщил сам. */
+function isOffline(): boolean {
+  if (store && store.offline) return true
+  return typeof navigator !== "undefined" && navigator.onLine === false
+}
+
+/** Живые баннеры синхронизации — по одному на отрисованный экран. */
+const liveSyncBanners = new Set<{ node: HTMLElement; refresh: () => Promise<void> }>()
+let netListenersBound = false
+
+function refreshLiveSyncBanners() {
+  for (const entry of liveSyncBanners) {
+    // Экран сменился — баннер больше не в документе, забываем его.
+    if (!entry.node.isConnected) {
+      liveSyncBanners.delete(entry)
+      continue
+    }
+    entry.refresh().catch((e) => console.error("Sync banner error:", e))
+  }
+}
+
+/**
+ * Слушаем оба события сети один раз на всё приложение.
+ * Раньше подписка была только на 'online' (в data/store-cloud), поэтому уход
+ * в офлайн баннер замечал лишь при следующей перерисовке экрана.
+ */
+function bindNetworkListeners() {
+  if (netListenersBound || typeof window === "undefined") return
+  netListenersBound = true
+  window.addEventListener("online", refreshLiveSyncBanners)
+  window.addEventListener("offline", refreshLiveSyncBanners)
+}
+
 export function offlineBanner(): HTMLElement | null {
   if (!store || store.kind !== "cloud") return null
   const statusEl = el(
     "span",
     null,
-    store.offline ? t("shell.offline.cloud") : t("shell.sync.checking")
+    isOffline() ? t("shell.offline.cloud") : t("shell.sync.checking")
   )
   const actionsEl = el("div", { class: "sync-banner-actions" })
   const banner = el("div", { class: "offline-banner sync-banner", role: "status" }, [
@@ -230,7 +263,8 @@ export function offlineBanner(): HTMLElement | null {
     if (!store || store.kind !== "cloud") return
     const pending = typeof store.pendingSync === "function" ? await store.pendingSync() : 0
     const failed = typeof store.deadLetterCount === "function" ? await store.deadLetterCount() : 0
-    const hasWork = store.offline || pending > 0 || failed > 0
+    const offline = isOffline()
+    const hasWork = offline || pending > 0 || failed > 0
 
     banner.hidden = !hasWork
     actionsEl.replaceChildren()
@@ -238,12 +272,12 @@ export function offlineBanner(): HTMLElement | null {
     if (!hasWork) return
 
     const parts = []
-    if (store.offline) parts.push(t("shell.sync.waiting"))
+    if (offline) parts.push(t("shell.sync.waiting"))
     if (pending > 0) parts.push(t("shell.sync.pending", { n: pending }))
     if (failed > 0) parts.push(t("shell.sync.failed", { n: failed }))
     statusEl.textContent = parts.join(" ")
 
-    if (pending > 0 && !store.offline) {
+    if (pending > 0 && !offline) {
       actionsEl.append(
         el(
           "button",
@@ -305,6 +339,12 @@ export function offlineBanner(): HTMLElement | null {
   }
 
   if (typeof store.onSyncChange === "function") store.onSyncChange(() => refresh())
+  bindNetworkListeners()
+  // Чистим отвалившиеся баннеры прошлых экранов, чтобы набор не рос.
+  for (const entry of liveSyncBanners) {
+    if (!entry.node.isConnected) liveSyncBanners.delete(entry)
+  }
+  liveSyncBanners.add({ node: banner, refresh })
   refresh().catch((e) => {
     console.error("Sync banner error:", e)
     statusEl.textContent = t("shell.sync.readFailed")

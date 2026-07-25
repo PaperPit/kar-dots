@@ -65,8 +65,27 @@ export function computeVisibleRange({
  * @param {number} [opts.gap]
  * @param {(item: *, index: number) => HTMLElement} opts.renderRow
  */
+/**
+ * Метрика строки, измеренная по реальному DOM. Значения меньше 1px или
+ * нечисловые (элемент ещё не в layout) отбрасываются — берётся запасное.
+ * Держим здесь, а не в экране, чтобы логика была чистой и тестируемой.
+ */
+export function pickRowMetrics(
+  measured: { rowHeight?: number; gap?: number } | null | undefined,
+  fallback: { rowHeight: number; gap: number }
+): { rowHeight: number; gap: number } {
+  const h = Number(measured?.rowHeight)
+  const g = Number(measured?.gap)
+  return {
+    rowHeight: Number.isFinite(h) && h >= 1 ? Math.round(h) : fallback.rowHeight,
+    gap: Number.isFinite(g) && g >= 0 ? Math.round(g) : fallback.gap
+  }
+}
+
 export interface VirtualList {
   setItems(next: unknown[]): void
+  /** Пересчитать шаг строки (реальная высота меняется на брейкпоинте). */
+  setMetrics(next: { rowHeight: number; gap: number }): void
   refresh(): void
   destroy(): void
 }
@@ -75,10 +94,16 @@ export interface VirtualListOpts<T> {
   scrollRoot: HTMLElement
   mount: HTMLElement
   items: T[]
+  /** Запасная высота строки: используется, пока реальную нечем измерить. */
   rowHeight: number
   gap?: number
   overscan?: number
   renderRow: (item: T, index: number) => HTMLElement
+  /**
+   * Измерить реальную строку внутри окна списка. Вызывается после первой
+   * отрисовки и после resize — так шаг не расходится с CSS на брейкпоинтах.
+   */
+  measure?: (windowEl: HTMLElement) => { rowHeight?: number; gap?: number } | null | undefined
 }
 
 export function createVirtualList<T>({
@@ -88,7 +113,8 @@ export function createVirtualList<T>({
   rowHeight,
   gap = DEFAULT_GAP,
   overscan = DEFAULT_OVERSCAN,
-  renderRow
+  renderRow,
+  measure
 }: VirtualListOpts<T>): VirtualList {
   const root = document.createElement("div")
   root.className = "virtual-list card-list"
@@ -105,11 +131,32 @@ export function createVirtualList<T>({
   let renderedStart = -1
   let renderedEnd = -1
   let renderedTranslate = -1
-  const stride = rowHeight + gap
+  let rowH = rowHeight
+  let rowGap = gap
+  let stride = rowH + rowGap
+  let needsMeasure = !!measure
+
+  function setStride(next: { rowHeight: number; gap: number }) {
+    if (next.rowHeight === rowH && next.gap === rowGap) return false
+    rowH = next.rowHeight
+    rowGap = next.gap
+    stride = rowH + rowGap
+    renderedStart = renderedEnd = -1
+    renderedTranslate = -1
+    return true
+  }
+
+  /** @returns true, если шаг изменился и нужна повторная отрисовка. */
+  function applyMeasure() {
+    if (!measure || !needsMeasure) return false
+    if (!windowEl.firstElementChild) return false
+    needsMeasure = false
+    return setStride(pickRowMetrics(measure(windowEl), { rowHeight, gap }))
+  }
 
   function totalHeight() {
     if (!data.length) return 0
-    return data.length * stride - gap
+    return data.length * stride - rowGap
   }
 
   function paintWindow(start: number, end: number) {
@@ -149,11 +196,13 @@ export function createVirtualList<T>({
       viewportHeight: scrollRoot.clientHeight,
       listOffset,
       totalItems: data.length,
-      rowHeight,
-      gap,
+      rowHeight: rowH,
+      gap: rowGap,
       overscan
     })
     paintWindow(range.start, range.end)
+    // Реальная строка появилась в DOM — уточняем шаг и перерисовываем.
+    if (applyMeasure()) scheduleRender()
   }
 
   function scheduleRender() {
@@ -165,8 +214,13 @@ export function createVirtualList<T>({
   }
 
   const onScroll = () => scheduleRender()
+  // Ширина окна меняется — высота строки на брейкпоинте тоже: измеряем заново.
+  const onResize = () => {
+    needsMeasure = !!measure
+    scheduleRender()
+  }
   scrollRoot.addEventListener("scroll", onScroll, { passive: true })
-  window.addEventListener("resize", onScroll, { passive: true })
+  window.addEventListener("resize", onResize, { passive: true })
 
   scheduleRender()
 
@@ -177,10 +231,14 @@ export function createVirtualList<T>({
       renderedTranslate = -1
       scheduleRender()
     },
+    setMetrics(next: { rowHeight: number; gap: number }) {
+      needsMeasure = false
+      if (setStride(next)) scheduleRender()
+    },
     refresh: scheduleRender,
     destroy() {
       scrollRoot.removeEventListener("scroll", onScroll)
-      window.removeEventListener("resize", onScroll)
+      window.removeEventListener("resize", onResize)
       if (raf) cancelAnimationFrame(raf)
     }
   }

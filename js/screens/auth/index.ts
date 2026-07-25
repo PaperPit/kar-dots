@@ -5,7 +5,7 @@ import { FOLDER_COLORS } from '../../ui/constants.js';
 import { brandMark, ghostBox } from '../../ui/helpers.js';
 import { nav } from '../../ui/shell.js';
 import { route, parseHash } from '../../core/router.js';
-import { animateFadeIn } from '../../lib/motion-ui.js';
+import { animateFadeIn } from '../../ui/motion-lazy.js';
 import { applyUiLocale, t } from '../../lib/i18n.js';
 import type { CloudStore } from '../../data/store-cloud.js';
 

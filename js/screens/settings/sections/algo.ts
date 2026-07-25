@@ -1,4 +1,4 @@
-import { el } from '../../../ui/ui.js';
+import { el, confirmDialog } from '../../../ui/ui.js';
 import { route } from '../../../core/router.js';
 import { DEFAULT_SETTINGS } from '../../../data/store-common.js';
 import { t, tp } from '../../../lib/i18n.js';
@@ -188,6 +188,42 @@ export function buildAlgoGroup(s: SettingsLike, save: () => void) {
   const algoDesc = el('span', { class: 'algo-desc' }, t(algoDescKey(s.algo)));
   const algoFootnote = el('span', { class: 'algo-footnote muted' }, t('settings.algo.footnote'));
 
+  const ALGO_VALUES = ['sm2', 'fsrs', 'leitner'];
+  /**
+   * Смена алгоритма — не косметика: новый алгоритм не видит расписания старого
+   * и начнёт карточки заново. Спрашиваем подтверждение, а при отказе
+   * возвращаем сегмент на прежнее значение (segControl подсвечивает кнопку
+   * ещё до onChange).
+   */
+  async function changeAlgo(v: string) {
+    const prev = s.algo;
+    if (v === prev) return;
+    const yes = await confirmDialog(
+      t('settings.algo.confirmTitle'),
+      t('settings.algo.confirmBody'),
+      t('settings.algo.confirmOk'),
+    );
+    if (!yes) {
+      const idx = ALGO_VALUES.indexOf(prev);
+      algoSeg.querySelectorAll('button').forEach((b, i) => {
+        const on = i === idx;
+        b.classList.toggle('active', on);
+        b.setAttribute('aria-pressed', on ? 'true' : 'false');
+      });
+      return;
+    }
+    s.algo = v;
+    algoDesc.textContent = t(algoDescKey(v));
+    save();
+    route();
+  }
+
+  const algoSeg = segControl(s.algo, [
+    { v: 'sm2', label: 'SM-2' },
+    { v: 'fsrs', label: 'FSRS' },
+    { v: 'leitner', label: t('settings.algo.leitner') },
+  ], v => { void changeAlgo(v); });
+
   const algoGroup = el('div', { class: 'settings-group' }, [
     el('h4', null, t('settings.algo.title')),
     el('div', { class: 'setting-row' }, [
@@ -196,16 +232,7 @@ export function buildAlgoGroup(s: SettingsLike, save: () => void) {
         algoDesc,
         algoFootnote,
       ]),
-      segControl(s.algo, [
-        { v: 'sm2', label: 'SM-2' },
-        { v: 'fsrs', label: 'FSRS' },
-        { v: 'leitner', label: t('settings.algo.leitner') },
-      ], v => {
-        s.algo = v;
-        algoDesc.textContent = t(algoDescKey(v));
-        save();
-        route();
-      }),
+      algoSeg,
     ]),
     el('div', { class: 'setting-row' }, [
       el('div', { class: 'lab' }, [

@@ -103,13 +103,14 @@ describe('CloudStore SRS counts (mirror / offline)', () => {
 
 describe('CloudStore online fetch', () => {
   it('countCards after _fetchFromCloud uses srs_meta per folder', async () => {
+    // synced_at ставит серверный триггер (миграция 0011) — по нему и watermark.
     const cloudSrsMeta = [
-      { id: 'n1', folder_id: 'fa', sm2_reps: 0, sm2_due: null, box: 0, created_at: 1, updated_at: 1 },
-      { id: 'd1', folder_id: 'fa', sm2_reps: 2, sm2_due: now - 60_000, box: 1, box_due: now - 60_000, created_at: 2, updated_at: 2 },
-      { id: 'f1', folder_id: 'fa', sm2_reps: 2, sm2_due: now + 86_400_000, box: 2, box_due: now + 86_400_000, created_at: 3, updated_at: 3 },
-      { id: 'tm', folder_id: 'fa', sm2_reps: 1, sm2_due: now + 3_600_000, box: 1, box_due: now + 3_600_000, created_at: 4, updated_at: 4 },
-      { id: 'n2', folder_id: 'fb', sm2_reps: 0, sm2_due: null, box: 0, created_at: 5, updated_at: 5 },
-      { id: 'd2', folder_id: 'fb', sm2_reps: 1, sm2_due: now - 1_000, box: 1, box_due: now - 1_000, created_at: 6, updated_at: 6 },
+      { id: 'n1', folder_id: 'fa', sm2_reps: 0, sm2_due: null, box: 0, created_at: 1, updated_at: 1, synced_at: now - 6_000 },
+      { id: 'd1', folder_id: 'fa', sm2_reps: 2, sm2_due: now - 60_000, box: 1, box_due: now - 60_000, created_at: 2, updated_at: 2, synced_at: now - 5_000 },
+      { id: 'f1', folder_id: 'fa', sm2_reps: 2, sm2_due: now + 86_400_000, box: 2, box_due: now + 86_400_000, created_at: 3, updated_at: 3, synced_at: now - 4_000 },
+      { id: 'tm', folder_id: 'fa', sm2_reps: 1, sm2_due: now + 3_600_000, box: 1, box_due: now + 3_600_000, created_at: 4, updated_at: 4, synced_at: now - 3_000 },
+      { id: 'n2', folder_id: 'fb', sm2_reps: 0, sm2_due: null, box: 0, created_at: 5, updated_at: 5, synced_at: now - 2_000 },
+      { id: 'd2', folder_id: 'fb', sm2_reps: 1, sm2_due: now - 1_000, box: 1, box_due: now - 1_000, created_at: 6, updated_at: 6, synced_at: now - 1_000 },
     ];
     installFakeIDB({ folders: [], cards: [], kv: {} });
     vi.stubGlobal('navigator', { onLine: true, addEventListener: vi.fn() });
@@ -135,10 +136,13 @@ describe('CloudStore online fetch', () => {
     const sync = await mirrorGetKV(store.mirror, CLOUD_SYNC_KEY);
     expect(sync.userId).toBe('user-1');
     expect(sync.cardsAt).toBeGreaterThan(0);
+    // Watermark берётся из строк с запасом, а не из часов устройства.
+    expect(sync.cardsAt).toBe(now - 1_000 - 5_000);
+    expect(sync.cardsAtKind).toBe('synced_at');
     vi.unstubAllGlobals();
   });
 
-  it('second fetch uses cards delta (updated_at=gt) when watermark is fresh', async () => {
+  it('second fetch uses cards delta (synced_at=gt) when watermark is fresh', async () => {
     const baseMeta = [
       { id: 'n1', folder_id: 'fa', sm2_reps: 0, sm2_due: null, box: 0, created_at: 1, updated_at: 10 },
       { id: 'd1', folder_id: 'fa', sm2_reps: 2, sm2_due: now - 1, box: 1, box_due: now - 1, created_at: 2, updated_at: 20 },
@@ -150,20 +154,22 @@ describe('CloudStore online fetch', () => {
       kv: {
         settings: DEFAULT_SETTINGS,
         srs_meta: baseMeta,
-        [CLOUD_SYNC_KEY]: { userId: 'user-1', cardsAt: 50, fullAt: Date.now() },
+        [CLOUD_SYNC_KEY]: { userId: 'user-1', cardsAt: 50, cardsAtKind: 'synced_at', fullAt: Date.now() },
       },
     });
     vi.stubGlobal('navigator', { onLine: true, addEventListener: vi.fn() });
+    // Часы устройства отстали (updated_at меньше watermark), но serverный
+    // synced_at всё равно вносит строку в окно дельты.
     const deltaRow = {
       id: 'd1', folder_id: 'fa', sm2_reps: 9, sm2_due: now + 1000,
-      box: 2, box_due: now + 1000, created_at: 2, updated_at: 90,
+      box: 2, box_due: now + 1000, created_at: 2, updated_at: 20, synced_at: 90,
     };
     const select = vi.fn(async (table, query) => {
       if (table === 'folders') return [folderA];
       if (table === 'settings') return [{ data: DEFAULT_SETTINGS }];
       if (table === 'boxes') return [];
       if (table === 'cards') {
-        if (query.includes('updated_at=gt.')) return [deltaRow];
+        if (query.includes('synced_at=gt.')) return [deltaRow];
         return baseMeta; // full fallback should not be hit
       }
       return [];
@@ -176,10 +182,53 @@ describe('CloudStore online fetch', () => {
     await store._fetchFromCloud();
     expect(store._srsMeta.find(c => c.id === 'd1').sm2_reps).toBe(9);
     expect(store._srsMeta).toHaveLength(2);
-    const deltaCalls = select.mock.calls.filter(([t, q]) => t === 'cards' && String(q).includes('updated_at=gt.'));
+    const deltaCalls = select.mock.calls.filter(([t, q]) => t === 'cards' && String(q).includes('synced_at=gt.'));
     expect(deltaCalls.length).toBe(1);
-    const fullCalls = select.mock.calls.filter(([t, q]) => t === 'cards' && !String(q).includes('updated_at=gt.'));
+    expect(String(deltaCalls[0][1])).toContain('synced_at=gt.50');
+    const fullCalls = select.mock.calls.filter(([t, q]) => t === 'cards' && !String(q).includes('synced_at=gt.'));
     expect(fullCalls.length).toBe(0);
+    vi.unstubAllGlobals();
+  });
+
+  it('falls back to updated_at delta when the schema has no synced_at', async () => {
+    const baseMeta = [
+      { id: 'n1', folder_id: 'fa', sm2_reps: 0, sm2_due: null, box: 0, created_at: 1, updated_at: 10 },
+      { id: 'd1', folder_id: 'fa', sm2_reps: 2, sm2_due: now - 1, box: 1, box_due: now - 1, created_at: 2, updated_at: 20 },
+    ];
+    const { CLOUD_SYNC_KEY } = await import('../js/data/cloud-delta.ts');
+    installFakeIDB({
+      folders: [folderA],
+      cards: [],
+      kv: {
+        settings: DEFAULT_SETTINGS,
+        srs_meta: baseMeta,
+        [CLOUD_SYNC_KEY]: { userId: 'user-1', cardsAt: 50, cardsAtKind: 'updated_at', fullAt: Date.now() },
+      },
+    });
+    vi.stubGlobal('navigator', { onLine: true, addEventListener: vi.fn() });
+    const select = vi.fn(async (table, query) => {
+      if (table === 'folders') return [folderA];
+      if (table === 'settings') return [{ data: DEFAULT_SETTINGS }];
+      if (table === 'boxes') return [];
+      if (table === 'cards') {
+        if (String(query).includes('synced_at')) {
+          throw new Error('column cards.synced_at does not exist');
+        }
+        return baseMeta;
+      }
+      return [];
+    });
+    const count = vi.fn(async () => 2);
+    const { CloudStore } = await import('../js/data/store-cloud.ts');
+    const store = new CloudStore({ userId: () => 'user-1', select, count });
+    store.mirror = await (await import('../js/data/sync-queue.ts')).openMirrorDB();
+    store._srsMeta = baseMeta.slice();
+    await store._fetchFromCloud();
+    expect(store._syncedAtCloudUnsupported).toBe(true);
+    expect(store._srsMeta).toHaveLength(2);
+    const { mirrorGetKV } = await import('../js/data/sync-queue.ts');
+    const sync = await mirrorGetKV(store.mirror, CLOUD_SYNC_KEY);
+    expect(sync.cardsAtKind).toBe('updated_at');
     vi.unstubAllGlobals();
   });
 
@@ -198,7 +247,7 @@ describe('CloudStore online fetch', () => {
       kv: {
         settings: DEFAULT_SETTINGS,
         srs_meta: baseMeta,
-        [CLOUD_SYNC_KEY]: { userId: 'user-1', cardsAt: 50, fullAt: Date.now() },
+        [CLOUD_SYNC_KEY]: { userId: 'user-1', cardsAt: 50, cardsAtKind: 'synced_at', fullAt: Date.now() },
       },
     });
     vi.stubGlobal('navigator', { onLine: true, addEventListener: vi.fn() });
@@ -207,7 +256,7 @@ describe('CloudStore online fetch', () => {
       if (table === 'settings') return [{ data: DEFAULT_SETTINGS }];
       if (table === 'boxes') return [];
       if (table === 'cards') {
-        if (query.includes('updated_at=gt.')) return [];
+        if (query.includes('synced_at=gt.')) return [];
         return remaining;
       }
       return [];
@@ -220,8 +269,8 @@ describe('CloudStore online fetch', () => {
     await store._fetchFromCloud();
     expect(store._srsMeta).toHaveLength(1);
     expect(store._srsMeta[0].id).toBe('n1');
-    expect(select.mock.calls.some(([, q]) => String(q).includes('updated_at=gt.'))).toBe(true);
-    expect(select.mock.calls.some(([t, q]) => t === 'cards' && !String(q).includes('updated_at=gt.'))).toBe(true);
+    expect(select.mock.calls.some(([, q]) => String(q).includes('synced_at=gt.'))).toBe(true);
+    expect(select.mock.calls.some(([t, q]) => t === 'cards' && !String(q).includes('synced_at=gt.'))).toBe(true);
     vi.unstubAllGlobals();
   });
 
@@ -347,7 +396,55 @@ describe('CloudStore online review + optimistic updateCard', () => {
     release();
     await store._bgSyncTail;
     expect(cloudDone).toBe(true);
-    expect(update).toHaveBeenCalledWith('cards', 'id=eq.d1', expect.objectContaining({ sm2_reps: 3 }));
+    // Фильтр несёт last-write-wins, а representation нужен, чтобы отличить
+    // «применили» от «наша правка устарела и задела 0 строк».
+    expect(update).toHaveBeenCalledWith(
+      'cards',
+      expect.stringMatching(/^id=eq\.d1&updated_at=lt\.\d+$/),
+      expect.objectContaining({ sm2_reps: 3 }),
+      { returning: 'representation' },
+    );
+  });
+
+  it('stale updateCard is dropped and the remote row wins', async () => {
+    const card = {
+      id: 'd1', folder_id: 'fa', front: 'w', back: 'd', description: '',
+      sm2_reps: 2, sm2_due: now - 1, box: 1, box_due: now - 1, created_at: 1,
+    };
+    installFakeIDB({
+      folders: [folderA],
+      cards: [card],
+      kv: { settings: DEFAULT_SETTINGS, srs_meta: [srsMeta[1]] },
+    });
+    vi.stubGlobal('navigator', { onLine: true, addEventListener: vi.fn() });
+    // PATCH задел 0 строк: на сервере лежит более свежая версия.
+    const update = vi.fn(async () => []);
+    const remote = {
+      ...card, front: 'с другого устройства', sm2_reps: 7,
+      updated_at: now + 10_000,
+    };
+    const select = vi.fn(async () => [remote]);
+    const { CloudStore } = await import('../js/data/store-cloud.ts');
+    const { openMirrorDB } = await import('../js/data/sync-queue.ts');
+    const store = new CloudStore({
+      userId: () => 'user-1', update, select, insert: vi.fn(), remove: vi.fn(),
+    });
+    store.mirror = await openMirrorDB();
+    await store.queue.init(store.mirror);
+    store.queue.onFlush(item => store._executeSyncItem(item));
+    store.folders = [folderA];
+    store._srsMeta = [{ ...srsMeta[1] }];
+    store._offline = false;
+    store.settings = { ...DEFAULT_SETTINGS };
+
+    await store.updateCard('d1', { sm2_reps: 3 });
+    await store._bgSyncTail;
+    // Правка не осталась в очереди (это не сетевая ошибка, а разрешённый спор).
+    expect(await store.pendingSync()).toBe(0);
+    expect(store._srsMeta.find(c => c.id === 'd1').sm2_reps).toBe(7);
+    const { mirrorGetMany } = await import('../js/data/sync-queue.ts');
+    const [mirrored] = await mirrorGetMany(store.mirror, 'cards', ['d1']);
+    expect(mirrored.front).toBe('с другого устройства');
   });
 });
 

@@ -49,7 +49,14 @@ function makeObjectStore(map, indexes = {}, keyPath = 'id') {
       map.set(k, { ...v });
     },
     add(v) {
-      const k = v.id != null ? v.id : map.size + 1;
+      // Автоинкремент не переиспользует ключи после delete (в отличие от map.size + 1):
+      // иначе повторная постановка в очередь затирала бы соседний элемент.
+      let k = v.id;
+      if (k == null) {
+        let max = 0;
+        for (const key of map.keys()) if (typeof key === 'number' && key > max) max = key;
+        k = max + 1;
+      }
       map.set(k, { ...v, id: k });
     },
     delete(k) {

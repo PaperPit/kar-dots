@@ -1,8 +1,8 @@
 // CloudStore — Supabase + локальное зеркало + офлайн-очередь
 import { isNetworkError } from './supabase.js';
 import {
-  openMirrorDB, getAll, mirrorReplaceAll, mirrorPut, mirrorPutMany, mirrorDelete, mirrorDeleteMany,
-  mirrorGetKV, mirrorSetKV, indexGetAll, SyncQueue,
+  openMirrorDB, getAll, mirrorReplaceAll, mirrorPut, mirrorPutMany, mirrorMergeMany, mirrorDelete,
+  mirrorDeleteMany, mirrorGetKV, mirrorSetKV, indexGetAll, SyncQueue,
 } from './sync-queue.js';
 import { DEFAULT_SETTINGS, uuid } from './store-common.js';
 import { normalizeFolderRecord, normalizeBoxRecord } from '../lib/folder-icons.js';
@@ -29,7 +29,8 @@ import {
 import { StoreCache } from './store-cache.js';
 import { buildHomeStats, type HomeStats } from './home-stats.js';
 import { invalidateDerivedCaches } from './cache-invalidate.js';
-import { getCardsByIds, hydrateReviewQueue } from './card-hydrate.js';
+import { getCardsByIds, hydrateWithMisses } from './card-hydrate.js';
+import { configureImageUrls } from './image-url.js';
 import { isYoutubeCard } from '../lib/youtube-import.js';
 import type { Card, Folder, Box, Settings } from './types.js';
 import type { SrsMeta } from './srs-meta.js';
@@ -37,8 +38,9 @@ import type { Algo, SrsRow } from '../lib/srs.js';
 import type { ProgressInfo } from './store-vocab.js';
 import type { MiniSupabase } from './supabase.js';
 import {
-  CLOUD_SYNC_KEY, SRS_DELTA_SELECT, shouldUseCardsDelta, mergeSrsDelta,
-  nextCardsWatermark, stampUpdatedAt,
+  CLOUD_SYNC_KEY, SRS_DELTA_SELECT, SYNCED_DELTA_SELECT, SYNCED_AT_FIELD, shouldUseCardsDelta,
+  mergeSrsDelta, nextCardsWatermark, stampUpdatedAt, cardLwwFilter, isMissingSyncedAtError,
+  type WatermarkKind,
 } from './cloud-delta.js';
 import {
   setActivityCloudSync, applyRemoteActivity, loadActivity,
@@ -93,6 +95,10 @@ export class CloudStore {
   _boxesCloudUnsupported: boolean
   _boxIdCloudUnsupported: boolean
   _boxIconCloudUnsupported: boolean
+  /** В схеме нет колонки synced_at (миграция 0011 не применена) — watermark по updated_at. */
+  _syncedAtCloudUnsupported: boolean
+  /** Сколько карточек не удалось собрать в прошлой очереди повторения (диагностика). */
+  _lastHydrateMisses: number
   _homeStatsCache: HomeStats | null
   _homeStatsCacheAlgo: Algo | null
   _srsMetaPersistTimer: ReturnType<typeof setTimeout> | null
@@ -118,6 +124,8 @@ export class CloudStore {
     this._boxesCloudUnsupported = false;
     this._boxIdCloudUnsupported = false;
     this._boxIconCloudUnsupported = false;
+    this._syncedAtCloudUnsupported = false;
+    this._lastHydrateMisses = 0;
     this._homeStatsCache = null;
     this._homeStatsCacheAlgo = null;
     this._srsMetaPersistTimer = null;
@@ -215,9 +223,14 @@ export class CloudStore {
     this.mirror = await openMirrorDB();
     await this.queue.init(this.mirror);
     await this._loadCloudFlags();
+    // Картинки карточек показываем по подписанным ссылкам — бакет приватный.
+    configureImageUrls(this.sb);
     this.queue.onFlush(item => this._executeSyncItem(item));
     this.queue.onDeadLetter(() => this._notifySync());
     window.addEventListener('online', () => this._onOnline());
+    // Без этого слушателя offline-состояние возникало только после первого
+    // упавшего запроса, поэтому баннер «нет сети» появлялся с задержкой.
+    window.addEventListener('offline', () => this._onOffline());
     this._bindActivityCloudSync();
     this._bindReviewLogCloudSync();
     void initReviewLog();
@@ -297,6 +310,17 @@ export class CloudStore {
     return changed;
   }
 
+  /**
+   * Браузер сообщил, что сеть пропала. Раньше офлайн-состояние выставлялось
+   * только после первого упавшего запроса, поэтому баннер «нет сети»
+   * появлялся с задержкой, а до этого UI показывал «синхронизировано».
+   */
+  _onOffline() {
+    if (this._offline) return;
+    this._offline = true;
+    this._notifySync();
+  }
+
   async _onOnline() {
     this._offline = false;
     await this.flushSync();
@@ -361,14 +385,15 @@ export class CloudStore {
   async _fetchFromCloud() {
     const uid = this.sb.userId();
     if (!uid) throw new Error('Нет активной сессии');
-    const sync = (await mirrorGetKV(this.mirror, CLOUD_SYNC_KEY)) as { fullAt?: number; cardsAt?: number } | null;
-    const useDelta = shouldUseCardsDelta(sync, uid);
+    const sync = (await mirrorGetKV(this.mirror, CLOUD_SYNC_KEY)) as { fullAt?: number; cardsAt?: number; cardsAtKind?: WatermarkKind } | null;
+    const useDelta = shouldUseCardsDelta(sync, uid, Date.now(), this._watermarkKind());
 
     const [folders, settingsRows, boxesRaw, cardsPull] = await Promise.all([
       this.sb.select<Folder>('folders', 'select=*&order=created_at.asc'),
       this.sb.select<{ data?: Settings }>('settings', 'select=*&user_id=eq.' + uid),
       this._fetchBoxesFromCloud(),
-      useDelta ? this._pullCardsDelta(uid, sync?.cardsAt ?? Date.now()) : this._pullCardsFull(),
+      // `?? 0` — не «сейчас»: часы устройства не должны попадать в watermark.
+      useDelta ? this._pullCardsDelta(uid, sync?.cardsAt ?? 0) : this._pullCardsFull(),
     ]);
 
     this.folders = folders.map(normalizeFolderRecord).filter((f): f is Folder => !!f);
@@ -378,7 +403,10 @@ export class CloudStore {
       this._folderIconCloudUnsupported = false;
       await this._saveCloudFlags();
     }
-    await mirrorReplaceAll(this.mirror, 'folders', folders);
+    // В зеркало кладём нормализованные записи — так же, как boxes ниже.
+    // Сырые строки без icon/box_id приводили к тому, что после перезагрузки
+    // (чтение из зеркала) папка выглядела иначе, чем сразу после синка.
+    await mirrorReplaceAll(this.mirror, 'folders', this.folders);
     await mirrorReplaceAll(this.mirror, 'boxes', this.boxes);
     this._srsMeta = cardsPull.meta;
     this._cache.clearAll();
@@ -397,42 +425,79 @@ export class CloudStore {
     await mirrorSetKV(this.mirror, CLOUD_SYNC_KEY, {
       userId: uid,
       cardsAt: cardsPull.cardsAt,
+      cardsAtKind: cardsPull.cardsAtKind,
       fullAt: cardsPull.full ? now : (sync?.fullAt ?? now),
     });
     this._offline = false;
   }
 
+  /**
+   * По каким часам строим watermark.
+   *
+   * synced_at ставит серверный триггер (миграция 0011) — единые часы для всех
+   * устройств. updated_at пишет клиент, поэтому правка с отставшими часами
+   * приезжает «в прошлое» и мимо окна дельты; это запасной режим для схем без
+   * миграции.
+   */
+  _watermarkKind(): WatermarkKind {
+    return this._syncedAtCloudUnsupported ? 'updated_at' : SYNCED_AT_FIELD;
+  }
+
+  _cardsSelect(): string {
+    return this._syncedAtCloudUnsupported ? SRS_DELTA_SELECT : SYNCED_DELTA_SELECT;
+  }
+
+  /** SELECT slim-проекции карточек; нет колонки synced_at — запоминаем и повторяем без неё. */
+  async _selectCardsProjection(filter: string): Promise<SrsRow[]> {
+    const prefix = filter ? filter + '&' : '';
+    try {
+      return await this.sb.select<SrsRow>('cards', prefix + 'select=' + this._cardsSelect());
+    } catch (e) {
+      if (this._syncedAtCloudUnsupported || !isMissingSyncedAtError(e)) throw e;
+      this._syncedAtCloudUnsupported = true;
+      await this._saveCloudFlags();
+      return this.sb.select<SrsRow>('cards', prefix + 'select=' + SRS_DELTA_SELECT);
+    }
+  }
+
   async _pullCardsFull() {
-    const rows = await this.sb.select('cards', 'select=' + SRS_DELTA_SELECT);
-    const { meta, maxAt } = mergeSrsDelta([], rows);
-    return { meta, cardsAt: nextCardsWatermark(0, maxAt), full: true };
+    const rows = await this._selectCardsProjection('');
+    // Вид часов мог смениться внутри запроса (колонки synced_at не оказалось).
+    const kind = this._watermarkKind();
+    const { meta, maxAt, maxSyncedAt } = mergeSrsDelta([], rows);
+    const observed = kind === 'synced_at' ? maxSyncedAt : maxAt;
+    return { meta, cardsAt: nextCardsWatermark(0, observed, { kind }), cardsAtKind: kind, full: true };
   }
 
   /**
-   * Pull only cards with updated_at > since, merge into mirror srs_meta.
+   * Pull only cards changed after the watermark, merge into mirror srs_meta.
    * Falls back to full when remote count disagrees (deletes) or query fails.
    */
   async _pullCardsDelta(uid: string, since: number) {
+    const kind = this._watermarkKind();
     try {
       const base = this._srsMeta
         || (await mirrorGetKV(this.mirror, 'srs_meta'))
         || [];
       const [delta, remoteCount] = await Promise.all([
-        this.sb.select(
-          'cards',
-          'user_id=eq.' + uid + '&updated_at=gt.' + since + '&select=' + SRS_DELTA_SELECT,
-        ),
+        this._selectCardsProjection('user_id=eq.' + uid + '&' + kind + '=gt.' + since),
         this.sb.count('cards', 'user_id=eq.' + uid),
       ]);
-      const { meta, maxAt } = mergeSrsDelta(base as SrsMeta[] | null | undefined, delta);
+      const { meta, maxAt, maxSyncedAt } = mergeSrsDelta(base as SrsMeta[] | null | undefined, delta);
       if (remoteCount !== meta.length) return this._pullCardsFull();
+      const observed = kind === 'synced_at' ? maxSyncedAt : maxAt;
       return {
         meta,
-        cardsAt: nextCardsWatermark(since, maxAt),
+        cardsAt: nextCardsWatermark(since, observed, { kind }),
+        cardsAtKind: kind,
         full: false,
       };
     } catch (e) {
       if (isNetworkError(e)) throw e;
+      if (!this._syncedAtCloudUnsupported && isMissingSyncedAtError(e)) {
+        this._syncedAtCloudUnsupported = true;
+        await this._saveCloudFlags();
+      }
       return this._pullCardsFull();
     }
   }
@@ -526,12 +591,13 @@ export class CloudStore {
 
   async _loadCloudFlags() {
     if (!this.mirror) return;
-    const flags = (await mirrorGetKV(this.mirror, 'cloud_flags')) as { folderIconCloudUnsupported?: boolean; boxesCloudUnsupported?: boolean; boxIdCloudUnsupported?: boolean; boxIconCloudUnsupported?: boolean; reviewLogCloudUnsupported?: boolean } | null;
+    const flags = (await mirrorGetKV(this.mirror, 'cloud_flags')) as { folderIconCloudUnsupported?: boolean; boxesCloudUnsupported?: boolean; boxIdCloudUnsupported?: boolean; boxIconCloudUnsupported?: boolean; reviewLogCloudUnsupported?: boolean; syncedAtCloudUnsupported?: boolean } | null;
     this._folderIconCloudUnsupported = !!flags?.folderIconCloudUnsupported;
     this._boxesCloudUnsupported = !!flags?.boxesCloudUnsupported;
     this._boxIdCloudUnsupported = !!flags?.boxIdCloudUnsupported;
     this._boxIconCloudUnsupported = !!flags?.boxIconCloudUnsupported;
     this._reviewLogCloudUnsupported = !!flags?.reviewLogCloudUnsupported;
+    this._syncedAtCloudUnsupported = !!flags?.syncedAtCloudUnsupported;
   }
 
   async _saveCloudFlags() {
@@ -542,6 +608,7 @@ export class CloudStore {
       boxIdCloudUnsupported: !!this._boxIdCloudUnsupported,
       boxIconCloudUnsupported: !!this._boxIconCloudUnsupported,
       reviewLogCloudUnsupported: !!this._reviewLogCloudUnsupported,
+      syncedAtCloudUnsupported: !!this._syncedAtCloudUnsupported,
     });
   }
 
@@ -656,7 +723,7 @@ export class CloudStore {
       case 'updateBox': await this._cloudUpdateBox(payload.id, payload.patch); break;
       case 'deleteBox': await this._cloudDeleteBox(payload.id); break;
       case 'createCard': await this.sb.insert('cards', payload.row); break;
-      case 'updateCard': await this.sb.update('cards', 'id=eq.' + payload.id, payload.patch); break;
+      case 'updateCard': await this._cloudPatchCardLww(payload.id, payload.patch); break;
       case 'deleteCard':
         if (payload.urls) for (const url of payload.urls) await this.deleteImage(url);
         await this.sb.remove('cards', 'id=eq.' + payload.id);
@@ -667,13 +734,73 @@ export class CloudStore {
       case 'uploadImage':
         payload.url = await this.sb.uploadFile('card-images', payload.path, payload.blob, payload.contentType);
         if (payload.cardId && payload.side) {
-          await this.sb.update('cards', 'id=eq.' + payload.cardId, stampUpdatedAt({ [payload.side]: payload.url }));
+          await this._applyUploadedImage(payload.cardId, payload.side, payload.url);
         }
         break;
       case 'logReview': await this._cloudLogReview(payload as ReviewLogEntry); break;
       case 'removeReview': await this._cloudRemoveReview(payload.id); break;
       default: throw new Error('Unknown sync op: ' + op);
     }
+  }
+
+  /**
+   * PATCH карточки по правилу «побеждает последняя правка».
+   *
+   * Фильтр требует, чтобы сохранённая на сервере updated_at была строго меньше
+   * нашей. Если на другом устройстве уже записали более свежую версию,
+   * PostgREST не тронет ни одной строки — и залежавшаяся в офлайн-очереди
+   * правка не затрёт чужую. Пустой ответ здесь НЕ ошибка: элемент очереди
+   * считается выполненным (иначе он либо крутился бы вечно, либо уехал в
+   * dead-letter), а победившую удалённую версию мы принимаем у себя.
+   *
+   * Именно ради различения «изменили 1 строку» и «изменили 0 строк» здесь
+   * нужен returning: 'representation' — при return=minimal ответ пустой всегда.
+   */
+  async _cloudPatchCardLww(id: string, patch: Record<string, unknown>) {
+    const rows = await this.sb.update('cards', cardLwwFilter(id, patch), patch, {
+      returning: 'representation',
+    });
+    if (!Array.isArray(rows) || rows.length > 0) return;
+    await this._adoptRemoteCard(id);
+  }
+
+  /** Принять облачную версию карточки как победившую: зеркало, кэш, SRS-мета. */
+  async _adoptRemoteCard(id: string) {
+    let remote: Card | undefined;
+    try {
+      const rows = await this.sb.select<Card>('cards', 'id=eq.' + id + '&select=*&limit=1');
+      remote = rows[0];
+    } catch (e) {
+      if (isNetworkError(e)) throw e; // очередь повторит позже
+      console.warn('[sync] не удалось получить облачную версию карточки', id, e);
+      return;
+    }
+    if (!remote) {
+      // Карточку удалили на другом устройстве — локальную не трогаем, её уберёт
+      // ближайшая полная сверка (расхождение количества в _pullCardsDelta).
+      console.warn('[sync] карточки нет в облаке, правка отброшена:', id);
+      return;
+    }
+    await mirrorPut(this.mirror, 'cards', remote);
+    this._patchSrsMeta(remote);
+    this._cache.patchCardInLists(id, remote);
+    invalidateDerivedCaches(this, { folderId: remote.folder_id });
+    this._emitDataChange();
+  }
+
+  /**
+   * Подставить настоящую ссылку вместо временного data:-URL, оставшегося в
+   * карточке после офлайн-загрузки картинки — и в облаке, и локально.
+   */
+  async _applyUploadedImage(cardId: string, side: string, url: string) {
+    const patch = stampUpdatedAt({ [side]: url });
+    await this._cloudPatchCardLww(cardId, patch);
+    const card = await this._getCardById(cardId);
+    if (!card) return;
+    Object.assign(card, patch as Partial<Card>);
+    await mirrorPut(this.mirror, 'cards', card);
+    this._cache.patchCardInLists(cardId, patch as Partial<Card>);
+    this._emitDataChange();
   }
 
   async _cloudLogReview(entry: ReviewLogEntry) {
@@ -770,6 +897,7 @@ export class CloudStore {
       try {
         cards = await this.sb.select<Card>('cards', 'folder_id=eq.' + folderId + '&order=created_at.desc');
         await mirrorPutMany(this.mirror, 'cards', cards);
+        await this._reconcileFolderMirror(folderId, cards);
       } catch (e) {
         if (isNetworkError(e)) {
           this._offline = true;
@@ -782,6 +910,78 @@ export class CloudStore {
     cards.sort((a: Card, b: Card) => (b.created_at || 0) - (a.created_at || 0));
     this._cache.folderCache.set(folderId, cards);
     return cards;
+  }
+
+  /**
+   * Выкинуть из зеркала карточки папки, которых больше нет в облаке (удалены с
+   * другого устройства). Без этого удалённая карточка жила в зеркале вечно:
+   * сюда мы только дописываем, а полная сверка ловит расхождение лишь по
+   * количеству — удаление плюс создание давало ту же цифру.
+   *
+   * Пока в очереди есть неотправленные операции, сверку пропускаем: созданная
+   * офлайн карточка в облаке ещё не существует, и удалять её нельзя.
+   */
+  async _reconcileFolderMirror(folderId: string, remote: Card[]) {
+    if (await this.pendingSync()) return;
+    const alive = new Set(remote.map(c => c.id));
+    const local = await indexGetAll<Card>(this.mirror, 'cards', 'folder_id', folderId ?? '');
+    const stale = local.filter(c => c.id && !alive.has(c.id)).map(c => c.id!);
+    if (!stale.length) return;
+    await mirrorDeleteMany(this.mirror, 'cards', stale);
+    for (const id of stale) this._patchSrsMetaRemoval(id);
+    await this._flushSrsMetaPersist();
+    this._cache.setCount(folderId, remote.length);
+    invalidateDerivedCaches(this, { folderId });
+  }
+
+  /** Догрузка карточек из облака по id (пачками) + запись в зеркало. */
+  async _fetchCardsByIds(ids: string[]): Promise<Card[]> {
+    if (!ids?.length || !navigator.onLine || this._offline) return [];
+    const out: Card[] = [];
+    const CHUNK = 50;
+    try {
+      for (let i = 0; i < ids.length; i += CHUNK) {
+        const chunk = ids.slice(i, i + CHUNK);
+        const rows = await this.sb.select<Card>(
+          'cards',
+          'id=in.(' + chunk.map(encodeURIComponent).join(',') + ')',
+        );
+        out.push(...rows);
+      }
+    } catch (e) {
+      if (isNetworkError(e)) this._offline = true;
+      else console.warn('[sync] не удалось догрузить карточки из облака:', e);
+    }
+    if (out.length) await mirrorMergeMany(this.mirror, 'cards', out as unknown as Record<string, unknown>[]);
+    return out;
+  }
+
+  /**
+   * Собрать карточки очередей по slim-строкам SRS, добирая из облака то, чего
+   * нет в зеркале. Раньше такие карточки просто выпадали из повторения — молча
+   * и навсегда, пока не случится полная пересинхронизация.
+   * Что всё же не собралось — считаем в _lastHydrateMisses (и пишем в консоль).
+   */
+  async _hydrateQueues(groups: SrsRow[][]): Promise<Card[][]> {
+    const ids: (string | undefined)[] = [];
+    for (const g of groups) for (const row of g) ids.push(row.id);
+    const byId = await getCardsByIds(this.mirror, this._cache, ids, {
+      fetchMissing: missing => this._fetchCardsByIds(missing),
+    });
+    let missed = 0;
+    const out: Card[][] = [];
+    for (const g of groups) {
+      const { cards, missing } = hydrateWithMisses(g, byId);
+      missed += missing.length;
+      out.push(cards);
+    }
+    this._lastHydrateMisses = missed;
+    return out;
+  }
+
+  /** Сколько карточек не удалось собрать в последней очереди повторения. */
+  lastHydrateMisses() {
+    return this._lastHydrateMisses;
   }
 
   async countCards(folderId?: string | null) {
@@ -825,27 +1025,29 @@ export class CloudStore {
           this.sb.select('cards', dueQ),
           this.sb.select('cards', newQ),
         ]);
-        await mirrorPutMany(this.mirror, 'cards', dueCards.concat(newCards));
+        // Это ПРОЕКЦИЯ (REVIEW_CARD_FIELDS), а не полная строка: простой put
+        // затирал в зеркале поля, которых в проекции нет. Доливаем в имеющиеся.
+        await mirrorMergeMany(this.mirror, 'cards', dueCards.concat(newCards) as Record<string, unknown>[]);
+        this._lastHydrateMisses = 0;
         return { due: shuffle(dueCards), fresh: shuffle(newCards).slice(0, newLimit) };
       } catch (e) { if (!isNetworkError(e)) throw e; this._offline = true; }
     }
 
     const source = filterByFolder(this._srsMeta || [], folderId);
     const { due, fresh } = buildReviewQueue(source, algo, newLimit, now);
-    const ids = [...due.map(c => c.id), ...fresh.map(c => c.id)];
-    const byId = await getCardsByIds(this.mirror, this._cache, ids);
-    return {
-      due: hydrateReviewQueue(due, byId),
-      fresh: hydrateReviewQueue(fresh, byId),
-    };
+    const [dueCards, freshCards] = await this._hydrateQueues([due, fresh]);
+    return { due: dueCards ?? [], fresh: freshCards ?? [] };
   }
 
-  async getCramCards(folderId: string | null, limit: number) {
+  async getCramCards(folderId: string | null, limit: number | null) {
+    // Выборку строим по slim-мете: она полная (её тянет синк целиком), поэтому
+    // случайность честная. Из сети берём только тела недостающих карточек —
+    // limit на стороне сервера отдавал бы всегда одни и те же первые N.
     const source = filterByFolder(this._srsMeta || [], folderId);
     const picked = shuffle(source);
-    const slice = limit > 0 ? picked.slice(0, limit) : picked;
-    const byId = await getCardsByIds(this.mirror, this._cache, slice.map(c => c.id));
-    return hydrateReviewQueue(slice, byId);
+    const slice = (limit ?? 0) > 0 ? picked.slice(0, limit as number) : picked;
+    const [cards] = await this._hydrateQueues([slice]);
+    return cards ?? [];
   }
 
   async scanFolderFronts(folderId: string | null, { youtubeOnly = false }: { youtubeOnly?: boolean } = {}) {
@@ -994,7 +1196,9 @@ export class CloudStore {
     this._cache.prependCard(row.folder_id ?? "", row);
     this._cache.bumpCount(row.folder_id ?? "", 1);
     invalidateDerivedCaches(this, { folderId: row.folder_id });
-    return this._cloudOrQueue('createCard', { row }, async () => row);
+    const saved = await this._cloudOrQueue('createCard', { row }, async () => row);
+    await this._bindPendingUploads(row);
+    return saved;
   }
 
   async updateCard(id: string, patch: Partial<Card>) {
@@ -1006,7 +1210,9 @@ export class CloudStore {
     this._patchSrsMeta(c);
     this._cache.patchCardInLists(id, stamped as Partial<Card>);
     invalidateDerivedCaches(this, { folderId: c.folder_id });
-    return this._cloudOrQueue('updateCard', { id, patch: stamped }, async () => c, { optimistic: true });
+    const saved = await this._cloudOrQueue('updateCard', { id, patch: stamped }, async () => c, { optimistic: true });
+    await this._bindPendingUploads(c);
+    return saved;
   }
 
   async deleteCard(id: string) {
@@ -1030,29 +1236,59 @@ export class CloudStore {
     }
   }
 
-  async uploadImage(file: Blob) {
+  /**
+   * Загрузить картинку карточки.
+   *
+   * Офлайн возвращает временный data:-URL, а сам файл кладёт в очередь. Сторона
+   * (`front_img`/`back_img`) сохраняется в задании, чтобы после создания
+   * карточки её можно было привязать (см. _bindPendingUploads): без привязки
+   * настоящая ссылка никогда не доезжала до карточки и data:-URL оставался в
+   * облаке навсегда.
+   */
+  async uploadImage(file: Blob, opts: { side?: string; cardId?: string } = {}) {
     const blob = await resizeImage(file);
     const ext = blob.type === 'image/png' ? 'png' : 'jpg';
     const path = this.sb.userId() + '/' + uuid() + '.' + ext;
-    if (!navigator.onLine) {
+    const side = opts.side === 'front_img' || opts.side === 'back_img' ? opts.side : undefined;
+    const queueUpload = async () => {
       const dataUrl = await blobToDataURL(blob);
-      await this.queue.enqueue({ op: 'uploadImage', payload: { path, blob, contentType: blob.type } });
+      await this.queue.enqueue({
+        op: 'uploadImage',
+        payload: { path, blob, contentType: blob.type, side, cardId: opts.cardId },
+      });
       this._offline = true;
       this._notifySync();
       return dataUrl;
-    }
+    };
+    if (!navigator.onLine) return queueUpload();
     try {
-      return await this.sb.uploadFile('card-images', path, blob, blob.type);
+      const url = await this.sb.uploadFile('card-images', path, blob, blob.type);
+      if (opts.cardId && side) await this._applyUploadedImage(opts.cardId, side, url);
+      return url;
     } catch (e) {
-      if (isNetworkError(e)) {
-        const dataUrl = await blobToDataURL(blob);
-        await this.queue.enqueue({ op: 'uploadImage', payload: { path, blob, contentType: blob.type } });
-        this._offline = true;
-        this._notifySync();
-        return dataUrl;
-      }
+      if (isNetworkError(e)) return queueUpload();
       throw e;
     }
+  }
+
+  /**
+   * Привязать отложённые загрузки картинок к карточке, которую только что
+   * сохранили. Задание при этом переставляется в конец очереди — иначе офлайн
+   * загрузка ушла бы в облако раньше самой карточки, и патч ссылки не нашёл бы
+   * строку.
+   */
+  async _bindPendingUploads(card: Card | null | undefined) {
+    if (!card?.id || !this.queue.db) return;
+    let bound = false;
+    for (const side of ['front_img', 'back_img'] as const) {
+      const value = card[side];
+      if (typeof value === 'string' && value.startsWith('data:')) {
+        if (await this.queue.bindPendingUpload(side, card.id)) bound = true;
+      }
+    }
+    if (!bound) return;
+    this._notifySync();
+    if (navigator.onLine) void this.flushSync();
   }
 
   async deleteImage(url: string) {
@@ -1102,12 +1338,15 @@ export class CloudStore {
     for (const c of data.cards) {
       if (c.description == null) c.description = '';
       const row = Object.assign({}, c, { user_id: this.sb.userId() });
+      // synced_at ставит только сервер (триггер миграции 0011) — в импорте оно
+      // лишнее и на схеме без этой колонки просто сломало бы вставку.
+      delete row.synced_at;
       for (const side of ['front_img', 'back_img']) {
         if (row[side] && row[side].startsWith('data:')) {
           try {
             const blob = await (await fetch(row[side])).blob();
             const ext = blob.type === 'image/png' ? 'png' : 'jpg';
-            row[side] = await this.uploadImage(new File([blob], 'img.' + ext, { type: blob.type }));
+            row[side] = await this.uploadImage(new File([blob], 'img.' + ext, { type: blob.type }), { side });
           } catch (e) { row[side] = null; }
         }
       }
@@ -1120,6 +1359,7 @@ export class CloudStore {
     for (const row of importRows) {
       this._patchSrsMeta(row);
       await this._cloudOrQueue('createCard', { row }, async () => row);
+      await this._bindPendingUploads(row);
     }
     if (data.settings) await this.saveSettings(Object.assign({}, DEFAULT_SETTINGS, data.settings));
     this.folders.sort((a, b) => (a.created_at || 0) - (b.created_at || 0));

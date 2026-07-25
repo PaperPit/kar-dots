@@ -30,6 +30,9 @@ export const SRS_FIELDS =
 /** Content + SRS — enough for an online review session (no select=*). */
 export const REVIEW_CARD_FIELDS = SRS_FIELDS + ",front,back,description,front_img,back_img"
 
+/** Content + SRS + updated_at — зеркало карточек при delta/full pull и дозагрузке тел. */
+export const CARD_MIRROR_SELECT = REVIEW_CARD_FIELDS + ",updated_at"
+
 export interface SrsMeta extends SrsRow {
   id: string;
   folder_id: string;

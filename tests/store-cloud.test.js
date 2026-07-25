@@ -323,7 +323,7 @@ describe('CloudStore online review + optimistic updateCard', () => {
     const update = vi.fn(async () => {
       await gate;
       cloudDone = true;
-      return true;
+      return [{ id: 'd1' }];
     });
     const { CloudStore } = await import('../js/data/store-cloud.ts');
     const { openMirrorDB } = await import('../js/data/sync-queue.ts');
@@ -349,10 +349,108 @@ describe('CloudStore online review + optimistic updateCard', () => {
     expect(cloudDone).toBe(true);
     expect(update).toHaveBeenCalledWith(
       'cards',
-      expect.stringMatching(/^id=eq\.d1(&updated_at=lte\.\d+)?$/),
+      expect.stringMatching(/^id=eq\.d1&updated_at=eq\.0$/),
       expect.objectContaining({ sm2_reps: 3, updated_at: expect.any(Number) }),
       { returning: true },
     );
+  });
+
+  it('_applyPatchWithLww: 0 строк → конфликт (dead letter)', async () => {
+    const card = {
+      id: 'd1', folder_id: 'fa', front: 'w', back: 'd', description: '',
+      sm2_reps: 2, sm2_due: now - 1, box: 1, box_due: now - 1, created_at: 1, updated_at: 50,
+    };
+    installFakeIDB({
+      folders: [folderA],
+      cards: [card],
+      kv: { settings: DEFAULT_SETTINGS, srs_meta: [srsMeta[1]] },
+    });
+    vi.stubGlobal('navigator', { onLine: true, addEventListener: vi.fn() });
+    const update = vi.fn(async () => []);
+    const { CloudStore } = await import('../js/data/store-cloud.ts');
+    const { openMirrorDB } = await import('../js/data/sync-queue.ts');
+    const { LWW_CONFLICT_MESSAGE } = await import('../js/data/cloud-delta.ts');
+    const store = new CloudStore({
+      userId: () => 'user-1',
+      update,
+      insert: vi.fn(),
+      remove: vi.fn(),
+    });
+    store.mirror = await openMirrorDB();
+    await store.queue.init(store.mirror);
+    store.queue.onFlush(item => store._executeSyncItem(item));
+    await expect(
+      store._applyPatchWithLww('cards', 'd1', { front: 'x', updated_at: 99 }, 50),
+    ).rejects.toThrow(LWW_CONFLICT_MESSAGE);
+    expect(update).toHaveBeenCalledWith(
+      'cards',
+      'id=eq.d1&updated_at=eq.50',
+      expect.objectContaining({ front: 'x' }),
+      { returning: true },
+    );
+  });
+
+  it('_fetchFromCloud зеркалит тела cards (mirrorReplaceAll)', async () => {
+    const bodies = [
+      {
+        id: 'n1', folder_id: 'fa', front: 'hello', back: 'привет', description: '',
+        sm2_reps: 0, sm2_due: null, box: 0, created_at: 1, updated_at: 10,
+      },
+    ];
+    installFakeIDB({ folders: [], cards: [], kv: {} });
+    vi.stubGlobal('navigator', { onLine: true, addEventListener: vi.fn() });
+    const { CloudStore } = await import('../js/data/store-cloud.ts');
+    const { openMirrorDB, getAll } = await import('../js/data/sync-queue.ts');
+    const sb = {
+      userId: () => 'user-1',
+      select: vi.fn(async (table) => {
+        if (table === 'folders') return [folderA];
+        if (table === 'cards') return bodies;
+        if (table === 'settings') return [{ data: DEFAULT_SETTINGS }];
+        return [];
+      }),
+      count: vi.fn(async () => 1),
+    };
+    const store = new CloudStore(sb);
+    store.mirror = await openMirrorDB();
+    await store._fetchFromCloud();
+    const mirrored = await getAll(store.mirror, 'cards');
+    expect(mirrored).toHaveLength(1);
+    expect(mirrored[0].front).toBe('hello');
+  });
+
+  it('getReviewCards offline: missing body → missingOffline; online hydrate догружает', async () => {
+    const meta = [
+      { id: 'd1', folder_id: 'fa', sm2_reps: 2, sm2_due: now - 1, box: 1, box_due: now - 1, created_at: 2 },
+      { id: 'ghost', folder_id: 'fa', sm2_reps: 1, sm2_due: now - 2, box: 1, box_due: now - 2, created_at: 3 },
+    ];
+    installFakeIDB({
+      folders: [folderA],
+      cards: [{ id: 'd1', folder_id: 'fa', front: 'w', back: 'd', description: '', ...meta[0] }],
+      kv: { settings: DEFAULT_SETTINGS, srs_meta: meta },
+    });
+    vi.stubGlobal('navigator', { onLine: false, addEventListener: vi.fn() });
+    const { CloudStore } = await import('../js/data/store-cloud.ts');
+    const store = new CloudStore({ userId: () => 'user-1', select: vi.fn() });
+    await store.init();
+    const offline = await store.getReviewCards('fa', 'sm2', 5, now);
+    expect(offline.due.map(c => c.id)).toEqual(['d1']);
+    expect(offline.missingOffline).toBe(1);
+
+    store._offline = false;
+    vi.stubGlobal('navigator', { onLine: true, addEventListener: vi.fn() });
+    store.sb.select = vi.fn(async (_t, q) => {
+      if (String(q).includes('id=in.')) {
+        return [{
+          id: 'ghost', folder_id: 'fa', front: 'g', back: 'h', description: '',
+          sm2_reps: 1, sm2_due: now - 2, box: 1, box_due: now - 2, created_at: 3, updated_at: 3,
+        }];
+      }
+      return [];
+    });
+    const hydrated = await store._hydrateQueueRows(meta);
+    expect(hydrated.cards.map(c => c.id).sort()).toEqual(['d1', 'ghost']);
+    expect(hydrated.missingIds).toEqual([]);
   });
 });
 

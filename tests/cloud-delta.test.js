@@ -68,9 +68,11 @@ describe('cloud-delta', () => {
     expect(p.updated_at).toBeGreaterThan(0);
   });
 
-  it('lwwUpdateFilter добавляет updated_at=lte при stamp', () => {
-    expect(lwwUpdateFilter('c1', { updated_at: 42 })).toBe('id=eq.c1&updated_at=lte.42');
+  it('lwwUpdateFilter: OCC по baseUpdatedAt, иначе lt stamp', () => {
+    expect(lwwUpdateFilter('c1', { updated_at: 99 }, 42)).toBe('id=eq.c1&updated_at=eq.42');
+    expect(lwwUpdateFilter('c1', { updated_at: 42 })).toBe('id=eq.c1&updated_at=lt.42');
     expect(lwwUpdateFilter('c1', {})).toBe('id=eq.c1');
+    expect(lwwUpdateFilter('c1', { updated_at: 10 }, 0)).toBe('id=eq.c1&updated_at=eq.0');
   });
 
   it('resolveSettingsLww выбирает более свежий blob', () => {

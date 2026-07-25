@@ -79,8 +79,9 @@ describe('LocalStore SRS counts', () => {
   });
 
   it('getCramCards с limit — hydrate только N', async () => {
-    const queue = await store.getCramCards('fa', 2);
+    const { cards: queue, missingOffline } = await store.getCramCards('fa', 2);
     expect(queue).toHaveLength(2);
+    expect(missingOffline).toBe(0);
     expect(queue.every(c => c.folder_id === 'fa' && c.id)).toBe(true);
   });
 

@@ -31,8 +31,8 @@
  * @property {(folderId?: string|null, algo?: string, from?: number, to?: number) => Promise<number>} countDueBetween
  * @property {(folderId?: string|null, algo?: string) => Promise<number>} countNew
  * @property {(budget?: number) => Promise<import('./home-stats.js').HomeStats>} getHomeStats
- * @property {(folderId?: string|null, algo?: string, newLimit?: number, now?: number) => Promise<{due: Object[], fresh: Object[]}>} getReviewCards
- * @property {(folderId: string, limit?: number|null) => Promise<Object[]>} getCramCards
+ * @property {(folderId?: string|null, algo?: string, newLimit?: number, now?: number) => Promise<{due: Object[], fresh: Object[], missingOffline?: number}>} getReviewCards
+ * @property {(folderId: string, limit?: number|null) => Promise<{cards: Object[], missingOffline?: number}|Object[]>} getCramCards
  * @property {(data: Object) => Promise<Object>} createFolder
  * @property {(id: string, patch: Object) => Promise<Object|null>} updateFolder
  * @property {(id: string) => Promise<boolean|void>} deleteFolder

@@ -299,6 +299,7 @@ export class LocalStore {
     return {
       due: hydrateReviewQueue(due, byId),
       fresh: hydrateReviewQueue(fresh, byId),
+      missingOffline: 0,
     };
   }
 
@@ -308,7 +309,7 @@ export class LocalStore {
     const picked = shuffle(source);
     const slice = limit > 0 ? picked.slice(0, limit) : picked;
     const byId = await getCardsByIds(this.db, this._cache, slice.map(c => c.id));
-    return hydrateReviewQueue(slice, byId);
+    return { cards: hydrateReviewQueue(slice, byId), missingOffline: 0 };
   }
 
   async _getCardById(id: string): Promise<CardRecord | null> {

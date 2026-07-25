@@ -3,6 +3,7 @@
 import type { Card } from "./types.js"
 import type { SrsRow } from "../lib/srs.js"
 import type { StoreCache } from "./store-cache.js"
+import { CARD_MIRROR_SELECT } from "./srs-meta.js"
 
 export async function getCardsByIds(
   db: IDBDatabase | null,
@@ -36,6 +37,17 @@ export async function getCardsByIds(
   return map
 }
 
+export function missingHydrateIds(
+  queueRows: SrsRow[],
+  byId: Map<string, Card>
+): string[] {
+  const out: string[] = []
+  for (const row of queueRows) {
+    if (row.id && !byId.has(row.id)) out.push(row.id)
+  }
+  return out
+}
+
 export function hydrateReviewQueue(
   queueRows: SrsRow[],
   byId: Map<string, Card>
@@ -43,4 +55,20 @@ export function hydrateReviewQueue(
   return queueRows
     .map((c) => (c.id ? byId.get(c.id) : undefined))
     .filter((c): c is Card => Boolean(c))
+}
+
+export function hydrateReviewQueueReport(
+  queueRows: SrsRow[],
+  byId: Map<string, Card>
+): { cards: Card[]; missingIds: string[] } {
+  return {
+    cards: hydrateReviewQueue(queueRows, byId),
+    missingIds: missingHydrateIds(queueRows, byId),
+  }
+}
+
+/** PostgREST filter: batch-fetch card bodies by id. */
+export function cardsByIdsFilter(ids: string[]): string {
+  const list = ids.filter(Boolean)
+  return "id=in.(" + list.join(",") + ")&select=" + CARD_MIRROR_SELECT
 }

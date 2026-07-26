@@ -1,0 +1,17 @@
+{
+  // Отдельный конфиг только для проверки типов расширения.
+  //
+  // В основном tsconfig.json include ограничен js/** и cli/**, поэтому папка
+  // extension/ не проверялась вообще: `npm run typecheck` проходил чисто, пока
+  // в панели лежал вызов el("div", null, …), из-за которого окно расширения
+  // открывалось пустым. Держим конфиг отдельным, потому что основной tsc
+  // компилирует на место (emit), а рядом с extension/src/*.ts артефакты не нужны —
+  // сборку делает esbuild в extension/dist/.
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "types": ["@types/node", "chrome"]
+  },
+  "include": ["extension/**/*.ts", "js/**/*.ts"],
+  "exclude": ["node_modules", "extension/dist", "dist"]
+}

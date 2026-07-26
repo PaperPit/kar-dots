@@ -1,3 +1,6 @@
+// Первым — и намеренно первым: сторож ловит падения тел остальных модулей,
+// которые иначе гасят окно молча. Порядок этого импорта менять нельзя.
+import "./error-guard.js"
 import {
   APP_ORIGIN,
   CONNECT_URL,
@@ -24,7 +27,21 @@ import {
 import { hasSupadataApiKey, hasGenerateApiKey } from "../../../js/lib/youtube-import-settings.js"
 import type { Settings } from "../../../js/data/types.js"
 
-const root = document.getElementById("app")!
+// Без non-null assertion: если #app в разметке нет, лучше явная ошибка с понятным
+// текстом — её поймает error-guard и нарисует прямо в окне, — чем TypeError
+// «replaceChildren of null» где-то в середине первого рендера.
+const rootEl = document.getElementById("app")
+if (!rootEl) throw new Error("КАР-точки: в разметке окна нет #app")
+const root: HTMLElement = rootEl
+
+// Ошибка вне boot() (обработчик кнопки, слушатель storage) тоже не должна
+// оставлять пользователя один на один с пустой панелью.
+window.addEventListener("unhandledrejection", (ev) => {
+  renderFatal(ev.reason)
+})
+window.addEventListener("error", (ev) => {
+  renderFatal(ev.error || ev.message)
+})
 
 interface PreviewItem {
   cand: YtCandidate
@@ -44,13 +61,20 @@ let previewItems: PreviewItem[] = []
 let videoId: string | null = null
 let accountEmail: string | null = null
 
+/**
+ * Атрибуты и дети приходят и как null — например `el("h1", null, "…")`.
+ * Значение по умолчанию у параметра подставляется только вместо undefined, так
+ * что на явный null `Object.entries` бросал «Cannot convert undefined or null
+ * to object». Падало это внутри brand(), а brand() зовётся в каждом рендере —
+ * поэтому окно расширения открывалось пустым вообще всегда.
+ */
 function el<K extends keyof HTMLElementTagNameMap>(
   tag: K,
-  attrs: Record<string, unknown> = {},
-  children: Array<Node | string | null | false | undefined> | string = []
+  attrs?: Record<string, unknown> | null,
+  children?: Array<Node | string | null | false | undefined> | string | null
 ): HTMLElementTagNameMap[K] {
   const node = document.createElement(tag)
-  for (const [k, v] of Object.entries(attrs)) {
+  for (const [k, v] of Object.entries(attrs ?? {})) {
     if (k === "class") node.className = String(v)
     else if (k === "onclick" && typeof v === "function") node.addEventListener("click", v as EventListener)
     else if (k === "onchange" && typeof v === "function") node.addEventListener("change", v as EventListener)
@@ -61,7 +85,7 @@ function el<K extends keyof HTMLElementTagNameMap>(
       if (v) (node as HTMLOptionElement).selected = true
     } else if (v != null && v !== false) node.setAttribute(k, String(v))
   }
-  const kids = Array.isArray(children) ? children : [children]
+  const kids = Array.isArray(children) ? children : children == null ? [] : [children]
   for (const c of kids) {
     if (c == null || c === false) continue
     node.append(typeof c === "string" ? document.createTextNode(c) : c)
@@ -76,22 +100,64 @@ function brand() {
   ])
 }
 
+// Не знать текущее видео — не повод не показывать панель: пользователь всё
+// равно может войти в аккаунт и выбрать папку. Поэтому оба источника опрашиваем
+// по отдельности и ошибку каждого проглатываем.
 async function refreshVideoFromStorage() {
-  const v = await getVideo()
-  if (v?.url) {
-    videoUrl = v.url
-    videoTitle = v.title || videoTitle
+  try {
+    const v = await getVideo()
+    if (v?.url) {
+      videoUrl = v.url
+      videoTitle = v.title || videoTitle
+    }
+  } catch {
+    /* chrome.storage.session недоступен — не критично */
   }
-  if (!videoUrl) {
+  if (videoUrl) return
+  try {
     const [tab] = await chrome.tabs.query({ active: true, lastFocusedWindow: true })
     if (tab?.url && /youtube\.com\/(watch|shorts)/.test(tab.url)) {
       videoUrl = tab.url
       videoTitle = (tab.title || "").replace(/ - YouTube$/, "")
     }
+  } catch {
+    /* нет доступа к вкладке — пользователь вставит ссылку, открыв ролик заново */
   }
 }
 
+/**
+ * Последний рубеж: что бы ни упало на старте, пользователь должен увидеть текст,
+ * а не пустую панель. Раньше начало boot() лежало вне try/catch и вызывалось как
+ * `void boot()`, поэтому любая ошибка в chrome.storage/chrome.tabs просто гасила
+ * панель — снаружи это выглядело как «расширение не открывается».
+ */
+function renderFatal(e: unknown) {
+  const msg = e instanceof Error ? e.message : String(e)
+  root.replaceChildren(
+    brand(),
+    el("div", { class: "card" }, [
+      el("p", { class: "error" }, "Окно не смогло запуститься: " + msg),
+      el(
+        "p",
+        { class: "muted" },
+        "Если это повторяется — правый клик по окну → «Просмотреть код» и пришли текст из вкладки Console."
+      ),
+      el("div", { class: "actions" }, [
+        el("button", { class: "btn primary", onclick: () => void boot() }, "Попробовать снова")
+      ])
+    ])
+  )
+}
+
 async function boot() {
+  try {
+    await bootInner()
+  } catch (e) {
+    renderFatal(e)
+  }
+}
+
+async function bootInner() {
   const prefs = await getPrefs()
   mode = prefs.mode
   mergeCues = prefs.mergeCues

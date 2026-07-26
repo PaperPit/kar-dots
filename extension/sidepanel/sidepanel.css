@@ -19,9 +19,17 @@
 
 * { box-sizing: border-box; }
 
+/*
+ * Это окно открывается как попап у иконки (manifest → action.default_popup).
+ * Попап не растягивается сам: Chrome берёт размер из содержимого и обрезает по
+ * 800x600. Без явной ширины окно схлопывалось до ширины самой длинной строки,
+ * поэтому ширина задана жёстко, а высота ограничена так, чтобы прокрутка была
+ * внутри попапа, а не у всего документа.
+ */
 html, body {
   margin: 0;
-  min-height: 100%;
+  width: 400px;
+  min-height: 320px;
   background:
     radial-gradient(900px 420px at 10% -10%, rgba(196, 85, 40, 0.12), transparent 55%),
     linear-gradient(180deg, #f8f0e4 0%, var(--bg) 45%, #ebe0d1 100%);
@@ -30,11 +38,12 @@ html, body {
 body {
   font-size: 14px;
   line-height: 1.45;
+  max-height: 580px;
+  overflow-y: auto;
 }
 
 .app {
   padding: 16px 14px 28px;
-  max-width: 480px;
   margin: 0 auto;
 }
 

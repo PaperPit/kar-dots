@@ -1,29 +1,14 @@
 import { setAuth, setVideo } from "./lib/storage.js"
 import type { ExtMessage } from "./lib/constants.js"
 
-chrome.runtime.onInstalled.addListener(() => {
-  chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true }).catch(() => {})
-})
+// Окно расширения — попап у иконки (manifest → action.default_popup), поэтому
+// открывает его сам Chrome по клику. Здесь ничего настраивать не нужно: вызовы
+// chrome.sidePanel убраны вместе с разрешением "sidePanel", иначе сервис-воркер
+// падал бы на старте с «Cannot read properties of undefined».
 
 chrome.runtime.onMessage.addListener((msg: ExtMessage, sender, sendResponse) => {
   void (async () => {
     try {
-      if (msg.type === "OPEN_SIDEPANEL") {
-        const tabId = sender.tab?.id
-        if (msg.url) {
-          await setVideo({
-            url: msg.url,
-            title: msg.title,
-            tabId
-          })
-        }
-        if (tabId != null) {
-          await chrome.sidePanel.open({ tabId })
-        }
-        sendResponse({ ok: true })
-        return
-      }
-
       if (msg.type === "SET_VIDEO") {
         await setVideo({
           url: msg.url,

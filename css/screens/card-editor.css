@@ -268,8 +268,8 @@
 .card-preview-wrap .flip-face {
   padding: 20px 18px;
 }
-.card-preview-wrap .flip-face img {
-  max-height: min(22vh, 160px);
+.card-preview-wrap .flip-face .card-img-box {
+  height: min(22vh, 160px);
 }
 .card-preview-wrap .grade-row {
   display: none !important;

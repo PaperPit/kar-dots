@@ -46,7 +46,7 @@
  * @property {(data: Object) => Promise<Object>} createCard
  * @property {(id: string, patch: Object) => Promise<Object|null>} updateCard
  * @property {(id: string) => Promise<void>} deleteCard
- * @property {(file: File) => Promise<string>} uploadImage
+ * @property {(file: File, opts?: {side?: string, cardId?: string}) => Promise<string>} uploadImage
  * @property {(url?: string) => Promise<void>} deleteImage
  * @property {(s: StoreSettings) => Promise<StoreSettings>} saveSettings
  * @property {() => Promise<string>} exportJSONFull

@@ -21,12 +21,29 @@ describe('supadata lib', () => {
   });
 
   it('mapSupadataError мапит коды HTTP', () => {
-    expect(mapSupadataError({ error: 'unauthorized', message: 'Bad key' })).toEqual({
-      code: 'unauthorized',
-      message: 'Bad key',
-      status: 401,
-    });
+    const mapped = mapSupadataError({ error: 'unauthorized', message: 'Bad key' });
+    expect(mapped.code).toBe('unauthorized');
+    expect(mapped.status).toBe(401);
     expect(mapSupadataError({ error: 'limit-exceeded', message: 'Quota' }).code).toBe('quota');
+    expect(mapSupadataError({ error: 'limit-exceeded' }).status).toBe(429);
+  });
+
+  it('mapSupadataError не отражает текст апстрима наружу', () => {
+    const mapped = mapSupadataError({
+      error: 'unauthorized',
+      message: 'key sd_abcdef123456 rejected by upstream node 10.0.0.7',
+    });
+    // наружу — только наш русский текст
+    expect(mapped.message).toBe('Supadata не приняла ключ — проверь его в Настройках');
+    expect(mapped.message).not.toContain('sd_abcdef');
+    // сырой текст доступен отдельно — только для console.error
+    expect(mapped.detail).toContain('sd_abcdef123456');
+  });
+
+  it('незнакомый код тоже не протекает текстом апстрима', () => {
+    const mapped = mapSupadataError({ error: 'weird-code', message: 'internal stack trace' }, 500);
+    expect(mapped.message).toBe('Supadata не смогла обработать запрос');
+    expect(mapped.status).toBe(500);
   });
 });
 

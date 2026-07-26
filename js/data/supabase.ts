@@ -227,12 +227,27 @@ export class MiniSupabase {
     return Array.isArray(rows) ? rows[0] : rows
   }
 
-  async update(table: string, filter: string, patch: unknown): Promise<unknown> {
+  /**
+   * PATCH строк по фильтру.
+   *
+   * По умолчанию `Prefer: return=minimal` — ответ пустой и узнать, сколько строк
+   * поменялось, нельзя. Там, где это важно (например last-write-wins: фильтр
+   * специально не совпадёт, если на сервере лежит версия свежее нашей), нужно
+   * запросить `returning: "representation"` — тогда вернётся массив изменённых
+   * строк, и пустой массив означает «наш патч устарел, никого не тронули».
+   */
+  async update(
+    table: string,
+    filter: string,
+    patch: unknown,
+    opts: { returning?: "minimal" | "representation" } = {}
+  ): Promise<unknown> {
     await this.ensureFresh()
+    const prefer = opts.returning === "representation" ? "return=representation" : "return=minimal"
     const r = await this._fetch(this.url + "/rest/v1/" + table + "?" + filter, {
       method: "PATCH",
       headers: Object.assign(
-        { "Content-Type": "application/json", Prefer: "return=minimal" },
+        { "Content-Type": "application/json", Prefer: prefer },
         this._authHeaders()
       ),
       body: JSON.stringify(patch)
@@ -265,6 +280,35 @@ export class MiniSupabase {
       throw new Error(data.message || data.error || "Не удалось загрузить файл (" + r.status + ")")
     }
     return this.url + "/storage/v1/object/public/" + bucket + "/" + path
+  }
+
+  /** Базовый URL проекта без хвостового слэша (нужен разбору ссылок на storage). */
+  getBaseUrl(): string {
+    return this.url
+  }
+
+  /**
+   * Подписанная ссылка на приватный объект storage.
+   * Возвращает абсолютный URL; бросает ошибку, если объекта нет или нет прав.
+   */
+  async createSignedUrl(bucket: string, path: string, expiresIn = 3600): Promise<string> {
+    await this.ensureFresh()
+    const r = await this._fetch(this.url + "/storage/v1/object/sign/" + bucket + "/" + path, {
+      method: "POST",
+      headers: Object.assign({ "Content-Type": "application/json" }, this._authHeaders()),
+      body: JSON.stringify({ expiresIn })
+    })
+    if (!r.ok) {
+      const data = await r.json().catch(() => ({}))
+      throw new Error(data.message || data.error || "Не удалось подписать ссылку (" + r.status + ")")
+    }
+    const data = (await r.json().catch(() => ({}))) as { signedURL?: string; signedUrl?: string }
+    const signed = data.signedURL || data.signedUrl || ""
+    if (!signed) throw new Error("Supabase не вернул подписанную ссылку")
+    // Supabase отдаёт путь вида "/object/sign/<bucket>/<path>?token=…" — дополняем до абсолютного.
+    if (/^https?:\/\//i.test(signed)) return signed
+    const rel = signed.startsWith("/") ? signed : "/" + signed
+    return this.url + (rel.startsWith("/storage/v1") ? "" : "/storage/v1") + rel
   }
 
   async deleteFile(bucket: string, path: string) {

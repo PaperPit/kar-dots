@@ -1,10 +1,27 @@
 import { el, sanitizeRich, stripHtml } from "./ui.js"
 import { Card } from "./types.js"
+import { resolveImageUrl, resolveImageUrlSync } from "../data/image-url.js"
+
+/**
+ * Картинка стороны карточки в обёртке фиксированной высоты.
+ * Место под неё занято ещё до загрузки файла, поэтому текст под картинкой
+ * не подпрыгивает, когда изображение наконец декодируется.
+ *
+ * Бакет card-images приватный, поэтому сначала рисуем то, что уже есть в кэше
+ * подписей (или исходную ссылку), а затем меняем src на свежую подпись.
+ */
+function faceImage(src: string): HTMLElement {
+  const img = el("img", { src: resolveImageUrlSync(src), alt: "", decoding: "async" })
+  void resolveImageUrl(src).then(url => {
+    if (url && img.getAttribute("src") !== url) img.setAttribute("src", url)
+  })
+  return el("div", { class: "card-img-box" }, [img])
+}
 
 /** Лицевая сторона: термин + опциональная картинка. */
 export function buildFrontContent(card: Card): HTMLElement[] {
   const parts = []
-  if (card.front_img) parts.push(el("img", { src: card.front_img, alt: "" }))
+  if (card.front_img) parts.push(faceImage(card.front_img))
   const plain = stripHtml(card.front)
   if (plain) {
     const sizeCls = plain.length > 160 ? " long" : plain.length > 60 ? " small" : ""
@@ -18,7 +35,7 @@ export function buildFrontContent(card: Card): HTMLElement[] {
 /** Оборот: определение (жирное, по центру) + описание (мельче, по ширине). */
 export function buildBackContent(card: Card): HTMLElement[] {
   const parts = []
-  if (card.back_img) parts.push(el("img", { src: card.back_img, alt: "" }))
+  if (card.back_img) parts.push(faceImage(card.back_img))
 
   const defPlain = stripHtml(card.back)
   if (defPlain) {

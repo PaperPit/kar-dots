@@ -2,19 +2,12 @@ import { el, modal, spinner, toast } from '../../ui/ui.js';
 import { searchStockMedia, downloadStockMedia, type StockItem, type StockSearchResult } from '../../lib/stock-media.js';
 import { hasGiphyApiKey, hasPixabayApiKey } from '../../lib/stock-media-settings.js';
 import type { Settings } from '../../data/types.js';
+import { debounce } from '../../ui/helpers.js';
 
 interface StockPickerOpts {
   initialQuery?: string;
   onSelect?: (file: File, item: StockItem) => void;
   getSettings?: () => Settings | null;
-}
-
-function debounce(fn: (...args: any[]) => void, ms: number): (...args: any[]) => void {
-  let t: ReturnType<typeof setTimeout> | null = null;
-  return (...args: any[]) => {
-    if (t) clearTimeout(t);
-    t = setTimeout(() => fn(...args), ms);
-  };
 }
 
 function providerLabel(meta: StockSearchResult['searchMeta'] | null | undefined): string {

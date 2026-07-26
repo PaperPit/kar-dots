@@ -3,6 +3,7 @@
 import { translateText } from "./translate.js"
 import { withStockKeys, getPixabayApiKey, getGiphyApiKey } from "./stock-media-settings.js"
 import { searchGiphy, searchPixabay } from "./stock-media-providers.js"
+import { apiHeaders, apiErrorMessage } from "./api-client.js"
 import type { Settings } from "../data/types.js"
 
 const OPENVERSE = "https://api.openverse.org/v1/images/"
@@ -346,10 +347,13 @@ function dedupeStockItems(items: StockItem[]): StockItem[] {
 }
 
 async function searchStockMediaRemote({ searchQuery, type, page, pageSize, settings }: StockSearchParams): Promise<StockRawResult | null> {
+  let res: Response
   try {
-    const res = await fetch("/api/stock-search", {
+    res = await fetch("/api/stock-search", {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      // Без личности запроса бэкенд считает нас чужим анонимом и быстро
+      // упирается в общий лимит на IP.
+      headers: await apiHeaders({ "content-type": "application/json" }),
       body: JSON.stringify(
         withStockKeys(settings || null, {
           q: searchQuery,
@@ -359,7 +363,22 @@ async function searchStockMediaRemote({ searchQuery, type, page, pageSize, setti
         })
       )
     })
-    if (!res.ok) return null
+  } catch {
+    return null
+  }
+  // 401/429/413 — осмысленный отказ сервера, а не «эндпоинт не умеет».
+  // Молча вернуть null нельзя: пользователь увидит пустую выдачу без причины.
+  if (res.status === 401 || res.status === 429 || res.status === 413) {
+    let message: unknown = null
+    try {
+      message = ((await res.json()) as { message?: unknown })?.message
+    } catch {
+      /* не JSON */
+    }
+    throw new Error(apiErrorMessage(res.status, message))
+  }
+  if (!res.ok) return null
+  try {
     const data: StockRawResult = await res.json()
     if (data.error || data.provider === "none") return null
     return data
@@ -390,10 +409,14 @@ async function searchStockMediaProviders({ searchQuery, type, page, pageSize, se
     try {
       const remote = await searchStockMediaRemote({ searchQuery, type, page, pageSize, settings })
       if (remote) return remote
-      return await searchStockMediaDirect({ searchQuery, type, page, pageSize, settings })
     } catch (e) {
+      // У пользователя есть свои ключи: отказ общего эндпоинта (лимит, истёкшая
+      // сессия) — не повод сдаваться. Сообщаем, только если и напрямую пусто.
+      const direct = await searchStockMediaDirect({ searchQuery, type, page, pageSize, settings })
+      if (direct) return direct
       throw e
     }
+    return await searchStockMediaDirect({ searchQuery, type, page, pageSize, settings })
   }
 
   const remote = await searchStockMediaRemote({ searchQuery, type, page, pageSize, settings })

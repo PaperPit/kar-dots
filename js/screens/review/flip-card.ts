@@ -13,6 +13,18 @@ interface FlipCardOpts {
   onGradeDir?: (dir: 'left' | 'right', gradeRow: HTMLElement) => void;
 }
 
+/**
+ * Клавиши 1–4 → индекс кнопки в `.grade-row` (0-based).
+ * Порядок кнопок задаёт renderGrades: для FSRS это Снова/Трудно/Хорошо/Легко,
+ * для SM-2 и Лейтнера — Не знаю/Знаю (тогда 3 и 4 просто не находят кнопку).
+ * @returns индекс или null, если клавиша не оценочная.
+ */
+export function gradeKeyIndex(key: string): number | null {
+  if (key.length !== 1) return null;
+  const i = '1234'.indexOf(key);
+  return i === -1 ? null : i;
+}
+
 function isTextEntryTarget(node: EventTarget | null): boolean {
   if (!node || !(node instanceof HTMLElement)) return false;
   if (node.closest('.modal-overlay')) return true;
@@ -82,9 +94,15 @@ export function createFlipCard(card: SrsCard, firstSide: 'front' | 'back', opts:
   });
 
   box.tabIndex = -1;
+  let keyBound = false;
+  function unbindKeys() {
+    if (!keyBound) return;
+    keyBound = false;
+    document.removeEventListener('keydown', onKey);
+  }
   const onKey = (e: KeyboardEvent) => {
     if (!opts.stageContains || !opts.stageContains(box)) {
-      document.removeEventListener('keydown', onKey);
+      unbindKeys();
       return;
     }
     if (isTextEntryTarget(e.target)) return;
@@ -92,7 +110,8 @@ export function createFlipCard(card: SrsCard, firstSide: 'front' | 'back', opts:
       e.preventDefault();
       toggleFlip();
     }
-    if (gradesShown && opts.onGradeKey && ['1', '2'].includes(e.key)) {
+    if (gradesShown && opts.onGradeKey && gradeKeyIndex(e.key) !== null) {
+      e.preventDefault();
       opts.onGradeKey(e.key, grades);
     }
     if (gradesShown && opts.onGradeDir) {
@@ -106,8 +125,14 @@ export function createFlipCard(card: SrsCard, firstSide: 'front' | 'back', opts:
     }
   };
   document.addEventListener('keydown', onKey);
+  keyBound = true;
 
-  return { box, flip, swipeWrap, grades, hint, getVisibleSide: () => (flip.classList.contains('flipped') ? backSide : firstSide) };
+  return {
+    box, flip, swipeWrap, grades, hint,
+    getVisibleSide: () => (flip.classList.contains('flipped') ? backSide : firstSide),
+    /** Снять глобальный keydown — вызывать при смене карточки/закрытии экрана. */
+    destroy: unbindKeys,
+  };
 }
 
 const sizedImgListeners = new WeakSet<HTMLImageElement>();

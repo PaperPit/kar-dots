@@ -158,6 +158,11 @@ export function submitGrade(
       firstTryRecorded,
       firstTryOk: firstTryRecorded && know,
       quiet,
+    }).catch(e => {
+      // Иначе ошибка внутри applyGrade осталась бы необработанным rejection,
+      // а сессия — молча зависшей на текущей карточке.
+      console.error('applyGrade failed:', e);
+      toast(t('review.grade.saveFailed', { message: e instanceof Error ? e.message : String(e) }), 'error');
     }).finally(() => { ctx.grading = false; });
   };
   if (dir && ctx.currentSwipeWrap && ctx.currentBox) {
@@ -268,7 +273,9 @@ export async function applyGrade(ctx: GradeContext, card: SrsCard, g: Grade, opt
   try { await store.updateCard(card.id ?? '', patch); }
   catch (e) { toast(t('review.grade.saveFailed', { message: e instanceof Error ? e.message : String(e) }), 'error'); }
   const reviewSplit = failed ? { failed: 1 } : { known: 1 };
-  await recordReview(1, reviewSplit);
+  // Счётчик активности не критичен: сама оценка уже сохранена выше.
+  try { await recordReview(1, reviewSplit); }
+  catch (e) { console.error('recordReview failed:', e); }
   let reviewLogId: string | null = null;
   try { reviewLogId = await logReview(buildLogEntry(ctx, card, g, failed, now)); }
   catch (e) { /* журнал не критичен для оценки */ }
@@ -327,7 +334,8 @@ export async function undoLastGrade(ctx: GradeContext) {
 
   try { await store.updateCard(u.card.id ?? '', u.prevSnap); }
   catch (e) { toast(t('review.grade.undoFailed', { message: e instanceof Error ? e.message : String(e) }), 'error'); return; }
-  await undoReview(1, u.reviewSplit);
+  try { await undoReview(1, u.reviewSplit); }
+  catch (e) { console.error('undoReview failed:', e); }
   if (u.reviewLogId) { try { await removeReview(u.reviewLogId); } catch (e) { /* ignore */ } }
   ctx.updateBar();
   if (ctx.showNextTimer) { clearTimeout(ctx.showNextTimer); ctx.showNextTimer = null; }
@@ -351,32 +359,40 @@ export async function gradeMatchResults(
     ctx.stats.attempted++;
     if (results.every(r => r.know)) ctx.stats.firstTryOk++;
   }
-  for (let i = 0; i < results.length; i++) {
-    const r = results[i];
-    if (!r) continue;
-    const { card, know } = r;
-    if (!countAsOne) {
-      ctx.stats.attempted++;
-      if (know) ctx.stats.firstTryOk++;
+  // Без try/finally сбой в applyGrade оставил бы ctx.grading = true — сессия
+  // перестала бы принимать оценки и не показала бы следующую карточку.
+  try {
+    for (let i = 0; i < results.length; i++) {
+      const r = results[i];
+      if (!r) continue;
+      const { card, know } = r;
+      if (!countAsOne) {
+        ctx.stats.attempted++;
+        if (know) ctx.stats.firstTryOk++;
+      }
+      const idx = ctx.queue.findIndex(c => c.id === card.id);
+      if (idx === -1) continue;
+      const [item] = ctx.queue.splice(idx, 1);
+      if (!item) continue;
+      ctx.queue.unshift(item);
+      ctx.currentIsNew = SRS.isNew(item, ctx.algo);
+      await applyGrade(ctx, item, gradePayload(ctx.algo, know), {
+        skipAdvance: true,
+        quiet: true,
+        skipProgress: countAsOne,
+      });
     }
-    const idx = ctx.queue.findIndex(c => c.id === card.id);
-    if (idx === -1) continue;
-    const [item] = ctx.queue.splice(idx, 1);
-    if (!item) continue;
-    ctx.queue.unshift(item);
-    ctx.currentIsNew = SRS.isNew(item, ctx.algo);
-    await applyGrade(ctx, item, gradePayload(ctx.algo, know), {
-      skipAdvance: true,
-      quiet: true,
-      skipProgress: countAsOne,
-    });
+    if (countAsOne) {
+      const { answeredAdd, doneAdd } = comboMatchBatchProgress(results);
+      ctx.done += doneAdd;
+      ctx.answered += answeredAdd;
+      ctx.updateBar();
+    }
+  } catch (e) {
+    console.error('gradeMatchResults failed:', e);
+    toast(t('review.grade.saveFailed', { message: e instanceof Error ? e.message : String(e) }), 'error');
+  } finally {
+    ctx.grading = false;
   }
-  if (countAsOne) {
-    const { answeredAdd, doneAdd } = comboMatchBatchProgress(results);
-    ctx.done += doneAdd;
-    ctx.answered += answeredAdd;
-    ctx.updateBar();
-  }
-  ctx.grading = false;
   ctx.showNext(false);
 }

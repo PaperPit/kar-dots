@@ -1,12 +1,18 @@
 // Cloudflare Pages Function: Orpheus TTS через Groq.
 // POST { text, voice, groqApiKey? } → audio/wav
+//
+// Личность вызывающего (subject) даёт middleware, functions/api/_middleware.js;
+// он же держит лимиты. Здесь subject нужен только для логов.
 
 import { formatOrpheusError } from '../../js/lib/orpheus-tts.js';
+import { isTimeoutError, logUpstream, safeUpstreamMessage, timeoutMessage } from './lib/_errors.js';
 
 const ORPHEUS_MODEL = 'canopylabs/orpheus-v1-english';
 const MAX_CHARS = 200;
 const VOICES = new Set(['autumn', 'diana', 'hannah', 'austin', 'daniel', 'troy']);
 const GROQ_URL = 'https://api.groq.com/openai/v1/audio/speech';
+/** Синтез короткой фразы — держим в разумных рамках. */
+const TTS_TIMEOUT_MS = 60000;
 
 function cleanApiKey(raw) {
   const s = String(raw || '').trim();
@@ -25,7 +31,7 @@ function normalizeVoice(v) {
   return VOICES.has(id) ? id : 'hannah';
 }
 
-async function handler(req, _env) {
+async function handler(req, _env, subject = '') {
   if (req.method !== 'POST') return json({ error: 'bad-request', message: 'Ожидается POST' }, 405);
 
   let payload;
@@ -62,8 +68,13 @@ async function handler(req, _env) {
         voice,
         response_format: 'wav',
       }),
+      signal: AbortSignal.timeout(TTS_TIMEOUT_MS),
     });
   } catch (e) {
+    logUpstream('tts', e, { subject });
+    if (isTimeoutError(e)) {
+      return json({ error: 'timeout', message: timeoutMessage('Groq'), voice }, 504);
+    }
     return json({ error: 'network', message: 'Не удалось связаться с Groq' }, 502);
   }
 
@@ -74,7 +85,14 @@ async function handler(req, _env) {
     const code = /terms acceptance|accept the terms/i.test(raw)
       ? 'terms-required'
       : res.status === 429 ? 'quota' : res.status === 401 ? 'unauthorized' : 'tts-failed';
-    return json({ error: code, message: formatOrpheusError(raw), voice }, res.status >= 400 ? res.status : 502);
+    logUpstream('tts', raw, { status: res.status, code, subject });
+    // Наружу — только распознанный форматтером текст, не сырой ответ Groq.
+    const message = safeUpstreamMessage(
+      formatOrpheusError(raw),
+      raw,
+      `Orpheus недоступен (${res.status}) — попробуй позже`,
+    );
+    return json({ error: code, message, voice }, res.status >= 400 ? res.status : 502);
   }
 
   const wav = await res.arrayBuffer();
@@ -88,4 +106,4 @@ async function handler(req, _env) {
   });
 }
 
-export const onRequestPost = (ctx) => handler(ctx.request, ctx.env);
+export const onRequestPost = (ctx) => handler(ctx.request, ctx.env, ctx?.data?.subject || '');

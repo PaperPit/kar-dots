@@ -60,7 +60,7 @@ export async function renderReview(folderId: string | null, opts: ReviewOpts = {
   let queue;
   let dayLimitHit = false;
   if (cram) {
-    const limit = (cramLimit ?? 0) > 0 ? cramLimit : null;
+    const limit: number | null = (cramLimit ?? 0) > 0 ? (cramLimit as number) : null;
     queue = typeof store.getCramCards === 'function'
       ? await store.getCramCards(folderId, limit)
       : shuffle([...(await store.getFolderCards(folderId))]).slice(0, limit || undefined);

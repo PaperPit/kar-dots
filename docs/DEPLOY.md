@@ -79,9 +79,23 @@ supabase/migrations/0007_settings_rls.sql
 supabase/migrations/0008_review_log.sql
 supabase/migrations/0009_card_images_read_own.sql
 supabase/migrations/0010_boxes_update_with_check.sql
+supabase/migrations/0011_cards_synced_at.sql
+supabase/migrations/0012_card_images_private.sql
 ```
 
 Источник правды — только `supabase/migrations/` (монолитного dump-файла нет).
+
+⚠️ **Порядок 0011 и 0012 важен.**
+
+`0011_cards_synced_at.sql` добавляет серверную метку `cards.synced_at` — по ней
+работает дельта-синхронизация. Приложение проверяет версию схемы и требует
+минимум 12, но саму колонку переживает мягко: если её нет, синк откатывается на
+`updated_at` (клиентские часы) и просто чаще тянет лишнее.
+
+`0012_card_images_private.sql` закрывает бакет `card-images` (делает его
+приватным). Применяйте её **только после того, как на прод выехал клиент с
+подписанными ссылками** (`js/data/image-url.ts`). Если закрыть бакет раньше,
+картинки на старых вкладках перестанут открываться до перезагрузки.
 
 ### 3. Ключи в приложении
 

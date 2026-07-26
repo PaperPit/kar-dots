@@ -1,5 +1,5 @@
 import { initTheme } from './lib/theme.js';
-import { initMotionUi, animateBootSplashOut } from './lib/motion-ui.js';
+import { initMotionUi, animateBootSplashOut } from './ui/motion-lazy.js';
 import { initConfig, cloudConfigured, setSb, setStore, sb, cfg } from './core/state.js';
 import { toast } from './ui/ui.js';
 import { MiniSupabase } from './data/supabase.js';
@@ -11,12 +11,15 @@ import { initSpeechVoices } from './lib/web-speech-tts.js';
 import { initStudyKeyboardLock } from './lib/study-keyboard.js';
 import { initExtConnect } from './lib/ext-connect.js';
 import { applyUiLocale, t } from './lib/i18n.js';
+import { initGlobalErrors } from './ui/global-errors.js';
 
 function dismissBootSplash() {
   animateBootSplashOut(document.getElementById('bootSplash') as HTMLElement);
 }
 
 async function boot() {
+  // Первым делом — сетка безопасности: всё, что упадёт ниже, будет видно.
+  initGlobalErrors();
   initTheme();
   initMotionUi();
   await initConfig();

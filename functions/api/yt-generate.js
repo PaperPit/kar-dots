@@ -16,8 +16,12 @@ import {
 } from '../../js/lib/groq-generate.js';
 import { cleanGeminiApiKey, cleanGroqApiKey } from '../../js/lib/llm-api-keys.js';
 import { formatGeminiGenerateError, combineLlmErrors } from '../../js/lib/gemini-generate.js';
+import { isTimeoutError, logUpstream, safeUpstreamMessage, timeoutMessage } from './lib/_errors.js';
 
 export { cleanGroqApiKey as cleanApiKey } from '../../js/lib/llm-api-keys.js';
+
+/** Генерация — долгий запрос, но не бесконечный. */
+const LLM_TIMEOUT_MS = 60000;
 
 const DEFAULT_GEMINI_MODEL = 'gemini-flash-latest';
 const MAX_TRANSCRIPT_CHARS = 28000;
@@ -159,17 +163,24 @@ async function callGemini(apiKey, model, prompt, { thinking = false, schema = tr
   };
   if (schema) generationConfig.responseSchema = GEMINI_RESPONSE_SCHEMA;
   if (thinking) generationConfig.thinkingConfig = { thinkingBudget: 0 };
-  const res = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,
-    {
-      method: 'POST',
-      headers: { 'content-type': 'application/json', 'x-goog-api-key': apiKey },
-      body: JSON.stringify({
-        contents: [{ role: 'user', parts: [{ text: prompt }] }],
-        generationConfig,
-      }),
-    },
-  );
+  let res;
+  try {
+    res = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,
+      {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', 'x-goog-api-key': apiKey },
+        body: JSON.stringify({
+          contents: [{ role: 'user', parts: [{ text: prompt }] }],
+          generationConfig,
+        }),
+        signal: AbortSignal.timeout(LLM_TIMEOUT_MS),
+      },
+    );
+  } catch (e) {
+    logUpstream('gemini', e);
+    return { status: isTimeoutError(e) ? 504 : 502, body: null, timeout: isTimeoutError(e) };
+  }
   let body = null;
   try { body = await res.json(); } catch (e) { /* пусто */ }
   return { status: res.status, body };
@@ -189,35 +200,54 @@ async function runGemini(env, apiKey, prompt) {
   ];
   let lastStatus = 502;
   let lastRaw = '';
+  let timedOut = false;
   for (const opts of attempts) {
-    const { status, body } = await callGemini(apiKey, model, prompt, opts);
+    const { status, body, timeout } = await callGemini(apiKey, model, prompt, opts);
     if (status === 200) {
       const text = geminiText(body).trim();
       if (text) return { ok: true, text };
     }
     lastStatus = status;
+    timedOut = Boolean(timeout);
     lastRaw = body?.error?.message || body?.message || '';
-    if (status === 429 || status === 401 || status === 403) break;
+    if (timedOut || status === 429 || status === 401 || status === 403) break;
+  }
+  if (lastRaw) logUpstream('gemini', lastRaw, { status: lastStatus });
+  if (timedOut) {
+    return { ok: false, message: timeoutMessage('Gemini'), status: 504 };
   }
   return {
     ok: false,
-    message: formatGeminiGenerateError(lastRaw, lastStatus),
+    // Текст апстрима наружу не отдаём: форматтер либо распознал случай и дал
+    // свой русский текст, либо просто обрезал сырой ответ Gemini.
+    message: safeUpstreamMessage(
+      formatGeminiGenerateError(lastRaw, lastStatus),
+      lastRaw,
+      `Gemini недоступен (${lastStatus}) — попробуй ещё раз`,
+    ),
     status: lastStatus >= 400 ? lastStatus : 502,
   };
 }
 
 async function callGroq(apiKey, prompt, model) {
-  const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-    method: 'POST',
-    headers: { 'content-type': 'application/json', authorization: `Bearer ${apiKey}` },
-    body: JSON.stringify({
-      model,
-      temperature: 0.3,
-      max_tokens: 8192,
-      response_format: { type: 'json_object' },
-      messages: [{ role: 'user', content: prompt }],
-    }),
-  });
+  let res;
+  try {
+    res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', authorization: `Bearer ${apiKey}` },
+      body: JSON.stringify({
+        model,
+        temperature: 0.3,
+        max_tokens: 8192,
+        response_format: { type: 'json_object' },
+        messages: [{ role: 'user', content: prompt }],
+      }),
+      signal: AbortSignal.timeout(LLM_TIMEOUT_MS),
+    });
+  } catch (e) {
+    logUpstream('groq', e);
+    return { status: isTimeoutError(e) ? 504 : 502, body: null, model, timeout: isTimeoutError(e) };
+  }
   let body = null;
   try { body = await res.json(); } catch (e) { /* пусто */ }
   return { status: res.status, body, model };
@@ -232,19 +262,30 @@ async function callGroqWithFallback(env, apiKey, prompt) {
   const models = groqModelsToTry(env?.GROQ_MODEL);
   let lastStatus = 502;
   let lastMessage = '';
+  let timedOut = false;
   for (const model of models) {
-    const { status, body } = await callGroq(apiKey, prompt, model);
+    const { status, body, timeout } = await callGroq(apiKey, prompt, model);
     if (status === 200) {
       const text = groqText(body);
       if (text) return { ok: true, text, model };
     }
     lastStatus = status;
+    timedOut = Boolean(timeout);
     lastMessage = body?.error?.message || `Groq (${status})`;
-    if (!shouldTryNextGroqModel(status, lastMessage)) break;
+    if (timedOut || !shouldTryNextGroqModel(status, lastMessage)) break;
+  }
+  logUpstream('groq', lastMessage, { status: lastStatus });
+  if (timedOut) {
+    return { ok: false, message: timeoutMessage('Groq'), status: 504 };
   }
   return {
     ok: false,
-    message: formatGroqGenerateError(lastMessage),
+    // Сырой ответ Groq наружу не отдаём — только распознанный форматтером текст.
+    message: safeUpstreamMessage(
+      formatGroqGenerateError(lastMessage),
+      lastMessage,
+      `Groq недоступен (${lastStatus}) — попробуй ещё раз`,
+    ),
     status: lastStatus >= 400 ? lastStatus : 502,
   };
 }
@@ -382,7 +423,9 @@ export function resolveTimestamps(cards, segments) {
   });
 }
 
-async function handler(req, env) {
+// subject приходит из middleware (functions/api/_middleware.js) — для логики
+// генерации личность не нужна, но в логах она помогает разбирать всплески.
+async function handler(req, env, subject = '') {
   if (req.method !== 'POST') return err('bad-request', 'Ожидается POST', 405);
 
   let payload;
@@ -426,6 +469,7 @@ async function handler(req, env) {
       else {
         geminiErr = gem.message;
         if (gem.status === 429) lastErr = { code: 'quota', message: gem.message, status: 429 };
+        else if (gem.status === 504) lastErr = { code: 'timeout', message: gem.message, status: 504 };
       }
     }
     if (text === null && groqKey) {
@@ -433,11 +477,13 @@ async function handler(req, env) {
       if (groq.ok) text = groq.text;
       else if (groq.status === 429) {
         lastErr = { code: 'quota', message: combineLlmErrors(geminiErr, 'квота Groq исчерпана'), status: 429 };
+      } else if (groq.status === 504) {
+        lastErr = { code: 'timeout', message: groq.message, status: 504 };
       } else {
         lastErr = { code: 'llm-failed', message: combineLlmErrors(geminiErr, groq.message), status: 502 };
       }
     } else if (text === null && geminiErr) {
-      lastErr = { code: 'llm-failed', message: geminiErr, status: 502 };
+      lastErr = lastErr || { code: 'llm-failed', message: geminiErr, status: 502 };
     }
     if (text === null) {
       const e = lastErr || { code: 'llm-failed', message: 'Не удалось перевести предложения', status: 502 };
@@ -486,6 +532,8 @@ async function handler(req, env) {
       geminiErr = gem.message;
       if (gem.status === 429) {
         lastErr = { code: 'quota', message: gem.message, status: 429 };
+      } else if (gem.status === 504) {
+        lastErr = { code: 'timeout', message: gem.message, status: 504 };
       }
     }
   }
@@ -501,6 +549,8 @@ async function handler(req, env) {
         message: combineLlmErrors(geminiErr, 'квота Groq исчерпана'),
         status: 429,
       };
+    } else if (groq.status === 504) {
+      lastErr = { code: 'timeout', message: groq.message, status: 504 };
     } else {
       lastErr = {
         code: 'llm-failed',
@@ -509,11 +559,12 @@ async function handler(req, env) {
       };
     }
   } else if (text === null && geminiErr) {
-    lastErr = { code: 'llm-failed', message: geminiErr, status: 502 };
+    lastErr = lastErr || { code: 'llm-failed', message: geminiErr, status: 502 };
   }
 
   if (text === null) {
     const e = lastErr || { code: 'llm-failed', message: 'Не удалось сгенерировать карточки', status: 502 };
+    console.error('[yt-generate] генерация не удалась', { code: e.code, status: e.status, subject });
     return err(e.code, e.message, e.status);
   }
 
@@ -525,4 +576,4 @@ async function handler(req, env) {
   return json({ cards: resolveTimestamps(cards, segments) });
 }
 
-export const onRequestPost = (ctx) => handler(ctx.request, ctx.env);
+export const onRequestPost = (ctx) => handler(ctx.request, ctx.env, ctx?.data?.subject || '');

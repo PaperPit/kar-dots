@@ -1,8 +1,8 @@
 import { el, toast } from '../../../ui/ui.js';
 import { t } from '../../../lib/i18n.js';
-import type { LocalStore } from '../../../data/store-local.js';
+import type { AppStore } from '../../../core/state.js';
 
-export function buildDataGroup(store: LocalStore, route: () => void | Promise<void>) {
+export function buildDataGroup(store: AppStore, route: () => void | Promise<void>) {
   const importInput = el('input', { type: 'file', accept: '.json,application/json', class: 'hidden' }, []) as HTMLInputElement;
   importInput.addEventListener('change', async () => {
     if (!importInput.files?.length) return;

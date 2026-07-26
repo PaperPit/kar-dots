@@ -268,7 +268,7 @@ export class LocalStore {
 
   async countCards(folderId?: string | null) {
     if (folderId) {
-      if (this._cache.hasCount(folderId)) return this._cache.getCount(folderId);
+      if (this._cache.hasCount(folderId)) return this._cache.getCount(folderId) ?? 0;
       return cardCount(this.db, folderId);
     }
     return this._cache.countCards(undefined);
@@ -303,10 +303,10 @@ export class LocalStore {
   }
 
   /** Cram: shuffle ids из slim meta, hydrate только выбранных (с limit). */
-  async getCramCards(folderId: string | null, limit: number) {
+  async getCramCards(folderId: string | null, limit: number | null) {
     const source = filterByFolder(this._srsMeta, folderId);
     const picked = shuffle(source);
-    const slice = limit > 0 ? picked.slice(0, limit) : picked;
+    const slice = (limit ?? 0) > 0 ? picked.slice(0, limit as number) : picked;
     const byId = await getCardsByIds(this.db, this._cache, slice.map(c => c.id));
     return hydrateReviewQueue(slice, byId);
   }
@@ -459,7 +459,8 @@ export class LocalStore {
     invalidateDerivedCaches(this, { folderId });
   }
 
-  async uploadImage(file: Blob) {
+  /** Второй аргумент есть только ради общей сигнатуры с CloudStore — локально не нужен. */
+  async uploadImage(file: Blob, _opts: { side?: string; cardId?: string } = {}) {
     const blob = await resizeImage(file);
     return blobToDataURL(blob);
   }

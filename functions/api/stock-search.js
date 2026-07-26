@@ -1,7 +1,11 @@
 // Cloudflare Pages Function: поиск стоковых фото/GIF.
 // POST { q, type, page, pageSize, pixabayApiKey?, giphyApiKey? }
+//
+// Личность вызывающего (subject) и лимиты — в functions/api/_middleware.js.
+// Запросы к провайдерам идут через ./lib/_stock.js: там есть таймауты, а текст
+// ошибки апстрима наружу не отдаётся (уходит в console.error).
 
-import { searchGiphy, searchPixabay } from '../../js/lib/stock-media-providers.js';
+import { searchGiphy, searchPixabay } from './lib/_stock.js';
 
 function json(body, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -23,7 +27,7 @@ function cleanGiphy(raw) {
   return /^[A-Za-z0-9]{16,128}$/.test(s) ? s : '';
 }
 
-async function handler(req, _env) {
+async function handler(req, _env, subject = '') {
   if (req.method !== 'POST') return json({ error: 'bad-request', message: 'Ожидается POST' }, 405);
 
   let payload;
@@ -31,7 +35,7 @@ async function handler(req, _env) {
     return json({ error: 'bad-request', message: 'Неверный JSON' }, 400);
   }
 
-  const q = String(payload.q || '').trim();
+  const q = String(payload.q || '').trim().slice(0, 200);
   if (!q) return json({ error: 'bad-request', message: 'Пустой запрос' }, 400);
 
   const type = String(payload.type || 'photo');
@@ -58,8 +62,12 @@ async function handler(req, _env) {
       needsKeys: true,
     });
   } catch (e) {
-    return json({ error: 'upstream', message: String(e.message || e) }, 502);
+    // e.message здесь уже наш русский текст (см. lib/_stock.js); сырой ответ
+    // провайдера туда не попадает — он ушёл в console.error.
+    if (e?.code) return json({ error: e.code, message: e.message }, e.status || 502);
+    console.error('[stock-search] неожиданная ошибка', String(e?.message || e), { subject });
+    return json({ error: 'upstream', message: 'Поиск временно недоступен — попробуй позже' }, 502);
   }
 }
 
-export const onRequestPost = (ctx) => handler(ctx.request, ctx.env);
+export const onRequestPost = (ctx) => handler(ctx.request, ctx.env, ctx?.data?.subject || '');

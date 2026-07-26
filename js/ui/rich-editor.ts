@@ -1,4 +1,4 @@
-import { el, toast, sanitizeRich } from "./ui.js"
+import { el, toast, sanitizeRich, escapeHtml } from "./ui.js"
 import { ICONS } from "./constants.js"
 import { svgNode } from "./helpers.js"
 
@@ -26,6 +26,18 @@ interface RichEditor {
   isEmpty: () => boolean
   focus: () => void
   destroy: () => void
+}
+
+/**
+ * Текст из буфера обмена → безопасный HTML для вставки.
+ * Вставляем только простой текст: переводы строк становятся <br>, всё
+ * остальное экранируется. Так вставка из Word или с веб-страницы не тащит
+ * в карточку чужую разметку — оформление даёт только панель редактора.
+ */
+export function pastePlainHtml(text: string): string {
+  const normalized = String(text || "").replace(/\r\n?/g, "\n")
+  if (!normalized) return ""
+  return escapeHtml(normalized).replace(/\n/g, "<br>")
 }
 
 export function richEditor(opts: RichEditorOpts): RichEditor {
@@ -123,6 +135,32 @@ export function richEditor(opts: RichEditorOpts): RichEditor {
     updateToolbarState()
   })
   editable.addEventListener("blur", saveSelection)
+
+  // Вставка из буфера — только простым текстом (см. pastePlainHtml).
+  editable.addEventListener("paste", (e: ClipboardEvent) => {
+    const data = e.clipboardData
+    if (!data) return
+    e.preventDefault()
+    const text = data.getData("text/plain")
+    const html = pastePlainHtml(text)
+    if (!html) return
+    editable.focus()
+    let inserted = false
+    try {
+      inserted = document.execCommand("insertHTML", false, html)
+    } catch (err) {
+      inserted = false
+    }
+    if (!inserted) {
+      try {
+        document.execCommand("insertText", false, text)
+      } catch (err) {
+        /* браузер без execCommand — вставка молча пропускается */
+      }
+    }
+    saveSelection()
+    updateToolbarState()
+  })
 
   // Ctrl/Cmd+клик по ссылке (например, таймкоду YouTube) открывает её,
   // не мешая обычному клику ставить курсор для редактирования текста.
@@ -251,9 +289,11 @@ export function richEditor(opts: RichEditorOpts): RichEditor {
     svgNode(ICONS.link)
   )
 
+  // Клик мимо меню подсветки закрывает его. Клики по самой кнопке и по
+  // образцам цвета до document не доходят — там stopPropagation().
   const onDocClick = (e: Event) => {
     if (!hlMenuOpen) return
-    if (!(e.target instanceof Node) || !highlightWrap.contains(e.target)) return
+    if (e.target instanceof Node && highlightWrap.contains(e.target)) return
     closeHlMenu()
   }
   document.addEventListener("click", onDocClick)

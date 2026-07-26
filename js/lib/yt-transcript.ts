@@ -2,7 +2,7 @@
 
 import { parseYouTubeId, buildCardDescription, filterTranscriptSegments, type YtCandidate } from "./youtube-import.js"
 import { withApiKeys } from "./youtube-import-settings.js"
-import { getYtJobUserId } from "./yt-job-owner.js"
+import { apiHeaders, apiErrorMessage } from "./api-client.js"
 import { getCachedTranscript, setCachedTranscript } from "../data/yt-transcript-cache.js"
 import type { YtVideo, YtTranscript } from "../data/yt-transcript-cache.js"
 import { parseCaptionFile } from "./yt-caption-parsers.js"
@@ -23,10 +23,13 @@ interface ApiJsonResponse {
   [key: string]: unknown
 }
 
-async function apiJson<T = ApiJsonResponse>(url: string, opts?: RequestInit): Promise<T> {
+async function apiJson<T = ApiJsonResponse>(url: string, opts: RequestInit = {}): Promise<T> {
   let res: Response
   try {
-    res = await fetch(url, opts)
+    // Личность запроса обязательна: без неё бэкенд считает нас чужим анонимом
+    // (свои же KV-задачи перестают находиться, а лимиты делятся на весь IP).
+    const headers = await apiHeaders((opts.headers as Record<string, string>) || {})
+    res = await fetch(url, Object.assign({}, opts, { headers }))
   } catch {
     throw new Error("Нет соединения с сервером")
   }
@@ -37,7 +40,9 @@ async function apiJson<T = ApiJsonResponse>(url: string, opts?: RequestInit): Pr
     /* не JSON */
   }
   if (!res.ok || !data || data.error) {
-    throw new Error((data && data.message) || "Ошибка сервера (" + res.status + ")")
+    // 401 «сессия истекла», 429 «слишком много запросов» и т.п. — сообщение
+    // сервера уже по-русски, поэтому берём его, а по статусу только дополняем.
+    throw new Error(apiErrorMessage(res.status, data && data.message))
   }
   return data as T
 }
@@ -68,11 +73,12 @@ export async function fetchTranscriptFromUrl(
   }
 
   onStatus("Получаю данные видео…")
-  const userId = getYtJobUserId()
+  // userId в теле больше не шлём: сервер выводит владельца задачи только из
+  // проверенного токена или X-Client-Id (см. functions/api/lib/_subject.js).
   let data = await apiJson("/api/yt-video", {
     method: "POST",
     headers: { "content-type": "application/json" },
-    body: JSON.stringify(withApiKeys(settings, { url, userId }))
+    body: JSON.stringify(withApiKeys(settings, { url }))
   })
 
   if (data.pending) {
@@ -83,9 +89,7 @@ export async function fetchTranscriptFromUrl(
       if (Date.now() > deadline)
         throw new Error("Расшифровка заняла слишком много времени — попробуй позже")
       await new Promise((r) => setTimeout(r, POLL_MS))
-      const q =
-        "jobId=" + encodeURIComponent(String(data.jobId)) +
-        "&userId=" + encodeURIComponent(userId)
+      const q = "jobId=" + encodeURIComponent(String(data.jobId))
       data = await apiJson("/api/yt-video?" + q)
     }
   }

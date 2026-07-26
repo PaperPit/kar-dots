@@ -32,14 +32,37 @@ export async function folderCardStats(store: CountStore, folder: Folder, budget:
   return { n, due: dueCount + Math.min(newCount, budget) }
 }
 
+/**
+ * Плитка — не <button> (внутри заголовок и чипы, вид задан CSS), поэтому роль
+ * и клавиатуру даём вручную: Enter/Пробел работают как клик, Tab доводит фокус.
+ */
+function activateOnKey<T extends HTMLElement>(node: T, run: () => void): T {
+  node.addEventListener("keydown", (e: KeyboardEvent) => {
+    if (e.key !== "Enter" && e.key !== " ") return
+    e.preventDefault()
+    run()
+  })
+  return node
+}
+
 export function folderCardEl(folder: Folder, stats: { n: number; due: number }, i: number) {
   const { n, due } = stats
-  return el(
+  const open = () => nav("#folder/" + folder.id)
+  const label = [
+    folder.name,
+    folder.pack_id ? "лексический пак" : "папка",
+    n + " " + plural(n, "карточка", "карточки", "карточек"),
+    due > 0 ? "к повторению " + due : null
+  ].filter(Boolean).join(", ")
+  const node = el(
     "div",
     {
       class: "folder-card stagger-in",
       style: { "--stagger-delay": i * 40 + "ms" },
-      onclick: () => nav("#folder/" + folder.id)
+      role: "button",
+      tabindex: "0",
+      "aria-label": label,
+      onclick: open
     },
     [
       folderSwatch(folder),
@@ -49,6 +72,7 @@ export function folderCardEl(folder: Folder, stats: { n: number; due: number }, 
       due > 0 ? el("div", { class: "due-chip" }, String(due)) : null
     ]
   )
+  return activateOnKey(node, open)
 }
 
 export function boxCardEl(box: Box, stats: { folders: number; cards: number; due: number }, i: number) {
@@ -58,12 +82,19 @@ export function boxCardEl(box: Box, stats: { folders: number; cards: number; due
     folders + " " + plural(folders, "папка", "папки", "папок"),
     cards + " " + plural(cards, "карточка", "карточки", "карточек")
   ]
-  return el(
+  const open = () => nav("#box/" + box.id)
+  const label = [box.name, ...metaParts.slice(1), due > 0 ? "к повторению " + due : null]
+    .filter(Boolean)
+    .join(", ")
+  const node = el(
     "div",
     {
       class: "box-card stagger-in",
       style: { "--stagger-delay": i * 40 + "ms" },
-      onclick: () => nav("#box/" + box.id)
+      role: "button",
+      tabindex: "0",
+      "aria-label": "Коробка " + label,
+      onclick: open
     },
     [
       boxSwatch(box),
@@ -72,4 +103,5 @@ export function boxCardEl(box: Box, stats: { folders: number; cards: number; due
       due > 0 ? el("div", { class: "due-chip" }, String(due)) : null
     ]
   )
+  return activateOnKey(node, open)
 }

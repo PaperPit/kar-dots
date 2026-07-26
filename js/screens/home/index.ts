@@ -41,6 +41,7 @@ export async function renderHome() {
 
   for (let i = 0; i < store.boxes.length; i++) {
     const b = store.boxes[i];
+    if (!b) continue;
     const stats = boxFolderStatsFromHome(homeStats, store.folders, b.id, budget);
     const card = boxCardEl(b, stats, i);
     attachBoxDropTarget(card, b.id, async (folderId, boxId) => {

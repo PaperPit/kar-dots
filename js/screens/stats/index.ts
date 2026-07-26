@@ -1,6 +1,6 @@
 import { store } from '../../core/state.js';
 import { el } from '../../ui/ui.js';
-import { shell } from '../../ui/shell.js';
+import { shell, offlineBanner } from '../../ui/shell.js';
 import { initActivity, loadActivity, calcVisitStreak } from '../../lib/activity.js';
 import { initReviewLog, getAllReviews } from '../../lib/review-log.js';
 import {
@@ -119,6 +119,8 @@ export async function renderStats(): Promise<void> {
   );
 
   const content = el('div', null, [
+    // Экран читает журнал из облака — предупреждение об офлайне здесь нужно.
+    offlineBanner(),
     el('div', { class: 'page-head' }, [
       el('h2', { class: 'page-title' }, 'Статистика'),
     ]),

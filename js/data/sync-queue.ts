@@ -156,6 +156,37 @@ export class SyncQueue {
     }
   }
 
+  /**
+   * Дописать cardId в отложённую загрузку картинки.
+   *
+   * Картинку роняют в редактор до того, как карточка создана, поэтому в очередь
+   * она попадает без привязки. Здесь элемент удаляется и кладётся заново — с
+   * новым created_at, то есть уже ПОСЛЕ createCard/updateCard в порядке flush.
+   * Иначе offline-загрузка ушла бы в облако раньше самой карточки, и патч
+   * front_img/back_img перезаписался бы старым (data-URL) значением.
+   *
+   * @returns true, если нашлась и была привязана незакрытая загрузка.
+   */
+  async bindPendingUpload(side: string, cardId: string): Promise<boolean> {
+    if (!side || !cardId) return false
+    const items = await getAll<QueueItem>(this.requireDB(), QUEUE_STORE)
+    const pending = items
+      .filter((it) => {
+        if (it.op !== "uploadImage") return false
+        const p = (it.payload || {}) as { side?: string; cardId?: string }
+        return p.side === side && !p.cardId
+      })
+      .sort((a, b) => (a.created_at || 0) - (b.created_at || 0))
+    const item = pending[0]
+    if (!item || item.id === undefined) return false
+    await txAll(this.requireDB(), QUEUE_STORE, "readwrite", (s) => s.delete(item.id as number))
+    await this.enqueue({
+      op: item.op,
+      payload: Object.assign({}, item.payload as Record<string, unknown>, { cardId })
+    })
+    return true
+  }
+
   async retryDeadLetter(id: number): Promise<boolean> {
     const letter = await getOne<DeadLetter>(this.requireDB(), DEAD_LETTER_STORE, id)
     if (!letter) return false
@@ -219,6 +250,77 @@ export async function mirrorPutMany(db: IDBDatabase, storeName: string, rows: un
   await txAll(db, storeName, "readwrite", (s) => {
     for (const row of rows) s.put(row)
   })
+}
+
+/**
+ * Слияние частичной строки в уже лежащую в зеркале полную.
+ *
+ * Дельта-выборки тянут только проекцию (SRS + пара полей карточки). Если такую
+ * строку просто положить через put, из зеркала пропадут поля, которых в
+ * проекции нет — офлайн карточка окажется без описания и картинок.
+ * `undefined` в incoming значит «поля не было в проекции», null — «поле реально
+ * очистили на сервере», поэтому null сохраняем.
+ */
+export function mergeMirrorRow<T extends Record<string, unknown>>(
+  existing: T | null | undefined,
+  incoming: T
+): T {
+  if (!existing) return incoming
+  const merged = Object.assign({}, existing) as Record<string, unknown>
+  for (const key of Object.keys(incoming)) {
+    const value = (incoming as Record<string, unknown>)[key]
+    if (value === undefined) continue
+    merged[key] = value
+  }
+  return merged as T
+}
+
+/** Прочитать несколько строк по ключам одной транзакцией (порядок = порядок ids). */
+export function mirrorGetMany<T = unknown>(
+  db: IDBDatabase,
+  storeName: string,
+  ids: IDBValidKey[]
+): Promise<(T | undefined)[]> {
+  if (!ids?.length) return Promise.resolve([])
+  return new Promise<(T | undefined)[]>((resolve, reject) => {
+    const t = db.transaction(storeName)
+    const s = t.objectStore(storeName)
+    const out: (T | undefined)[] = new Array(ids.length)
+    let left = ids.length
+    let failed = false
+    ids.forEach((id, i) => {
+      const req = s.get(id)
+      req.onsuccess = () => {
+        out[i] = req.result
+        if (--left === 0 && !failed) resolve(out)
+      }
+      req.onerror = () => {
+        if (!failed) {
+          failed = true
+          reject(req.error)
+        }
+      }
+    })
+  })
+}
+
+/**
+ * Положить строки в зеркало, доливая недостающие поля из уже сохранённых.
+ * Читаем и пишем разными транзакциями осознанно: читать и писать в одной
+ * readwrite-транзакции здесь нечем — все ключи известны заранее, а гонок с
+ * другими писателями в одном табе нет.
+ */
+export async function mirrorMergeMany<T extends Record<string, unknown>>(
+  db: IDBDatabase,
+  storeName: string,
+  rows: T[],
+  keyPath = "id"
+) {
+  if (!rows?.length) return
+  const ids = rows.map((r) => r[keyPath] as IDBValidKey)
+  const existing = await mirrorGetMany<T>(db, storeName, ids)
+  const merged = rows.map((row, i) => mergeMirrorRow(existing[i], row))
+  await mirrorPutMany(db, storeName, merged)
 }
 
 export async function mirrorDelete(db: IDBDatabase, storeName: string, id: IDBValidKey) {

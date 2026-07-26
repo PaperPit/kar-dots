@@ -55,7 +55,7 @@ export function openCardPreview(ctx: PreviewCtx) {
 
   const card = buildPreviewCard(ctx);
   const promptSide = previewPromptSide();
-  const { box, flip, grades } = createFlipCard(card, promptSide, {});
+  const { box, flip, grades, destroy } = createFlipCard(card, promptSide, {});
 
   grades.hidden = true;
   grades.replaceChildren();
@@ -71,7 +71,7 @@ export function openCardPreview(ctx: PreviewCtx) {
     el('div', { class: 'modal-actions modal-actions-center' }, [
       el('button', { type: 'button', class: 'btn primary', onclick: () => pm.close() }, 'Закрыть'),
     ]),
-  ]), { wide: true });
+  ]), { wide: true, onClose: destroy });
 
   // После открытия модалки высота известна — подогнать фото под окно просмотра.
   requestAnimationFrame(() => {

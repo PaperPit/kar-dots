@@ -31,6 +31,24 @@ export function haptic(ms: number): void {
   } catch (e) {}
 }
 
+/**
+ * Откладывает вызов fn до паузы в ms миллисекунд — каждый новый вызов
+ * сбрасывает таймер. Для ввода в поиске: фильтруем не на каждой букве.
+ */
+export function debounce<A extends unknown[]>(
+  fn: (...args: A) => void,
+  ms: number
+): (...args: A) => void {
+  let t: ReturnType<typeof setTimeout> | null = null
+  return (...args: A) => {
+    if (t) clearTimeout(t)
+    t = setTimeout(() => {
+      t = null
+      fn(...args)
+    }, ms)
+  }
+}
+
 const prefersReducedMotion = () =>
   window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches
 

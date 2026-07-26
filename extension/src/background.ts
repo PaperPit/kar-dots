@@ -1,8 +1,28 @@
 import { setAuth, setVideo } from "./lib/storage.js"
 import type { ExtMessage } from "./lib/constants.js"
 
-chrome.runtime.onInstalled.addListener(() => {
+/** Persist across SW restarts — do not rely only on onInstalled. */
+function enableOpenOnActionClick() {
   chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true }).catch(() => {})
+}
+
+enableOpenOnActionClick()
+
+chrome.runtime.onInstalled.addListener(() => {
+  enableOpenOnActionClick()
+})
+
+chrome.runtime.onStartup.addListener(() => {
+  enableOpenOnActionClick()
+})
+
+/**
+ * Fallback when openPanelOnActionClick was never applied (rare SW race).
+ * Does not fire when the side panel opens via setPanelBehavior.
+ */
+chrome.action.onClicked.addListener((tab) => {
+  if (tab.id == null) return
+  void chrome.sidePanel.open({ tabId: tab.id }).catch(() => {})
 })
 
 chrome.runtime.onMessage.addListener((msg: ExtMessage, sender, sendResponse) => {

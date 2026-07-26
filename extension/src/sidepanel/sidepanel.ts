@@ -24,7 +24,26 @@ import {
 import { hasSupadataApiKey, hasGenerateApiKey } from "../../../js/lib/youtube-import-settings.js"
 import type { Settings } from "../../../js/data/types.js"
 
-const root = document.getElementById("app")!
+const root = document.getElementById("app")
+if (!root) {
+  throw new Error("КАР-точки: #app not found in sidepanel HTML")
+}
+
+function showFatal(err: unknown) {
+  const msg = err instanceof Error ? err.message : String(err)
+  root.replaceChildren(
+    brand(),
+    el("div", { class: "card" }, [
+      el("p", { class: "error" }, "Не удалось открыть панель"),
+      el("p", null, msg),
+      el(
+        "p",
+        { class: "muted" },
+        "chrome://extensions → КАР-точки → Errors → Reload. Папка Load unpacked: extension/ (после npm run ext:build)."
+      )
+    ])
+  )
+}
 
 interface PreviewItem {
   cand: YtCandidate
@@ -92,19 +111,19 @@ async function refreshVideoFromStorage() {
 }
 
 async function boot() {
-  const prefs = await getPrefs()
-  mode = prefs.mode
-  mergeCues = prefs.mergeCues
-  folderId = prefs.folderId
-  await refreshVideoFromStorage()
-
-  const auth = await getAuth()
-  if (!auth) {
-    renderAuth()
-    return
-  }
-
   try {
+    const prefs = await getPrefs()
+    mode = prefs.mode
+    mergeCues = prefs.mergeCues
+    folderId = prefs.folderId
+    await refreshVideoFromStorage()
+
+    const auth = await getAuth()
+    if (!auth) {
+      renderAuth()
+      return
+    }
+
     const sb = await ExtSupabase.fromStorage()
     if (!sb || !(await sb.ensureFresh())) {
       await setAuth(null)
@@ -121,7 +140,7 @@ async function boot() {
     }
     renderForm()
   } catch (e) {
-    renderAuth(e instanceof Error ? e.message : String(e))
+    showFatal(e)
   }
 }
 
@@ -488,7 +507,7 @@ async function saveSelected(
 }
 
 chrome.storage.onChanged.addListener((changes, area) => {
-  if (area === "local" && changes.kar_ext_auth) void boot()
+  if (area === "local" && changes.kar_ext_auth) void boot().catch(showFatal)
   if (area === "session" && changes.kar_ext_video) {
     const v = changes.kar_ext_video.newValue as { url?: string; title?: string } | undefined
     if (v?.url) {
@@ -502,4 +521,4 @@ chrome.storage.onChanged.addListener((changes, area) => {
   }
 })
 
-void boot()
+void boot().catch(showFatal)

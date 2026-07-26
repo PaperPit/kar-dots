@@ -38,6 +38,15 @@ body {
   margin: 0 auto;
 }
 
+.boot-fallback .card {
+  margin-top: 12px;
+}
+
+.boot-fallback code {
+  font-size: 12px;
+  word-break: break-all;
+}
+
 .brand {
   display: flex;
   align-items: center;

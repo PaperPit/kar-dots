@@ -27,12 +27,10 @@ import {
 import { hasSupadataApiKey, hasGenerateApiKey } from "../../../js/lib/youtube-import-settings.js"
 import type { Settings } from "../../../js/data/types.js"
 
-// Без non-null assertion: если #app в разметке нет, лучше явная ошибка с понятным
-// текстом — её поймает error-guard и нарисует прямо в окне, — чем TypeError
-// «replaceChildren of null» где-то в середине первого рендера.
-const rootEl = document.getElementById("app")
-if (!rootEl) throw new Error("КАР-точки: в разметке окна нет #app")
-const root: HTMLElement = rootEl
+// #app всегда есть в index.html (там же лежит статическая заглушка), а если
+// разметку однажды сломают — TypeError поймает error-guard и нарисует текст
+// прямо в окне, поэтому отдельная проверка здесь ничего не добавляет.
+const root = document.getElementById("app")!
 
 // Ошибка вне boot() (обработчик кнопки, слушатель storage) тоже не должна
 // оставлять пользователя один на один с пустой панелью.

@@ -48,12 +48,12 @@ js/**/*.js
 !js/config.example.js
 *.tsbuildinfo
 
-# Прод-бандл (esbuild -> dist/)
+# Прод-бандл (esbuild -> dist/). Только корень репо —
+# extension/dist/*.js коммитим для Chrome «Load unpacked» без локальной сборки.
 /dist/
 
-# Сборка Chrome-расширения: генерируется из extension/src командой npm run ext:build.
-# Для «load unpacked» соберите локально — в git сборочный вывод не хранится.
-extension/dist/
+# Sourcemaps сборки Chrome-расширения
+extension/dist/*.map
 
 # Кэш и артефакты Python-скриптов (scripts/*.py)
 __pycache__/

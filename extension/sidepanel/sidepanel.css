@@ -47,6 +47,14 @@ body {
   margin: 0 auto;
 }
 
+/* Статическая заглушка из index.html: её снимает src/sidepanel/error-guard.ts,
+   так что видна она только когда скрипт вообще не загрузился. Команды внутри
+   длинные, а ширина попапа фиксированная — поэтому перенос по буквам. */
+#kar-boot-fallback code {
+  font-size: 12px;
+  word-break: break-all;
+}
+
 .brand {
   display: flex;
   align-items: center;

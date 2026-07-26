@@ -8,14 +8,22 @@
 ## Установка
 
 ```bash
-npm install
-npm run ext:build
 # Chrome → chrome://extensions → включить «Режим разработчика»
 #        → «Загрузить распакованное расширение» → выбрать папку extension/
 ```
 
-`extension/dist/` не хранится в git — без `npm run ext:build` Chrome покажет
-«Не удалось загрузить манифест», потому что файлов из `manifest.json` ещё нет.
+Собранный `extension/dist/*.js` лежит в git, поэтому после `git clone` или
+`git pull` расширение грузится сразу, без сборки. Sourcemaps (`*.map`) не
+хранятся — они нужны только при отладке локальной сборки.
+
+Меняли что-то в `extension/src/` — пересоберите и закоммитьте `dist` вместе с
+исходником, иначе Chrome продолжит выполнять старый бандл:
+
+```bash
+npm install
+npm run ext:build
+# затем chrome://extensions → «Обновить» у КАР-точек
+```
 
 ## Как пользоваться
 

@@ -7,7 +7,26 @@
     <link rel="stylesheet" href="sidepanel.css" />
   </head>
   <body>
-    <div id="app" class="app"></div>
+    <div id="app" class="app">
+      <div class="boot-fallback" id="bootFallback">
+        <div class="brand">
+          <div class="brand-mark">К</div>
+          <div>
+            <h1>КАР-точки</h1>
+            <p>Карточки из YouTube</p>
+          </div>
+        </div>
+        <div class="card">
+          <p>Загрузка панели…</p>
+          <p class="muted">
+            Если экран так и остаётся пустым: откройте
+            <code>chrome://extensions</code> → КАР-точки → Errors, нажмите Reload.
+            Load unpacked должен указывать на папку <code>extension/</code>
+            после <code>npm run ext:build</code>.
+          </p>
+        </div>
+      </div>
+    </div>
     <script type="module" src="../dist/sidepanel.js"></script>
   </body>
 </html>

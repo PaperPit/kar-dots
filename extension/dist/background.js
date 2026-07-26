@@ -18,40 +18,9 @@ async function setVideo(video) {
 }
 
 // src/background.ts
-function enableOpenOnActionClick() {
-  chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true }).catch(() => {
-  });
-}
-enableOpenOnActionClick();
-chrome.runtime.onInstalled.addListener(() => {
-  enableOpenOnActionClick();
-});
-chrome.runtime.onStartup.addListener(() => {
-  enableOpenOnActionClick();
-});
-chrome.action.onClicked.addListener((tab) => {
-  if (tab.id == null) return;
-  void chrome.sidePanel.open({ tabId: tab.id }).catch(() => {
-  });
-});
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   void (async () => {
     try {
-      if (msg.type === "OPEN_SIDEPANEL") {
-        const tabId = sender.tab?.id;
-        if (msg.url) {
-          await setVideo({
-            url: msg.url,
-            title: msg.title,
-            tabId
-          });
-        }
-        if (tabId != null) {
-          await chrome.sidePanel.open({ tabId });
-        }
-        sendResponse({ ok: true });
-        return;
-      }
       if (msg.type === "SET_VIDEO") {
         await setVideo({
           url: msg.url,

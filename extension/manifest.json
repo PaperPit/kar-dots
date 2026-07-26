@@ -2,7 +2,8 @@
   "manifest_version": 3,
   "name": "КАР-точки — YouTube",
   "description": "Создавай карточки из YouTube-роликов прямо на странице видео.",
-  "version": "1.0.0",
+  "version": "1.0.1",
+  "minimum_chrome_version": "120",
   "icons": {
     "48": "icons/icon-48.png",
     "128": "icons/icon-128.png",
@@ -10,6 +11,7 @@
   },
   "action": {
     "default_title": "КАР-точки",
+    "default_popup": "sidepanel/index.html",
     "default_icon": {
       "48": "icons/icon-48.png",
       "128": "icons/icon-128.png"
@@ -19,10 +21,7 @@
     "service_worker": "dist/background.js",
     "type": "module"
   },
-  "side_panel": {
-    "default_path": "sidepanel/index.html"
-  },
-  "permissions": ["sidePanel", "storage", "tabs"],
+  "permissions": ["storage", "tabs"],
   "host_permissions": [
     "https://www.youtube.com/*",
     "https://youtube.com/*",
@@ -33,7 +32,6 @@
     {
       "matches": ["https://www.youtube.com/*", "https://youtube.com/*"],
       "js": ["dist/content-youtube.js"],
-      "css": ["content-youtube.css"],
       "run_at": "document_idle"
     },
     {

@@ -1,6 +1,7 @@
 import { APP_ORIGIN } from "./constants.js"
 import { withApiKeys } from "../../../js/lib/youtube-import-settings.js"
 import { getExtYtJobUserId } from "./yt-job-owner.js"
+import { getAuth } from "./storage.js"
 import {
   parseYouTubeId,
   filterTranscriptSegments,
@@ -36,13 +37,64 @@ interface ApiJsonResponse {
   [k: string]: unknown
 }
 
-async function apiJson<T = ApiJsonResponse>(path: string, opts?: RequestInit): Promise<T> {
+/**
+ * Заголовки личности для /api/*.
+ *
+ * Бэкенд (functions/api/_middleware.js) выводит субъекта запроса только из
+ * проверенного access-token'а Supabase либо из пары IP + X-Client-Id, а userId
+ * в теле игнорирует. Без этих заголовков расширение сваливалось в общий
+ * анонимный бюджет лимитов вместе со всеми за тем же NAT и получало 429 —
+ * а до правки любой сбой показывался как «Нет соединения с сервером».
+ *
+ * X-Client-Id — намеренно тот же id, что и владелец YouTube-задачи
+ * (getExtYtJobUserId), иначе субъект разъедется и опрос задачи её не найдёт.
+ */
+async function apiHeaders(extra: Record<string, string> = {}): Promise<Record<string, string>> {
+  const headers: Record<string, string> = { ...extra, "X-Client-Id": await getExtYtJobUserId() }
+  try {
+    const auth = await getAuth()
+    const token = auth?.session?.access_token
+    if (token) headers["Authorization"] = "Bearer " + token
+  } catch {
+    /* нет сессии — работаем анонимно, это допустимо */
+  }
+  return headers
+}
+
+/** Человеческий текст по статусу — сообщение сервера всегда в приоритете. */
+function apiErrorMessage(status: number, serverMessage?: unknown): string {
+  const msg = String(serverMessage || "").trim()
+  if (msg) return msg
+  if (status === 401) return "Сессия истекла — подключи аккаунт заново"
+  if (status === 413) return "Слишком большой запрос — выбери ролик покороче"
+  if (status === 429) return "Слишком много запросов — попробуй через несколько минут"
+  if (status === 503) return "Сервер КАР-точки временно не отвечает — попробуй позже"
+  if (status >= 500) return "Ошибка на сервере КАР-точки — попробуй позже"
+  return "Ошибка сервера (" + status + ")"
+}
+
+async function apiJson<T = ApiJsonResponse>(path: string, opts: RequestInit = {}): Promise<T> {
   let res: Response
   try {
-    res = await fetch(APP_ORIGIN + path, opts)
-  } catch {
-    throw new Error("Нет соединения с сервером КАР-точки")
+    res = await fetch(APP_ORIGIN + path, {
+      ...opts,
+      headers: await apiHeaders(opts.headers as Record<string, string> | undefined)
+    })
+  } catch (e) {
+    // Раньше здесь была одна фраза на все случаи, и по ней нельзя было понять,
+    // что чинить. Разделяем то, что пользователь может исправить сам, и всё
+    // остальное — с текстом реальной причины.
+    if (typeof navigator !== "undefined" && navigator.onLine === false) {
+      throw new Error("Нет интернета — проверь соединение и попробуй снова", { cause: e })
+    }
+    const reason = e instanceof Error ? e.message : String(e)
+    throw new Error(
+      `Не удалось достучаться до ${APP_ORIGIN} (${reason}). ` +
+        "Проверь интернет; если он есть — запрос мог заблокировать VPN, антивирус или блокировщик рекламы.",
+      { cause: e }
+    )
   }
+
   let data: ApiJsonResponse | null = null
   try {
     data = await res.json()
@@ -50,7 +102,7 @@ async function apiJson<T = ApiJsonResponse>(path: string, opts?: RequestInit): P
     /* не JSON */
   }
   if (!res.ok || !data || data.error) {
-    throw new Error((data && data.message) || "Ошибка сервера (" + res.status + ")")
+    throw new Error(apiErrorMessage(res.status, data?.message))
   }
   return data as T
 }
@@ -106,7 +158,21 @@ export function prepareTranscriptForMode(
 ): YtTranscript {
   if (mode !== "sentences") return transcript
   let segments = transcript?.segments || []
-  if (mergeCues) segments = mergeCaptionSegments(segments)
+  if (mergeCues) {
+    // Сервер отдаёт сегменты с необязательными полями, а mergeCaptionSegments
+    // ждёт заполненные t/text и допускает end: null. Приводим типы на границе
+    // явно, а не через as: пустой text здесь ожидаем и безопасен.
+    const normalized = segments.map((s) => ({
+      t: Number(s?.t) || 0,
+      text: String(s?.text ?? ""),
+      end: typeof s?.end === "number" ? s.end : null
+    }))
+    segments = mergeCaptionSegments(normalized).map((s) => ({
+      t: s.t,
+      text: s.text,
+      end: s.end ?? undefined
+    }))
+  }
   segments = filterTranscriptSegments(segments, { minWords: 3, dedupe: true })
   if (!segments.length) {
     throw new Error("После фильтрации не осталось предложений — попробуй другие субтитры")

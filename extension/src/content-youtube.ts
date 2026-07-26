@@ -1,6 +1,7 @@
-/** FAB на YouTube + обновление URL при SPA-навигации. */
-
-const BTN_ID = "kar-ext-yt-fab"
+/**
+ * Content script на YouTube: сообщает сервис-воркеру, какое видео открыто.
+ * Кнопку на странице не рисуем — панель открывается иконкой расширения.
+ */
 
 function isWatchPage(href = location.href): boolean {
   try {
@@ -33,65 +34,75 @@ function videoTitle(): string {
   return (el?.textContent || document.title || "").replace(/ - YouTube$/, "").trim()
 }
 
-function ensureButton() {
-  const url = currentVideoUrl()
-  let btn = document.getElementById(BTN_ID) as HTMLButtonElement | null
+// Осколок прошлых версий: пока кнопка существовала, она вставлялась в
+// documentElement и переживала перезагрузку расширения. Убираем при старте,
+// иначе на уже открытой вкладке остаётся мёртвая кнопка без обработчика.
+document.getElementById("kar-ext-yt-fab")?.remove()
 
-  if (!url) {
-    btn?.remove()
-    return
-  }
+/**
+ * При перезагрузке или обновлении расширения на chrome://extensions его контекст
+ * умирает, а этот скрипт остаётся жить на уже открытой странице. Любое обращение
+ * к chrome.runtime.* после этого бросает «Extension context invalidated», и без
+ * защиты ошибка сыпалась на каждом переходе по YouTube. Ловим один раз и глушим
+ * скрипт: свежую копию Chrome внедрит сам при следующей загрузке страницы.
+ */
+let alive = true
+let observer: MutationObserver | null = null
 
-  if (!btn) {
-    btn = document.createElement("button")
-    btn.id = BTN_ID
-    btn.type = "button"
-    btn.title = "КАР-точки: создать карточки из этого видео"
-    btn.setAttribute("aria-label", "Создать карточки КАР-точки")
-    btn.innerHTML =
-      '<span class="kar-ext-fab-mark" aria-hidden="true">К</span><span class="kar-ext-fab-label">Карточки</span>'
-    btn.addEventListener("click", (e) => {
-      e.preventDefault()
-      e.stopPropagation()
-      const videoUrl = currentVideoUrl()
-      if (!videoUrl) return
-      chrome.runtime.sendMessage({
-        type: "OPEN_SIDEPANEL",
-        url: videoUrl,
-        title: videoTitle()
-      })
-    })
-    document.documentElement.appendChild(btn)
-  }
-
-  btn.hidden = false
+function shutdown(): void {
+  if (!alive) return
+  alive = false
+  observer?.disconnect()
+  observer = null
+  document.removeEventListener("yt-navigate-finish", onNavigate)
+  window.removeEventListener("popstate", onNavigate)
 }
 
-function notifyVideo() {
+function contextAlive(): boolean {
+  if (!alive) return false
+  try {
+    // Само чтение chrome.runtime.id бросает, когда контекст уже отобран.
+    if (chrome.runtime?.id) return true
+  } catch {
+    /* контекст мёртв */
+  }
+  shutdown()
+  return false
+}
+
+function notifyVideo(): void {
+  if (!contextAlive()) return
   const url = currentVideoUrl()
   if (!url) return
-  chrome.runtime.sendMessage({
-    type: "SET_VIDEO",
-    url,
-    title: videoTitle()
-  }).catch(() => {})
+  try {
+    void chrome.runtime
+      .sendMessage({ type: "SET_VIDEO", url, title: videoTitle() })
+      // Сервис-воркер мог ещё не проснуться — это не ошибка: следующий переход
+      // по видео отправит сообщение заново.
+      .catch(() => {})
+  } catch {
+    // sendMessage бросает синхронно, если контекст умер между проверкой и вызовом.
+    shutdown()
+  }
 }
 
-function sync() {
-  ensureButton()
+function onNavigate(): void {
   notifyVideo()
 }
 
-sync()
+notifyVideo()
 
-document.addEventListener("yt-navigate-finish", () => sync())
-window.addEventListener("popstate", () => sync())
+document.addEventListener("yt-navigate-finish", onNavigate)
+window.addEventListener("popstate", onNavigate)
 
+// YouTube — SPA, и событие yt-navigate-finish приходит не во всех сборках,
+// поэтому дополнительно следим за сменой URL. Наблюдатель нужен только ради
+// этого, так что тело обработчика держим предельно дешёвым: на YouTube мутации
+// идут сплошным потоком.
 let lastHref = location.href
-const mo = new MutationObserver(() => {
-  if (location.href !== lastHref) {
-    lastHref = location.href
-    sync()
-  }
+observer = new MutationObserver(() => {
+  if (location.href === lastHref) return
+  lastHref = location.href
+  notifyVideo()
 })
-mo.observe(document.documentElement, { childList: true, subtree: true })
+observer.observe(document.documentElement, { childList: true, subtree: true })

@@ -1,3 +1,41 @@
+// src/sidepanel/error-guard.ts
+var FALLBACK_ID = "kar-boot-fallback";
+function removeFallback() {
+  document.getElementById(FALLBACK_ID)?.remove();
+}
+function paint(msg) {
+  const host = document.getElementById("app") || document.body;
+  if (!host) return;
+  const box = document.createElement("div");
+  box.style.cssText = "margin:16px 14px;padding:14px;border:1px solid rgba(196,69,60,.35);border-radius:12px;background:#fff;color:#1c1611;font:14px/1.45 system-ui,sans-serif";
+  const h = document.createElement("p");
+  h.style.cssText = "margin:0 0 8px;font-weight:600;color:#c4453c";
+  h.textContent = "\u0420\u0430\u0441\u0448\u0438\u0440\u0435\u043D\u0438\u0435 \u043D\u0435 \u0441\u043C\u043E\u0433\u043B\u043E \u0437\u0430\u043F\u0443\u0441\u0442\u0438\u0442\u044C\u0441\u044F";
+  const p = document.createElement("p");
+  p.style.cssText = "margin:0 0 8px;white-space:pre-wrap;word-break:break-word";
+  p.textContent = msg;
+  const hint = document.createElement("p");
+  hint.style.cssText = "margin:0;color:#7a6d5f;font-size:13px";
+  hint.textContent = "\u0421\u043A\u043E\u043F\u0438\u0440\u0443\u0439 \u044D\u0442\u043E\u0442 \u0442\u0435\u043A\u0441\u0442 \u2014 \u043F\u043E \u043D\u0435\u043C\u0443 \u0432\u0438\u0434\u043D\u043E, \u0447\u0442\u043E \u0438\u043C\u0435\u043D\u043D\u043E \u0443\u043F\u0430\u043B\u043E \u043D\u0430 \u0441\u0442\u0430\u0440\u0442\u0435.";
+  box.append(h, p, hint);
+  host.replaceChildren(box);
+}
+function describe(e) {
+  if (e instanceof Error) return (e.stack || e.name + ": " + e.message).slice(0, 1500);
+  return String(e).slice(0, 1500);
+}
+window.addEventListener("error", (ev) => {
+  paint(
+    describe(ev.error || ev.message) + (ev.filename ? `
+
+${ev.filename}:${ev.lineno}:${ev.colno}` : "")
+  );
+});
+window.addEventListener("unhandledrejection", (ev) => {
+  paint(describe(ev.reason));
+});
+removeFallback();
+
 // src/lib/constants.ts
 var APP_ORIGIN = "https://kar-tochki.pages.dev";
 var CONNECT_URL = `${APP_ORIGIN}/?ext_connect=1`;
@@ -500,12 +538,42 @@ function buildCardDescription(candidate, videoId2) {
 // src/lib/yt-api.ts
 var POLL_MS = 2500;
 var POLL_MAX_MS = 3 * 60 * 1e3;
-async function apiJson(path, opts) {
+async function apiHeaders(extra = {}) {
+  const headers = { ...extra, "X-Client-Id": await getExtYtJobUserId() };
+  try {
+    const auth = await getAuth();
+    const token = auth?.session?.access_token;
+    if (token) headers["Authorization"] = "Bearer " + token;
+  } catch {
+  }
+  return headers;
+}
+function apiErrorMessage(status, serverMessage) {
+  const msg = String(serverMessage || "").trim();
+  if (msg) return msg;
+  if (status === 401) return "\u0421\u0435\u0441\u0441\u0438\u044F \u0438\u0441\u0442\u0435\u043A\u043B\u0430 \u2014 \u043F\u043E\u0434\u043A\u043B\u044E\u0447\u0438 \u0430\u043A\u043A\u0430\u0443\u043D\u0442 \u0437\u0430\u043D\u043E\u0432\u043E";
+  if (status === 413) return "\u0421\u043B\u0438\u0448\u043A\u043E\u043C \u0431\u043E\u043B\u044C\u0448\u043E\u0439 \u0437\u0430\u043F\u0440\u043E\u0441 \u2014 \u0432\u044B\u0431\u0435\u0440\u0438 \u0440\u043E\u043B\u0438\u043A \u043F\u043E\u043A\u043E\u0440\u043E\u0447\u0435";
+  if (status === 429) return "\u0421\u043B\u0438\u0448\u043A\u043E\u043C \u043C\u043D\u043E\u0433\u043E \u0437\u0430\u043F\u0440\u043E\u0441\u043E\u0432 \u2014 \u043F\u043E\u043F\u0440\u043E\u0431\u0443\u0439 \u0447\u0435\u0440\u0435\u0437 \u043D\u0435\u0441\u043A\u043E\u043B\u044C\u043A\u043E \u043C\u0438\u043D\u0443\u0442";
+  if (status === 503) return "\u0421\u0435\u0440\u0432\u0435\u0440 \u041A\u0410\u0420-\u0442\u043E\u0447\u043A\u0438 \u0432\u0440\u0435\u043C\u0435\u043D\u043D\u043E \u043D\u0435 \u043E\u0442\u0432\u0435\u0447\u0430\u0435\u0442 \u2014 \u043F\u043E\u043F\u0440\u043E\u0431\u0443\u0439 \u043F\u043E\u0437\u0436\u0435";
+  if (status >= 500) return "\u041E\u0448\u0438\u0431\u043A\u0430 \u043D\u0430 \u0441\u0435\u0440\u0432\u0435\u0440\u0435 \u041A\u0410\u0420-\u0442\u043E\u0447\u043A\u0438 \u2014 \u043F\u043E\u043F\u0440\u043E\u0431\u0443\u0439 \u043F\u043E\u0437\u0436\u0435";
+  return "\u041E\u0448\u0438\u0431\u043A\u0430 \u0441\u0435\u0440\u0432\u0435\u0440\u0430 (" + status + ")";
+}
+async function apiJson(path, opts = {}) {
   let res;
   try {
-    res = await fetch(APP_ORIGIN + path, opts);
-  } catch {
-    throw new Error("\u041D\u0435\u0442 \u0441\u043E\u0435\u0434\u0438\u043D\u0435\u043D\u0438\u044F \u0441 \u0441\u0435\u0440\u0432\u0435\u0440\u043E\u043C \u041A\u0410\u0420-\u0442\u043E\u0447\u043A\u0438");
+    res = await fetch(APP_ORIGIN + path, {
+      ...opts,
+      headers: await apiHeaders(opts.headers)
+    });
+  } catch (e) {
+    if (typeof navigator !== "undefined" && navigator.onLine === false) {
+      throw new Error("\u041D\u0435\u0442 \u0438\u043D\u0442\u0435\u0440\u043D\u0435\u0442\u0430 \u2014 \u043F\u0440\u043E\u0432\u0435\u0440\u044C \u0441\u043E\u0435\u0434\u0438\u043D\u0435\u043D\u0438\u0435 \u0438 \u043F\u043E\u043F\u0440\u043E\u0431\u0443\u0439 \u0441\u043D\u043E\u0432\u0430", { cause: e });
+    }
+    const reason = e instanceof Error ? e.message : String(e);
+    throw new Error(
+      `\u041D\u0435 \u0443\u0434\u0430\u043B\u043E\u0441\u044C \u0434\u043E\u0441\u0442\u0443\u0447\u0430\u0442\u044C\u0441\u044F \u0434\u043E ${APP_ORIGIN} (${reason}). \u041F\u0440\u043E\u0432\u0435\u0440\u044C \u0438\u043D\u0442\u0435\u0440\u043D\u0435\u0442; \u0435\u0441\u043B\u0438 \u043E\u043D \u0435\u0441\u0442\u044C \u2014 \u0437\u0430\u043F\u0440\u043E\u0441 \u043C\u043E\u0433 \u0437\u0430\u0431\u043B\u043E\u043A\u0438\u0440\u043E\u0432\u0430\u0442\u044C VPN, \u0430\u043D\u0442\u0438\u0432\u0438\u0440\u0443\u0441 \u0438\u043B\u0438 \u0431\u043B\u043E\u043A\u0438\u0440\u043E\u0432\u0449\u0438\u043A \u0440\u0435\u043A\u043B\u0430\u043C\u044B.`,
+      { cause: e }
+    );
   }
   let data = null;
   try {
@@ -513,7 +581,7 @@ async function apiJson(path, opts) {
   } catch {
   }
   if (!res.ok || !data || data.error) {
-    throw new Error(data && data.message || "\u041E\u0448\u0438\u0431\u043A\u0430 \u0441\u0435\u0440\u0432\u0435\u0440\u0430 (" + res.status + ")");
+    throw new Error(apiErrorMessage(res.status, data?.message));
   }
   return data;
 }
@@ -554,7 +622,18 @@ async function fetchTranscriptFromUrl(url, settings2, {
 function prepareTranscriptForMode(transcript, mode2, { mergeCues: mergeCues2 = true } = {}) {
   if (mode2 !== "sentences") return transcript;
   let segments = transcript?.segments || [];
-  if (mergeCues2) segments = mergeCaptionSegments(segments);
+  if (mergeCues2) {
+    const normalized = segments.map((s) => ({
+      t: Number(s?.t) || 0,
+      text: String(s?.text ?? ""),
+      end: typeof s?.end === "number" ? s.end : null
+    }));
+    segments = mergeCaptionSegments(normalized).map((s) => ({
+      t: s.t,
+      text: s.text,
+      end: s.end ?? void 0
+    }));
+  }
   segments = filterTranscriptSegments(segments, { minWords: 3, dedupe: true });
   if (!segments.length) {
     throw new Error("\u041F\u043E\u0441\u043B\u0435 \u0444\u0438\u043B\u044C\u0442\u0440\u0430\u0446\u0438\u0438 \u043D\u0435 \u043E\u0441\u0442\u0430\u043B\u043E\u0441\u044C \u043F\u0440\u0435\u0434\u043B\u043E\u0436\u0435\u043D\u0438\u0439 \u2014 \u043F\u043E\u043F\u0440\u043E\u0431\u0443\u0439 \u0434\u0440\u0443\u0433\u0438\u0435 \u0441\u0443\u0431\u0442\u0438\u0442\u0440\u044B");
@@ -689,24 +768,12 @@ async function createYoutubeCardsBatch(sb, folderId2, selected, videoId2) {
 
 // src/sidepanel/sidepanel.ts
 var root = document.getElementById("app");
-if (!root) {
-  throw new Error("\u041A\u0410\u0420-\u0442\u043E\u0447\u043A\u0438: #app not found in sidepanel HTML");
-}
-function showFatal(err) {
-  const msg = err instanceof Error ? err.message : String(err);
-  root.replaceChildren(
-    brand(),
-    el("div", { class: "card" }, [
-      el("p", { class: "error" }, "\u041D\u0435 \u0443\u0434\u0430\u043B\u043E\u0441\u044C \u043E\u0442\u043A\u0440\u044B\u0442\u044C \u043F\u0430\u043D\u0435\u043B\u044C"),
-      el("p", null, msg),
-      el(
-        "p",
-        { class: "muted" },
-        "chrome://extensions \u2192 \u041A\u0410\u0420-\u0442\u043E\u0447\u043A\u0438 \u2192 Errors \u2192 Reload. \u041F\u0430\u043F\u043A\u0430 Load unpacked: extension/ (\u043F\u043E\u0441\u043B\u0435 npm run ext:build)."
-      )
-    ])
-  );
-}
+window.addEventListener("unhandledrejection", (ev) => {
+  renderFatal(ev.reason);
+});
+window.addEventListener("error", (ev) => {
+  renderFatal(ev.error || ev.message);
+});
 var cancelled = false;
 var mode = "both";
 var mergeCues = true;
@@ -718,9 +785,9 @@ var videoTitle = "";
 var previewItems = [];
 var videoId = null;
 var accountEmail = null;
-function el(tag, attrs = {}, children = []) {
+function el(tag, attrs, children) {
   const node = document.createElement(tag);
-  for (const [k, v] of Object.entries(attrs)) {
+  for (const [k, v] of Object.entries(attrs ?? {})) {
     if (k === "class") node.className = String(v);
     else if (k === "onclick" && typeof v === "function") node.addEventListener("click", v);
     else if (k === "onchange" && typeof v === "function") node.addEventListener("change", v);
@@ -731,7 +798,7 @@ function el(tag, attrs = {}, children = []) {
       if (v) node.selected = true;
     } else if (v != null && v !== false) node.setAttribute(k, String(v));
   }
-  const kids = Array.isArray(children) ? children : [children];
+  const kids = Array.isArray(children) ? children : children == null ? [] : [children];
   for (const c of kids) {
     if (c == null || c === false) continue;
     node.append(typeof c === "string" ? document.createTextNode(c) : c);
@@ -745,31 +812,60 @@ function brand() {
   ]);
 }
 async function refreshVideoFromStorage() {
-  const v = await getVideo();
-  if (v?.url) {
-    videoUrl = v.url;
-    videoTitle = v.title || videoTitle;
+  try {
+    const v = await getVideo();
+    if (v?.url) {
+      videoUrl = v.url;
+      videoTitle = v.title || videoTitle;
+    }
+  } catch {
   }
-  if (!videoUrl) {
+  if (videoUrl) return;
+  try {
     const [tab] = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
     if (tab?.url && /youtube\.com\/(watch|shorts)/.test(tab.url)) {
       videoUrl = tab.url;
       videoTitle = (tab.title || "").replace(/ - YouTube$/, "");
     }
+  } catch {
   }
+}
+function renderFatal(e) {
+  const msg = e instanceof Error ? e.message : String(e);
+  root.replaceChildren(
+    brand(),
+    el("div", { class: "card" }, [
+      el("p", { class: "error" }, "\u041E\u043A\u043D\u043E \u043D\u0435 \u0441\u043C\u043E\u0433\u043B\u043E \u0437\u0430\u043F\u0443\u0441\u0442\u0438\u0442\u044C\u0441\u044F: " + msg),
+      el(
+        "p",
+        { class: "muted" },
+        "\u0415\u0441\u043B\u0438 \u044D\u0442\u043E \u043F\u043E\u0432\u0442\u043E\u0440\u044F\u0435\u0442\u0441\u044F \u2014 \u043F\u0440\u0430\u0432\u044B\u0439 \u043A\u043B\u0438\u043A \u043F\u043E \u043E\u043A\u043D\u0443 \u2192 \xAB\u041F\u0440\u043E\u0441\u043C\u043E\u0442\u0440\u0435\u0442\u044C \u043A\u043E\u0434\xBB \u0438 \u043F\u0440\u0438\u0448\u043B\u0438 \u0442\u0435\u043A\u0441\u0442 \u0438\u0437 \u0432\u043A\u043B\u0430\u0434\u043A\u0438 Console."
+      ),
+      el("div", { class: "actions" }, [
+        el("button", { class: "btn primary", onclick: () => void boot() }, "\u041F\u043E\u043F\u0440\u043E\u0431\u043E\u0432\u0430\u0442\u044C \u0441\u043D\u043E\u0432\u0430")
+      ])
+    ])
+  );
 }
 async function boot() {
   try {
-    const prefs = await getPrefs();
-    mode = prefs.mode;
-    mergeCues = prefs.mergeCues;
-    folderId = prefs.folderId;
-    await refreshVideoFromStorage();
-    const auth = await getAuth();
-    if (!auth) {
-      renderAuth();
-      return;
-    }
+    await bootInner();
+  } catch (e) {
+    renderFatal(e);
+  }
+}
+async function bootInner() {
+  const prefs = await getPrefs();
+  mode = prefs.mode;
+  mergeCues = prefs.mergeCues;
+  folderId = prefs.folderId;
+  await refreshVideoFromStorage();
+  const auth = await getAuth();
+  if (!auth) {
+    renderAuth();
+    return;
+  }
+  try {
     const sb = await ExtSupabase.fromStorage();
     if (!sb || !await sb.ensureFresh()) {
       await setAuth(null);
@@ -786,7 +882,7 @@ async function boot() {
     }
     renderForm();
   } catch (e) {
-    showFatal(e);
+    renderAuth(e instanceof Error ? e.message : String(e));
   }
 }
 function renderAuth(error) {
@@ -1110,7 +1206,7 @@ async function saveSelected(saveBtn, toast, countLabel) {
   }
 }
 chrome.storage.onChanged.addListener((changes, area) => {
-  if (area === "local" && changes.kar_ext_auth) void boot().catch(showFatal);
+  if (area === "local" && changes.kar_ext_auth) void boot();
   if (area === "session" && changes.kar_ext_video) {
     const v = changes.kar_ext_video.newValue;
     if (v?.url) {
@@ -1123,5 +1219,5 @@ chrome.storage.onChanged.addListener((changes, area) => {
     }
   }
 });
-void boot().catch(showFatal);
+void boot();
 //# sourceMappingURL=sidepanel.js.map

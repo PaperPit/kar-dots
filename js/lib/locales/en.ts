@@ -26,6 +26,7 @@ export const en: Record<string, MessageValue> = {
   "app.bootError": "Startup error: {message}",
 
   "shell.nav.home": "Folders",
+  "shell.nav.notes": "Notes",
   "shell.nav.review": "Review",
   "shell.nav.stats": "Stats",
   "shell.nav.settings": "Settings",

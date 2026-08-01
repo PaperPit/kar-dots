@@ -36,6 +36,7 @@ export const ru = {
 
   // —— shell ——
   "shell.nav.home": "Папки",
+  "shell.nav.notes": "Заметки",
   "shell.nav.review": "Повторение",
   "shell.nav.stats": "Статистика",
   "shell.nav.settings": "Настройки",

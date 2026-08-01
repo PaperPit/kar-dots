@@ -49,9 +49,16 @@ function reviewDueBadge(viewName: string | null = lastViewName): string | null {
   return dueBadge > 0 ? String(dueBadge) : null
 }
 
+/** Активный пункт меню: редактор заметки подсвечивает «Заметки». */
+function navActiveId(viewName: string | null): string | null {
+  if (viewName === "note") return "notes"
+  return viewName
+}
+
 function tabConfig(viewName: string | null = lastViewName): TabItem[] {
   return [
     { id: "home", label: t("shell.nav.home"), icon: ICONS.home, hash: "#home" },
+    { id: "notes", label: t("shell.nav.notes"), icon: ICONS.note, hash: "#notes" },
     {
       id: "review",
       label: t("shell.nav.review"),
@@ -72,6 +79,7 @@ function syncBadgeEl(badgeEl: HTMLElement | null, show: string | null): void {
 }
 
 function makeNavItems(tabs: TabItem[], viewName: string, kind: "desktop" | "tab"): NavItem[] {
+  const active = navActiveId(viewName)
   return tabs.map((t) => {
     const badgeEl =
       t.id === "review" ? el("span", { class: "badge", hidden: !t.badge }, t.badge || "") : null
@@ -82,7 +90,7 @@ function makeNavItems(tabs: TabItem[], viewName: string, kind: "desktop" | "tab"
     const btn = el(
       "button",
       {
-        class: (kind === "desktop" ? "nav-btn" : "tab-btn") + (viewName === t.id ? " active" : ""),
+        class: (kind === "desktop" ? "nav-btn" : "tab-btn") + (active === t.id ? " active" : ""),
         onclick: () => (t.onclick ? t.onclick() : nav(t.hash))
       },
       kids
@@ -143,10 +151,11 @@ function syncShellChrome(viewName: string | null): void {
   if (!shellEl) return
   if (viewName != null) lastViewName = viewName
   const badge = reviewDueBadge(viewName)
-  const applyActive = viewName != null
+  const active = navActiveId(viewName)
+  const applyActive = active != null
   for (const items of [shellEl.desktopNav, shellEl.tabNav]) {
     for (const { id, btn, badgeEl } of items) {
-      if (applyActive) btn.classList.toggle("active", viewName === id)
+      if (applyActive) btn.classList.toggle("active", active === id)
       if (id === "review") syncBadgeEl(badgeEl, badge)
     }
   }

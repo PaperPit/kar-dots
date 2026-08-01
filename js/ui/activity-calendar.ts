@@ -177,7 +177,7 @@ export function homeCalendarWidget(place: string): HTMLElement {
 
 /** Inline-карточка серии + календарь месяца (редизайн 1b).
  *  На узких экранах — сверху, свёрнута до стрика, по тапу раскрывается.
- *  Месяц листается стрелками у подписи; вперёд — не дальше текущего. */
+ *  Месяц листается стрелками в шапке (между стриком и кубком); вперёд — не дальше текущего. */
 export function homeStreakCalendarCard(): HTMLElement {
   const data = loadActivity()
   const streak = calcVisitStreak(data)
@@ -192,7 +192,6 @@ export function homeStreakCalendarCard(): HTMLElement {
     WEEKDAY_NAMES.map((w) => el("div", null, w.toLowerCase()))
   )
   const grid = el("div", { class: "home-cal-grid" })
-  const footLabel = el("span", { class: "streak-cal-foot-label" })
   const prevBtn = el(
     "button",
     {
@@ -213,7 +212,7 @@ export function homeStreakCalendarCard(): HTMLElement {
     },
     "›"
   ) as HTMLButtonElement
-  const foot = el("div", { class: "streak-cal-foot" }, [prevBtn, footLabel, nextBtn])
+  const navs = el("div", { class: "streak-cal-navs" }, [prevBtn, nextBtn])
 
   function renderMonth() {
     const monthName = (MONTH_NAMES[viewMonth] || "").toLowerCase()
@@ -234,12 +233,8 @@ export function homeStreakCalendarCard(): HTMLElement {
       if (cell.key === todayK) cls.push("is-today")
       grid.append(el("div", { class: cls.join(" "), title: tip }, String(cell.day)))
     })
-    footLabel.textContent = t("home.cal.activityFoot", {
-      month: monthName,
-      year: viewYear
-    })
-    const atCurrent = isCurrentOrFutureMonth(viewYear, viewMonth, now)
-    nextBtn.disabled = atCurrent
+    grid.setAttribute("aria-label", `${monthName} ${viewYear}`)
+    nextBtn.disabled = isCurrentOrFutureMonth(viewYear, viewMonth, now)
   }
 
   prevBtn.addEventListener("click", (e) => {
@@ -255,10 +250,11 @@ export function homeStreakCalendarCard(): HTMLElement {
   })
 
   const head = el(
-    "button",
+    "div",
     {
-      type: "button",
       class: "streak-cal-head",
+      role: "button",
+      tabindex: "0",
       "aria-expanded": "false",
       "aria-label": "Открыть календарь активности"
     },
@@ -269,6 +265,7 @@ export function homeStreakCalendarCard(): HTMLElement {
         { class: "streak-cal-label" },
         plural(streak, "день подряд", "дня подряд", "дней подряд")
       ),
+      navs,
       el("img", {
         class: "streak-cal-cup",
         src: "icons/cup.svg",
@@ -279,7 +276,7 @@ export function homeStreakCalendarCard(): HTMLElement {
     ]
   )
 
-  const expand = el("div", { class: "streak-cal-expand" }, [weekdays, grid, foot])
+  const expand = el("div", { class: "streak-cal-expand" }, [weekdays, grid])
   const card = el("div", { class: "streak-cal-card streak-cal-collapsible" }, [head, expand])
 
   let open = false
@@ -287,7 +284,7 @@ export function homeStreakCalendarCard(): HTMLElement {
     return window.matchMedia("(max-width: 719px)").matches
   }
 
-  head.addEventListener("click", () => {
+  function toggleOpen() {
     if (!isMobile()) return
     open = !open
     card.classList.toggle("is-open", open)
@@ -296,6 +293,17 @@ export function homeStreakCalendarCard(): HTMLElement {
       "aria-label",
       open ? "Свернуть календарь" : "Открыть календарь активности"
     )
+  }
+
+  head.addEventListener("click", (e) => {
+    if ((e.target as Element | null)?.closest?.(".streak-cal-navs")) return
+    toggleOpen()
+  })
+  head.addEventListener("keydown", (e: KeyboardEvent) => {
+    if (e.key !== "Enter" && e.key !== " ") return
+    if ((e.target as Element | null)?.closest?.(".streak-cal-navs")) return
+    e.preventDefault()
+    toggleOpen()
   })
 
   renderMonth()

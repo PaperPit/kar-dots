@@ -114,7 +114,6 @@ export const en: Record<string, MessageValue> = {
 
   "home.cal.prevMonth": "Previous month",
   "home.cal.nextMonth": "Next month",
-  "home.cal.activityFoot": "{month} {year} · review activity",
 
   "folder.dialog.titleEdit": "Folder",
   "folder.dialog.titleNew": "New folder",

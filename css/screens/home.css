@@ -346,12 +346,25 @@
   font-weight: 600;
   font-size: 13px;
   color: var(--ink-faint);
+  flex: none;
+}
+.streak-cal-month {
+  flex: 1;
+  min-width: 0;
+  margin: 0 4px;
+  text-align: center;
+  font-weight: 600;
+  font-size: 13px;
+  color: var(--ink-faint);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .streak-cal-navs {
   display: flex;
   align-items: center;
   gap: 4px;
-  margin-left: auto;
+  flex: none;
 }
 .streak-cal-cup {
   width: 22px;

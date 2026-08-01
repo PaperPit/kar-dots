@@ -1,8 +1,8 @@
-// Диалог «Карточки из YouTube»: ссылка или файл субтитров → LLM → превью → карточки в папку.
-// Серверная часть: functions/api/yt-video.js, yt-generate.js (см. docs/youtube-import-setup.md).
+// YouTube cards dialog: link or subtitle file → LLM → preview → cards into folder.
+// Server: functions/api/yt-video.js, yt-generate.js (see docs/youtube-import-setup.md).
 
 import { store } from '../../core/state.js';
-import { el, toast, modal, spinner, plural } from '../../ui/ui.js';
+import { el, toast, modal, spinner } from '../../ui/ui.js';
 import type { ModalHandle } from '../../ui/ui.js';
 import { route } from '../../core/router.js';
 import {
@@ -18,6 +18,7 @@ import {
 } from '../../lib/yt-transcript.js';
 import type { YtVideo as YTVideo, YtTranscript } from '../../data/yt-transcript-cache.js';
 import { loadKnownTermsForImport } from '../../lib/yt-known-terms.js';
+import { t, tp } from '../../lib/i18n.js';
 
 interface YTPrefill {
   source?: string;
@@ -48,23 +49,28 @@ interface YTFileImportArg {
   mergeCues: boolean;
 }
 
-const SOURCE_TABS = [
-  { id: 'url', label: 'Ссылка' },
-  { id: 'file', label: 'Файл субтитров' },
-];
+function sourceTabs() {
+  return [
+    { id: 'url', label: t('folder.yt.source.url') },
+    { id: 'file', label: t('folder.yt.source.file') },
+  ];
+}
 
-const MODES = [
-  { id: 'words', label: 'Слова' },
-  { id: 'phrases', label: 'Фразы' },
-  { id: 'both', label: 'Слова + фразы' },
-  { id: 'sentences', label: 'Предложения' },
-];
+function modes() {
+  return [
+    { id: 'words', label: t('folder.yt.mode.words') },
+    { id: 'phrases', label: t('folder.yt.mode.phrases') },
+    { id: 'both', label: t('folder.yt.mode.both') },
+    { id: 'sentences', label: t('folder.yt.mode.sentences') },
+  ];
+}
 
-const SOURCE_HINTS: Record<string, string> = {
-  cache: 'Транскрипт из кэша',
-  supadata: 'Транскрипт через Supadata',
-  file: 'Субтитры из файла',
-};
+function sourceHint(src: string): string {
+  if (src === 'cache') return t('folder.yt.hint.cache');
+  if (src === 'supadata') return t('folder.yt.hint.supadata');
+  if (src === 'file') return t('folder.yt.hint.file');
+  return '';
+}
 
 export function youtubeImportDialog(folderId: string) {
   let m: ModalHandle;
@@ -73,7 +79,7 @@ export function youtubeImportDialog(folderId: string) {
   const body = el('div', { class: 'yt-dialog' }, []);
 
   m = modal(el('div', null, [
-    el('h3', { class: 'modal-title' }, 'Карточки из YouTube'),
+    el('h3', { class: 'modal-title' }, t('settings.yt.title')),
     body,
   ]), { wide: true, sticky: true });
 
@@ -84,7 +90,7 @@ export function youtubeImportDialog(folderId: string) {
 
   function needsOnline() {
     if (store.offline || !navigator.onLine) {
-      return 'Нужно подключение к интернету';
+      return t('folder.yt.needOnline');
     }
     return null;
   }
@@ -99,7 +105,7 @@ export function youtubeImportDialog(folderId: string) {
       mergeChk.checked = mergeCues;
     };
 
-    const sourceSeg = el('div', { class: 'seg yt-source-seg' }, SOURCE_TABS.map(tab =>
+    const sourceSeg = el('div', { class: 'seg yt-source-seg' }, sourceTabs().map(tab =>
       el('button', {
         type: 'button',
         class: tab.id === source ? 'active' : '',
@@ -122,7 +128,7 @@ export function youtubeImportDialog(folderId: string) {
       value: prefill.url || '',
     }, []) as HTMLInputElement;
 
-    const fileNameEl = el('span', { class: 'yt-file-name' }, 'Файл не выбран');
+    const fileNameEl = el('span', { class: 'yt-file-name' }, t('folder.yt.fileNone'));
     const fileInput = el('input', {
       class: 'yt-file-input-native',
       type: 'file',
@@ -131,7 +137,7 @@ export function youtubeImportDialog(folderId: string) {
       'aria-hidden': 'true',
       onchange: () => {
         const f = fileInput.files?.[0];
-        fileNameEl.textContent = f ? f.name : 'Файл не выбран';
+        fileNameEl.textContent = f ? f.name : t('folder.yt.fileNone');
         fileNameEl.classList.toggle('is-set', !!f);
       },
     }, []) as HTMLInputElement;
@@ -139,7 +145,7 @@ export function youtubeImportDialog(folderId: string) {
       type: 'button',
       class: 'btn yt-file-pick-btn',
       onclick: () => fileInput.click(),
-    }, 'Выбрать файл') as HTMLButtonElement;
+    }, t('folder.yt.pickFile')) as HTMLButtonElement;
     const filePicker = el('div', { class: 'yt-file-picker' }, [
       fileInput,
       filePickBtn,
@@ -150,30 +156,30 @@ export function youtubeImportDialog(folderId: string) {
       class: 'input',
       type: 'url',
       inputmode: 'url',
-      placeholder: 'https://www.youtube.com/watch?v=… (необязательно)',
+      placeholder: t('folder.yt.urlOptional'),
       value: prefill.fileUrl || '',
     }, []) as HTMLInputElement;
 
     const titleInput = el('input', {
       class: 'input',
       type: 'text',
-      placeholder: 'Название видео (необязательно)',
+      placeholder: t('folder.yt.titleOptional'),
       value: prefill.title || '',
     }, []) as HTMLInputElement;
 
     const urlPanel = el('div', { class: 'yt-source-panel' + (source === 'url' ? '' : ' hidden') }, [
-      el('p', { class: 'modal-text' }, 'Вставь ссылку на ролик до 20 минут — выберу из него лексику, которой ещё нет в твоих паках.'),
-      el('div', { class: 'field' }, [el('label', null, 'Ссылка на видео'), urlInput]),
+      el('p', { class: 'modal-text' }, t('folder.yt.urlIntro')),
+      el('div', { class: 'field' }, [el('label', null, t('folder.yt.label.url')), urlInput]),
     ]);
 
     const filePanel = el('div', { class: 'yt-source-panel' + (source === 'file' ? '' : ' hidden') }, [
-      el('p', { class: 'modal-text' }, 'Загрузи .srt или .vtt — Supadata не нужен. Ссылку можно добавить для таймкодов в карточках.'),
-      el('div', { class: 'field' }, [el('label', null, 'Файл субтитров'), filePicker]),
-      el('div', { class: 'field' }, [el('label', null, 'Ссылка на видео'), fileUrlInput]),
-      el('div', { class: 'field' }, [el('label', null, 'Название'), titleInput]),
+      el('p', { class: 'modal-text' }, t('folder.yt.fileIntro')),
+      el('div', { class: 'field' }, [el('label', null, t('folder.yt.label.file')), filePicker]),
+      el('div', { class: 'field' }, [el('label', null, t('folder.yt.label.url')), fileUrlInput]),
+      el('div', { class: 'field' }, [el('label', null, t('common.name')), titleInput]),
     ]);
 
-    const modeSeg = el('div', { class: 'seg yt-mode-seg' }, MODES.map(mo =>
+    const modeSeg = el('div', { class: 'seg yt-mode-seg' }, modes().map(mo =>
       el('button', {
         type: 'button',
         class: mo.id === mode ? 'active' : '',
@@ -195,7 +201,7 @@ export function youtubeImportDialog(folderId: string) {
     const sentencesOpts = el('div', { class: 'yt-sentences-options' + (mode === 'sentences' ? '' : ' hidden') }, [
       el('label', { class: 'yt-check-label' }, [
         mergeChk,
-        el('span', null, 'Склеивать короткие реплики в предложения'),
+        el('span', null, t('folder.yt.mergeCues')),
       ]),
     ]);
 
@@ -208,7 +214,7 @@ export function youtubeImportDialog(folderId: string) {
         if (source === 'url') {
           const id = parseYouTubeId(urlInput.value);
           if (!id) {
-            errEl.textContent = 'Не похоже на ссылку на YouTube-видео';
+            errEl.textContent = t('folder.yt.invalidUrl');
             errEl.classList.remove('hidden');
             return;
           }
@@ -219,12 +225,12 @@ export function youtubeImportDialog(folderId: string) {
             return;
           }
           if (!hasSupadataApiKey(store.settings)) {
-            errEl.textContent = 'Укажи Supadata API ключ: Настройки → «Карточки из YouTube» → «Настроить»';
+            errEl.textContent = t('folder.yt.needSupadata');
             errEl.classList.remove('hidden');
             return;
           }
           if (!hasGenerateApiKey(store.settings)) {
-            errEl.textContent = 'Укажи Gemini или Groq API ключ: Настройки → «Карточки из YouTube» → «Настроить»';
+            errEl.textContent = t('folder.yt.needGenerate');
             errEl.classList.remove('hidden');
             return;
           }
@@ -234,7 +240,7 @@ export function youtubeImportDialog(folderId: string) {
 
         const file = fileInput.files?.[0];
         if (!file) {
-          errEl.textContent = 'Выбери файл .srt или .vtt';
+          errEl.textContent = t('folder.yt.needFile');
           errEl.classList.remove('hidden');
           return;
         }
@@ -245,7 +251,7 @@ export function youtubeImportDialog(folderId: string) {
           return;
         }
         if (!hasGenerateApiKey(store.settings)) {
-          errEl.textContent = 'Укажи Gemini или Groq API ключ: Настройки → «Карточки из YouTube» → «Настроить»';
+          errEl.textContent = t('folder.yt.needGenerate');
           errEl.classList.remove('hidden');
           return;
         }
@@ -256,18 +262,18 @@ export function youtubeImportDialog(folderId: string) {
           mergeCues,
         });
       },
-    }, 'Получить карточки') as HTMLButtonElement;
+    }, t('folder.yt.getCards')) as HTMLButtonElement;
 
     body.innerHTML = '';
     body.append(
       sourceSeg,
       urlPanel,
       filePanel,
-      el('div', { class: 'field' }, [el('label', null, 'Что достать из ролика'), modeSeg]),
+      el('div', { class: 'field' }, [el('label', null, t('folder.yt.whatToExtract')), modeSeg]),
       sentencesOpts,
       errEl,
       el('div', { class: 'modal-actions' }, [
-        el('button', { class: 'btn ghost', onclick: () => m.close() }, 'Отмена'),
+        el('button', { class: 'btn ghost', onclick: () => m.close() }, t('common.cancel')),
         goBtn,
       ]),
     );
@@ -283,14 +289,14 @@ export function youtubeImportDialog(folderId: string) {
     body.append(
       el('div', { class: 'yt-progress' }, [spinner(28), statusEl, hintEl].filter(Boolean)),
       el('div', { class: 'modal-actions' }, [
-        el('button', { class: 'btn ghost', onclick: () => m.close() }, 'Отмена'),
+        el('button', { class: 'btn ghost', onclick: () => m.close() }, t('common.cancel')),
       ]),
     );
-    return (t: string) => { statusEl.textContent = t; };
+    return (msg: string) => { statusEl.textContent = msg; };
   }
 
   async function finishImport({ video, transcript, source: src, mode, mergeCues, prefill }: { video?: YTVideo; transcript: YtTranscript; source: string; mode: string; mergeCues: boolean; prefill: YTPrefill }) {
-    const setStatus = renderProgress('Составляю карточки…', SOURCE_HINTS[src] || '');
+    const setStatus = renderProgress(t('folder.yt.progress.compose'), sourceHint(src));
     try {
       const prepared = prepareTranscriptForMode(transcript, mode, { mergeCues });
       const gen: YtGenResult = await generateYoutubeCards(
@@ -300,8 +306,8 @@ export function youtubeImportDialog(folderId: string) {
       if (closed) return;
 
       setStatus(mode === 'sentences'
-        ? 'Проверяю, какие предложения для тебя новые…'
-        : 'Проверяю, какие слова для тебя новые…');
+        ? t('folder.yt.progress.checkSentences')
+        : t('folder.yt.progress.checkWords'));
       const known = await loadKnownTermsForImport(store, folderId);
       if (closed) return;
 
@@ -321,14 +327,14 @@ export function youtubeImportDialog(folderId: string) {
   }
 
   async function runUrlImport(url: string, mode: string, mergeCues: boolean) {
-    const setStatus = renderProgress('Получаю данные видео…');
+    const setStatus = renderProgress(t('folder.yt.progress.fetchVideo'));
     try {
       const result = await fetchTranscriptFromUrl(url, store.settings, {
         isClosed: (): boolean => closed,
         onStatus: (msg?: string): void => { if (msg) setStatus(msg); },
       });
       if (closed) return;
-      if (result.source === 'cache') setStatus('Транскрипт из кэша — составляю карточки…');
+      if (result.source === 'cache') setStatus(t('folder.yt.progress.cacheCompose'));
       await finishImport({
         video: result.video,
         transcript: result.transcript,
@@ -344,7 +350,7 @@ export function youtubeImportDialog(folderId: string) {
   }
 
   async function runFileImport(file: File, { url, title, mode, mergeCues }: YTFileImportArg) {
-    renderProgress('Читаю файл субтитров…', SOURCE_HINTS.file);
+    renderProgress(t('folder.yt.progress.readFile'), sourceHint('file'));
     try {
       const text = await file.text();
       const result = importFromCaptionFile(text, file.name, { url, title });
@@ -369,13 +375,13 @@ export function youtubeImportDialog(folderId: string) {
 
     if (!phrases.length && !words.length && !sentences.length) {
       const emptyMsg = prefill.mode === 'sentences'
-        ? 'Все предложения из этого ролика уже есть в твоих папках — новых карточек не нашлось.'
-        : 'Вся лексика из этого ролика уже есть в твоих паках и папках — новых карточек не нашлось.';
+        ? t('folder.yt.empty.sentences')
+        : t('folder.yt.empty.lexicon');
       body.append(
         el('p', { class: 'modal-text' }, emptyMsg),
         el('div', { class: 'modal-actions' }, [
-          el('button', { class: 'btn ghost', onclick: () => renderForm(prefill) }, 'Другое видео'),
-          el('button', { class: 'btn primary', onclick: () => m.close() }, 'Понятно'),
+          el('button', { class: 'btn ghost', onclick: () => renderForm(prefill) }, t('folder.yt.otherVideo')),
+          el('button', { class: 'btn primary', onclick: () => m.close() }, t('folder.yt.gotIt')),
         ]),
       );
       return;
@@ -386,7 +392,7 @@ export function youtubeImportDialog(folderId: string) {
     const refreshAddBtn = () => {
       const n = countChecked();
       addBtn.disabled = n === 0;
-      addBtn.textContent = n ? `Добавить (${n})` : 'Добавить';
+      addBtn.textContent = n ? t('folder.yt.addN', { n }) : t('folder.yt.add');
     };
 
     function group(title: string, cands: YtCandidate[]) {
@@ -423,7 +429,7 @@ export function youtubeImportDialog(folderId: string) {
         refreshAddBtn();
       });
       return el('div', { class: 'yt-group' }, [
-        el('label', { class: 'yt-group-title' }, [allChk, el('span', null, `${title} (${cands.length})`)]),
+        el('label', { class: 'yt-group-title' }, [allChk, el('span', null, t('folder.yt.groupTitle', { title, n: cands.length }))]),
         el('div', { class: 'yt-rows' }, rows.map((r: YTRow) => r.row)),
       ]);
     }
@@ -450,32 +456,40 @@ export function youtubeImportDialog(folderId: string) {
         await route();
         if (failed.length) {
           const msg = ok
-            ? `Добавлено ${ok} ${plural(ok, 'карточка', 'карточки', 'карточек')}, ошибок ${failed.length}`
-            : `Не удалось добавить карточки (${failed.length} ${plural(failed.length, 'ошибка', 'ошибки', 'ошибок')})`;
+            ? t('folder.yt.toast.addedWithErrors', {
+              n: ok,
+              cards: tp('common.card', ok),
+              failed: failed.length,
+            })
+            : t('folder.yt.toast.addFailed', {
+              n: failed.length,
+              errors: tp('folder.yt.errors', failed.length),
+            });
           toast(msg, ok ? 'ok' : 'error');
         } else {
-          toast(`Добавлено ${ok} ${plural(ok, 'карточка', 'карточки', 'карточек')}`, 'ok');
+          toast(t('folder.yt.toast.added', { n: ok, cards: tp('common.card', ok) }), 'ok');
         }
       },
-    }, 'Добавить') as HTMLButtonElement;
+    }, t('folder.yt.add')) as HTMLButtonElement;
 
-    const sourceHint = prefill.transcriptSource && SOURCE_HINTS[prefill.transcriptSource]
-      ? el('p', { class: 'yt-source-hint muted' }, SOURCE_HINTS[prefill.transcriptSource])
+    const hintText = prefill.transcriptSource ? sourceHint(prefill.transcriptSource) : '';
+    const sourceHintEl = hintText
+      ? el('p', { class: 'yt-source-hint muted' }, hintText)
       : null;
 
     const droppedMsg = dropped > 0
       ? el('p', { class: 'yt-dropped muted' }, prefill.mode === 'sentences'
-        ? `${dropped} ${plural(dropped, 'предложение уже есть', 'предложения уже есть', 'предложений уже есть')} в твоих папках — ${plural(dropped, 'оно', 'они', 'они')} скрыты.`
-        : `${dropped} ${plural(dropped, 'слово уже есть', 'слова уже есть', 'слов уже есть')} в твоих паках — они скрыты.`)
+        ? tp('folder.yt.dropped.sentences', dropped)
+        : tp('folder.yt.dropped.words', dropped))
       : null;
 
     const truncatedMsg = truncated && truncated.total > truncated.used
       ? el('p', { class: 'yt-dropped muted' },
-        `Переведены первые ${truncated.used} из ${truncated.total} предложений — лимит за один импорт.`)
+        t('folder.yt.truncated', { used: truncated.used, total: truncated.total }))
       : null;
 
     const previewExtras: HTMLElement[] = [];
-    if (sourceHint) previewExtras.push(sourceHint);
+    if (sourceHintEl) previewExtras.push(sourceHintEl);
     if (droppedMsg) previewExtras.push(droppedMsg);
     if (truncatedMsg) previewExtras.push(truncatedMsg);
 
@@ -483,12 +497,12 @@ export function youtubeImportDialog(folderId: string) {
       el('p', { class: 'yt-video-title' }, video?.title || 'YouTube video'),
       ...previewExtras,
       el('div', { class: 'yt-preview' }, [
-        group('Предложения', sentences),
-        group('Фразы', phrases),
-        group('Слова', words),
+        group(t('folder.yt.group.sentences'), sentences),
+        group(t('folder.yt.group.phrases'), phrases),
+        group(t('folder.yt.group.words'), words),
       ].filter(Boolean)),
       el('div', { class: 'modal-actions' }, [
-        el('button', { class: 'btn ghost', onclick: () => m.close() }, 'Отмена'),
+        el('button', { class: 'btn ghost', onclick: () => m.close() }, t('common.cancel')),
         addBtn,
       ]),
     );

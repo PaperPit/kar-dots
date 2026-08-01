@@ -5,6 +5,7 @@ import { parseBulkLines, countReadyRows } from '../../lib/card-import.js';
 import { getTranslateDir, translateBatch, sleep } from '../../lib/translate.js';
 import { createTranslateDirToggle } from '../../ui/translate-dir-toggle.js';
 import { route } from '../../core/router.js';
+import { t } from '../../lib/i18n.js';
 
 export function bulkCardDialog(folderId: string) {
   let m: ModalHandle;
@@ -14,7 +15,7 @@ export function bulkCardDialog(folderId: string) {
   const textarea = el('textarea', {
     class: 'input bulk-textarea',
     rows: 12,
-    placeholder: 'слово — перевод\nhello — привет\n# комментарии игнорируются',
+    placeholder: t('cardEditor.bulk.placeholder'),
   }, undefined);
 
   const translateMissingChk = el('input', { type: 'checkbox', class: 'chk' }, undefined);
@@ -24,9 +25,9 @@ export function bulkCardDialog(folderId: string) {
     const { rows, skipped, wordOnly } = parseBulkLines(textarea.value);
     const ready = countReadyRows(rows);
     const needTr = wordOnly.length;
-    let msg = `Готово к добавлению: ${ready}`;
-    if (translateMissingChk.checked && needTr) msg += ` · перевести: ${needTr}`;
-    if (skipped) msg += ` · пропущено: ${skipped}`;
+    let msg = t('cardEditor.bulk.readyCount', { ready });
+    if (translateMissingChk.checked && needTr) msg += t('cardEditor.bulk.translateSuffix', { n: needTr });
+    if (skipped) msg += t('cardEditor.bulk.skippedSuffix', { n: skipped });
     previewEl.textContent = msg;
     addBtn.disabled = ready === 0 && !(translateMissingChk.checked && needTr);
   }
@@ -46,19 +47,19 @@ export function bulkCardDialog(folderId: string) {
       if (translateMissingChk.checked) {
         const words = rows.filter(r => r.front && !r.back).map(r => r.front);
         if (words.length) {
-          previewEl.textContent = `Перевожу 0 / ${words.length}…`;
+          previewEl.textContent = t('cardEditor.bulk.translating', { done: 0, total: words.length });
           const translated = await translateBatch(words, getTranslateDirLocal(), (done, total) => {
-            previewEl.textContent = `Перевожу ${done} / ${total}…`;
+            previewEl.textContent = t('cardEditor.bulk.translating', { done, total });
           });
-          for (const t of translated) {
-            if (t.back) toCreate.push({ front: t.front, back: t.back });
+          for (const row of translated) {
+            if (row.back) toCreate.push({ front: row.front, back: row.back });
           }
           await sleep(0);
         }
       }
 
       if (!toCreate.length) {
-        toast('Нет карточек для добавления', 'error');
+        toast(t('cardEditor.bulk.noneToAdd'), 'error');
         return;
       }
 
@@ -74,36 +75,36 @@ export function bulkCardDialog(folderId: string) {
       }
       m.close();
       await route();
-      toast(`Добавлено карточек: ${ok}`, 'ok');
+      toast(t('cardEditor.bulk.addedCount', { n: ok }), 'ok');
     } catch (e) {
       toast(e instanceof Error ? e.message : String(e), 'error');
     } finally {
       addBtn.disabled = false;
-      addBtn.textContent = 'Добавить';
+      addBtn.textContent = t('cardEditor.add');
       updatePreview();
     }
   }
 
-  previewEl = el('p', { class: 'bulk-preview muted' }, 'Готово к добавлению: 0');
-  addBtn = el('button', { class: 'btn primary', onclick: submit, disabled: true }, 'Добавить');
+  previewEl = el('p', { class: 'bulk-preview muted' }, t('cardEditor.bulk.readyCount', { ready: 0 }));
+  addBtn = el('button', { class: 'btn primary', onclick: submit, disabled: true }, t('cardEditor.add'));
 
   m = modal(el('div', null, [
-    el('h3', { class: 'modal-title' }, 'Добавить списком'),
-    el('p', { class: 'modal-text' }, 'По одной паре на строку.'),
+    el('h3', { class: 'modal-title' }, t('cardEditor.bulk.title')),
+    el('p', { class: 'modal-text' }, t('cardEditor.bulk.hint')),
     textarea,
     el('div', { class: 'bulk-options' }, [
       el('label', { class: 'bulk-option-row' }, [
         translateMissingChk,
-        el('span', null, 'Перевести строки без перевода'),
+        el('span', null, t('cardEditor.bulk.translateMissing')),
       ]),
       el('div', { class: 'bulk-option-row' }, [
-        el('span', { class: 'bulk-option-lab' }, 'Направление:'),
+        el('span', { class: 'bulk-option-lab' }, t('cardEditor.bulk.direction')),
         dirToggleBtn,
       ]),
     ]),
     previewEl,
     el('div', { class: 'modal-actions' }, [
-      el('button', { class: 'btn ghost', onclick: () => m.close() }, 'Отмена'),
+      el('button', { class: 'btn ghost', onclick: () => m.close() }, t('common.cancel')),
       addBtn,
     ]),
   ]), { wide: true, sticky: true });

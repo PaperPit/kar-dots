@@ -2,6 +2,7 @@ import { store } from '../../core/state.js';
 import { toast, stripHtml, confirmDialog } from '../../ui/ui.js';
 import { crowTombIcon, textPreview } from '../../ui/helpers.js';
 import { route } from '../../core/router.js';
+import { t } from '../../lib/i18n.js';
 import type { Card } from '../../data/types.js';
 import type { ModalHandle } from '../../ui/ui.js';
 
@@ -46,11 +47,11 @@ export async function saveCard({
   const back = stripHtml(defRich.getHTML()).trim();
   const description = descRich.isEmpty() ? '' : descRich.getHTML();
   if (frontRich.isEmpty() && !state.front_img) {
-    toast('Заполните лицевую сторону', 'error');
+    toast(t('cardEditor.validation.needFront'), 'error');
     return;
   }
   if (defRich.isEmpty() && descRich.isEmpty() && !state.back_img) {
-    toast('Заполните определение или описание на обороте', 'error');
+    toast(t('cardEditor.validation.needBack'), 'error');
     return;
   }
   saveBtn.disabled = true;
@@ -70,9 +71,9 @@ export async function saveCard({
     await route();
     if (andContinue) {
       openNewDialog();
-      toast('Карточка добавлена', 'ok');
+      toast(t('cardEditor.toast.added'), 'ok');
     } else if (!card) {
-      toast('Карточка добавлена', 'ok');
+      toast(t('cardEditor.toast.added'), 'ok');
     }
   } catch (e) {
     const err = e as Error;
@@ -85,9 +86,9 @@ export async function saveCard({
 export async function deleteCardAction(card: Card | null, opts: DeleteCardOpts, m: ModalHandle) {
   if (!card) return;
   const yes = await confirmDialog(
-    'Удалить карточку?',
+    t('cardEditor.confirm.deleteTitle'),
     textPreview(card),
-    'Удалить',
+    t('common.delete'),
     true,
     crowTombIcon(),
   );
@@ -100,7 +101,7 @@ export async function deleteCardAction(card: Card | null, opts: DeleteCardOpts, 
       return;
     }
     await route();
-    toast('Карточка удалена', 'ok');
+    toast(t('cardEditor.toast.deleted'), 'ok');
   } catch (e) {
     const err = e as Error;
     toast(err.message, 'error');

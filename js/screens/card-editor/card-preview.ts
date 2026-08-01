@@ -1,6 +1,7 @@
 import { el, modal, toast, stripHtml } from '../../ui/ui.js';
 import type { ModalHandle } from '../../ui/ui.js';
 import { store } from '../../core/state.js';
+import { t } from '../../lib/i18n.js';
 import { createFlipCard, sizeFlipCard } from '../review/flip-card.js';
 
 interface RichTextEditor {
@@ -45,11 +46,11 @@ export function openCardPreview(ctx: PreviewCtx) {
   const descText = stripHtml(descRich.getHTML()).trim();
 
   if (!frontText && !state.front_img) {
-    toast('Заполните лицевую сторону для просмотра', 'error');
+    toast(t('cardEditor.preview.needFront'), 'error');
     return;
   }
   if (!backText && !descText && !state.back_img) {
-    toast('Заполните оборот для просмотра', 'error');
+    toast(t('cardEditor.preview.needBack'), 'error');
     return;
   }
 
@@ -64,12 +65,12 @@ export function openCardPreview(ctx: PreviewCtx) {
 
   let pm: ModalHandle;
   pm = modal(el('div', null, [
-    el('h3', { class: 'modal-title' }, 'Просмотр карточки'),
+    el('h3', { class: 'modal-title' }, t('cardEditor.preview.title')),
     el('p', { class: 'modal-text muted card-preview-lead' },
-      'Как в режиме повторения — нажмите на карточку, чтобы перевернуть.'),
+      t('cardEditor.preview.lead')),
     wrap,
     el('div', { class: 'modal-actions modal-actions-center' }, [
-      el('button', { type: 'button', class: 'btn primary', onclick: () => pm.close() }, 'Закрыть'),
+      el('button', { type: 'button', class: 'btn primary', onclick: () => pm.close() }, t('cardEditor.preview.close')),
     ]),
   ]), { wide: true, onClose: destroy });
 

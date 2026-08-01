@@ -3,6 +3,7 @@ import type { ModalHandle } from '../../ui/ui.js';
 import { featherIcon } from '../../ui/helpers.js';
 import { getTranslateDir, translateText } from '../../lib/translate.js';
 import { createTranslateDirToggle } from '../../ui/translate-dir-toggle.js';
+import { t } from '../../lib/i18n.js';
 import { buildCardEditorForm } from './form.js';
 import { saveCard, deleteCardAction } from './actions.js';
 import { openCardPreview } from './card-preview.js';
@@ -30,7 +31,7 @@ export function cardDialog(folderId: string, card?: Card | null, opts: CardDialo
   let saveMoreBtn: HTMLButtonElement | null = null;
   const { btn: dirToggleBtn, getDir: getTranslateDirLocal } = createTranslateDirToggle(getTranslateDir());
 
-  const translateBtn = el('button', { type: 'button', class: 'btn translate-btn' }, 'Перевести');
+  const translateBtn = el('button', { type: 'button', class: 'btn translate-btn' }, t('cardEditor.translate'));
   const translateRow = el('div', { class: 'translate-row' }, [
     dirToggleBtn,
     translateBtn,
@@ -40,9 +41,9 @@ export function cardDialog(folderId: string, card?: Card | null, opts: CardDialo
 
   translateBtn.addEventListener('click', async () => {
     const src = frontRich.getPlain();
-    if (!src) { toast('Сначала введите слово на лицевой стороне', 'error'); return; }
+    if (!src) { toast(t('cardEditor.translate.needFront'), 'error'); return; }
     if (card && !defRich.isEmpty()) {
-      if (!window.confirm('Заменить текущее определение переводом?')) return;
+      if (!window.confirm(t('cardEditor.translate.confirmReplace'))) return;
     }
     translateBtn.disabled = true;
     const prev = translateBtn.textContent;
@@ -50,7 +51,7 @@ export function cardDialog(folderId: string, card?: Card | null, opts: CardDialo
     try {
       const out = await translateText(src, getTranslateDirLocal());
       defRich.setPlain(out);
-      toast('Перевод подставлен', 'ok');
+      toast(t('cardEditor.translate.done'), 'ok');
     } catch (e) {
       toast(e instanceof Error ? e.message : String(e), 'error');
     } finally {
@@ -74,17 +75,17 @@ export function cardDialog(folderId: string, card?: Card | null, opts: CardDialo
     type: 'button',
     class: 'btn primary',
     onclick: () => submit(false),
-  }, isEditing ? 'Сохранить' : 'Добавить');
+  }, isEditing ? t('common.save') : t('cardEditor.add'));
 
   if (!isEditing && !fromLesson) {
     saveMoreBtn = el('button', {
       type: 'button',
       class: 'btn btn-save-more',
-      title: 'Сохранить и добавить ещё одну карточку',
+      title: t('cardEditor.saveMore.title'),
       onclick: () => submit(true),
     }, [
-      el('span', { class: 'btn-save-more-short' }, 'Сохр. + ещё'),
-      el('span', { class: 'btn-save-more-full' }, 'Сохр. + добавить ещё'),
+      el('span', { class: 'btn-save-more-short' }, t('cardEditor.saveMore.short')),
+      el('span', { class: 'btn-save-more-full' }, t('cardEditor.saveMore.full')),
     ]);
   }
 
@@ -93,17 +94,17 @@ export function cardDialog(folderId: string, card?: Card | null, opts: CardDialo
       type: 'button',
       class: 'btn danger modal-delete-btn',
       onclick: () => deleteCardAction(card ?? null, opts, m),
-    }, 'Удалить')
+    }, t('common.delete'))
     : null;
 
   const previewBtn = el('button', {
     type: 'button',
     class: 'btn card-preview-btn',
     onclick: () => openCardPreview({ frontRich, defRich, descRich, state }),
-  }, 'Просмотр');
+  }, t('cardEditor.preview'));
 
   const actionBtnsEnd = [
-    el('button', { type: 'button', class: 'btn secondary', onclick: () => m.close() }, 'Отмена'),
+    el('button', { type: 'button', class: 'btn secondary', onclick: () => m.close() }, t('common.cancel')),
   ];
   if (saveMoreBtn) actionBtnsEnd.push(saveMoreBtn);
   actionBtnsEnd.push(saveBtn);
@@ -117,11 +118,11 @@ export function cardDialog(folderId: string, card?: Card | null, opts: CardDialo
     ? el('div', { class: 'modal-head modal-head-toolbar' }, [
       el('div', { class: 'modal-head-left' }, [
         featherIcon('modal-head-icon'),
-        el('h3', { class: 'modal-title', id: titleId }, 'Карточка'),
+        el('h3', { class: 'modal-title', id: titleId }, t('cardEditor.title.edit')),
       ]),
       deleteBtn,
     ].filter(Boolean))
-    : el('h3', { class: 'modal-title', id: titleId }, 'Новая карточка');
+    : el('h3', { class: 'modal-title', id: titleId }, t('cardEditor.title.new'));
 
   m = modal(el('div', null, [
     header,

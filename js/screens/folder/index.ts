@@ -2,7 +2,7 @@ import { store } from '../../core/state.js';
 import * as SRS from '../../lib/srs.js';
 import type { SrsCard, Algo } from '../../lib/srs.js';
 import type { Folder } from '../../data/types.js';
-import { el, toast, confirmDialog, stripHtml, plural } from '../../ui/ui.js';
+import { el, toast, confirmDialog, stripHtml } from '../../ui/ui.js';
 import { ICONS } from '../../ui/constants.js';
 import { crowTombIcon, debounce, featherIcon, folderSwatch, newBudget, svgNode, textPreview } from '../../ui/helpers.js';
 import { shell, offlineBanner } from '../../ui/shell.js';
@@ -17,17 +17,18 @@ import { route } from '../../core/router.js';
 import { createVirtualList, VIRTUAL_LIST_THRESHOLD } from '../../lib/virtual-list.js';
 import { buildHomeStats, folderStudyDue } from '../../data/home-stats.js';
 import { resolveImageUrl, resolveImageUrlSync } from '../../data/image-url.js';
+import { t, tp } from '../../lib/i18n.js';
 
 /**
- * Запасные метрики строки — только на первый кадр, пока в DOM нечего мерить.
- * Реальные берутся из `measureCardRow` (десктоп ~70px, мобильные ~66px).
+ * Fallback row metrics — first frame only, before DOM can be measured.
+ * Real values come from `measureCardRow` (desktop ~70px, mobile ~66px).
  */
 const CARD_ROW_HEIGHT = 70;
 const CARD_ROW_GAP = 10;
-/** Пауза перед фильтрацией: не пересобираем список на каждую букву. */
+/** Debounce before filtering: avoid rebuilding the list on every keystroke. */
 const SEARCH_DEBOUNCE_MS = 200;
 
-/** Высота реальной строки и зазор списка — из вёрстки, а не из констант. */
+/** Real row height and list gap — from layout, not constants. */
 function measureCardRow(windowEl: HTMLElement) {
   const row = windowEl.querySelector('.card-row');
   if (!row) return null;
@@ -62,20 +63,24 @@ export async function renderFolder(folderId: string) {
     backBtn('#home'),
     folderSwatch(folder, { compact: true }),
     el('h2', { class: 'page-title grow' }, folder.name),
-    isPack ? null : el('button', { class: 'icon-btn', title: 'Переименовать', onclick: () => folderDialog(folder) }, featherIcon()),
+    isPack ? null : el('button', { class: 'icon-btn', title: t('folder.screen.rename'), onclick: () => folderDialog(folder) }, featherIcon()),
     el('button', {
-      class: 'icon-btn', title: isPack ? 'Удалить пак' : 'Удалить папку',
+      class: 'icon-btn', title: isPack ? t('folder.screen.deletePack') : t('folder.screen.deleteFolder'),
       onclick: async () => {
-        const yes = await confirmDialog(isPack ? 'Удалить лексический пак?' : 'Удалить папку?',
+        const yes = await confirmDialog(isPack ? t('folder.screen.confirm.deletePackTitle') : t('folder.screen.confirm.deleteFolderTitle'),
           isPack
-            ? `«${folder.name}» и все ${cards.length} ${plural(cards.length, 'карточка', 'карточки', 'карточек')} будут удалены.`
-            : `«${folder.name}» и все её карточки (${cards.length}) будут удалены навсегда.`,
-          isPack ? 'Удалить пак' : 'Удалить', true,
+            ? t('folder.screen.confirm.deletePackBody', {
+              name: folder.name,
+              n: cards.length,
+              cards: tp('common.card', cards.length),
+            })
+            : t('folder.screen.confirm.deleteFolderBody', { name: folder.name, n: cards.length }),
+          isPack ? t('folder.screen.confirm.deletePackOk') : t('common.delete'), true,
           crowTombIcon());
         if (!yes) return;
         if (isPack && folder.pack_id) await store.deleteVocabPack(folder.pack_id);
         else await store.deleteFolder(folderId);
-        toast(isPack ? 'Пак удалён' : 'Папка удалена');
+        toast(isPack ? t('folder.screen.toast.packDeleted') : t('folder.screen.toast.folderDeleted'));
         nav('#home');
       },
     }, svgNode(ICONS.trash)),
@@ -84,22 +89,22 @@ export async function renderFolder(folderId: string) {
   const reviewBtn = due > 0 ? el('button', {
     class: 'btn accent folder-action-wide',
     onclick: () => studyModePicker({ folderId }),
-  }, [svgNode(ICONS.play), `Повторить (${due})`]) as HTMLButtonElement : null;
+  }, [svgNode(ICONS.play), t('folder.screen.reviewDue', { n: due })]) as HTMLButtonElement : null;
 
   const addRow = el('div', { class: 'folder-actions-pair' }, [
-    el('button', { class: 'btn', onclick: () => cardDialog(folderId, undefined) }, [svgNode(ICONS.plus), 'Добавить карточку']),
-    el('button', { class: 'btn', onclick: () => bulkCardDialog(folderId) }, [svgNode(ICONS.plus), 'Добавить списком']),
+    el('button', { class: 'btn', onclick: () => cardDialog(folderId, undefined) }, [svgNode(ICONS.plus), t('folder.screen.addCard')]),
+    el('button', { class: 'btn', onclick: () => bulkCardDialog(folderId) }, [svgNode(ICONS.plus), t('folder.screen.addBulk')]),
   ]);
 
   const ytBtn = isPack ? null : el('button', {
     class: 'btn folder-action-wide',
     onclick: () => youtubeImportDialog(folderId),
-  }, [svgNode(ICONS.youtube), 'Карточки из YouTube']) as HTMLButtonElement;
+  }, [svgNode(ICONS.youtube), t('settings.yt.title')]) as HTMLButtonElement;
 
   const cramBtn = cards.length ? el('button', {
     class: 'btn' + (due > 0 ? '' : ' accent') + ' folder-action-wide',
     onclick: () => studyModePicker({ folderId, cram: true }),
-  }, [svgNode(ICONS.play), 'Повторять все карточки']) as HTMLButtonElement : null;
+  }, [svgNode(ICONS.play), t('folder.screen.cramAll')]) as HTMLButtonElement : null;
 
   const actions = el('div', { class: 'folder-actions' }, [
     reviewBtn,
@@ -112,13 +117,13 @@ export async function renderFolder(folderId: string) {
   const searchInput = el('input', {
     type: 'search',
     class: 'input folder-search',
-    placeholder: 'Поиск по карточкам…',
+    placeholder: t('folder.screen.searchPlaceholder'),
     autocomplete: 'off',
   }, []) as HTMLInputElement;
 
   const filterSeg = el('div', { class: 'seg folder-filter-seg' }, []);
-  const filterAllBtn = el('button', { class: 'active', type: 'button' }, 'Все') as HTMLButtonElement;
-  const filterDueBtn = el('button', { type: 'button' }, 'К повторению') as HTMLButtonElement;
+  const filterAllBtn = el('button', { class: 'active', type: 'button' }, t('folder.screen.filterAll')) as HTMLButtonElement;
+  const filterDueBtn = el('button', { type: 'button' }, t('folder.screen.filterDue')) as HTMLButtonElement;
   filterSeg.append(filterAllBtn, filterDueBtn);
 
   const toolbar = el('div', { class: 'folder-toolbar' }, [
@@ -127,7 +132,7 @@ export async function renderFolder(folderId: string) {
   ]);
 
   const listMount = el('div', { class: 'card-list' }, []);
-  const emptyFilter = el('p', { class: 'folder-filter-empty muted hidden' }, 'Ничего не найдено');
+  const emptyFilter = el('p', { class: 'folder-filter-empty muted hidden' }, t('folder.screen.emptyFilter'));
   let virtualList: ReturnType<typeof createVirtualList> | null = null;
 
   function buildFilteredItems() {
@@ -145,8 +150,8 @@ export async function renderFolder(folderId: string) {
     emptyFilter.classList.toggle('hidden', shown > 0 || !cards.length);
     if (shown === 0 && cards.length && (searchInput.value.trim() || filterMode === 'due')) {
       emptyFilter.textContent = filterMode === 'due' && !searchInput.value.trim()
-        ? 'Сейчас нет карточек к повторению'
-        : 'Ничего не найдено';
+        ? t('folder.screen.emptyDue')
+        : t('folder.screen.emptyFilter');
     }
   }
 
@@ -205,7 +210,7 @@ export async function renderFolder(folderId: string) {
   filterDueBtn.addEventListener('click', () => setFilter('due'));
   const debouncedPaint = debounce(() => paintList(), SEARCH_DEBOUNCE_MS);
   searchInput.addEventListener('input', debouncedPaint);
-  // Enter — показать результат сразу, не дожидаясь паузы.
+  // Enter — show result immediately, without waiting for debounce.
   searchInput.addEventListener('keydown', e => {
     if (e.key === 'Enter') { e.preventDefault(); paintList(); }
   });
@@ -213,7 +218,7 @@ export async function renderFolder(folderId: string) {
   const wrap = el('div', { class: 'folder-page' + (!cards.length ? ' is-empty' : '') }, []);
   const content = [offlineBanner(), head];
   if (isPack) {
-    content.push(el('p', { class: 'pack-folder-note muted' }, 'Лексический пак — удаляется целиком через 🗑 или в Настройки → Каталог паков.'));
+    content.push(el('p', { class: 'pack-folder-note muted' }, t('folder.screen.packNote')));
   }
   content.push(actions);
   if (cards.length) {
@@ -227,9 +232,9 @@ export async function renderFolder(folderId: string) {
   }
 
   /**
-   * Миниатюра строки. Бакет card-images приватный, поэтому исходную ссылку
-   * подменяем на подписанную. Строка виртуального списка переиспользуется под
-   * другую карточку, поэтому перед подменой сверяем data-card-id.
+   * Row thumbnail. card-images bucket is private, so the source URL is replaced
+   * with a signed one. Virtual list rows are reused for another card, so we
+   * check data-card-id before applying the replacement.
    */
   function thumbImage(src: string, cardId: string | undefined, virtual: boolean): HTMLElement {
     const node = el('img', {
@@ -250,23 +255,25 @@ export async function renderFolder(folderId: string) {
   function cardRow(c: SrsCard, i: number, algoName: Algo, virtual: boolean) {
     const img = c.front_img || c.back_img;
     let chip;
-    if (SRS.isNew(c, algoName)) chip = el('span', { class: 'srs-chip new' }, 'новая');
-    else if (SRS.isDue(c, algoName, now)) chip = el('span', { class: 'srs-chip due' }, 'пора');
+    if (SRS.isNew(c, algoName)) chip = el('span', { class: 'srs-chip new' }, t('folder.screen.chipNew'));
+    else if (SRS.isDue(c, algoName, now)) chip = el('span', { class: 'srs-chip due' }, t('folder.screen.chipDue'));
     else {
       const d = SRS.dueOf(c, algoName);
-      chip = el('span', { class: 'srs-chip' }, 'через ' + SRS.fmtDays(Math.max(1, Math.round(((d ?? Date.now()) - Date.now()) / 86400000))));
+      chip = el('span', { class: 'srs-chip' }, t('folder.screen.chipIn', {
+        when: SRS.fmtDays(Math.max(1, Math.round(((d ?? Date.now()) - Date.now()) / 86400000))),
+      }));
     }
     const rowClass = virtual ? 'card-row' : 'card-row stagger-in';
     const rowStyle = virtual ? null : { '--stagger-delay': Math.min(i * 30, 400) + 'ms' };
-    // Открытие карточки — настоящая кнопка на тексте: доступна с клавиатуры и
-    // читается скринридером. Её ::after растянут на всю строку, поэтому клик
-    // мимо текста работает как раньше, а вид строки не меняется.
+    // Open card via a real button on the text: keyboard-accessible and
+    // screen-reader friendly. Its ::after stretches across the row, so clicks
+    // outside the text work as before without changing row appearance.
     const openBtn = el('button', {
       type: 'button',
       class: 'texts card-row-open',
       onclick: () => cardDialog(c.folder_id ?? "", c),
     }, [
-      el('div', { class: 'front' }, stripHtml(c.front) || '(картинка)'),
+      el('div', { class: 'front' }, stripHtml(c.front) || t('folder.screen.imageOnly')),
       el('div', { class: 'back' }, stripHtml(c.back) || ''),
     ]);
     const row = el('div', {
@@ -279,17 +286,19 @@ export async function renderFolder(folderId: string) {
       el('button', {
         type: 'button',
         class: 'icon-btn card-row-del',
-        title: 'Удалить',
-        'aria-label': 'Удалить карточку: ' + (stripHtml(c.front) || 'без текста'),
+        title: t('common.delete'),
+        'aria-label': t('folder.screen.deleteCardAria', {
+          front: stripHtml(c.front) || t('folder.screen.noText'),
+        }),
         onclick: async e => {
           e.stopPropagation();
-          const yes = await confirmDialog('Удалить карточку?', textPreview(c), 'Удалить', true, crowTombIcon());
+          const yes = await confirmDialog(t('folder.screen.confirm.deleteCardTitle'), textPreview(c), t('common.delete'), true, crowTombIcon());
           if (!yes) return;
           row.classList.add('removing');
           setTimeout(async () => {
             if (c.id) await store.deleteCard(c.id);
             await route();
-            toast('Карточка удалена');
+            toast(t('folder.screen.toast.cardDeleted'));
           }, 250);
         },
       }, svgNode(ICONS.trash)),

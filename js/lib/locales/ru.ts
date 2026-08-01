@@ -127,7 +127,6 @@ export const ru = {
 
   "home.cal.prevMonth": "Предыдущий месяц",
   "home.cal.nextMonth": "Следующий месяц",
-  "home.cal.activityFoot": "{month} {year} · активность повторений",
 
   // —— folder / box dialogs ——
   "folder.dialog.titleEdit": "Папка",

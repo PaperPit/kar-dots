@@ -27,11 +27,13 @@ export async function renderNote(noteId: string) {
     type: 'text',
     value: note.title || '',
     placeholder: t('notes.editor.titlePlaceholder'),
+    'aria-label': t('notes.editor.titleLabel'),
   }) as HTMLInputElement;
 
   const bodyArea = el('textarea', {
     class: 'note-body-input',
     placeholder: t('notes.editor.bodyPlaceholder'),
+    'aria-label': t('notes.editor.bodyLabel'),
   }, note.body || '') as HTMLTextAreaElement;
 
   const preview = el('div', { class: 'note-preview md-body', hidden: true });
@@ -53,12 +55,8 @@ export async function renderNote(noteId: string) {
   const cardsBox = el('div', { class: 'note-cards' }, [
     el('div', { class: 'note-cards-head' }, [
       el('h4', null, t('notes.cards.title')),
-      el('button', {
-        class: 'btn small',
-        type: 'button',
-        onclick: () => toast(t('notes.cards.linkHint')),
-      }, t('notes.cards.link')),
     ]),
+    el('p', { class: 'muted note-cards-hint' }, t('notes.cards.linkHint')),
     cards.length
       ? el('ul', { class: 'note-cards-list' }, cards.map((c) =>
         el('li', null, [
@@ -119,6 +117,7 @@ export async function renderNote(noteId: string) {
   const deleteBtn = el('button', {
     class: 'icon-btn',
     title: t('common.delete'),
+    'aria-label': t('common.delete'),
     onclick: async () => {
       const yes = await confirmDialog(
         t('notes.confirm.deleteTitle'),
@@ -134,12 +133,10 @@ export async function renderNote(noteId: string) {
     },
   }, svgNode(ICONS.trash));
 
-  const head = el('div', { class: 'page-head' }, [
+  const head = el('div', { class: 'page-head page-head--wrap' }, [
     backBtn('#notes'),
     el('h2', { class: 'page-title grow' }, t('notes.editor.heading')),
-    status,
-    previewBtn,
-    deleteBtn,
+    el('div', { class: 'page-head-actions' }, [status, previewBtn, deleteBtn]),
   ]);
 
   const banner = note.conflict_of

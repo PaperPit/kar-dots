@@ -22,6 +22,7 @@ export const ru = {
   "common.open": "Открыть",
   "common.card": { one: "карточка", few: "карточки", many: "карточек" },
   "common.folder": { one: "папка", few: "папки", many: "папок" },
+  "common.day": { one: "день", few: "дня", many: "дней" },
   "common.error": "Ошибка",
   "common.unknownError": "Неизвестная ошибка",
   "common.show": "Показать",
@@ -35,11 +36,18 @@ export const ru = {
   "app.bootError": "Ошибка запуска: {message}",
 
   // —— shell ——
+  "shell.skipToContent": "Перейти к содержимому",
+  "shell.nav.aria": "Основная навигация",
   "shell.nav.home": "Папки",
+  "shell.nav.homeTab": "Папки",
   "shell.nav.notes": "Заметки",
+  "shell.nav.notesTab": "Заметки",
   "shell.nav.review": "Повторение",
+  "shell.nav.reviewTab": "Повтор",
   "shell.nav.stats": "Статистика",
+  "shell.nav.statsTab": "Стат.",
   "shell.nav.settings": "Настройки",
+  "shell.nav.settingsTab": "Ещё",
   "shell.offline.short": "Нет сети",
   "shell.offline.local": "Нет сети — данные остаются на этом устройстве.",
   "shell.offline.cloud": "Нет сети — изменения сохранятся локально.",
@@ -137,6 +145,18 @@ export const ru = {
 
   "home.cal.prevMonth": "Предыдущий месяц",
   "home.cal.nextMonth": "Следующий месяц",
+  "home.cal.expand": "Открыть календарь активности",
+  "home.cal.collapse": "Свернуть календарь",
+  "home.cal.dayTip": "{day} {month}",
+  "home.cal.dayTipReviews": "{day} {month} · {n} {cards}",
+  "home.day.weekBarAria": "{day}: знаю {known}, не знаю {failed}",
+
+  "home.card.folder": "папка",
+  "home.card.pack": "Лексический пак",
+  "home.card.folderMeta": "папка · {n} {cards}",
+  "home.card.boxMeta": "коробка · {folders} · {cards}",
+  "home.card.boxAria": "Коробка {label}",
+  "home.card.due": "к повторению {n}",
 
   // —— folder / box dialogs ——
   "folder.dialog.titleEdit": "Папка",
@@ -262,6 +282,14 @@ export const ru = {
   "box.confirm.deleteWithFolders":
     "«{name}» будет удалена. {n} {folders} останутся на главном экране.",
   "box.confirm.deleteEmpty": "«{name}» будет удалена.",
+  "box.screen.edit": "Изменить",
+  "box.screen.delete": "Удалить коробку",
+  "box.screen.foldersTitle": "Папки",
+  "box.screen.empty":
+    "В коробке пока нет папок. Добавьте существующие через «Изменить» или создайте новую.",
+  "box.screen.toast.deleted": "Коробка удалена",
+  "box.screen.toast.unboxFailed": "Не удалось вынести папку",
+  "box.screen.toast.unboxed": "«{name}» вынесена из коробки",
 
   // —— settings (language + chrome used in phase 0/1) ——
   "settings.title": "Настройки",
@@ -589,7 +617,11 @@ export const ru = {
   "review.grade.undone": "Оценка отменена",
 
   "review.flip.aria": "Карточка — нажмите, чтобы перевернуть",
+  "review.flip.ariaNamed": "{text}. Нажмите, чтобы перевернуть",
   "review.flip.hint": "коснитесь, чтобы увидеть перевод",
+  "review.face.front": "Слово",
+  "review.face.back": "Перевод",
+  "review.face.empty": "(пусто)",
 
   "review.type.placeholderBack": "Введите перевод…",
   "review.type.placeholderFront": "Введите термин…",
@@ -751,28 +783,33 @@ export const ru = {
   "notes.untitled": "Без названия",
   "notes.btn.new": "+ Новая",
   "notes.search.placeholder": "Поиск по заметкам…",
+  "notes.search.aria": "Поиск по заметкам",
   "notes.empty.title": "Пока нет заметок",
-  "notes.empty.text": "Создайте первую — Markdown, поиск и связь с карточками.",
+  "notes.empty.text": "Создайте первую — текст с заголовками и списками, поиск и связь с карточками.",
   "notes.empty.body": "Пустая заметка",
   "notes.toast.missing": "Заметка не найдена",
   "notes.toast.deleted": "Заметка удалена",
   "notes.editor.heading": "Заметка",
   "notes.editor.titlePlaceholder": "Заголовок",
-  "notes.editor.bodyPlaceholder": "Пишите Markdown…",
+  "notes.editor.titleLabel": "Заголовок заметки",
+  "notes.editor.bodyPlaceholder": "Пишите заметку…",
+  "notes.editor.bodyLabel": "Текст заметки",
   "notes.editor.preview": "Просмотр",
   "notes.editor.edit": "Редактор",
   "notes.editor.saving": "Сохраняю…",
   "notes.editor.saved": "Сохранено",
   "notes.editor.unsaved": "Изменения…",
   "notes.confirm.deleteTitle": "Удалить заметку?",
-  "notes.confirm.deleteBody": "Карточки останутся — ссылка на заметку обнулится.",
-  "notes.conflicts.title": "Конфликт-копии",
-  "notes.conflicts.isCopy": "Это копия проигравшей версии при синхронизации.",
-  "notes.conflicts.banner": "Конфликт-копия — оригинал доступен по ссылке.",
+  "notes.confirm.deleteBody":
+    "Карточки останутся — связь с этой заметкой снимется.",
+  "notes.conflicts.title": "Другие версии",
+  "notes.conflicts.isCopy": "Это другая версия с другого устройства.",
+  "notes.conflicts.banner": "Другая версия — оригинал доступен по ссылке.",
   "notes.conflicts.openOriginal": "Открыть оригинал",
   "notes.cards.title": "Карточки заметки",
   "notes.cards.link": "Связать",
-  "notes.cards.linkHint": "Привяжите карточку через редактор или store.linkCardToNote.",
+  "notes.cards.linkHint":
+    "Чтобы связать карточку: откройте её в редакторе и выберите эту заметку в поле «Заметка».",
   "notes.cards.empty": "Пока нет связанных карточек.",
   "notes.cards.untitled": "Без текста"
 } as const satisfies Record<string, MessageValue>

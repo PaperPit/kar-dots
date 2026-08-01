@@ -183,8 +183,9 @@ export async function studyModePicker({ folderId = null, cram = false }: { folde
     return btn;
   });
 
+  const titleId = 'study-mode-picker-title';
   m = modal(el('div', null, [
-    el('h3', { class: 'modal-title' }, cram ? t('review.picker.cramTitle') : t('review.picker.title')),
+    el('h3', { class: 'modal-title', id: titleId }, cram ? t('review.picker.cramTitle') : t('review.picker.title')),
     el('p', { class: 'modal-text' }, cram
       ? t('review.picker.cramSub')
       : t('review.picker.sub')),
@@ -195,5 +196,5 @@ export async function studyModePicker({ folderId = null, cram = false }: { folde
     el('div', { class: 'modal-actions' }, [
       el('button', { class: 'btn ghost', onclick: () => m!.close() }, t('common.cancel')),
     ]),
-  ]));
+  ]), { labelledBy: titleId });
 }

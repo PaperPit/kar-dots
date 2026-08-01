@@ -230,9 +230,16 @@ export function confirmDialog(
 ): Promise<boolean> {
   return new Promise((resolve) => {
     let m: ModalHandle
+    let settled = false
+    const settle = (value: boolean) => {
+      if (settled) return
+      settled = true
+      resolve(value)
+    }
+    const titleId = "confirm-dialog-title"
     const content = el("div", null, [
       icon ? el("div", { class: "modal-illus" }, icon) : null,
-      el("h3", { class: "modal-title" }, title),
+      el("h3", { class: "modal-title", id: titleId }, title),
       text ? el("p", { class: "modal-text" }, text) : null,
       el("div", { class: "modal-actions" }, [
         el(
@@ -240,8 +247,8 @@ export function confirmDialog(
           {
             class: "btn ghost",
             onclick: () => {
+              settle(false)
               m.close()
-              resolve(false)
             }
           },
           t("common.cancel")
@@ -251,15 +258,18 @@ export function confirmDialog(
           {
             class: "btn " + (danger ? "danger" : "primary"),
             onclick: () => {
+              settle(true)
               m.close()
-              resolve(true)
             }
           },
           okLabel || t("common.ok")
         )
       ])
     ])
-    m = modal(content)
+    m = modal(content, {
+      labelledBy: titleId,
+      onClose: () => settle(false)
+    })
   })
 }
 

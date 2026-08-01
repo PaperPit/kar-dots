@@ -172,13 +172,15 @@
   position: relative; width: 100%; min-height: 220px;
   max-height: min(52dvh, calc(100dvh - 300px));
   transform-style: preserve-3d;
-  transition: transform .6s cubic-bezier(.3,.08,.16,1), height .3s var(--ease);
+  transition: transform .6s cubic-bezier(.3,.08,.16,1), height .3s var(--ease), box-shadow var(--dur) var(--ease);
   cursor: pointer;
   outline: none;
+  border-radius: 26px;
 }
-.flip-card:focus,
+.flip-card:focus { outline: none; }
 .flip-card:focus-visible {
   outline: none;
+  box-shadow: var(--focus-ring);
 }
 .flip-card.flipped { transform: rotateY(180deg); }
 .flip-swipe-wrap.flip-dip { animation: flipDip .6s cubic-bezier(.3,.08,.16,1); }

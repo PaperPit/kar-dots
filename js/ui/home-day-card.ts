@@ -3,7 +3,7 @@ import {
   loadActivity,
   dayKey,
   dayKnownFailed,
-  WEEKDAY_NAMES
+  weekdayNamesMonFirst
 } from "../lib/activity.js"
 import { t, tp } from "../lib/i18n.js"
 
@@ -61,7 +61,7 @@ function weekBarsData(): {
   monday.setDate(today.getDate() - dow)
   monday.setHours(12, 0, 0, 0)
 
-  const labels = WEEKDAY_NAMES.map((w) => w.toLowerCase())
+  const labels = weekdayNamesMonFirst()
   const bars = []
   for (let i = 0; i < 7; i++) {
     const d = new Date(monday)
@@ -134,22 +134,33 @@ function renderWeekBody(): HTMLElement {
     const empty = total === 0
     const okH = empty ? 0 : Math.max(4, Math.round(b.known * scale))
     const failH = empty ? 0 : Math.max(3, Math.round(b.failed * scale * 0.6))
+    const barLabel = t("home.day.weekBarAria", {
+      day: b.label,
+      known: b.known,
+      failed: b.failed
+    })
     return el("div", { class: "week-bar-col" }, [
       empty
-        ? el("div", { class: "week-bar-empty" })
-        : el("div", { class: "week-bar-stack" }, [
-            el("div", {
-              class: "week-bar-fail",
-              style: { height: failH + "px" }
-            }),
-            el("div", {
-              class: "week-bar-ok",
-              style: { height: okH + "px" }
-            })
-          ]),
+        ? el("div", { class: "week-bar-empty", "aria-label": barLabel })
+        : el(
+            "div",
+            { class: "week-bar-stack", "aria-label": barLabel, role: "img" },
+            [
+              el("div", {
+                class: "week-bar-fail",
+                style: { height: failH + "px" },
+                "aria-hidden": "true"
+              }),
+              el("div", {
+                class: "week-bar-ok",
+                style: { height: okH + "px" },
+                "aria-hidden": "true"
+              })
+            ]
+          ),
       el(
         "span",
-        { class: "week-bar-label" + (b.isToday ? " is-today" : "") },
+        { class: "week-bar-label" + (b.isToday ? " is-today" : ""), "aria-hidden": "true" },
         b.label
       )
     ])
@@ -192,9 +203,12 @@ export function homeDayCard(leftToday: number, onContinue: () => void): HTMLElem
     {
       type: "button",
       class: "day-card-toggle",
-      title: view === "ring" ? t("home.day.showWeek") : t("home.day.showToday")
+      title: view === "ring" ? t("home.day.showWeek") : t("home.day.showToday"),
+      "aria-label": view === "ring" ? t("home.day.showWeek") : t("home.day.showToday")
     },
-    view === "ring" ? "→" : "←"
+    [
+      el("span", { "aria-hidden": "true" }, view === "ring" ? "→" : "←")
+    ]
   ) as HTMLButtonElement
 
   const bodySlot = el("div", { class: "day-card-body-slot" })
@@ -213,8 +227,11 @@ export function homeDayCard(leftToday: number, onContinue: () => void): HTMLElem
       subtitle.textContent = t("home.day.subToday")
       subtitle.classList.remove("day-card-sub--as-title")
     }
-    toggleBtn.textContent = isWeek ? "←" : "→"
-    toggleBtn.title = isWeek ? t("home.day.showToday") : t("home.day.showWeek")
+    const label = isWeek ? t("home.day.showToday") : t("home.day.showWeek")
+    toggleBtn.title = label
+    toggleBtn.setAttribute("aria-label", label)
+    const glyph = toggleBtn.querySelector("[aria-hidden='true']")
+    if (glyph) glyph.textContent = isWeek ? "←" : "→"
   }
 
   function paintBody() {

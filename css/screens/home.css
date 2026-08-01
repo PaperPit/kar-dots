@@ -85,8 +85,8 @@
 }
 .day-card-toggle {
   flex: none;
-  width: 34px;
-  height: 34px;
+  width: 44px;
+  height: 44px;
   border: 0;
   cursor: pointer;
   border-radius: 50%;
@@ -152,12 +152,13 @@
   font-size: 22px;
   line-height: 1;
   margin: 0;
+  font-variant-numeric: tabular-nums;
 }
 .day-donut-of {
   font-weight: 600;
-  font-size: 10px;
+  font-size: 12px;
   line-height: 1.1;
-  color: var(--ink-muted);
+  color: var(--ink-faint);
   margin: 3px 0 0;
 }
 .day-legend {
@@ -200,8 +201,8 @@
   vertical-align: middle;
   margin-right: 5px;
 }
-.day-swatch-ok-sm { background: var(--accent); }
-.day-swatch-fail-sm { background: #E8B0A8; }
+.day-swatch-ok-sm { background: var(--ok); }
+.day-swatch-fail-sm { background: var(--danger-text); }
 
 .day-card-week {
   min-height: 136px;
@@ -242,20 +243,20 @@
 }
 .week-bar-fail {
   border-radius: 4px 4px 2px 2px;
-  background: #E8B0A8;
+  background: var(--danger-text);
   min-height: 3px;
 }
 .week-bar-ok {
   border-radius: 2px 2px 4px 4px;
-  background: var(--accent);
+  background: var(--ok);
   min-height: 4px;
 }
 .week-bar-label {
   font-family: var(--font-body);
   font-weight: 600;
-  font-size: 10.5px;
+  font-size: 11px;
   line-height: 1.2;
-  color: var(--ink-muted);
+  color: var(--ink-faint);
 }
 .week-bar-label.is-today {
   font-family: var(--font-display);
@@ -335,12 +336,34 @@
   text-align: left;
   cursor: default;
 }
+.streak-cal-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: default;
+  min-height: 44px;
+  min-width: 0;
+  flex: none;
+}
+.streak-cal-toggle:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+  border-radius: 10px;
+}
 .streak-cal-num {
   font-family: var(--font-display);
   font-weight: 800;
   font-size: 34px;
   line-height: 1;
   color: var(--accent);
+  font-variant-numeric: tabular-nums;
 }
 .streak-cal-label {
   font-weight: 600;
@@ -390,8 +413,8 @@
 .home-cal-weekdays > div {
   text-align: center;
   font-weight: 700;
-  font-size: 10.5px;
-  color: var(--ink-muted);
+  font-size: 11px;
+  color: var(--ink-faint);
   text-transform: uppercase;
   letter-spacing: .04em;
 }
@@ -404,7 +427,8 @@
   font-weight: 700;
   font-size: 12px;
   background: var(--bg-sunken);
-  color: var(--ink-muted-soft);
+  color: var(--ink-faint);
+  font-variant-numeric: tabular-nums;
 }
 .home-cal-day.is-outside {
   background: transparent;
@@ -427,12 +451,12 @@
 }
 .streak-cal-nav {
   flex: none;
-  width: 28px;
-  height: 28px;
+  width: 44px;
+  height: 44px;
   margin: 0;
   padding: 0;
   border: 0;
-  border-radius: 8px;
+  border-radius: 10px;
   background: var(--bg-sunken);
   color: var(--ink-faint);
   font: inherit;
@@ -447,7 +471,7 @@
   background: var(--bg-muted, var(--bg-sunken));
   color: var(--ink);
 }
-.streak-cal-nav:active:not(:disabled) { transform: scale(.94); }
+.streak-cal-nav:active:not(:disabled) { transform: scale(.96); }
 .streak-cal-nav:disabled {
   opacity: .35;
   cursor: default;
@@ -691,10 +715,12 @@ html.folder-drag-active .folder-unbox-zone {
     padding: 14px 18px;
   }
   .streak-cal-collapsible .streak-cal-head {
-    cursor: pointer;
-    -webkit-tap-highlight-color: transparent;
     min-height: 44px;
     align-items: center;
+  }
+  .streak-cal-collapsible .streak-cal-toggle {
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
   }
   .streak-cal-collapsible .streak-cal-chevron { display: block; }
   .streak-cal-collapsible.is-open .streak-cal-chevron {

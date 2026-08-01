@@ -10,6 +10,8 @@ import { t } from "../lib/i18n.js"
 interface TabItem {
   id: string
   label: string
+  /** Короче подпись для мобильного tabbar (опционально). */
+  tabLabel?: string
   icon: string
   hash: string
   onclick?: () => void
@@ -57,18 +59,43 @@ function navActiveId(viewName: string | null): string | null {
 
 function tabConfig(viewName: string | null = lastViewName): TabItem[] {
   return [
-    { id: "home", label: t("shell.nav.home"), icon: ICONS.home, hash: "#home" },
-    { id: "notes", label: t("shell.nav.notes"), icon: ICONS.note, hash: "#notes" },
+    {
+      id: "home",
+      label: t("shell.nav.home"),
+      tabLabel: t("shell.nav.homeTab"),
+      icon: ICONS.home,
+      hash: "#home"
+    },
+    {
+      id: "notes",
+      label: t("shell.nav.notes"),
+      tabLabel: t("shell.nav.notesTab"),
+      icon: ICONS.note,
+      hash: "#notes"
+    },
     {
       id: "review",
       label: t("shell.nav.review"),
+      tabLabel: t("shell.nav.reviewTab"),
       icon: ICONS.cards,
       onclick: () => openStudyModePicker(),
       hash: "#review",
       badge: reviewDueBadge(viewName)
     },
-    { id: "stats", label: t("shell.nav.stats"), icon: ICONS.chart, hash: "#stats" },
-    { id: "settings", label: t("shell.nav.settings"), icon: ICONS.gear, hash: "#settings" }
+    {
+      id: "stats",
+      label: t("shell.nav.stats"),
+      tabLabel: t("shell.nav.statsTab"),
+      icon: ICONS.chart,
+      hash: "#stats"
+    },
+    {
+      id: "settings",
+      label: t("shell.nav.settings"),
+      tabLabel: t("shell.nav.settingsTab"),
+      icon: ICONS.gear,
+      hash: "#settings"
+    }
   ]
 }
 
@@ -83,14 +110,16 @@ function makeNavItems(tabs: TabItem[], viewName: string, kind: "desktop" | "tab"
   return tabs.map((t) => {
     const badgeEl =
       t.id === "review" ? el("span", { class: "badge", hidden: !t.badge }, t.badge || "") : null
+    const label = kind === "tab" && t.tabLabel ? t.tabLabel : t.label
     const kids =
       kind === "desktop"
         ? [t.label, badgeEl]
-        : [svgNode(t.icon), el("span", null, t.label), badgeEl]
+        : [svgNode(t.icon), el("span", null, label), badgeEl]
     const btn = el(
       "button",
       {
         class: (kind === "desktop" ? "nav-btn" : "tab-btn") + (active === t.id ? " active" : ""),
+        "aria-label": t.label,
         onclick: () => (t.onclick ? t.onclick() : nav(t.hash))
       },
       kids
@@ -132,13 +161,13 @@ function buildShell(viewName: string): ShellEl {
   )
 
   const tabbar = el(
-    "div",
-    { class: "tabbar" },
+    "nav",
+    { class: "tabbar", "aria-label": t("shell.nav.aria") },
     tabNav.map((x) => x.btn)
   )
   const prependSlot = el("div", { class: "main-prepend", hidden: true })
   const viewSlot = el("div", { class: "view-slot" })
-  const main = el("main", { class: "main" }, [prependSlot, viewSlot])
+  const main = el("main", { class: "main", id: "mainContent" }, [prependSlot, viewSlot])
 
   return { header, main, tabbar, prependSlot, viewSlot, desktopNav, tabNav }
 }
@@ -195,7 +224,12 @@ export function shell(viewName: string, content: Node | Node[], prependToMain?: 
   if (!shellAlive()) {
     app.replaceChildren()
     shellEl = buildShell(viewName)
-    app.append(shellEl.header, shellEl.main, shellEl.tabbar)
+    const skip = el(
+      "a",
+      { class: "skip-link", href: "#mainContent" },
+      t("shell.skipToContent")
+    )
+    app.append(skip, shellEl.header, shellEl.main, shellEl.tabbar)
   } else {
     syncShellChrome(viewName)
   }

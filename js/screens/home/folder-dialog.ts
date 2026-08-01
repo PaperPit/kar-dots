@@ -1,7 +1,7 @@
 import { store } from '../../core/state.js';
 import { el, toast, modal } from '../../ui/ui.js';
 import { FOLDER_COLORS } from '../../ui/constants.js';
-import { featherIcon, modalHead } from '../../ui/helpers.js';
+import { featherIcon } from '../../ui/helpers.js';
 import { createIconPicker } from '../../ui/icon-picker.js';
 import { route } from '../../core/router.js';
 import { folderSaveErrorMessage } from '../../lib/folder-errors.js';
@@ -43,8 +43,14 @@ export function folderDialog(folder: Folder | null, opts: { box_id?: string | nu
     },
   }, folder ? t('common.save') : t('common.create')) as HTMLButtonElement;
 
+  const titleId = 'folder-dialog-title';
   m = modal(el('div', null, [
-    folder ? modalHead(t('folder.dialog.titleEdit'), featherIcon('modal-head-icon')) : el('h3', { class: 'modal-title' }, t('folder.dialog.titleNew')),
+    folder
+      ? el('div', { class: 'modal-head' }, [
+        featherIcon('modal-head-icon'),
+        el('h3', { class: 'modal-title', id: titleId }, t('folder.dialog.titleEdit')),
+      ])
+      : el('h3', { class: 'modal-title', id: titleId }, t('folder.dialog.titleNew')),
     el('div', { class: 'field' }, [el('label', null, t('common.name')), name]),
     el('div', { class: 'field' }, [el('label', null, t('common.color')), dots]),
     el('div', { class: 'field' }, [
@@ -56,6 +62,6 @@ export function folderDialog(folder: Folder | null, opts: { box_id?: string | nu
       el('button', { class: 'btn ghost', onclick: () => m.close() }, t('common.cancel')),
       save,
     ]),
-  ]));
+  ]), { labelledBy: titleId });
   setTimeout(() => name.focus(), 260);
 }

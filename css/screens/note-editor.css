@@ -23,6 +23,11 @@
 .note-title-input:focus {
   outline: none;
 }
+.note-title-input:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+  border-radius: 6px;
+}
 
 .note-body-input {
   width: 100%;
@@ -30,26 +35,31 @@
   box-sizing: border-box;
   resize: vertical;
   border: 1px solid var(--line);
-  border-radius: var(--radius);
+  border-radius: var(--radius-md);
   background: var(--bg-raised);
   color: var(--ink);
   padding: 16px;
   font: inherit;
-  font-size: 15px;
+  font-size: 16px;
   line-height: 1.55;
+  /* совпадает с .note-preview, чтобы переключение edit/preview не дёргало углы */
 }
 
 .note-body-input:focus {
-  outline: 2px solid color-mix(in srgb, var(--accent) 40%, transparent);
-  outline-offset: 1px;
+  outline: none;
+}
+.note-body-input:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
 }
 
 .note-preview.md-body {
   min-height: 42vh;
   padding: 16px;
-  border-radius: var(--radius);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
   background: var(--bg-raised);
-  box-shadow: var(--shadow);
+  box-shadow: none;
   line-height: 1.55;
 }
 
@@ -118,7 +128,8 @@
   border: none;
   background: transparent;
   color: var(--accent);
-  padding: 6px 0;
+  padding: 10px 0;
+  min-height: 44px;
   cursor: pointer;
   font: inherit;
 }
@@ -132,6 +143,12 @@
 }
 
 .note-cards-head h4 { margin: 0; }
+
+.note-cards-hint {
+  margin: 0 0 10px;
+  font-size: 13px;
+  line-height: 1.4;
+}
 
 .note-cards-list {
   list-style: none;

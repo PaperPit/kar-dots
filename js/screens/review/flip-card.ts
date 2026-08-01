@@ -1,5 +1,5 @@
 import type { SrsCard } from "../../lib/srs.js";
-import { el } from '../../ui/ui.js';
+import { el, stripHtml } from '../../ui/ui.js';
 import { buildFlipFace } from '../../ui/card-face.js';
 import { haptic } from '../../ui/helpers.js';
 import { t } from '../../lib/i18n.js';
@@ -11,6 +11,11 @@ interface FlipCardOpts {
   onFlip?: (side: string) => void;
   onGradeKey?: (key: string, gradeRow: HTMLElement) => void;
   onGradeDir?: (dir: 'left' | 'right', gradeRow: HTMLElement) => void;
+}
+
+function sidePlain(card: SrsCard, side: 'front' | 'back'): string {
+  const raw = side === 'front' ? card.front : card.back;
+  return stripHtml(raw || '').trim() || t('review.face.empty');
 }
 
 /**
@@ -42,15 +47,24 @@ export function createFlipCard(card: SrsCard, firstSide: 'front' | 'back', opts:
   const backSide = firstSide === 'front' ? 'back' : 'front';
   let gradesShown = false;
 
+  const hintId = 'flip-hint-' + Math.random().toString(36).slice(2, 9);
   const flip = el('div', {
     class: 'flip-card', role: 'button', tabindex: '0',
-    'aria-label': t('review.flip.aria'),
+    'aria-describedby': hintId,
   }, [
     buildFlipFace(firstSide, card, false),
     buildFlipFace(backSide, card, true),
   ]);
 
-  const hint = el('div', { class: 'flip-hint' }, t('review.flip.hint'));
+  function syncFlipName(side: 'front' | 'back') {
+    flip.setAttribute(
+      'aria-label',
+      t('review.flip.ariaNamed', { text: sidePlain(card, side) }),
+    );
+  }
+  syncFlipName(firstSide);
+
+  const hint = el('div', { class: 'flip-hint', id: hintId }, t('review.flip.hint'));
   const grades = el('div', { class: 'grade-row' }, undefined);
   const swipeWrap = el('div', { class: 'flip-swipe-wrap' }, [flip]);
   // декоративные слои-«стопка» позади карточки: создают ощущение колоды
@@ -80,9 +94,9 @@ export function createFlipCard(card: SrsCard, firstSide: 'front' | 'back', opts:
       hint.style.opacity = '0';
       if (opts.onFirstFlip) opts.onFirstFlip();
     }
-    if (opts.onFlip) {
-      opts.onFlip(flip.classList.contains('flipped') ? backSide : firstSide);
-    }
+    const side = flip.classList.contains('flipped') ? backSide : firstSide;
+    syncFlipName(side);
+    if (opts.onFlip) opts.onFlip(side);
   }
 
   flip.addEventListener('click', () => {

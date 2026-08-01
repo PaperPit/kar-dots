@@ -213,9 +213,12 @@ export function homeStreakCalendarCard(): HTMLElement {
     "›"
   ) as HTMLButtonElement
   const navs = el("div", { class: "streak-cal-navs" }, [prevBtn, nextBtn])
+  const monthLabel = el("span", { class: "streak-cal-month" })
 
   function renderMonth() {
     const monthName = (MONTH_NAMES[viewMonth] || "").toLowerCase()
+    const showYear = viewYear !== now.getFullYear()
+    monthLabel.textContent = showYear ? `${monthName} ${viewYear}` : monthName
     grid.replaceChildren()
     getMonthGrid(viewYear, viewMonth).forEach((cell) => {
       if (cell.outside) {
@@ -265,6 +268,7 @@ export function homeStreakCalendarCard(): HTMLElement {
         { class: "streak-cal-label" },
         plural(streak, "день подряд", "дня подряд", "дней подряд")
       ),
+      monthLabel,
       navs,
       el("img", {
         class: "streak-cal-cup",

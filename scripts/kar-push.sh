@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Универсальный push: тесты → commit → push текущей ветки.
+# Универсальный push: deps → тесты → commit → push текущей ветки.
 # Использование: kar-push "краткое описание"
 # Или из репо:  npm run kar-push -- "описание"
 set -euo pipefail
@@ -13,6 +13,12 @@ if [[ -z "${MSG// }" ]]; then
 fi
 
 echo "→ $ROOT"
+
+if [[ ! -d node_modules ]] || [[ ! -x node_modules/.bin/vitest ]]; then
+  echo "→ npm install  (нет node_modules / vitest)"
+  npm install
+fi
+
 echo "→ npm test"
 npm test
 

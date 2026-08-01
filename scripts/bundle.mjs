@@ -107,7 +107,10 @@ const CORE_FILES = ['./', 'index.html', 'manifest.webmanifest', 'packs/manifest.
 const unique = [...new Set(CORE_FILES.filter((f) => f !== './'))].sort();
 
 const swPath = path.join(DIST, 'sw.js');
-const VERSION = 'kar-v15.4-bundle';
+// Синхронизируем VERSION с APP_VERSION из js/core/version.js (после tsc).
+const versionSrc = fs.readFileSync(path.join(JS, 'core/version.js'), 'utf8');
+const versionMatch = versionSrc.match(/APP_VERSION\s*=\s*["']([^"']+)["']/);
+const VERSION = `${versionMatch?.[1] || 'kar-v15.5'}-bundle`;
 const list = unique.map((f) => `  '${f}',`).join('\n');
 const swBody = `const VERSION = '${VERSION}';
 

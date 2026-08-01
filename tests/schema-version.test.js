@@ -42,17 +42,17 @@ describe('schemaOutdatedMessage', () => {
 
   it('names a range for multiple missing migrations', () => {
     const msg = schemaOutdatedMessage(1, 4);
-    expect(msg).toContain('миграции 2–4');
+    expect(msg).toContain('2–4');
     expect(msg).toContain('supabase/migrations');
   });
 
   it('names a single missing migration', () => {
     const msg = schemaOutdatedMessage(3, 4);
-    expect(msg).toContain('миграцию 4');
+    expect(msg).toMatch(/миграци[юи] 4|migration 4/i);
   });
 
   it('handles version 0 (no migrations yet)', () => {
     const msg = schemaOutdatedMessage(0, 4);
-    expect(msg).toContain('миграции 1–4');
+    expect(msg).toContain('1–4');
   });
 });

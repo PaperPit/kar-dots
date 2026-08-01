@@ -56,10 +56,15 @@ export const ru = {
   "shell.sync.discarded": "Ошибка синхронизации скрыта",
   "shell.sync.hide": "Скрыть",
   "shell.sync.readFailed": "Не удалось прочитать состояние синхронизации.",
+  "shell.schema.outdatedOne":
+    "Обновите базу данных: выполните миграцию {n} из supabase/migrations в Supabase (SQL Editor). Пока изменения сохраняются только на этом устройстве.",
+  "shell.schema.outdatedRange":
+    "Обновите базу данных: выполните миграции {from}–{to} из supabase/migrations в Supabase (SQL Editor). Пока изменения сохраняются только на этом устройстве.",
 
   // —— глобальные ошибки ——
   "app.error.unexpected": "Что-то пошло не так. Данные сохранены — попробуйте ещё раз.",
   "app.error.reload": "Перезагрузить",
+  "app.routeError": "Ошибка экрана: {message}",
 
   // —— auth ——
   "auth.sub":

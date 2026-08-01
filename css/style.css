@@ -505,6 +505,7 @@ html.motion-ui .toast.show { opacity: 1; transform: none; }
   outline: none; box-shadow: var(--focus-ring);
 }
 
+.status-banners:empty { display: none; }
 .offline-banner {
   background: var(--accent-soft);
   color: var(--ink);
@@ -514,6 +515,11 @@ html.motion-ui .toast.show { opacity: 1; transform: none; }
   border-radius: var(--radius-sm);
   margin-bottom: 14px;
   border: 1px solid var(--line);
+}
+.schema-banner {
+  background: color-mix(in srgb, var(--warn, #C47A1A) 14%, var(--bg));
+  border-color: color-mix(in srgb, var(--warn, #C47A1A) 32%, var(--line));
+  text-align: left;
 }
 .sync-banner {
   display: flex;

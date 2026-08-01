@@ -11,7 +11,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: "22"
           cache: npm
       - run: npm ci
       - name: Type check
@@ -20,3 +20,15 @@ jobs:
         run: npm run lint
       - name: Test
         run: npm test
+      - name: Bundle
+        run: npm run build:bundle
+      - name: Bundle smoke
+        run: |
+          test -f dist/js/app.js
+          test -f dist/sw.js
+          test -d dist/audio/ui
+          test -f dist/audio/ui/click-soft.mp3
+          grep -q "kar-v" dist/sw.js
+          # VERSION в SW должен совпадать с APP_VERSION + "-bundle"
+          APP_V=$(node -e "const fs=require('fs');const s=fs.readFileSync('js/core/version.js','utf8');const m=s.match(/APP_VERSION\\s*=\\s*[\"']([^\"']+)[\"']/);if(!m)process.exit(1);process.stdout.write(m[1]+'-bundle')")
+          grep -q "$APP_V" dist/sw.js

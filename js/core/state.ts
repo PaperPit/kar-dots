@@ -98,6 +98,8 @@ export interface AppStore {
   onSyncChange?(fn: (state: any) => void): void;
   /** Только у CloudStore. */
   syncReviewLogFromCloud?(): Promise<number>;
+  /** Только у CloudStore: устаревшая schema_meta → текст баннера. */
+  schemaWarning?: string | null;
 }
 
 export interface Config {

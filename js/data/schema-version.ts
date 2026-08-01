@@ -2,6 +2,7 @@
 // приложение один раз при старте сверяет schema_meta.version с нужной
 // и, если она ниже, просит выполнить недостающие миграции.
 import { isNetworkError } from "./supabase.js"
+import { t } from "../lib/i18n.js"
 
 /**
  * Нужная версия схемы. Должна совпадать с номером последней миграции
@@ -37,9 +38,8 @@ export async function fetchSchemaVersion(sb: { select: (table: string, query: st
 export function schemaOutdatedMessage(current: number, required = REQUIRED_SCHEMA_VERSION): string | null {
   if (current >= required) return null
   const from = Math.max(1, current + 1)
-  const range = from === required ? `миграцию ${required}` : `миграции ${from}–${required}`
-  return (
-    `Обновите базу данных: выполните ${range} из supabase/migrations в Supabase (SQL Editor). ` +
-    "Пока изменения сохраняются только на этом устройстве."
-  )
+  if (from === required) {
+    return t("shell.schema.outdatedOne", { n: required })
+  }
+  return t("shell.schema.outdatedRange", { from, to: required })
 }

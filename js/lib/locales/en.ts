@@ -112,6 +112,10 @@ export const en: Record<string, MessageValue> = {
   "home.day.repeat": "Review",
   "home.day.accuracy": "accuracy {n}%",
 
+  "home.cal.prevMonth": "Previous month",
+  "home.cal.nextMonth": "Next month",
+  "home.cal.activityFoot": "{month} {year} · review activity",
+
   "folder.dialog.titleEdit": "Folder",
   "folder.dialog.titleNew": "New folder",
   "folder.dialog.namePlaceholder": "e.g. English",

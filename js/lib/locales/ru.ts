@@ -125,6 +125,10 @@ export const ru = {
   "home.day.repeat": "Повторить",
   "home.day.accuracy": "точность {n}%",
 
+  "home.cal.prevMonth": "Предыдущий месяц",
+  "home.cal.nextMonth": "Следующий месяц",
+  "home.cal.activityFoot": "{month} {year} · активность повторений",
+
   // —— folder / box dialogs ——
   "folder.dialog.titleEdit": "Папка",
   "folder.dialog.titleNew": "Новая папка",

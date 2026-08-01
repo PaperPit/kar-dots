@@ -59,8 +59,20 @@ function navActiveId(viewName: string | null): string | null {
 
 function tabConfig(viewName: string | null = lastViewName): TabItem[] {
   return [
-    { id: "home", label: t("shell.nav.home"), icon: ICONS.home, hash: "#home" },
-    { id: "notes", label: t("shell.nav.notes"), icon: ICONS.note, hash: "#notes" },
+    {
+      id: "home",
+      label: t("shell.nav.home"),
+      tabLabel: t("shell.nav.homeTab"),
+      icon: ICONS.home,
+      hash: "#home"
+    },
+    {
+      id: "notes",
+      label: t("shell.nav.notes"),
+      tabLabel: t("shell.nav.notesTab"),
+      icon: ICONS.note,
+      hash: "#notes"
+    },
     {
       id: "review",
       label: t("shell.nav.review"),
@@ -77,7 +89,13 @@ function tabConfig(viewName: string | null = lastViewName): TabItem[] {
       icon: ICONS.chart,
       hash: "#stats"
     },
-    { id: "settings", label: t("shell.nav.settings"), icon: ICONS.gear, hash: "#settings" }
+    {
+      id: "settings",
+      label: t("shell.nav.settings"),
+      tabLabel: t("shell.nav.settingsTab"),
+      icon: ICONS.gear,
+      hash: "#settings"
+    }
   ]
 }
 

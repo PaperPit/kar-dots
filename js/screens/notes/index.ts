@@ -26,6 +26,7 @@ export async function renderNotes() {
     class: 'notes-search',
     type: 'search',
     placeholder: t('notes.search.placeholder'),
+    'aria-label': t('notes.search.aria'),
     autocomplete: 'off',
   }) as HTMLInputElement;
 

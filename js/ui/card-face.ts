@@ -1,6 +1,7 @@
 import { el, sanitizeRich, stripHtml } from "./ui.js"
 import { Card } from "./types.js"
 import { resolveImageUrl, resolveImageUrlSync } from "../data/image-url.js"
+import { t } from "../lib/i18n.js"
 
 /**
  * Картинка стороны карточки в обёртке фиксированной высоты.
@@ -53,7 +54,7 @@ export function buildBackContent(card: Card): HTMLElement[] {
   }
 
   if (!parts.length) {
-    parts.push(el("div", { class: "card-definition muted" }, "(пусто)"))
+    parts.push(el("div", { class: "card-definition muted" }, t("review.face.empty")))
   }
   return parts
 }
@@ -66,8 +67,8 @@ export function buildFaceScroll(side: "front" | "back", card: Card): HTMLElement
 export function buildFlipFace(side: "front" | "back", card: Card, isBackFace: boolean): HTMLElement {
   const chip = el(
     "div",
-    { class: "flip-side-chip" + (isBackFace ? " is-back" : " is-front") },
-    isBackFace ? "Перевод" : "Слово"
+    { class: "flip-side-chip" + (isBackFace ? " is-back" : " is-front"), "aria-hidden": "true" },
+    isBackFace ? t("review.face.back") : t("review.face.front")
   )
   return el("div", { class: "flip-face" + (isBackFace ? " backside" : "") }, [
     chip,

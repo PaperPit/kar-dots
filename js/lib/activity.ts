@@ -1,3 +1,5 @@
+import { localeTag } from "./i18n.js"
+
 export interface DayRecord {
   visit?: boolean
   reviews?: number
@@ -288,19 +290,20 @@ export function getMonthGrid(year: number, month: number): CalendarCell[] {
   return cells;
 }
 
-export const MONTH_NAMES = [
-  "Январь",
-  "Февраль",
-  "Март",
-  "Апрель",
-  "Май",
-  "Июнь",
-  "Июль",
-  "Август",
-  "Сентябрь",
-  "Октябрь",
-  "Ноябрь",
-  "Декабрь"
-];
+/** Localized month name (0 = January). */
+export function monthName(monthIndex: number, year = 2020): string {
+  return new Intl.DateTimeFormat(localeTag(), { month: "long" }).format(
+    new Date(year, monthIndex, 1)
+  )
+}
 
-export const WEEKDAY_NAMES = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"];
+/** Weekday short labels Monday→Sunday for the active UI locale. */
+export function weekdayNamesMonFirst(): string[] {
+  const base = new Date(2020, 0, 6) // Monday
+  const fmt = new Intl.DateTimeFormat(localeTag(), { weekday: "short" })
+  return Array.from({ length: 7 }, (_, i) => {
+    const d = new Date(base)
+    d.setDate(base.getDate() + i)
+    return fmt.format(d)
+  })
+}

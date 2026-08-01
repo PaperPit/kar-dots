@@ -12,8 +12,8 @@
   --ink: #1C1611;
   --ink-soft: #6E6052;
   --ink-faint: #6B5748; /* ~4.7:1 на --bg #FBFAF7 */
-  --ink-muted: #A08D77; /* подписи / вторичные метки */
-  --ink-muted-soft: #B9AB98;
+  --ink-muted: #6E6052; /* ~5.8:1 на --bg; подписи / вторичные метки */
+  --ink-muted-soft: #6B5748; /* ≈ --ink-faint: цифры календаря ≥4.5:1 */
   --line: #DDD2C4;
   --accent: #C45528;
   --accent-bright: #E06F38;
@@ -83,8 +83,8 @@
     --accent-soft: #3D2A1C;
     --terra-deep: #C45528;
     --accent-text: #F09058;
-    --ink-muted: #948875;
-    --ink-muted-soft: #7A6E62;
+    --ink-muted: #948875; /* ≈ ink-faint: ≥4.5 на dark bg */
+    --ink-muted-soft: #948875;
     --danger: #E06D64;
     --danger-soft: #3B2422;
     --danger-text: #E06D64;
@@ -322,13 +322,13 @@ html.motion-ui .auth-wrap { animation: none; }
 .tab-btn {
   border: 0; background: none; cursor: pointer;
   display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px;
-  color: var(--ink-soft); font-size: 9px; font-weight: 600;
+  color: var(--ink-soft); font-size: 11px; font-weight: 600;
   letter-spacing: -0.01em;
   min-height: 48px; min-width: 0; flex: 1;
   padding: 4px 2px 2px; border-radius: 12px; position: relative;
   transition: color var(--dur) var(--ease), transform .18s var(--ease);
 }
-.tab-btn:active { transform: scale(.92); }
+.tab-btn:active { transform: scale(.96); }
 .tab-btn.active { color: var(--ink); }
 .tab-btn svg { width: 22px; height: 22px; flex: none; }
 .tab-btn > span {
@@ -394,7 +394,7 @@ html.motion-ui .auth-wrap { animation: none; }
   transition: background var(--dur), color var(--dur), transform .16s var(--ease);
 }
 .icon-btn:hover { background: var(--bg-sunken); color: var(--ink); }
-.icon-btn:active { transform: scale(.9); }
+.icon-btn:active { transform: scale(.96); }
 .icon-btn svg { width: 20px; height: 20px; pointer-events: none; }
 .icon-btn .app-icon {
   width: 20px; height: 20px; display: block; object-fit: contain;
@@ -424,6 +424,11 @@ textarea.input { resize: vertical; min-height: 72px; }
 
 
 .page-head { display: flex; align-items: center; gap: 12px; margin: 4px 0 20px; flex-wrap: nowrap; }
+.page-head--wrap { flex-wrap: wrap; row-gap: 8px; }
+.page-head-actions {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  margin-left: auto; min-width: 0;
+}
 .page-head .page-title {
   min-width: 0;
   overflow: hidden;
@@ -650,9 +655,13 @@ html.motion-ui .toast.show { opacity: 1; transform: none; }
   border-radius: 9px;
   font: inherit;
   font-weight: 600;
-  font-size: 13.5px;
+  font-size: 16px;
   color: var(--ink);
   outline: none;
+}
+.mode-pick-limit-input:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
 }
 .mode-pick-limit-input::placeholder { color: var(--ink-soft); font-weight: 600; }
 .mode-pick-limit-input::-webkit-outer-spin-button,

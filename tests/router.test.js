@@ -21,6 +21,15 @@ describe('parseHash', () => {
     });
   });
 
+  it('notes routes', () => {
+    expect(parseHash('#notes')).toEqual({
+      name: 'notes', arg: null, parts: ['notes'],
+    });
+    expect(parseHash('#note/abc')).toEqual({
+      name: 'note', arg: 'abc', parts: ['note', 'abc'],
+    });
+  });
+
   it('review parts feed parseReviewRoute', () => {
     const { parts } = parseHash('#review/f1/cram/10/type');
     expect(parseReviewRoute(parts)).toEqual({

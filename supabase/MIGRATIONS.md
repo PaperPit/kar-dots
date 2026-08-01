@@ -16,6 +16,9 @@
 | `0008_review_log.sql` | 8 | таблица `review_log` + RLS |
 | `0009_card_images_read_own.sql` | 9 | SELECT `card-images` только своей папки (без публичного list) |
 | `0010_boxes_update_with_check.sql` | 10 | `boxes_update_own` — WITH CHECK (нельзя сменить `user_id`) |
+| `0011_cards_synced_at.sql` | 11 | `cards.synced_at` + триггер — watermark дельта-синка по серверным часам |
+| `0012_card_images_private.sql` | 12 | бакет `card-images` приватный; чтение через signed URL |
+| `0013_notes.sql` | 13 | таблица `notes` (Markdown, LWW, `conflict_of`, `synced_at`), `cards.note_id` / `note_anchor` |
 
 Нужная версия в коде: `REQUIRED_SCHEMA_VERSION` в `js/data/schema-version.js`.
 

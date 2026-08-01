@@ -15,6 +15,7 @@ import type { Folder } from '../../data/types.js';
 import { folderCardStatsFromHome, folderCardEl, boxCardEl } from '../../ui/folder-cards.js';
 import { todayStudyCount } from '../../data/home-stats.js';
 import { t } from '../../lib/i18n.js';
+import { nav } from '../../ui/navigation.js';
 
 export async function renderHome() {
   const budget = newBudget();
@@ -103,6 +104,28 @@ export async function renderHome() {
       el('span', { class: 'home-section-aside' }, t('home.section.libraryAside')),
     ]),
   );
+
+  // Плитка-стена: вход в базу знаний.
+  let notesCount = 0;
+  try {
+    if (typeof store.listNotes === 'function') {
+      const notes = await store.listNotes();
+      notesCount = notes.length;
+    }
+  } catch (e) { /* notes store may be unavailable on old mirrors */ }
+
+  sections.push(el('button', {
+    class: 'notes-wall-tile stagger-in',
+    type: 'button',
+    style: { '--stagger-delay': '0ms' },
+    onclick: () => nav('#notes'),
+  }, [
+    el('div', { class: 'notes-wall-kicker' }, t('home.notes.kicker')),
+    el('div', { class: 'notes-wall-title' }, t('home.notes.title')),
+    el('div', { class: 'notes-wall-sub' }, notesCount
+      ? t('home.notes.count', { n: notesCount })
+      : t('home.notes.empty')),
+  ]));
 
   if (folderDragEnabled() && store.boxes.length) {
     sections.push(el('p', { class: 'section-hint' }, t('home.hint.drag')));

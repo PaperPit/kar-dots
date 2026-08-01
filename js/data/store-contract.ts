@@ -61,7 +61,8 @@
 
 import { uuid } from "./store-common.js"
 import { normalizeFolderIcon } from "../lib/folder-icons.js"
-import type { Folder, Box, Card } from "./types.js"
+import { noteTitleFromBody } from "../lib/markdown.js"
+import type { Folder, Box, Card, Note } from "./types.js"
 
 /** Поля новой папки — общие для local и cloud. */
 export function buildFolderRecord(data: Partial<Folder>, extras: Record<string, unknown> = {}): Folder {
@@ -129,6 +130,28 @@ export function buildCardRecord(data: Partial<Card>, extras: Record<string, unkn
   )
 }
 
-export function exportJSONPayload(folders: unknown[], cards: unknown[], settings: unknown, boxes: unknown[] = []): string {
-  return JSON.stringify({ v: 2, folders, cards, settings, boxes }, null, 2)
+/** Поля новой заметки — общие для local и cloud. */
+export function buildNoteRecord(data: Partial<Note>, extras: Record<string, unknown> = {}): Note {
+  const t = Date.now()
+  const body = data.body ?? ""
+  const title = (data.title ?? "").trim() || noteTitleFromBody(body, "")
+  return {
+    id: data.id || uuid(),
+    title,
+    body,
+    conflict_of: data.conflict_of ?? null,
+    created_at: data.created_at ?? t,
+    updated_at: data.updated_at ?? t,
+    ...extras,
+  }
+}
+
+export function exportJSONPayload(
+  folders: unknown[],
+  cards: unknown[],
+  settings: unknown,
+  boxes: unknown[] = [],
+  notes: unknown[] = []
+): string {
+  return JSON.stringify({ v: 3, folders, cards, settings, boxes, notes }, null, 2)
 }

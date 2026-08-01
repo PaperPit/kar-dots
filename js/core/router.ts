@@ -59,6 +59,12 @@ export async function route(): Promise<void> {
     } else if (name === "settings") {
       const { renderSettings } = await import("../screens/settings/index.js")
       await renderSettings()
+    } else if (name === "notes") {
+      const { renderNotes } = await import("../screens/notes/index.js")
+      await renderNotes()
+    } else if (name === "note" && arg) {
+      const { renderNote } = await import("../screens/note/index.js")
+      await renderNote(arg)
     } else {
       const { renderHome } = await import("../screens/home/index.js")
       await renderHome()

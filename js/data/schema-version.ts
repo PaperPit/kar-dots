@@ -8,7 +8,7 @@ import { t } from "../lib/i18n.js"
  * Нужная версия схемы. Должна совпадать с номером последней миграции
  * в supabase/migrations. При добавлении миграции — поднимите это число.
  */
-export const REQUIRED_SCHEMA_VERSION = 12
+export const REQUIRED_SCHEMA_VERSION = 13
 
 /**
  * Читает текущую версию схемы из public.schema_meta.

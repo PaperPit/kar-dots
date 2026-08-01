@@ -80,6 +80,19 @@ export interface AppStore {
   uploadImage(file: Blob, opts?: { side?: string; cardId?: string }): Promise<string>;
   deleteImage(url?: string): Promise<unknown>;
 
+  // —— заметки ——
+  listNotes(opts?: { includeConflicts?: boolean; query?: string }): Promise<any[]>;
+  searchNoteIds?(query: string): Promise<string[]>;
+  getNote(id: string): Promise<any>;
+  getNoteConflicts(noteId: string): Promise<any[]>;
+  createNote(data?: any): Promise<any>;
+  updateNote(id: string, patch: any): Promise<any>;
+  createNoteConflictCopy?(winnerId: string, loser: any): Promise<any>;
+  deleteNote(id: string): Promise<unknown>;
+  getNoteCards(noteId: string): Promise<any[]>;
+  linkCardToNote(cardId: string, noteId: string, anchor?: string | null): Promise<any>;
+  unlinkCardFromNote(cardId: string): Promise<any>;
+
   // —— настройки и обмен данными ——
   saveSettings(s: any): Promise<any>;
   exportJSONFull(): Promise<string>;

@@ -12,6 +12,10 @@ export interface Card {
   date?: Date;
   folderId?: string;
   folder_id?: string;
+  /** Ссылка на заметку-источник (дериватив). */
+  note_id?: string | null;
+  /** Якорь внутри заметки (slug заголовка / диапазон). */
+  note_anchor?: string | null;
   updated_at?: number;
   created_at?: number | null;
   lastReview?: Date;
@@ -19,6 +23,18 @@ export interface Card {
   relearningSteps?: number;
   state?: string;
   priority?: number;
+}
+
+/** Заметка базы знаний (Markdown). conflict_of — копия при LWW-проигрыше. */
+export interface Note {
+  id: string;
+  title: string;
+  body: string;
+  conflict_of?: string | null;
+  created_at: number;
+  updated_at: number;
+  synced_at?: number;
+  user_id?: string;
 }
 
 export interface Tag {

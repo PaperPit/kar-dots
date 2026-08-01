@@ -51,6 +51,7 @@ const CORE_STATIC = [
   'css/screens/home.css', 'css/screens/folder.css',
   'css/screens/card-editor.css', 'css/screens/review.css', 'css/screens/settings.css',
   'css/screens/youtube-import.css', 'css/screens/stats.css',
+  'css/screens/notes.css', 'css/screens/note-editor.css',
   'css/fonts/fonts.css',
   ...PRECACHE_FONTS,
   'packs/manifest.json',

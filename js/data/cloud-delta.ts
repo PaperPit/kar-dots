@@ -34,6 +34,8 @@ interface CloudSyncState {
   userId?: string
   cardsAt?: number
   cardsAtKind?: WatermarkKind
+  notesAt?: number
+  notesAtKind?: WatermarkKind
   fullAt?: number
 }
 
@@ -51,6 +53,20 @@ export function shouldUseCardsDelta(
   if (!sync || !uid || sync.userId !== uid) return false
   if (!(sync.cardsAt && sync.cardsAt > 0)) return false
   if ((sync.cardsAtKind || "updated_at") !== kind) return false
+  if (now - (sync.fullAt || 0) > FULL_RESYNC_MS) return false
+  return true
+}
+
+/** То же правило watermark для заметок. */
+export function shouldUseNotesDelta(
+  sync: CloudSyncState | null | undefined,
+  uid: string | null,
+  now = Date.now(),
+  kind: WatermarkKind = "updated_at"
+): boolean {
+  if (!sync || !uid || sync.userId !== uid) return false
+  if (!(sync.notesAt && sync.notesAt > 0)) return false
+  if ((sync.notesAtKind || "updated_at") !== kind) return false
   if (now - (sync.fullAt || 0) > FULL_RESYNC_MS) return false
   return true
 }
@@ -115,9 +131,28 @@ export function cardLwwFilter(id: string, patch: Record<string, unknown> | null 
   return base + "&updated_at=lt." + at
 }
 
+/** Тот же LWW-фильтр для заметок. */
+export function noteLwwFilter(id: string, patch: Record<string, unknown> | null | undefined): string {
+  return cardLwwFilter(id, patch)
+}
+
 /** Ошибка «колонки synced_at ещё нет» (пользователь не применил миграцию 0011). */
 export function isMissingSyncedAtError(err: unknown): boolean {
   const msg = err instanceof Error ? err.message : String(err)
   if (!/synced_at/i.test(msg)) return false
+  return /does not exist|42703|schema cache|could not find/i.test(msg)
+}
+
+/** Ошибка «таблицы notes ещё нет» (миграция 0013 не применена). */
+export function isMissingNotesTableError(err: unknown): boolean {
+  const msg = err instanceof Error ? err.message : String(err)
+  if (!/\bnotes\b/i.test(msg)) return false
+  return /does not exist|PGRST205|42P01|could not find the table|schema cache/i.test(msg)
+}
+
+/** Ошибка «колонок note_id/note_anchor ещё нет». */
+export function isMissingNoteLinkError(err: unknown): boolean {
+  const msg = err instanceof Error ? err.message : String(err)
+  if (!/note_id|note_anchor/i.test(msg)) return false
   return /does not exist|42703|schema cache|could not find/i.test(msg)
 }

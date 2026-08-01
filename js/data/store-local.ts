@@ -4,7 +4,7 @@ import { DEFAULT_SETTINGS } from './store-common.js';
 import { normalizeFolderRecord, normalizeBoxRecord } from '../lib/folder-icons.js';
 import { resizeImage, blobToDataURL } from '../lib/image-utils.js';
 import {
-  buildFolderRecord, buildCardRecord, buildBoxRecord, exportJSONPayload,
+  buildFolderRecord, buildCardRecord, buildBoxRecord, buildNoteRecord, exportJSONPayload,
 } from './store-contract.js';
 import {
   buildReviewQueue, filterByFolder,
@@ -25,7 +25,9 @@ import {
   type VocabImportStore,
 } from './store-vocab.js';
 import { StoreCache } from './store-cache.js';
-import type { Card, Folder, Box, Settings } from './types.js';
+import { buildNoteTermRows, tokenizeNotesText, rankNoteSearch } from '../lib/notes-fts.js';
+import { noteTitleFromBody } from '../lib/markdown.js';
+import type { Card, Folder, Box, Settings, Note } from './types.js';
 import type { Algo, SrsRow } from '../lib/srs.js';
 import type { ProgressInfo } from './store-vocab.js';
 
@@ -61,7 +63,8 @@ interface BoxRecord extends Box {
 export { DEFAULT_SETTINGS, uuid } from './store-common.js';
 
 const IDB_NAME = 'kartochki';
-const IDB_VERSION = 3;
+/** 4: notes + note_conflicts + note_terms + cards.note_id index. */
+const IDB_VERSION = 4;
 
 function openDB(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
@@ -72,11 +75,31 @@ function openDB(): Promise<IDBDatabase> {
       if (!db!.objectStoreNames.contains('cards')) {
         const cards = db.createObjectStore('cards', { keyPath: 'id' });
         cards.createIndex('folder_id', 'folder_id', { unique: false });
-      } else if (e.oldVersion < 2) {
+        cards.createIndex('note_id', 'note_id', { unique: false });
+      } else {
         const cards = req.transaction!.objectStore('cards');
-        if (!cards.indexNames.contains('folder_id')) cards.createIndex('folder_id', 'folder_id', { unique: false });
+        if (e.oldVersion < 2 && !cards.indexNames.contains('folder_id')) {
+          cards.createIndex('folder_id', 'folder_id', { unique: false });
+        }
+        if (e.oldVersion < 4 && !cards.indexNames.contains('note_id')) {
+          cards.createIndex('note_id', 'note_id', { unique: false });
+        }
       }
       if (!db!.objectStoreNames.contains('boxes')) db.createObjectStore('boxes', { keyPath: 'id' });
+      if (!db!.objectStoreNames.contains('notes')) {
+        const notes = db.createObjectStore('notes', { keyPath: 'id' });
+        notes.createIndex('updated_at', 'updated_at', { unique: false });
+        notes.createIndex('conflict_of', 'conflict_of', { unique: false });
+      }
+      if (!db!.objectStoreNames.contains('note_conflicts')) {
+        const conflicts = db.createObjectStore('note_conflicts', { keyPath: 'id' });
+        conflicts.createIndex('conflict_of', 'conflict_of', { unique: false });
+      }
+      if (!db!.objectStoreNames.contains('note_terms')) {
+        const terms = db.createObjectStore('note_terms', { keyPath: 'id' });
+        terms.createIndex('term', 'term', { unique: false });
+        terms.createIndex('note_id', 'note_id', { unique: false });
+      }
       if (!db!.objectStoreNames.contains('kv')) db.createObjectStore('kv');
     };
     req.onsuccess = () => resolve(req.result);
@@ -478,7 +501,8 @@ export class LocalStore {
 
   async exportJSONFull() {
     const cards = (await idbGetAll(this.db, 'cards')) as CardRecord[];
-    return exportJSONPayload(this.folders, cards, this.settings, this.boxes);
+    const notes = await this.listNotes({ includeConflicts: true });
+    return exportJSONPayload(this.folders, cards, this.settings, this.boxes, notes);
   }
 
   async importJSON(text: string) {
@@ -506,6 +530,12 @@ export class LocalStore {
       if (c.description == null) c.description = '';
       await tx(this.db, 'cards', 'readwrite', s => s.put(c));
     }
+    for (const n of (data.notes || [])) {
+      const existing = await this.getNote(n.id);
+      if (existing) continue;
+      const row = buildNoteRecord(n);
+      await this._putNoteRecord(row);
+    }
     if (data.settings) {
       this.settings = Object.assign({}, DEFAULT_SETTINGS, data.settings);
       localStorage.setItem('kar_settings_local', JSON.stringify(this.settings));
@@ -515,6 +545,161 @@ export class LocalStore {
     this._cache.clearFolderLists();
     await this._rebuildSrsMetaFromCards();
     invalidateDerivedCaches(this, { allFolders: true });
+  }
+
+  // —— Notes ——
+
+  async _putNoteRecord(row: Note) {
+    const isConflict = !!row.conflict_of;
+    await tx(this.db, 'notes', 'readwrite', s => s.put(row));
+    if (isConflict) {
+      await tx(this.db, 'note_conflicts', 'readwrite', s => s.put(row));
+    } else {
+      await tx(this.db, 'note_conflicts', 'readwrite', s => s.delete(row.id));
+    }
+    await this._reindexNoteTerms(row);
+  }
+
+  async _reindexNoteTerms(note: Note) {
+    const old = await indexGetAll<{ id: string }>(this.db, 'note_terms', 'note_id', note.id);
+    await tx(this.db, 'note_terms', 'readwrite', s => {
+      for (const row of old) s.delete(row.id);
+      for (const row of buildNoteTermRows(note.id, note.title || '', note.body || '')) {
+        s.put(row);
+      }
+    });
+  }
+
+  async _clearNoteTerms(noteId: string) {
+    const old = await indexGetAll<{ id: string }>(this.db, 'note_terms', 'note_id', noteId);
+    if (!old.length) return;
+    await tx(this.db, 'note_terms', 'readwrite', s => {
+      for (const row of old) s.delete(row.id);
+    });
+  }
+
+  async listNotes(opts: { includeConflicts?: boolean; query?: string } = {}): Promise<Note[]> {
+    let notes = (await idbGetAll(this.db, 'notes')) as Note[];
+    if (!opts.includeConflicts) {
+      notes = notes.filter(n => !n.conflict_of);
+    }
+    if (opts.query && opts.query.trim()) {
+      const ids = await this.searchNoteIds(opts.query);
+      const allow = new Set(ids);
+      notes = notes.filter(n => allow.has(n.id));
+      notes.sort((a, b) => ids.indexOf(a.id) - ids.indexOf(b.id));
+    } else {
+      notes.sort((a, b) => (b.updated_at || 0) - (a.updated_at || 0));
+    }
+    return notes;
+  }
+
+  async searchNoteIds(query: string): Promise<string[]> {
+    const terms = tokenizeNotesText(query);
+    if (!terms.length) return [];
+    const byTerm = new Map<string, string[]>();
+    for (const term of terms) {
+      const rows = await indexGetAll<{ note_id: string }>(this.db, 'note_terms', 'term', term);
+      byTerm.set(term, rows.map(r => r.note_id));
+    }
+    return rankNoteSearch(terms, byTerm).map(r => r.noteId);
+  }
+
+  async getNote(id: string): Promise<Note | null> {
+    const row = await tx(this.db, 'notes', 'readonly', s => s.get(id)) as Note | undefined;
+    return row || null;
+  }
+
+  async getNoteConflicts(noteId: string): Promise<Note[]> {
+    const rows = await indexGetAll<Note>(this.db, 'note_conflicts', 'conflict_of', noteId);
+    rows.sort((a, b) => (b.updated_at || 0) - (a.updated_at || 0));
+    return rows;
+  }
+
+  async createNote(data: Partial<Note> = {}): Promise<Note> {
+    const row = buildNoteRecord(data);
+    await this._putNoteRecord(row);
+    return row;
+  }
+
+  async updateNote(id: string, patch: Partial<Note>): Promise<Note | null> {
+    const cur = await this.getNote(id);
+    if (!cur) return null;
+    const next = Object.assign({}, cur, patch, { updated_at: Date.now() }) as Note;
+    if (patch.body != null && (patch.title == null || patch.title === '')) {
+      next.title = noteTitleFromBody(next.body, cur.title || '');
+    }
+    await this._putNoteRecord(next);
+    return next;
+  }
+
+  /**
+   * Сохранить проигравшую версию как conflict-копию победившей заметки.
+   */
+  async createNoteConflictCopy(winnerId: string, loser: Partial<Note>): Promise<Note> {
+    const copy = buildNoteRecord({
+      title: loser.title,
+      body: loser.body,
+      conflict_of: winnerId,
+      created_at: loser.created_at,
+      updated_at: loser.updated_at || Date.now(),
+    });
+    await this._putNoteRecord(copy);
+    return copy;
+  }
+
+  async deleteNote(id: string): Promise<void> {
+    // Отвязать карточки, не удаляя их.
+    const linked = await indexGetAll<CardRecord>(this.db, 'cards', 'note_id', id);
+    for (const c of linked) {
+      if (!c.id) continue;
+      c.note_id = null;
+      c.note_anchor = null;
+      await tx(this.db, 'cards', 'readwrite', s => s.put(c));
+      this._cache.patchCardInLists(c.id, { note_id: null, note_anchor: null });
+    }
+    // Conflict-копии этой заметки тоже убрать.
+    const conflicts = await this.getNoteConflicts(id);
+    for (const c of conflicts) {
+      await tx(this.db, 'notes', 'readwrite', s => s.delete(c.id));
+      await tx(this.db, 'note_conflicts', 'readwrite', s => s.delete(c.id));
+      await this._clearNoteTerms(c.id);
+    }
+    await tx(this.db, 'notes', 'readwrite', s => s.delete(id));
+    await tx(this.db, 'note_conflicts', 'readwrite', s => s.delete(id));
+    await this._clearNoteTerms(id);
+  }
+
+  async getNoteCards(noteId: string): Promise<CardRecord[]> {
+    const cards = await indexGetAll<CardRecord>(this.db, 'cards', 'note_id', noteId);
+    cards.sort((a, b) => (b.updated_at || 0) - (a.updated_at || 0));
+    return cards;
+  }
+
+  async linkCardToNote(cardId: string, noteId: string, anchor: string | null = null): Promise<CardRecord | null> {
+    const c = await this._getCardById(cardId);
+    if (!c) return null;
+    c.note_id = noteId;
+    c.note_anchor = anchor;
+    c.updated_at = Date.now();
+    await tx(this.db, 'cards', 'readwrite', s => s.put(c));
+    this._cache.patchCardInLists(cardId, { note_id: noteId, note_anchor: anchor, updated_at: c.updated_at });
+    this._patchSrsMeta(c);
+    invalidateDerivedCaches(this, { folderId: c.folder_id });
+    return c;
+  }
+
+  async unlinkCardFromNote(cardId: string): Promise<CardRecord | null> {
+    const c = await this._getCardById(cardId);
+    if (!c) return null;
+    c.note_id = null;
+    c.note_anchor = null;
+    c.updated_at = Date.now();
+    await tx(this.db, 'cards', 'readwrite', s => s.put(c));
+    this._cache.patchCardInLists(cardId, { note_id: null, note_anchor: null, updated_at: c.updated_at });
+    this._patchSrsMeta(c);
+    invalidateDerivedCaches(this, { folderId: c.folder_id });
+    return c;
   }
 
   get offline() { return false; }

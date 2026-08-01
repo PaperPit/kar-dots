@@ -266,16 +266,10 @@ export function homeStreakCalendarCard(): HTMLElement {
       el(
         "span",
         { class: "streak-cal-label" },
-        plural(streak, "день подряд", "дня подряд", "дней подряд")
+        plural(streak, "день", "дня", "дней")
       ),
       monthLabel,
       navs,
-      el("img", {
-        class: "streak-cal-cup",
-        src: "icons/cup.svg",
-        alt: "",
-        draggable: "false"
-      }),
       el("span", { class: "streak-cal-chevron", "aria-hidden": "true" })
     ]
   )

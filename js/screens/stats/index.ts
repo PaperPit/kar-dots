@@ -8,11 +8,13 @@ import {
   reviewsByDay,
   suggestRetention,
   formatPercent,
+  type RetentionAdvice,
 } from '../../lib/fsrs-optimize.js';
 import { barChart, type Bar } from '../../lib/charts.js';
 import * as SRS from '../../lib/srs.js';
 import type { SrsRow, Algo } from '../../lib/srs.js';
 import type { ReviewLogEntry } from '../../lib/review-log.js';
+import { t, localeTag } from '../../lib/i18n.js';
 
 function tile(label: string, value: string, sub?: string): HTMLElement {
   return el('div', { class: 'stat-card' }, [
@@ -27,6 +29,14 @@ function section(title: string, ...kids: (HTMLElement | null)[]): HTMLElement {
     el('h4', null, title),
     ...kids,
   ]);
+}
+
+function formatRetentionAdvice(adv: RetentionAdvice, reviewRetention: number | null): string {
+  if (adv.level === 'nodata') return t('stats.advice.nodata');
+  const pct = reviewRetention != null ? Math.round(reviewRetention * 100) : 0;
+  if (adv.level === 'high') return t('stats.advice.high', { pct });
+  if (adv.level === 'low') return t('stats.advice.low', { pct });
+  return t('stats.advice.ok', { pct });
 }
 
 /** Прогноз нагрузки: сколько карточек «прилетит» на повтор в ближайшие дни. */
@@ -46,8 +56,16 @@ function buildForecast(rows: SrsRow[], algo: Algo, days: number, now = Date.now(
       if (i === 0 ? d <= end : d >= start && d <= end) count++;
     }
     const dt = new Date(start);
-    const label = i === 0 ? 'сегодня' : String(dt.getDate());
-    bars.push({ label, value: count, title: dt.toLocaleDateString('ru-RU') + ': ' + count + ' к повтору', accent: i === 0 });
+    const label = i === 0 ? t('stats.forecast.today') : String(dt.getDate());
+    bars.push({
+      label,
+      value: count,
+      title: t('stats.forecast.barTitle', {
+        date: dt.toLocaleDateString(localeTag()),
+        count,
+      }),
+      accent: i === 0,
+    });
   }
   return bars;
 }
@@ -60,12 +78,12 @@ function folderBreakdown(reviews: ReviewLogEntry[], folders: { id: string; name:
     o.total++;
     if (r.known) o.known++;
   }
-  const nameOf = (id: string) => folders.find((f) => f.id === id)?.name || 'Без папки';
+  const nameOf = (id: string) => folders.find((f) => f.id === id)?.name || t('stats.folders.none');
   const rows = Object.keys(per)
     .map((id) => ({ id, ...per[id]! }))
     .sort((a, b) => b.total - a.total)
     .slice(0, 12);
-  if (!rows.length) return el('p', { class: 'muted' }, 'Пока нет данных по папкам.');
+  if (!rows.length) return el('p', { class: 'muted' }, t('stats.folders.empty'));
   return el('div', { class: 'stats-folders' }, rows.map((row) =>
     el('div', { class: 'stats-folder-row' }, [
       el('span', { class: 'stats-folder-name' }, nameOf(row.id)),
@@ -93,23 +111,33 @@ export async function renderStats(): Promise<void> {
   const folders = store?.folders || [];
 
   const tiles = el('div', { class: 'stats-grid' }, [
-    tile('Всего повторений', String(stats.totalReviews)),
-    tile('Изучается карточек', String(stats.uniqueCards)),
-    tile('Серия дней', String(streak)),
-    tile('Удержание', formatPercent(stats.reviewRetention), stats.reviewCount ? 'по ' + stats.reviewCount + ' повт.' : 'нет данных'),
-    tile('Зрелые (≥21д)', formatPercent(stats.matureRetention), stats.matureCount ? stats.matureCount + ' карт.' : '—'),
+    tile(t('stats.tile.totalReviews'), String(stats.totalReviews)),
+    tile(t('stats.tile.uniqueCards'), String(stats.uniqueCards)),
+    tile(t('stats.tile.streak'), String(streak)),
+    tile(
+      t('stats.tile.retention'),
+      formatPercent(stats.reviewRetention),
+      stats.reviewCount
+        ? t('stats.tile.retentionSub', { n: stats.reviewCount })
+        : t('stats.tile.noData'),
+    ),
+    tile(
+      t('stats.tile.mature'),
+      formatPercent(stats.matureRetention),
+      stats.matureCount ? t('stats.tile.matureSub', { n: stats.matureCount }) : '—',
+    ),
   ]);
 
   const empty = reviews.length === 0
     ? el('div', { class: 'settings-group' }, [
-        el('p', { class: 'muted' }, 'Журнал повторений только начал заполняться. Пройдите первую сессию повторения — и здесь появятся кривые удержания и разбивка по папкам. Прогноз нагрузки ниже уже работает по датам карточек.'),
+        el('p', { class: 'muted' }, t('stats.empty')),
       ])
     : null;
 
-  const retentionBlock = section('Удержание',
+  const retentionBlock = section(t('stats.section.retention'),
     el('div', { class: 'retention-head' }, [
       el('div', { class: 'retention-big tnum' }, formatPercent(stats.reviewRetention)),
-      el('div', { class: 'retention-advice' }, advice.text),
+      el('div', { class: 'retention-advice' }, formatRetentionAdvice(advice, stats.reviewRetention)),
     ]),
     Object.keys(stats.byAlgo).length > 1
       ? el('div', { class: 'retention-by-algo muted' }, Object.keys(stats.byAlgo).map((k) =>
@@ -122,18 +150,28 @@ export async function renderStats(): Promise<void> {
     // Экран читает журнал из облака — предупреждение об офлайне здесь нужно.
     offlineBanner(),
     el('div', { class: 'page-head' }, [
-      el('h2', { class: 'page-title' }, 'Статистика'),
+      el('h2', { class: 'page-title' }, t('stats.title')),
     ]),
     tiles,
     empty,
-    reviews.length ? section('Повторения за 30 дней', barChart(byDay.map((d) => ({ label: d.label, value: d.total, title: d.key + ': ' + d.total })))) : null,
+    reviews.length
+      ? section(
+          t('stats.section.reviews30'),
+          barChart(byDay.map((d) => ({ label: d.label, value: d.total, title: d.key + ': ' + d.total }))),
+        )
+      : null,
     reviews.length ? retentionBlock : null,
-    section('Прогноз нагрузки (14 дней)',
-      el('p', { class: 'muted stats-hint' }, 'Сколько карточек станут доступны для повтора по текущему алгоритму (' + algo.toUpperCase() + ').'),
+    section(t('stats.section.forecast'),
+      el('p', { class: 'muted stats-hint' }, t('stats.forecast.hint', { algo: algo.toUpperCase() })),
       barChart(forecast),
     ),
-    reviews.length ? section('По папкам', folderBreakdown(reviews, folders)) : null,
-    el('p', { class: 'muted settings-footer' }, 'КАР-точки · статистика ведётся локально' + (typeof store?.syncReviewLogFromCloud === 'function' ? ' и синхронизируется с облаком' : '')),
+    reviews.length ? section(t('stats.section.folders'), folderBreakdown(reviews, folders)) : null,
+    el(
+      'p',
+      { class: 'muted settings-footer' },
+      t('stats.footer') +
+        (typeof store?.syncReviewLogFromCloud === 'function' ? t('stats.footerCloud') : ''),
+    ),
   ]);
 
   shell('stats', content);

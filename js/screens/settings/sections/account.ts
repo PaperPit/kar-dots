@@ -1,5 +1,5 @@
 import { el, toast, confirmDialog } from '../../../ui/ui.js';
-import { nav } from '../../../ui/shell.js';
+import { nav } from '../../../ui/navigation.js';
 import { t } from '../../../lib/i18n.js';
 import type { AppStore } from '../../../core/state.js';
 

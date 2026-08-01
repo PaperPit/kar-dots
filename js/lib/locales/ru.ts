@@ -526,7 +526,40 @@ export const ru = {
     "Не удалось проверить — нажмите «Сказать ответ» ещё раз",
   "review.voice.listening": "Слушаю: «{text}»",
   "review.voice.unavailable":
-    "Голосовой режим недоступен — используйте ввод текста"
+    "Голосовой режим недоступен — используйте ввод текста",
+
+  // —— stats ——
+  "stats.title": "Статистика",
+  "stats.tile.totalReviews": "Всего повторений",
+  "stats.tile.uniqueCards": "Изучается карточек",
+  "stats.tile.streak": "Серия дней",
+  "stats.tile.retention": "Удержание",
+  "stats.tile.retentionSub": "по {n} повт.",
+  "stats.tile.noData": "нет данных",
+  "stats.tile.mature": "Зрелые (≥21д)",
+  "stats.tile.matureSub": "{n} карт.",
+  "stats.empty":
+    "Журнал повторений только начал заполняться. Пройдите первую сессию повторения — и здесь появятся кривые удержания и разбивка по папкам. Прогноз нагрузки ниже уже работает по датам карточек.",
+  "stats.section.retention": "Удержание",
+  "stats.section.reviews30": "Повторения за 30 дней",
+  "stats.section.forecast": "Прогноз нагрузки (14 дней)",
+  "stats.section.folders": "По папкам",
+  "stats.forecast.today": "сегодня",
+  "stats.forecast.barTitle": "{date}: {count} к повтору",
+  "stats.forecast.hint":
+    "Сколько карточек станут доступны для повтора по текущему алгоритму ({algo}).",
+  "stats.folders.none": "Без папки",
+  "stats.folders.empty": "Пока нет данных по папкам.",
+  "stats.footer": "КАР-точки · статистика ведётся локально",
+  "stats.footerCloud": " и синхронизируется с облаком",
+  "stats.advice.nodata":
+    "Пока мало данных — оценка появится после ~30 повторений изученных карточек.",
+  "stats.advice.high":
+    "Измеренное удержание {pct}% выше цели. Можно снизить желаемое удержание до 0.85–0.90 — интервалы вырастут, а нагрузка заметно упадёт почти без потерь.",
+  "stats.advice.low":
+    "Измеренное удержание {pct}% ниже 80% — карточки часто забываются. Повысьте желаемое удержание ближе к 0.90 или оценивайте строже.",
+  "stats.advice.ok":
+    "Измеренное удержание {pct}% — в здоровом диапазоне 80–95%. Менять цель не нужно."
 } as const satisfies Record<string, MessageValue>
 
 export type MessageKey = keyof typeof ru

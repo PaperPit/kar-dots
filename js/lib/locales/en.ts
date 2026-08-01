@@ -508,5 +508,38 @@ export const en: Record<string, MessageValue> = {
     "Could not check — tap «Say answer» again",
   "review.voice.listening": "Listening: «{text}»",
   "review.voice.unavailable":
-    "Voice mode unavailable — use typing instead"
+    "Voice mode unavailable — use typing instead",
+
+  // —— stats ——
+  "stats.title": "Stats",
+  "stats.tile.totalReviews": "Total reviews",
+  "stats.tile.uniqueCards": "Cards in study",
+  "stats.tile.streak": "Day streak",
+  "stats.tile.retention": "Retention",
+  "stats.tile.retentionSub": "across {n} rev.",
+  "stats.tile.noData": "no data",
+  "stats.tile.mature": "Mature (≥21d)",
+  "stats.tile.matureSub": "{n} cards",
+  "stats.empty":
+    "The review log is just getting started. Complete your first review session — retention curves and folder breakdown will appear here. The load forecast below already works from card due dates.",
+  "stats.section.retention": "Retention",
+  "stats.section.reviews30": "Reviews over 30 days",
+  "stats.section.forecast": "Load forecast (14 days)",
+  "stats.section.folders": "By folder",
+  "stats.forecast.today": "today",
+  "stats.forecast.barTitle": "{date}: {count} due",
+  "stats.forecast.hint":
+    "How many cards will become available for review under the current algorithm ({algo}).",
+  "stats.folders.none": "No folder",
+  "stats.folders.empty": "No folder data yet.",
+  "stats.footer": "КАР-точки · stats are kept locally",
+  "stats.footerCloud": " and synced to the cloud",
+  "stats.advice.nodata":
+    "Not enough data yet — an estimate appears after ~30 reviews of learned cards.",
+  "stats.advice.high":
+    "Measured retention {pct}% is above target. You can lower target retention to 0.85–0.90 — intervals grow and workload drops noticeably with little loss.",
+  "stats.advice.low":
+    "Measured retention {pct}% is below 80% — cards are often forgotten. Raise target retention toward 0.90 or grade more strictly.",
+  "stats.advice.ok":
+    "Measured retention {pct}% — in the healthy 80–95% range. No need to change the target."
 }

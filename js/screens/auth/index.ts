@@ -3,7 +3,7 @@ import { el, toast, spinner } from '../../ui/ui.js';
 import { LocalStore } from '../../data/index.js';
 import { FOLDER_COLORS } from '../../ui/constants.js';
 import { brandMark, ghostBox } from '../../ui/helpers.js';
-import { nav } from '../../ui/shell.js';
+import { nav } from '../../ui/navigation.js';
 import { route, parseHash } from '../../core/router.js';
 import { animateFadeIn } from '../../ui/motion-lazy.js';
 import { applyUiLocale, t } from '../../lib/i18n.js';

@@ -2,8 +2,8 @@ import { store } from '../../core/state.js';
 import { el, spinner } from '../../ui/ui.js';
 import { ICONS } from '../../ui/constants.js';
 import { crowBox, featherIcon, newBudget, reviewsBudget, reviewsTodayCount, shuffle, svgNode, trophyBox } from '../../ui/helpers.js';
-import { shell, nav, offlineBanner, refreshDueBadge } from '../../ui/shell.js';
-import { backBtn } from '../../ui/navigation.js';
+import { shell, offlineBanner, refreshDueBadge } from '../../ui/shell.js';
+import { backBtn, nav } from '../../ui/navigation.js';
 import {
   studyModeLabel, resolveStudyMode, promptSideLabel,
   consumeSessionPromptSide, getLastPromptSide, consumeSessionCramLimit, getLastCramLimit,

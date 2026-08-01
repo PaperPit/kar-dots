@@ -366,12 +366,6 @@
   gap: 4px;
   flex: none;
 }
-.streak-cal-cup {
-  width: 22px;
-  height: 22px;
-  flex: none;
-  object-fit: contain;
-}
 .streak-cal-chevron {
   display: none;
   flex: none;

@@ -230,9 +230,10 @@ export function confirmDialog(
 ): Promise<boolean> {
   return new Promise((resolve) => {
     let m: ModalHandle
+    const titleId = "confirm-dialog-title"
     const content = el("div", null, [
       icon ? el("div", { class: "modal-illus" }, icon) : null,
-      el("h3", { class: "modal-title" }, title),
+      el("h3", { class: "modal-title", id: titleId }, title),
       text ? el("p", { class: "modal-text" }, text) : null,
       el("div", { class: "modal-actions" }, [
         el(
@@ -259,7 +260,7 @@ export function confirmDialog(
         )
       ])
     ])
-    m = modal(content)
+    m = modal(content, { labelledBy: titleId })
   })
 }
 

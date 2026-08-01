@@ -25,10 +25,14 @@ export const en: Record<string, MessageValue> = {
     "Could not start the app. Open the browser console (F12) for details.",
   "app.bootError": "Startup error: {message}",
 
+  "shell.skipToContent": "Skip to content",
+  "shell.nav.aria": "Main navigation",
   "shell.nav.home": "Folders",
   "shell.nav.notes": "Notes",
   "shell.nav.review": "Review",
+  "shell.nav.reviewTab": "Review",
   "shell.nav.stats": "Stats",
+  "shell.nav.statsTab": "Stats",
   "shell.nav.settings": "Settings",
   "shell.offline.short": "Offline",
   "shell.offline.local": "Offline — data stays on this device.",
@@ -244,6 +248,14 @@ export const en: Record<string, MessageValue> = {
   "box.confirm.deleteWithFolders":
     "«{name}» will be deleted. {n} {folders} will stay on the home screen.",
   "box.confirm.deleteEmpty": "«{name}» will be deleted.",
+  "box.screen.edit": "Edit",
+  "box.screen.delete": "Delete box",
+  "box.screen.foldersTitle": "Folders",
+  "box.screen.empty":
+    "This box has no folders yet. Add existing ones via Edit or create a new one.",
+  "box.screen.toast.deleted": "Box deleted",
+  "box.screen.toast.unboxFailed": "Could not remove folder from box",
+  "box.screen.toast.unboxed": "«{name}» removed from box",
 
   "settings.title": "Settings",
   "settings.saveFailed": "Could not save: {message}",
@@ -750,7 +762,7 @@ export const en: Record<string, MessageValue> = {
   "notes.conflicts.openOriginal": "Open original",
   "notes.cards.title": "Cards of this note",
   "notes.cards.link": "Link",
-  "notes.cards.linkHint": "Link a card via the editor or store.linkCardToNote.",
+  "notes.cards.linkHint": "Link a card from the card editor — you can pick a note there.",
   "notes.cards.empty": "No linked cards yet.",
   "notes.cards.untitled": "Untitled"
 }

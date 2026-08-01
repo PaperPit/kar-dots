@@ -85,8 +85,8 @@
 }
 .day-card-toggle {
   flex: none;
-  width: 34px;
-  height: 34px;
+  width: 44px;
+  height: 44px;
   border: 0;
   cursor: pointer;
   border-radius: 50%;
@@ -152,6 +152,7 @@
   font-size: 22px;
   line-height: 1;
   margin: 0;
+  font-variant-numeric: tabular-nums;
 }
 .day-donut-of {
   font-weight: 600;
@@ -427,12 +428,12 @@
 }
 .streak-cal-nav {
   flex: none;
-  width: 28px;
-  height: 28px;
+  width: 44px;
+  height: 44px;
   margin: 0;
   padding: 0;
   border: 0;
-  border-radius: 8px;
+  border-radius: 10px;
   background: var(--bg-sunken);
   color: var(--ink-faint);
   font: inherit;

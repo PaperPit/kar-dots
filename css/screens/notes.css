@@ -16,12 +16,15 @@
   border-radius: var(--radius-sm, 10px);
   padding: 12px 14px;
   font: inherit;
-  font-size: 15px;
+  font-size: 16px;
 }
 
 .notes-search:focus {
-  outline: 2px solid color-mix(in srgb, var(--accent) 45%, transparent);
-  outline-offset: 1px;
+  outline: none;
+}
+.notes-search:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
 }
 
 .notes-list {
@@ -40,9 +43,9 @@
   border: none;
   background: var(--bg-raised);
   color: inherit;
-  border-radius: var(--radius);
+  border-radius: var(--radius-md);
   padding: 14px 16px;
-  box-shadow: var(--shadow);
+  box-shadow: var(--shadow-sm);
   cursor: pointer;
   transition: transform .15s ease, background .15s ease;
 }

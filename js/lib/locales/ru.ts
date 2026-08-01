@@ -35,10 +35,14 @@ export const ru = {
   "app.bootError": "Ошибка запуска: {message}",
 
   // —— shell ——
+  "shell.skipToContent": "Перейти к содержимому",
+  "shell.nav.aria": "Основная навигация",
   "shell.nav.home": "Папки",
   "shell.nav.notes": "Заметки",
   "shell.nav.review": "Повторение",
+  "shell.nav.reviewTab": "Повтор",
   "shell.nav.stats": "Статистика",
+  "shell.nav.statsTab": "Стат.",
   "shell.nav.settings": "Настройки",
   "shell.offline.short": "Нет сети",
   "shell.offline.local": "Нет сети — данные остаются на этом устройстве.",
@@ -262,6 +266,14 @@ export const ru = {
   "box.confirm.deleteWithFolders":
     "«{name}» будет удалена. {n} {folders} останутся на главном экране.",
   "box.confirm.deleteEmpty": "«{name}» будет удалена.",
+  "box.screen.edit": "Изменить",
+  "box.screen.delete": "Удалить коробку",
+  "box.screen.foldersTitle": "Папки",
+  "box.screen.empty":
+    "В коробке пока нет папок. Добавьте существующие через «Изменить» или создайте новую.",
+  "box.screen.toast.deleted": "Коробка удалена",
+  "box.screen.toast.unboxFailed": "Не удалось вынести папку",
+  "box.screen.toast.unboxed": "«{name}» вынесена из коробки",
 
   // —— settings (language + chrome used in phase 0/1) ——
   "settings.title": "Настройки",
@@ -772,7 +784,7 @@ export const ru = {
   "notes.conflicts.openOriginal": "Открыть оригинал",
   "notes.cards.title": "Карточки заметки",
   "notes.cards.link": "Связать",
-  "notes.cards.linkHint": "Привяжите карточку через редактор или store.linkCardToNote.",
+  "notes.cards.linkHint": "Привяжите карточку через редактор карточки — там можно выбрать заметку.",
   "notes.cards.empty": "Пока нет связанных карточек.",
   "notes.cards.untitled": "Без текста"
 } as const satisfies Record<string, MessageValue>

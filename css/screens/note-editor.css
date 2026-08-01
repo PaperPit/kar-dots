@@ -23,6 +23,11 @@
 .note-title-input:focus {
   outline: none;
 }
+.note-title-input:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+  border-radius: 6px;
+}
 
 .note-body-input {
   width: 100%;
@@ -30,18 +35,21 @@
   box-sizing: border-box;
   resize: vertical;
   border: 1px solid var(--line);
-  border-radius: var(--radius);
+  border-radius: var(--radius-md);
   background: var(--bg-raised);
   color: var(--ink);
   padding: 16px;
   font: inherit;
-  font-size: 15px;
+  font-size: 16px;
   line-height: 1.55;
 }
 
 .note-body-input:focus {
-  outline: 2px solid color-mix(in srgb, var(--accent) 40%, transparent);
-  outline-offset: 1px;
+  outline: none;
+}
+.note-body-input:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
 }
 
 .note-preview.md-body {

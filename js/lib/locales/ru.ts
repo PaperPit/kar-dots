@@ -105,6 +105,10 @@ export const ru = {
   "home.empty.title": "Пока пусто",
   "home.empty.text":
     "Создайте коробку или папку — например, «Английский» или «Философия».",
+  "home.notes.kicker": "База знаний",
+  "home.notes.title": "Заметки",
+  "home.notes.count": "заметок: {n}",
+  "home.notes.empty": "Пишите мысли — потом превратите в карточки",
 
   "home.greeting.morning": "Доброе утро 👋",
   "home.greeting.afternoon": "Добрый день 👋",
@@ -739,7 +743,37 @@ export const ru = {
   "stats.advice.low":
     "Измеренное удержание {pct}% ниже 80% — карточки часто забываются. Повысьте желаемое удержание ближе к 0.90 или оценивайте строже.",
   "stats.advice.ok":
-    "Измеренное удержание {pct}% — в здоровом диапазоне 80–95%. Менять цель не нужно."
+    "Измеренное удержание {pct}% — в здоровом диапазоне 80–95%. Менять цель не нужно.",
+
+  // —— notes ——
+  "notes.title": "Заметки",
+  "notes.untitled": "Без названия",
+  "notes.btn.new": "+ Новая",
+  "notes.search.placeholder": "Поиск по заметкам…",
+  "notes.empty.title": "Пока нет заметок",
+  "notes.empty.text": "Создайте первую — Markdown, поиск и связь с карточками.",
+  "notes.empty.body": "Пустая заметка",
+  "notes.toast.missing": "Заметка не найдена",
+  "notes.toast.deleted": "Заметка удалена",
+  "notes.editor.heading": "Заметка",
+  "notes.editor.titlePlaceholder": "Заголовок",
+  "notes.editor.bodyPlaceholder": "Пишите Markdown…",
+  "notes.editor.preview": "Просмотр",
+  "notes.editor.edit": "Редактор",
+  "notes.editor.saving": "Сохраняю…",
+  "notes.editor.saved": "Сохранено",
+  "notes.editor.unsaved": "Изменения…",
+  "notes.confirm.deleteTitle": "Удалить заметку?",
+  "notes.confirm.deleteBody": "Карточки останутся — ссылка на заметку обнулится.",
+  "notes.conflicts.title": "Конфликт-копии",
+  "notes.conflicts.isCopy": "Это копия проигравшей версии при синхронизации.",
+  "notes.conflicts.banner": "Конфликт-копия — оригинал доступен по ссылке.",
+  "notes.conflicts.openOriginal": "Открыть оригинал",
+  "notes.cards.title": "Карточки заметки",
+  "notes.cards.link": "Связать",
+  "notes.cards.linkHint": "Привяжите карточку через редактор или store.linkCardToNote.",
+  "notes.cards.empty": "Пока нет связанных карточек.",
+  "notes.cards.untitled": "Без текста"
 } as const satisfies Record<string, MessageValue>
 
 export type MessageKey = keyof typeof ru

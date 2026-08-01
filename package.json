@@ -19,7 +19,7 @@
     "db:repair-init": "bash scripts/supabase-repair-init.sh",
     "typecheck": "tsc --noEmit && tsc --noEmit -p tsconfig.extension.json",
     "i18n:extract": "node scripts/i18n-extract.mjs",
-    "i18n:check": "node scripts/i18n-extract.mjs --check --dirs=js/screens/home,js/screens/auth,js/screens/review,js/screens/settings,js/screens/stats,js/screens/folder,js/screens/card-editor,js/lib/study-modes.ts,js/ui/shell.ts,js/ui/navigation.ts,js/ui/home-day-card.ts",
+    "i18n:check": "node scripts/i18n-extract.mjs --check --dirs=js/screens/home,js/screens/auth,js/screens/review,js/screens/settings,js/screens/stats,js/screens/folder,js/screens/card-editor,js/screens/notes,js/screens/note,js/lib/study-modes.ts,js/ui/shell.ts,js/ui/navigation.ts,js/ui/home-day-card.ts",
     "lint": "eslint \"js/**/*.ts\" \"extension/**/*.ts\" \"functions/**/*.js\" \"scripts/**/*.{js,mjs}\" \"tests/**/*.js\"",
     "lint:fix": "npm run lint -- --fix",
     "format": "prettier \"js/**/*.ts\" --write",

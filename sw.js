@@ -15,6 +15,8 @@ const CORE_FILES = [
   'css/screens/settings.css',
   'css/screens/youtube-import.css',
   'css/screens/stats.css',
+  'css/screens/notes.css',
+  'css/screens/note-editor.css',
   'css/fonts/fonts.css',
   'css/fonts/baloo2-latin.woff2',
   'css/fonts/nunito-cyr-ext.woff2',

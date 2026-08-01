@@ -92,6 +92,10 @@ export const en: Record<string, MessageValue> = {
   "home.empty.title": "Nothing here yet",
   "home.empty.text":
     "Create a box or folder — for example, “English” or “Philosophy”.",
+  "home.notes.kicker": "Knowledge base",
+  "home.notes.title": "Notes",
+  "home.notes.count": "{n} notes",
+  "home.notes.empty": "Capture ideas — turn them into cards later",
 
   "home.greeting.morning": "Good morning 👋",
   "home.greeting.afternoon": "Good afternoon 👋",
@@ -717,5 +721,35 @@ export const en: Record<string, MessageValue> = {
   "stats.advice.low":
     "Measured retention {pct}% is below 80% — cards are often forgotten. Raise target retention toward 0.90 or grade more strictly.",
   "stats.advice.ok":
-    "Measured retention {pct}% — in the healthy 80–95% range. No need to change the target."
+    "Measured retention {pct}% — in the healthy 80–95% range. No need to change the target.",
+
+  // —— notes ——
+  "notes.title": "Notes",
+  "notes.untitled": "Untitled",
+  "notes.btn.new": "+ New",
+  "notes.search.placeholder": "Search notes…",
+  "notes.empty.title": "No notes yet",
+  "notes.empty.text": "Create one — Markdown, search, and card links.",
+  "notes.empty.body": "Empty note",
+  "notes.toast.missing": "Note not found",
+  "notes.toast.deleted": "Note deleted",
+  "notes.editor.heading": "Note",
+  "notes.editor.titlePlaceholder": "Title",
+  "notes.editor.bodyPlaceholder": "Write Markdown…",
+  "notes.editor.preview": "Preview",
+  "notes.editor.edit": "Edit",
+  "notes.editor.saving": "Saving…",
+  "notes.editor.saved": "Saved",
+  "notes.editor.unsaved": "Unsaved…",
+  "notes.confirm.deleteTitle": "Delete note?",
+  "notes.confirm.deleteBody": "Cards stay — their note link is cleared.",
+  "notes.conflicts.title": "Conflict copies",
+  "notes.conflicts.isCopy": "This is a losing-side copy from sync.",
+  "notes.conflicts.banner": "Conflict copy — open the original via the link.",
+  "notes.conflicts.openOriginal": "Open original",
+  "notes.cards.title": "Cards of this note",
+  "notes.cards.link": "Link",
+  "notes.cards.linkHint": "Link a card via the editor or store.linkCardToNote.",
+  "notes.cards.empty": "No linked cards yet.",
+  "notes.cards.untitled": "Untitled"
 }

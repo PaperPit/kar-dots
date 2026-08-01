@@ -12,7 +12,7 @@ import {
   isMissingBoxesTableError, isMissingBoxIconColumnError, withoutFolderIcon, withoutBoxId,
 } from '../lib/folder-errors.js';
 import {
-  buildFolderRecord, buildCardRecord, buildBoxRecord, exportJSONPayload,
+  buildFolderRecord, buildCardRecord, buildBoxRecord, buildNoteRecord, exportJSONPayload,
 } from './store-contract.js';
 import {
   countDueForFolder, countDueBetweenForFolder, countNewForFolder, buildReviewQueue, filterByFolder,
@@ -32,16 +32,22 @@ import { invalidateDerivedCaches } from './cache-invalidate.js';
 import { getCardsByIds, hydrateWithMisses } from './card-hydrate.js';
 import { configureImageUrls } from './image-url.js';
 import { isYoutubeCard } from '../lib/youtube-import.js';
-import type { Card, Folder, Box, Settings } from './types.js';
+import type { Card, Folder, Box, Settings, Note } from './types.js';
 import type { SrsMeta } from './srs-meta.js';
 import type { Algo, SrsRow } from '../lib/srs.js';
 import type { ProgressInfo } from './store-vocab.js';
 import type { MiniSupabase } from './supabase.js';
 import {
   CLOUD_SYNC_KEY, SRS_DELTA_SELECT, SYNCED_DELTA_SELECT, SYNCED_AT_FIELD, shouldUseCardsDelta,
-  mergeSrsDelta, nextCardsWatermark, stampUpdatedAt, cardLwwFilter, isMissingSyncedAtError,
+  shouldUseNotesDelta, mergeSrsDelta, nextCardsWatermark, stampUpdatedAt, cardLwwFilter,
+  noteLwwFilter, isMissingSyncedAtError, isMissingNotesTableError, isMissingNoteLinkError,
   type WatermarkKind,
 } from './cloud-delta.js';
+import {
+  putNoteInMirror, deleteNoteFromMirror, listNotesFromMirror, searchNoteIdsInMirror,
+  getNoteFromMirror, getNoteConflictsFromMirror, mergeNotePatch, makeConflictCopy,
+  replaceNotesMirror,
+} from './store-notes.js';
 import {
   setActivityCloudSync, applyRemoteActivity, loadActivity,
   type ActivityData,
@@ -98,6 +104,10 @@ export class CloudStore {
   _boxIconCloudUnsupported: boolean
   /** В схеме нет колонки synced_at (миграция 0011 не применена) — watermark по updated_at. */
   _syncedAtCloudUnsupported: boolean
+  /** Таблицы notes ещё нет (миграция 0013). */
+  _notesCloudUnsupported: boolean
+  /** Колонок note_id/note_anchor на cards ещё нет. */
+  _noteLinkCloudUnsupported: boolean
   /** Сколько карточек не удалось собрать в прошлой очереди повторения (диагностика). */
   _lastHydrateMisses: number
   _homeStatsCache: HomeStats | null
@@ -128,6 +138,8 @@ export class CloudStore {
     this._boxIdCloudUnsupported = false;
     this._boxIconCloudUnsupported = false;
     this._syncedAtCloudUnsupported = false;
+    this._notesCloudUnsupported = false;
+    this._noteLinkCloudUnsupported = false;
     this._lastHydrateMisses = 0;
     this._homeStatsCache = null;
     this._homeStatsCacheAlgo = null;
@@ -402,15 +414,20 @@ export class CloudStore {
   async _fetchFromCloud() {
     const uid = this.sb.userId();
     if (!uid) throw new Error('Нет активной сессии');
-    const sync = (await mirrorGetKV(this.mirror, CLOUD_SYNC_KEY)) as { fullAt?: number; cardsAt?: number; cardsAtKind?: WatermarkKind } | null;
+    const sync = (await mirrorGetKV(this.mirror, CLOUD_SYNC_KEY)) as {
+      fullAt?: number; cardsAt?: number; cardsAtKind?: WatermarkKind;
+      notesAt?: number; notesAtKind?: WatermarkKind;
+    } | null;
     const useDelta = shouldUseCardsDelta(sync, uid, Date.now(), this._watermarkKind());
+    const useNotesDelta = shouldUseNotesDelta(sync, uid, Date.now(), this._watermarkKind());
 
-    const [folders, settingsRows, boxesRaw, cardsPull] = await Promise.all([
+    const [folders, settingsRows, boxesRaw, cardsPull, notesPull] = await Promise.all([
       this.sb.select<Folder>('folders', 'select=*&order=created_at.asc'),
       this.sb.select<{ data?: Settings }>('settings', 'select=*&user_id=eq.' + uid),
       this._fetchBoxesFromCloud(),
       // `?? 0` — не «сейчас»: часы устройства не должны попадать в watermark.
       useDelta ? this._pullCardsDelta(uid, sync?.cardsAt ?? 0) : this._pullCardsFull(),
+      useNotesDelta ? this._pullNotesDelta(uid, sync?.notesAt ?? 0) : this._pullNotesFull(),
     ]);
 
     this.folders = folders.map(normalizeFolderRecord).filter((f): f is Folder => !!f);
@@ -425,6 +442,7 @@ export class CloudStore {
     // (чтение из зеркала) папка выглядела иначе, чем сразу после синка.
     await mirrorReplaceAll(this.mirror, 'folders', this.folders);
     await mirrorReplaceAll(this.mirror, 'boxes', this.boxes);
+    if (notesPull.rows) await replaceNotesMirror(this.mirror, notesPull.rows);
     this._srsMeta = cardsPull.meta;
     this._cache.clearAll();
     for (const [fid, n] of countSrsMetaByFolder(cardsPull.meta, folders)) {
@@ -443,6 +461,8 @@ export class CloudStore {
       userId: uid,
       cardsAt: cardsPull.cardsAt,
       cardsAtKind: cardsPull.cardsAtKind,
+      notesAt: notesPull.notesAt,
+      notesAtKind: notesPull.notesAtKind,
       fullAt: cardsPull.full ? now : (sync?.fullAt ?? now),
     });
     this._offline = false;
@@ -484,6 +504,79 @@ export class CloudStore {
     const { meta, maxAt, maxSyncedAt } = mergeSrsDelta([], rows);
     const observed = kind === 'synced_at' ? maxSyncedAt : maxAt;
     return { meta, cardsAt: nextCardsWatermark(0, observed, { kind }), cardsAtKind: kind, full: true };
+  }
+
+  async _pullNotesFull(): Promise<{ rows: Note[] | null; notesAt: number; notesAtKind: WatermarkKind; full: boolean }> {
+    const kind = this._watermarkKind();
+    if (this._notesCloudUnsupported) {
+      return { rows: null, notesAt: 0, notesAtKind: kind, full: true };
+    }
+    try {
+      const rows = await this.sb.select<Note>('notes', 'select=*&order=updated_at.asc');
+      let maxAt = 0;
+      let maxSyncedAt = 0;
+      for (const n of rows) {
+        if ((n.updated_at || 0) > maxAt) maxAt = n.updated_at || 0;
+        if ((n.synced_at || 0) > maxSyncedAt) maxSyncedAt = n.synced_at || 0;
+      }
+      const observed = kind === 'synced_at' ? maxSyncedAt : maxAt;
+      return {
+        rows,
+        notesAt: nextCardsWatermark(0, observed, { kind }),
+        notesAtKind: kind,
+        full: true,
+      };
+    } catch (e) {
+      if (isMissingNotesTableError(e)) {
+        this._notesCloudUnsupported = true;
+        await this._saveCloudFlags();
+        return { rows: null, notesAt: 0, notesAtKind: kind, full: true };
+      }
+      throw e;
+    }
+  }
+
+  async _pullNotesDelta(uid: string, since: number): Promise<{ rows: Note[] | null; notesAt: number; notesAtKind: WatermarkKind; full: boolean }> {
+    const kind = this._watermarkKind();
+    if (this._notesCloudUnsupported) {
+      return { rows: null, notesAt: since, notesAtKind: kind, full: false };
+    }
+    try {
+      const field = kind === 'synced_at' ? 'synced_at' : 'updated_at';
+      const delta = await this.sb.select<Note>(
+        'notes',
+        'user_id=eq.' + uid + '&' + field + '=gt.' + since + '&order=' + field + '.asc'
+      );
+      if (!delta.length) {
+        return { rows: null, notesAt: since, notesAtKind: kind, full: false };
+      }
+      // Мержим дельту в зеркало поштучно, полный replace не нужен.
+      for (const n of delta) {
+        const local = Object.assign({}, n);
+        delete (local as { synced_at?: number }).synced_at;
+        await putNoteInMirror(this.mirror, local);
+      }
+      let maxAt = since;
+      let maxSyncedAt = since;
+      for (const n of delta) {
+        if ((n.updated_at || 0) > maxAt) maxAt = n.updated_at || 0;
+        if ((n.synced_at || 0) > maxSyncedAt) maxSyncedAt = n.synced_at || 0;
+      }
+      const observed = kind === 'synced_at' ? maxSyncedAt : maxAt;
+      return {
+        rows: null, // уже влили
+        notesAt: nextCardsWatermark(since, observed, { kind }),
+        notesAtKind: kind,
+        full: false,
+      };
+    } catch (e) {
+      if (isMissingNotesTableError(e)) {
+        this._notesCloudUnsupported = true;
+        await this._saveCloudFlags();
+        return { rows: null, notesAt: 0, notesAtKind: kind, full: true };
+      }
+      return this._pullNotesFull();
+    }
   }
 
   /**
@@ -608,13 +701,20 @@ export class CloudStore {
 
   async _loadCloudFlags() {
     if (!this.mirror) return;
-    const flags = (await mirrorGetKV(this.mirror, 'cloud_flags')) as { folderIconCloudUnsupported?: boolean; boxesCloudUnsupported?: boolean; boxIdCloudUnsupported?: boolean; boxIconCloudUnsupported?: boolean; reviewLogCloudUnsupported?: boolean; syncedAtCloudUnsupported?: boolean } | null;
+    const flags = (await mirrorGetKV(this.mirror, 'cloud_flags')) as {
+      folderIconCloudUnsupported?: boolean; boxesCloudUnsupported?: boolean;
+      boxIdCloudUnsupported?: boolean; boxIconCloudUnsupported?: boolean;
+      reviewLogCloudUnsupported?: boolean; syncedAtCloudUnsupported?: boolean;
+      notesCloudUnsupported?: boolean; noteLinkCloudUnsupported?: boolean;
+    } | null;
     this._folderIconCloudUnsupported = !!flags?.folderIconCloudUnsupported;
     this._boxesCloudUnsupported = !!flags?.boxesCloudUnsupported;
     this._boxIdCloudUnsupported = !!flags?.boxIdCloudUnsupported;
     this._boxIconCloudUnsupported = !!flags?.boxIconCloudUnsupported;
     this._reviewLogCloudUnsupported = !!flags?.reviewLogCloudUnsupported;
     this._syncedAtCloudUnsupported = !!flags?.syncedAtCloudUnsupported;
+    this._notesCloudUnsupported = !!flags?.notesCloudUnsupported;
+    this._noteLinkCloudUnsupported = !!flags?.noteLinkCloudUnsupported;
   }
 
   async _saveCloudFlags() {
@@ -626,6 +726,8 @@ export class CloudStore {
       boxIconCloudUnsupported: !!this._boxIconCloudUnsupported,
       reviewLogCloudUnsupported: !!this._reviewLogCloudUnsupported,
       syncedAtCloudUnsupported: !!this._syncedAtCloudUnsupported,
+      notesCloudUnsupported: !!this._notesCloudUnsupported,
+      noteLinkCloudUnsupported: !!this._noteLinkCloudUnsupported,
     });
   }
 
@@ -745,6 +847,9 @@ export class CloudStore {
         if (payload.urls) for (const url of payload.urls) await this.deleteImage(url);
         await this.sb.remove('cards', 'id=eq.' + payload.id);
         break;
+      case 'createNote': await this._cloudInsertNote(payload.row); break;
+      case 'updateNote': await this._cloudPatchNoteLww(payload.id, payload.patch, payload.loser); break;
+      case 'deleteNote': await this._cloudDeleteNote(payload.id); break;
       case 'saveSettings':
         await this._cloudSaveSettings(payload.settings);
         break;
@@ -774,11 +879,111 @@ export class CloudStore {
    * нужен returning: 'representation' — при return=minimal ответ пустой всегда.
    */
   async _cloudPatchCardLww(id: string, patch: Record<string, unknown>) {
-    const rows = await this.sb.update('cards', cardLwwFilter(id, patch), patch, {
-      returning: 'representation',
-    });
-    if (!Array.isArray(rows) || rows.length > 0) return;
-    await this._adoptRemoteCard(id);
+    let payload = Object.assign({}, patch);
+    if (this._noteLinkCloudUnsupported) {
+      delete payload.note_id;
+      delete payload.note_anchor;
+    }
+    try {
+      const rows = await this.sb.update('cards', cardLwwFilter(id, payload), payload, {
+        returning: 'representation',
+      });
+      if (!Array.isArray(rows) || rows.length > 0) return;
+      await this._adoptRemoteCard(id);
+    } catch (e) {
+      if (!this._noteLinkCloudUnsupported && isMissingNoteLinkError(e)) {
+        this._noteLinkCloudUnsupported = true;
+        await this._saveCloudFlags();
+        delete payload.note_id;
+        delete payload.note_anchor;
+        if (!Object.keys(payload).length) return;
+        await this._cloudPatchCardLww(id, payload);
+        return;
+      }
+      throw e;
+    }
+  }
+
+  async _cloudInsertNote(row: Note) {
+    if (this._notesCloudUnsupported) return;
+    const payload = Object.assign({}, row) as Note & { synced_at?: number };
+    delete payload.synced_at;
+    try {
+      await this.sb.insert('notes', payload);
+    } catch (e) {
+      if (isMissingNotesTableError(e)) {
+        this._notesCloudUnsupported = true;
+        await this._saveCloudFlags();
+        return;
+      }
+      throw e;
+    }
+  }
+
+  /**
+   * LWW-патч заметки. При проигрыше: принять remote и сохранить loser как conflict-копию.
+   */
+  async _cloudPatchNoteLww(
+    id: string,
+    patch: Record<string, unknown>,
+    loser?: Partial<Note> | null
+  ) {
+    if (this._notesCloudUnsupported) return;
+    try {
+      const rows = await this.sb.update('notes', noteLwwFilter(id, patch), patch, {
+        returning: 'representation',
+      });
+      if (!Array.isArray(rows) || rows.length > 0) return;
+      await this._adoptRemoteNote(id, loser || null);
+    } catch (e) {
+      if (isMissingNotesTableError(e)) {
+        this._notesCloudUnsupported = true;
+        await this._saveCloudFlags();
+        return;
+      }
+      throw e;
+    }
+  }
+
+  async _adoptRemoteNote(id: string, loser: Partial<Note> | null) {
+    let remote: Note | undefined;
+    try {
+      const rows = await this.sb.select<Note>('notes', 'id=eq.' + id + '&select=*&limit=1');
+      remote = rows[0];
+    } catch (e) {
+      if (isNetworkError(e)) throw e;
+      console.warn('[sync] не удалось получить облачную версию заметки', id, e);
+      return;
+    }
+    if (!remote) {
+      console.warn('[sync] заметки нет в облаке, правка отброшена:', id);
+      return;
+    }
+    const clean = Object.assign({}, remote) as Note & { synced_at?: number };
+    delete clean.synced_at;
+    if (loser && (loser.body != null || loser.title != null)) {
+      const copy = makeConflictCopy(id, loser);
+      copy.user_id = this.sb.userId() || undefined;
+      await putNoteInMirror(this.mirror, copy);
+      await this._cloudInsertNote(copy);
+    }
+    await putNoteInMirror(this.mirror, clean);
+    this._emitDataChange();
+  }
+
+  async _cloudDeleteNote(id: string) {
+    if (this._notesCloudUnsupported) return;
+    try {
+      await this.sb.remove('notes', 'conflict_of=eq.' + id);
+      await this.sb.remove('notes', 'id=eq.' + id);
+    } catch (e) {
+      if (isMissingNotesTableError(e)) {
+        this._notesCloudUnsupported = true;
+        await this._saveCloudFlags();
+        return;
+      }
+      throw e;
+    }
   }
 
   /** Принять облачную версию карточки как победившую: зеркало, кэш, SRS-мета. */
@@ -1327,7 +1532,8 @@ export class CloudStore {
 
   async exportJSONFull() {
     const cards = await getAll(this.mirror, 'cards');
-    return exportJSONPayload(this.folders, cards, this.settings, this.boxes);
+    const notes = await listNotesFromMirror(this.mirror, { includeConflicts: true });
+    return exportJSONPayload(this.folders, cards, this.settings, this.boxes, notes);
   }
 
   async importJSON(text: string) {
@@ -1350,6 +1556,14 @@ export class CloudStore {
         await mirrorPut(this.mirror, 'folders', row);
         await this._cloudOrQueue('createFolder', { row }, async () => row);
       }
+    }
+    for (const n of (data.notes || [])) {
+      const existing = await getNoteFromMirror(this.mirror, n.id);
+      if (existing) continue;
+      const row = buildNoteRecord(Object.assign({}, n, { user_id: this.sb.userId() }));
+      delete (row as { synced_at?: number }).synced_at;
+      await putNoteInMirror(this.mirror, row);
+      await this._cloudOrQueue('createNote', { row }, async () => row);
     }
     const importRows = [];
     for (const c of data.cards) {
@@ -1385,6 +1599,75 @@ export class CloudStore {
     this._cache.rebuildCountsFromSrsMeta(this.folders, this._srsMeta || []);
     await this._flushSrsMetaPersist();
     invalidateDerivedCaches(this, { allFolders: true });
+  }
+
+  // —— Notes ——
+
+  async listNotes(opts: { includeConflicts?: boolean; query?: string } = {}) {
+    return listNotesFromMirror(this.mirror, opts);
+  }
+
+  async searchNoteIds(query: string) {
+    return searchNoteIdsInMirror(this.mirror, query);
+  }
+
+  async getNote(id: string) {
+    return getNoteFromMirror(this.mirror, id);
+  }
+
+  async getNoteConflicts(noteId: string) {
+    return getNoteConflictsFromMirror(this.mirror, noteId);
+  }
+
+  async createNote(data: Partial<Note> = {}) {
+    const row = buildNoteRecord(data, { user_id: this.sb.userId() });
+    await putNoteInMirror(this.mirror, row);
+    return this._cloudOrQueue('createNote', { row }, async () => row);
+  }
+
+  async updateNote(id: string, patch: Partial<Note>) {
+    const cur = await getNoteFromMirror(this.mirror, id);
+    if (!cur) return null;
+    const loser = { title: cur.title, body: cur.body, created_at: cur.created_at, updated_at: cur.updated_at };
+    const stamped = stampUpdatedAt(patch as Record<string, unknown>) as Partial<Note>;
+    const next = mergeNotePatch(cur, stamped);
+    await putNoteInMirror(this.mirror, next);
+    return this._cloudOrQueue(
+      'updateNote',
+      { id, patch: stamped, loser },
+      async () => next,
+      { optimistic: true }
+    );
+  }
+
+  async createNoteConflictCopy(winnerId: string, loser: Partial<Note>) {
+    const copy = makeConflictCopy(winnerId, loser);
+    copy.user_id = this.sb.userId() || undefined;
+    await putNoteInMirror(this.mirror, copy);
+    return this._cloudOrQueue('createNote', { row: copy }, async () => copy);
+  }
+
+  async deleteNote(id: string) {
+    const linked = await deleteNoteFromMirror(this.mirror, id);
+    for (const c of linked) {
+      if (c.id) this._cache.patchCardInLists(c.id, { note_id: null, note_anchor: null });
+    }
+    this._emitDataChange();
+    return this._cloudOrQueue('deleteNote', { id }, async () => true);
+  }
+
+  async getNoteCards(noteId: string) {
+    const cards = await indexGetAll<Card>(this.mirror, 'cards', 'note_id', noteId);
+    cards.sort((a, b) => (b.updated_at || 0) - (a.updated_at || 0));
+    return cards;
+  }
+
+  async linkCardToNote(cardId: string, noteId: string, anchor: string | null = null) {
+    return this.updateCard(cardId, { note_id: noteId, note_anchor: anchor });
+  }
+
+  async unlinkCardFromNote(cardId: string) {
+    return this.updateCard(cardId, { note_id: null, note_anchor: null });
   }
 }
 

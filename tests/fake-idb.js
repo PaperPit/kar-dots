@@ -11,7 +11,14 @@ function makeRequest(result) {
 }
 
 function makeObjectStore(map, indexes = {}, keyPath = 'id') {
-  const indexNames = new Set(Object.keys(indexes));
+  const indexNames = {
+    _set: new Set(Object.keys(indexes)),
+    contains(name) { return this._set.has(name); },
+    has(name) { return this._set.has(name); },
+    add(name) { this._set.add(name); },
+    get size() { return this._set.size; },
+    [Symbol.iterator]() { return this._set[Symbol.iterator](); },
+  };
 
   function all() {
     return [...map.values()];
@@ -95,18 +102,40 @@ function makeObjectStore(map, indexes = {}, keyPath = 'id') {
   return store;
 }
 
+function indexesFor(name) {
+  if (name === 'cards') return { folder_id: 'folder_id', note_id: 'note_id' };
+  if (name === 'notes' || name === 'note_conflicts') return { conflict_of: 'conflict_of', updated_at: 'updated_at' };
+  if (name === 'note_terms') return { term: 'term', note_id: 'note_id' };
+  return {};
+}
+
 export function installFakeIDB({
   folders = [],
   cards = [],
   boxes = [],
+  notes = [],
+  note_conflicts = [],
+  note_terms = [],
   kv = {},
 } = {}) {
   const maps = {
     folders: new Map(folders.map(f => [f.id, { ...f }])),
     cards: new Map(cards.map(c => [c.id, { ...c }])),
     boxes: new Map(boxes.map(b => [b.id, { ...b }])),
+    notes: new Map(notes.map(n => [n.id, { ...n }])),
+    note_conflicts: new Map(note_conflicts.map(n => [n.id, { ...n }])),
+    note_terms: new Map(note_terms.map(n => [n.id, { ...n }])),
     kv: new Map(Object.entries(kv)),
     sync_queue: new Map(),
+    sync_dead_letters: new Map(),
+  };
+
+  // Persistent index defs per store (createIndex mutates these).
+  const indexDefs = {
+    cards: { folder_id: 'folder_id', note_id: 'note_id' },
+    notes: { conflict_of: 'conflict_of', updated_at: 'updated_at' },
+    note_conflicts: { conflict_of: 'conflict_of' },
+    note_terms: { term: 'term', note_id: 'note_id' },
   };
 
   function createDatabase() {
@@ -118,24 +147,24 @@ export function installFakeIDB({
       createObjectStore(name, opts = {}) {
         names.add(name);
         if (!maps[name]) maps[name] = new Map();
+        if (!indexDefs[name]) indexDefs[name] = indexesFor(name);
         const keyPath = opts.keyPath || 'id';
-        const store = makeObjectStore(maps[name], name === 'cards' ? { folder_id: 'folder_id' } : {}, keyPath);
-        if (name === 'cards' && !store.indexNames.has('folder_id')) {
-          store.createIndex('folder_id', 'folder_id');
-        }
+        const store = makeObjectStore(maps[name], indexDefs[name], keyPath);
         return store;
       },
-      transaction(storeName) {
+      transaction(storeNames) {
         const tx = {
           error: null,
           oncomplete: null,
           onerror: null,
           objectStore(name) {
-            const idx = name === 'cards' ? { folder_id: 'folder_id' } : {};
+            if (!maps[name]) maps[name] = new Map();
+            if (!indexDefs[name]) indexDefs[name] = indexesFor(name);
             const keyPath = name === 'kv' ? null : 'id';
-            return makeObjectStore(maps[name], idx, keyPath || 'id');
+            return makeObjectStore(maps[name], indexDefs[name], keyPath || 'id');
           },
         };
+        // Allow multi-store ops to finish before complete.
         defer(() => { if (tx.oncomplete) tx.oncomplete(); });
         return tx;
       },
@@ -148,12 +177,18 @@ export function installFakeIDB({
   };
   globalThis.indexedDB = {
     open(_name, version) {
-      const req = { result: null, error: null, onsuccess: null, onerror: null, onupgradeneeded: null };
+      const req = { result: null, error: null, onsuccess: null, onerror: null, onupgradeneeded: null, transaction: null };
       defer(() => {
         const db = createDatabase();
         req.result = db;
         if (req.onupgradeneeded) {
-          req.onupgradeneeded({ oldVersion: 2, newVersion: version || 2, target: req });
+          // Provide a transaction-like object for createIndex on existing stores.
+          req.transaction = {
+            objectStore(name) {
+              return db.createObjectStore(name, { keyPath: name === 'kv' ? undefined : 'id' });
+            },
+          };
+          req.onupgradeneeded({ oldVersion: 0, newVersion: version || 1, target: req });
         }
         if (req.onsuccess) req.onsuccess({ target: req });
       });

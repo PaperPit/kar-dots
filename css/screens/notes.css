@@ -1,0 +1,121 @@
+/* —— список заметок —— */
+
+.notes-page {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding-bottom: 28px;
+}
+
+.notes-search {
+  width: 100%;
+  box-sizing: border-box;
+  border: 1px solid var(--line);
+  background: var(--bg-raised);
+  color: var(--ink);
+  border-radius: var(--radius-sm, 10px);
+  padding: 12px 14px;
+  font: inherit;
+  font-size: 15px;
+}
+
+.notes-search:focus {
+  outline: 2px solid color-mix(in srgb, var(--accent) 45%, transparent);
+  outline-offset: 1px;
+}
+
+.notes-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.notes-row {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  width: 100%;
+  text-align: left;
+  border: none;
+  background: var(--bg-raised);
+  color: inherit;
+  border-radius: var(--radius);
+  padding: 14px 16px;
+  box-shadow: var(--shadow);
+  cursor: pointer;
+  transition: transform .15s ease, background .15s ease;
+}
+
+.notes-row:hover {
+  transform: translateY(-1px);
+}
+
+.notes-row-title {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 17px;
+}
+
+.notes-row-preview {
+  font-size: 13px;
+  line-height: 1.35;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.notes-row-meta {
+  font-size: 12px;
+}
+
+.notes-empty {
+  text-align: center;
+  padding: 40px 12px;
+}
+
+/* —— плитка на home —— */
+.notes-wall-tile {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 10px;
+  min-height: 110px;
+  padding: 18px;
+  border: none;
+  border-radius: var(--radius);
+  background:
+    linear-gradient(145deg,
+      color-mix(in srgb, var(--accent) 18%, var(--bg-raised)),
+      var(--bg-raised) 55%);
+  color: inherit;
+  box-shadow: var(--shadow);
+  text-align: left;
+  cursor: pointer;
+  font: inherit;
+}
+
+.notes-wall-tile:hover {
+  transform: translateY(-1px);
+}
+
+.notes-wall-kicker {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+
+.notes-wall-title {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 22px;
+  line-height: 1.15;
+}
+
+.notes-wall-sub {
+  font-size: 13px;
+  color: var(--ink-faint);
+}

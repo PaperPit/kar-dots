@@ -7,9 +7,11 @@ import { isNetworkError } from "./supabase.js"
 const MIRROR_DB = "kartochki_cloud"
 // 3: в браузерах, где успела поработать промежуточная реализация YouTube-импорта,
 // база уже поднята до версии 3 — IndexedDB не разрешает открывать её с меньшей.
+// 4: boxes / sync stores.
+// 5: notes + note_conflicts + note_terms (база знаний).
 // Апгрейд-обработчик идемпотентен (все createObjectStore под проверками contains),
-// поэтому для баз версии 2 это просто безопасный no-op-апгрейд.
-const MIRROR_VERSION = 4
+// поэтому для баз версии 2–4 это просто безопасный no-op-апгрейд.
+const MIRROR_VERSION = 5
 const QUEUE_STORE = "sync_queue"
 const DEAD_LETTER_STORE = "sync_dead_letters"
 
@@ -41,8 +43,31 @@ function openMirrorDB(): Promise<IDBDatabase> {
       if (!db.objectStoreNames.contains("cards")) {
         const cards = db.createObjectStore("cards", { keyPath: "id" })
         cards.createIndex("folder_id", "folder_id", { unique: false })
+        cards.createIndex("note_id", "note_id", { unique: false })
+      } else if (req.transaction) {
+        const cards = req.transaction.objectStore("cards")
+        if (!cards.indexNames.contains("folder_id")) {
+          cards.createIndex("folder_id", "folder_id", { unique: false })
+        }
+        if (!cards.indexNames.contains("note_id")) {
+          cards.createIndex("note_id", "note_id", { unique: false })
+        }
       }
       if (!db.objectStoreNames.contains("boxes")) db.createObjectStore("boxes", { keyPath: "id" })
+      if (!db.objectStoreNames.contains("notes")) {
+        const notes = db.createObjectStore("notes", { keyPath: "id" })
+        notes.createIndex("updated_at", "updated_at", { unique: false })
+        notes.createIndex("conflict_of", "conflict_of", { unique: false })
+      }
+      if (!db.objectStoreNames.contains("note_conflicts")) {
+        const conflicts = db.createObjectStore("note_conflicts", { keyPath: "id" })
+        conflicts.createIndex("conflict_of", "conflict_of", { unique: false })
+      }
+      if (!db.objectStoreNames.contains("note_terms")) {
+        const terms = db.createObjectStore("note_terms", { keyPath: "id" })
+        terms.createIndex("term", "term", { unique: false })
+        terms.createIndex("note_id", "note_id", { unique: false })
+      }
       if (!db.objectStoreNames.contains("kv")) db.createObjectStore("kv")
       if (!db.objectStoreNames.contains(QUEUE_STORE))
         db.createObjectStore(QUEUE_STORE, { keyPath: "id", autoIncrement: true })

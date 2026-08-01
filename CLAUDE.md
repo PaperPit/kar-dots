@@ -7,10 +7,19 @@ Vanilla JS PWA (ES modules, **без bundler в dev**). Исходники — T
 
 ## Слои
 
-- `js/data/` — хранилища (`LocalStore`, `CloudStore`), контракт, SRS-запросы, sync-queue
-- `js/lib/` — чистые утилиты (srs, shuffle, activity); **не** импортировать из `screens/`
+- `js/data/` — хранилища (`LocalStore`, `CloudStore`), контракт, SRS-запросы, sync-queue, заметки (`store-notes.js`)
+- `js/lib/` — чистые утилиты (srs, shuffle, activity, markdown, notes-fts); **не** импортировать из `screens/`
 - `js/ui/` — shell, helpers, ui-компоненты; навигация только через `js/ui/navigation.js` (`nav`), не из `shell.js`
 - `js/screens/` — экраны; импортируют `ui/` и `data/`, не наоборот
+
+## Заметки (база знаний)
+
+- Атомарная единица — **note** (Markdown `body`); карточка — опциональный дериватив (`note_id`, `note_anchor`)
+- Local IDB v4: `notes` + `note_conflicts` + `note_terms` (FTS); Cloud mirror SyncQueue **v5** — те же сторы
+- Облако: миграция `0013_notes.sql`, LWW по `updated_at`, проигравшая сторона → conflict-копия (`conflict_of`), `synced_at` сервером
+- Удаление заметки **не** удаляет карточки — только обнуляет ссылку
+- Экраны: `#notes` (список + поиск), `#note/:id` (редактор); плитка на home
+- Экспорт/импорт JSON **v3** включает `notes`
 
 ## Команды
 

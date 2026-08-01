@@ -40,11 +40,33 @@ export async function renderHome() {
   const loose = looseFolders(store.folders);
   const libraryGrid = el('div', { class: 'folder-grid library-grid' }, []);
 
+  // Плитка «Заметки» — первая в сетке библиотеки, в одном ритме с папками.
+  let notesCount = 0;
+  try {
+    if (typeof store.listNotes === 'function') {
+      const notes = await store.listNotes();
+      notesCount = notes.length;
+    }
+  } catch (e) { /* notes store may be unavailable on old mirrors */ }
+
+  libraryGrid.append(el('button', {
+    class: 'notes-wall-tile stagger-in',
+    type: 'button',
+    style: { '--stagger-delay': '0ms' },
+    onclick: () => nav('#notes'),
+  }, [
+    el('div', { class: 'notes-wall-kicker' }, t('home.notes.kicker')),
+    el('h3', { class: 'notes-wall-title' }, t('home.notes.title')),
+    el('div', { class: 'notes-wall-sub meta' }, notesCount
+      ? t('home.notes.count', { n: notesCount })
+      : t('home.notes.empty')),
+  ]) as HTMLButtonElement);
+
   for (let i = 0; i < store.boxes.length; i++) {
     const b = store.boxes[i];
     if (!b) continue;
     const stats = boxFolderStatsFromHome(homeStats, store.folders, b.id, budget);
-    const card = boxCardEl(b, stats, i);
+    const card = boxCardEl(b, stats, i + 1);
     attachBoxDropTarget(card, b.id, async (folderId, boxId) => {
       const folder = store.folders.find((f: Folder) => f.id === folderId);
       if (!folder) return;
@@ -66,20 +88,20 @@ export async function renderHome() {
   for (let i = 0; i < loose.length; i++) {
     const f = loose[i]!;
     const stats = folderCardStatsFromHome(homeStats, f, budget);
-    const card = folderCardEl(f, stats, store.boxes.length + i);
+    const card = folderCardEl(f, stats, store.boxes.length + i + 1);
     attachFolderDraggable(card, f.id);
     libraryGrid.append(card);
   }
 
   libraryGrid.append(el('button', {
     class: 'add-tile add-tile-box stagger-in',
-    style: { '--stagger-delay': ((store.boxes.length + loose.length) * 40) + 'ms' },
+    style: { '--stagger-delay': ((store.boxes.length + loose.length + 1) * 40) + 'ms' },
     onclick: () => boxDialog(null),
   }, t('home.btn.newBox')) as HTMLButtonElement);
 
   libraryGrid.append(el('button', {
     class: 'add-tile stagger-in',
-    style: { '--stagger-delay': ((store.boxes.length + loose.length + 1) * 40) + 'ms' },
+    style: { '--stagger-delay': ((store.boxes.length + loose.length + 2) * 40) + 'ms' },
     onclick: () => folderDialog(null),
   }, t('home.btn.newFolder')) as HTMLButtonElement);
 
@@ -104,28 +126,6 @@ export async function renderHome() {
       el('span', { class: 'home-section-aside' }, t('home.section.libraryAside')),
     ]),
   );
-
-  // Плитка-стена: вход в базу знаний.
-  let notesCount = 0;
-  try {
-    if (typeof store.listNotes === 'function') {
-      const notes = await store.listNotes();
-      notesCount = notes.length;
-    }
-  } catch (e) { /* notes store may be unavailable on old mirrors */ }
-
-  sections.push(el('button', {
-    class: 'notes-wall-tile stagger-in',
-    type: 'button',
-    style: { '--stagger-delay': '0ms' },
-    onclick: () => nav('#notes'),
-  }, [
-    el('div', { class: 'notes-wall-kicker' }, t('home.notes.kicker')),
-    el('div', { class: 'notes-wall-title' }, t('home.notes.title')),
-    el('div', { class: 'notes-wall-sub' }, notesCount
-      ? t('home.notes.count', { n: notesCount })
-      : t('home.notes.empty')),
-  ]));
 
   if (folderDragEnabled() && store.boxes.length) {
     sections.push(el('p', { class: 'section-hint' }, t('home.hint.drag')));

@@ -1,5 +1,6 @@
 import { el, plural } from "./ui.js"
 import { store } from "../core/state.js"
+import { t } from "../lib/i18n.js"
 import {
   loadActivity,
   calcVisitStreak,
@@ -9,6 +10,15 @@ import {
   MONTH_NAMES,
   WEEKDAY_NAMES
 } from "../lib/activity.js"
+
+function shiftMonth(year: number, month: number, delta: number): { year: number; month: number } {
+  const d = new Date(year, month + delta, 1)
+  return { year: d.getFullYear(), month: d.getMonth() }
+}
+
+function isCurrentOrFutureMonth(year: number, month: number, now = new Date()): boolean {
+  return year > now.getFullYear() || (year === now.getFullYear() && month >= now.getMonth())
+}
 
 function streakRing(streak: number, sm?: boolean): HTMLElement {
   const ringDays = Math.max(1, Number(store?.settings?.streakRingDays) || 21)
@@ -166,40 +176,82 @@ export function homeCalendarWidget(place: string): HTMLElement {
 }
 
 /** Inline-карточка серии + календарь месяца (редизайн 1b).
- *  На узких экранах — сверху, свёрнута до стрика, по тапу раскрывается. */
+ *  На узких экранах — сверху, свёрнута до стрика, по тапу раскрывается.
+ *  Месяц листается стрелками у подписи; вперёд — не дальше текущего. */
 export function homeStreakCalendarCard(): HTMLElement {
   const data = loadActivity()
   const streak = calcVisitStreak(data)
   const now = new Date()
-  const year = now.getFullYear()
-  const month = now.getMonth()
+  let viewYear = now.getFullYear()
+  let viewMonth = now.getMonth()
   const todayK = dayKey(now)
-  const monthName = (MONTH_NAMES[month] || "").toLowerCase()
 
   const weekdays = el(
     "div",
     { class: "home-cal-weekdays" },
     WEEKDAY_NAMES.map((w) => el("div", null, w.toLowerCase()))
   )
-
   const grid = el("div", { class: "home-cal-grid" })
-  getMonthGrid(year, month).forEach((cell) => {
-    if (cell.outside) {
-      grid.append(el("div", { class: "home-cal-day is-outside" }))
-      return
-    }
-    const info = data.days[cell.key]
-    const reviews = info?.reviews || 0
-    const heat = dayHeatLevel(reviews)
-    const tip =
-      reviews > 0
-        ? `${cell.day} ${monthName} · ${reviews} ${plural(reviews, "карточка", "карточки", "карточек")}`
-        : `${cell.day} ${monthName}`
-    const cls = ["home-cal-day", `heat-${heat}`]
-    if (cell.key === todayK) cls.push("is-today")
-    grid.append(
-      el("div", { class: cls.join(" "), title: tip }, String(cell.day))
-    )
+  const footLabel = el("span", { class: "streak-cal-foot-label" })
+  const prevBtn = el(
+    "button",
+    {
+      type: "button",
+      class: "streak-cal-nav",
+      "aria-label": t("home.cal.prevMonth"),
+      title: t("home.cal.prevMonth")
+    },
+    "‹"
+  ) as HTMLButtonElement
+  const nextBtn = el(
+    "button",
+    {
+      type: "button",
+      class: "streak-cal-nav",
+      "aria-label": t("home.cal.nextMonth"),
+      title: t("home.cal.nextMonth")
+    },
+    "›"
+  ) as HTMLButtonElement
+  const foot = el("div", { class: "streak-cal-foot" }, [prevBtn, footLabel, nextBtn])
+
+  function renderMonth() {
+    const monthName = (MONTH_NAMES[viewMonth] || "").toLowerCase()
+    grid.replaceChildren()
+    getMonthGrid(viewYear, viewMonth).forEach((cell) => {
+      if (cell.outside) {
+        grid.append(el("div", { class: "home-cal-day is-outside" }))
+        return
+      }
+      const info = data.days[cell.key]
+      const reviews = info?.reviews || 0
+      const heat = dayHeatLevel(reviews)
+      const tip =
+        reviews > 0
+          ? `${cell.day} ${monthName} · ${reviews} ${plural(reviews, "карточка", "карточки", "карточек")}`
+          : `${cell.day} ${monthName}`
+      const cls = ["home-cal-day", `heat-${heat}`]
+      if (cell.key === todayK) cls.push("is-today")
+      grid.append(el("div", { class: cls.join(" "), title: tip }, String(cell.day)))
+    })
+    footLabel.textContent = t("home.cal.activityFoot", {
+      month: monthName,
+      year: viewYear
+    })
+    const atCurrent = isCurrentOrFutureMonth(viewYear, viewMonth, now)
+    nextBtn.disabled = atCurrent
+  }
+
+  prevBtn.addEventListener("click", (e) => {
+    e.stopPropagation()
+    ;({ year: viewYear, month: viewMonth } = shiftMonth(viewYear, viewMonth, -1))
+    renderMonth()
+  })
+  nextBtn.addEventListener("click", (e) => {
+    e.stopPropagation()
+    if (isCurrentOrFutureMonth(viewYear, viewMonth, now)) return
+    ;({ year: viewYear, month: viewMonth } = shiftMonth(viewYear, viewMonth, 1))
+    renderMonth()
   })
 
   const head = el(
@@ -227,20 +279,8 @@ export function homeStreakCalendarCard(): HTMLElement {
     ]
   )
 
-  const expand = el("div", { class: "streak-cal-expand" }, [
-    weekdays,
-    grid,
-    el(
-      "div",
-      { class: "streak-cal-foot" },
-      `${monthName} ${year} · активность повторений`
-    )
-  ])
-
-  const card = el("div", { class: "streak-cal-card streak-cal-collapsible" }, [
-    head,
-    expand
-  ])
+  const expand = el("div", { class: "streak-cal-expand" }, [weekdays, grid, foot])
+  const card = el("div", { class: "streak-cal-card streak-cal-collapsible" }, [head, expand])
 
   let open = false
   function isMobile(): boolean {
@@ -258,5 +298,8 @@ export function homeStreakCalendarCard(): HTMLElement {
     )
   })
 
+  renderMonth()
   return card
 }
+
+export { shiftMonth, isCurrentOrFutureMonth }

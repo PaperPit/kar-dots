@@ -168,7 +168,9 @@ export function playUiClickSound(melodyId: string = "none", opts?: PlayOpts): vo
   if (id === "none") return
   const meta = UI_CLICK_MELODIES.find((m) => m.id === id)
   if (!meta?.file) return
-  playMp3(meta.file, "uiClick", opts, 0.65)
+  // Клики явно выбраны в настройках — не глушим через prefers-reduced-motion
+  // (он глушит только «декоративные» слоты без gameplay/preview).
+  playMp3(meta.file, "uiClick", { gameplay: true, ...opts }, 0.65)
 }
 
 /** Проиграть MP3 при появлении кубка. */

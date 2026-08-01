@@ -67,6 +67,9 @@ await build({
 cpDir(path.join(ROOT, 'css'), path.join(DIST, 'css'));
 cpDir(path.join(ROOT, 'icons'), path.join(DIST, 'icons'));
 cpDir(path.join(ROOT, 'packs'), path.join(DIST, 'packs'));
+// Звуки (клики UI, верно/неверно, кубок) грузятся рантаймом с /audio/... —
+// без копирования в dist/ на Cloudflare Pages все MP3 дают 404 и play() молчит.
+cpDir(path.join(ROOT, 'audio'), path.join(DIST, 'audio'));
 for (const f of ['manifest.webmanifest', 'index.html']) {
   if (fs.existsSync(path.join(ROOT, f))) cpFile(path.join(ROOT, f), path.join(DIST, f));
 }
@@ -104,7 +107,7 @@ const CORE_FILES = ['./', 'index.html', 'manifest.webmanifest', 'packs/manifest.
 const unique = [...new Set(CORE_FILES.filter((f) => f !== './'))].sort();
 
 const swPath = path.join(DIST, 'sw.js');
-const VERSION = 'kar-v15.3-bundle';
+const VERSION = 'kar-v15.4-bundle';
 const list = unique.map((f) => `  '${f}',`).join('\n');
 const swBody = `const VERSION = '${VERSION}';
 

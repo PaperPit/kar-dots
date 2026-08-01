@@ -173,9 +173,11 @@ export async function onRequest(context) {
     subject = await anonSubject(clientIp(request.headers), clientId(request.headers));
   }
 
-  // 5. Лимиты. Сломанный KV не должен ронять API — hitRateLimit fail open.
+  // 5. Лимиты. В проде REQUIRE_RATE_LIMIT=1 → без KV API не работает (fail closed).
+  // Локально (pages:dev без --kv) — fail open, чтобы не ломать разработку.
   const scope = endpointScope(new URL(request.url).pathname);
   const now = Date.now();
+  const failClosed = String(env?.REQUIRE_RATE_LIMIT || '') === '1';
 
   if (!userId) {
     const byIp = await hitRateLimit(kv, {
@@ -184,8 +186,12 @@ export async function onRequest(context) {
       limit: IP_HOURLY_LIMIT,
       windowSec: HOUR_SEC,
       now,
+      failClosed,
     });
-    if (!byIp.ok) return tooMany(byIp.retryAfter);
+    if (!byIp.ok) {
+      if (byIp.missingKv) return rateLimitUnconfigured();
+      return tooMany(byIp.retryAfter);
+    }
   }
 
   const bySubject = await hitRateLimit(kv, {
@@ -194,8 +200,12 @@ export async function onRequest(context) {
     limit: endpointLimit(scope),
     windowSec: HOUR_SEC,
     now,
+    failClosed,
   });
-  if (!bySubject.ok) return tooMany(bySubject.retryAfter);
+  if (!bySubject.ok) {
+    if (bySubject.missingKv) return rateLimitUnconfigured();
+    return tooMany(bySubject.retryAfter);
+  }
 
   // 6. Хендлеры берут личность отсюда и только отсюда.
   context.data.subject = subject;
@@ -213,5 +223,16 @@ function tooMany(retryAfter) {
     },
     429,
     { 'retry-after': String(Math.max(1, retryAfter || HOUR_SEC)) },
+  );
+}
+
+function rateLimitUnconfigured() {
+  console.error('[api] REQUIRE_RATE_LIMIT=1, но биндинг YT_JOBS отсутствует или KV недоступен');
+  return json(
+    {
+      error: 'rate-limit-unconfigured',
+      message: 'Сервер не настроен для лимитов запросов — попробуй позже',
+    },
+    503,
   );
 }

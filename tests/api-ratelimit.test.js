@@ -95,10 +95,17 @@ describe('hitRateLimit', () => {
     expect(await hitRateLimit(kv, { scope: 'tts', subject: SUBJ, limit: 1, now: 0 })).toMatchObject({ ok: false });
   });
 
-  it('без биндинга KV пропускает запрос и предупреждает', async () => {
+  it('без биндинга KV пропускает запрос и предупреждает (dev fail open)', async () => {
     const res = await hitRateLimit(null, { scope: 'tts', subject: SUBJ, limit: 1, now: 0 });
     expect(res).toMatchObject({ ok: true, skipped: true });
     expect(warn).toHaveBeenCalled();
+  });
+
+  it('без KV + failClosed → отказ (prod)', async () => {
+    const res = await hitRateLimit(null, {
+      scope: 'tts', subject: SUBJ, limit: 1, now: 0, failClosed: true,
+    });
+    expect(res).toMatchObject({ ok: false, missingKv: true });
   });
 
   it('сломанный KV не роняет API (fail open)', async () => {
@@ -109,6 +116,17 @@ describe('hitRateLimit', () => {
     const res = await hitRateLimit(broken, { scope: 'tts', subject: SUBJ, limit: 1, now: 0 });
     expect(res).toMatchObject({ ok: true, skipped: true });
     expect(warn).toHaveBeenCalled();
+  });
+
+  it('сломанный KV + failClosed → отказ', async () => {
+    const broken = {
+      async get() { throw new Error('KV недоступен'); },
+      async put() {},
+    };
+    const res = await hitRateLimit(broken, {
+      scope: 'tts', subject: SUBJ, limit: 1, now: 0, failClosed: true,
+    });
+    expect(res).toMatchObject({ ok: false, missingKv: true });
   });
 
   it('ошибка put тоже не роняет запрос', async () => {

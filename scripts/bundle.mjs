@@ -12,6 +12,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { EXCLUDE_ICONS, PRECACHE_FONTS } from './sw-precache-assets.mjs';
+import { swFetchHandlerSource } from './sw-fetch-handler.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const DIST = path.join(ROOT, 'dist');
@@ -70,9 +71,12 @@ cpDir(path.join(ROOT, 'packs'), path.join(DIST, 'packs'));
 // Звуки (клики UI, верно/неверно, кубок) грузятся рантаймом с /audio/... —
 // без копирования в dist/ на Cloudflare Pages все MP3 дают 404 и play() молчит.
 cpDir(path.join(ROOT, 'audio'), path.join(DIST, 'audio'));
-for (const f of ['manifest.webmanifest', 'index.html']) {
+for (const f of ['manifest.webmanifest', 'index.html', 'boot-theme.js']) {
   if (fs.existsSync(path.join(ROOT, f))) cpFile(path.join(ROOT, f), path.join(DIST, f));
 }
+// Cloudflare Pages headers (CSP и пр.)
+if (fs.existsSync(path.join(ROOT, 'public', '_headers')))
+  cpFile(path.join(ROOT, 'public', '_headers'), path.join(DIST, '_headers'));
 // config грузится рантайм-import'ом через переменную (state.ts initConfig:
 // '../config.js'), поэтому esbuild не может сделать его external и оставляет
 // относительный резолв. В бандле чанки лежат в dist/js/, значит '../config.js'
@@ -146,36 +150,7 @@ self.addEventListener('activate', e => {
   );
 });
 
-self.addEventListener('fetch', e => {
-  const url = new URL(e.request.url);
-  if (e.request.method !== 'GET') return;
-  const isStorageImage = url.pathname.includes('/storage/v1/object/public/');
-  const isSameOrigin = url.origin === location.origin;
-  if (!isSameOrigin && !isStorageImage) return;
-
-  const path = url.pathname.replace(/^\\//, '');
-  const isAppJs = isSameOrigin && /\\.(js|css|html)$/.test(url.pathname);
-  const lazy = isSameOrigin && isLazyPath(path);
-  const hasRange = e.request.headers.has('range');
-
-  e.respondWith(
-    fetch(isAppJs ? new Request(e.request, { cache: 'no-cache' }) : e.request)
-      .then(resp => {
-        if (resp.status === 200 && !hasRange) {
-          const copy = resp.clone();
-          caches.open(VERSION).then(c => c.put(e.request, copy)).catch(() => {});
-        }
-        return resp;
-      })
-      .catch(async () => {
-        const cached = await caches.match(e.request, { ignoreSearch: isSameOrigin });
-        if (cached) return cached;
-        if (lazy) throw new Error('offline');
-        return caches.match(e.request, { ignoreSearch: isSameOrigin });
-      }),
-  );
-});
-`;
+${swFetchHandlerSource()}`;
 
 fs.writeFileSync(swPath, swBody);
-console.log(`bundle: dist/ готов. Прекеш: ${unique.length} файлов, JS-чанков: ${jsChunks.length}`);
+console.log(`bundle: dist/ готов. Прекеш: ${unique.length} файлов, JS-чанков: ${jsChunks.length}, SW ${VERSION}`);

@@ -1,5 +1,10 @@
-/** Прод-инстанс КАР-точки — единственный origin расширения. */
-export const APP_ORIGIN = "https://kar-tochki.pages.dev"
+/**
+ * Origin веб-приложения. По умолчанию официальный демо-хост.
+ * Self-host: KAR_EXT_APP_ORIGIN=https://your.domain npm run ext:build
+ * (esbuild define подставляет KAR_EXT_APP_ORIGIN).
+ */
+declare const KAR_EXT_APP_ORIGIN: string | undefined
+export const APP_ORIGIN = KAR_EXT_APP_ORIGIN ?? "https://kar-tochki.pages.dev"
 
 export const CONNECT_URL = `${APP_ORIGIN}/?ext_connect=1`
 

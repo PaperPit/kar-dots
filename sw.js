@@ -1,10 +1,11 @@
-const VERSION = 'kar-v15.5';
+const VERSION = 'kar-v15.6';
 
 /** AUTO-GENERATED CORE_FILES — node scripts/generate-sw-files.js */
 const CORE_FILES = [
   './',
   'index.html',
   'manifest.webmanifest',
+  'boot-theme.js',
   'css/style.css',
   'css/components/modal.css',
   'css/screens/home.css',
@@ -72,6 +73,7 @@ const CORE_FILES = [
   'js/lib/shuffle.js',
   'js/lib/sounds.js',
   'js/lib/srs.js',
+  'js/lib/stale-chunk.js',
   'js/lib/stats.js',
   'js/lib/stock-media-providers.js',
   'js/lib/stock-media-settings.js',
@@ -175,13 +177,18 @@ self.addEventListener('activate', e => {
 self.addEventListener('fetch', e => {
   const url = new URL(e.request.url);
   if (e.request.method !== 'GET') return;
-  const isStorageImage = url.pathname.includes('/storage/v1/object/public/');
   const isSameOrigin = url.origin === location.origin;
-  if (!isSameOrigin && !isStorageImage) return;
+  if (!isSameOrigin) return;
 
   const path = url.pathname.replace(/^\//, '');
-  const isAppJs = isSameOrigin && /\.(js|css|html)$/.test(url.pathname);
-  const lazy = isSameOrigin && isLazyPath(path);
+  // API и storage — только сеть, без Cache API.
+  if (path.startsWith('api/') || path.includes('storage/v1/')) {
+    e.respondWith(fetch(e.request));
+    return;
+  }
+
+  const isAppJs = /\.(js|css|html)$/.test(url.pathname);
+  const lazy = isLazyPath(path);
   const hasRange = e.request.headers.has('range');
 
   e.respondWith(
@@ -194,10 +201,10 @@ self.addEventListener('fetch', e => {
         return resp;
       })
       .catch(async () => {
-        const cached = await caches.match(e.request, { ignoreSearch: isSameOrigin });
+        const cached = await caches.match(e.request, { ignoreSearch: true });
         if (cached) return cached;
         if (lazy) throw new Error('offline');
-        return caches.match(e.request, { ignoreSearch: isSameOrigin });
+        return caches.match(e.request, { ignoreSearch: true });
       }),
   );
 });

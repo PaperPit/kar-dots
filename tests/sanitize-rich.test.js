@@ -14,3 +14,30 @@ describe('sanitizeRich formatting', () => {
     expect(sanitizeRich('<mark class="bad">x</mark>')).toBe('x');
   });
 });
+
+describe('sanitizeRich XSS', () => {
+  it('strips script tags and keeps text', () => {
+    const out = sanitizeRich('<b>ok</b><script>alert(1)</script>');
+    expect(out).not.toMatch(/<script/i);
+    expect(out).toContain('<b>ok</b>');
+    expect(out).toContain('alert(1)');
+  });
+
+  it('strips event-handler attributes via tag allowlist', () => {
+    const out = sanitizeRich('<img src=x onerror=alert(1)><b onclick="evil()">x</b>');
+    expect(out).not.toMatch(/onerror|onclick|img/i);
+    expect(out).toBe('<b>x</b>');
+  });
+
+  it('blocks javascript: and data: hrefs', () => {
+    expect(sanitizeRich('<a href="javascript:alert(1)">x</a>')).toBe('x');
+    expect(sanitizeRich('<a href="data:text/html,hi">x</a>')).toBe('x');
+    expect(sanitizeRich('<a href="https://example.com">x</a>')).toContain('https://example.com');
+  });
+
+  it('strips svg wrappers (DOMParser may drop sibling text; no svg/script left)', () => {
+    const out = sanitizeRich('<div><svg onload=alert(1)></svg><b>safe</b></div>');
+    expect(out).not.toMatch(/<svg|onload|script/i);
+    expect(out).toContain('safe');
+  });
+});

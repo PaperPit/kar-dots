@@ -3,7 +3,9 @@ import { expect, test } from '@playwright/test';
 async function enterLocal(page) {
   await page.goto('/');
   await page.getByRole('button', { name: 'Попробовать без регистрации' }).click();
-  await expect(page.getByRole('heading', { name: /Сегодня к повторению|Кар!|КАР-р-р|Поля ждут/ })).toBeVisible();
+  await expect(
+    page.getByText(/Доброе утро|Добрый день|Добрый вечер/)
+  ).toBeVisible();
 }
 
 test.beforeEach(async ({ context }) => {
@@ -20,12 +22,12 @@ test('settings screen is reachable from local mode', async ({ page }) => {
   await enterLocal(page);
   await page.getByRole('button', { name: 'Настройки' }).click();
   await expect(page.getByRole('heading', { name: 'Настройки' })).toBeVisible();
-  await expect(page.getByText(/Алгоритм|Повторение|Данные/).first()).toBeVisible();
+  await expect(page.getByText(/Алгоритм|Повторение|Данные|Звуки/).first()).toBeVisible();
 });
 
 test('review mode picker opens from home', async ({ page }) => {
   await enterLocal(page);
-  await page.getByRole('button', { name: /Повторить|Повторение/ }).first().click();
+  await page.getByRole('button', { name: /Повторить|Продолжить|Повторение/ }).first().click();
   await expect(page.getByRole('dialog')).toBeVisible();
   await expect(page.getByText(/Классика|Ввод|Пропуски|Пары/).first()).toBeVisible();
 });

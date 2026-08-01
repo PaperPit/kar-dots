@@ -29,7 +29,8 @@ npm run ext:build
 
 ## Ограничения v1
 
-- Только Chrome (MV3), только `https://kar-tochki.pages.dev`.
+- Chrome MV3. По умолчанию origin — `https://kar-tochki.pages.dev`.
+- Self-host: `KAR_EXT_APP_ORIGIN=https://your.domain npm run ext:build` (переписывает `manifest.json` и бандл).
 - Нет импорта `.srt` / `.vtt` из расширения (только текущий ролик).
 - Нужен интернет; офлайн-очередь SyncQueue не используется.
 - Публикация в Chrome Web Store — отдельно; сейчас только load unpacked.

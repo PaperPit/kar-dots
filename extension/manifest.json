@@ -21,7 +21,10 @@
     "service_worker": "dist/background.js",
     "type": "module"
   },
-  "permissions": ["storage", "tabs"],
+  "permissions": [
+    "storage",
+    "tabs"
+  ],
   "host_permissions": [
     "https://www.youtube.com/*",
     "https://youtube.com/*",
@@ -30,13 +33,22 @@
   ],
   "content_scripts": [
     {
-      "matches": ["https://www.youtube.com/*", "https://youtube.com/*"],
-      "js": ["dist/content-youtube.js"],
+      "matches": [
+        "https://www.youtube.com/*",
+        "https://youtube.com/*"
+      ],
+      "js": [
+        "dist/content-youtube.js"
+      ],
       "run_at": "document_idle"
     },
     {
-      "matches": ["https://kar-tochki.pages.dev/*"],
-      "js": ["dist/content-app-bridge.js"],
+      "matches": [
+        "https://kar-tochki.pages.dev/*"
+      ],
+      "js": [
+        "dist/content-app-bridge.js"
+      ],
       "run_at": "document_idle"
     }
   ]

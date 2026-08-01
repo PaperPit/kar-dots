@@ -248,6 +248,18 @@ function bindNetworkListeners() {
 
 export function offlineBanner(): HTMLElement | null {
   if (!store || store.kind !== "cloud") return null
+
+  const wrap = el("div", { class: "status-banners" })
+  const schemaMsg =
+    typeof store.schemaWarning === "string" && store.schemaWarning
+      ? store.schemaWarning
+      : null
+  if (schemaMsg) {
+    wrap.append(
+      el("div", { class: "offline-banner schema-banner", role: "alert" }, schemaMsg)
+    )
+  }
+
   const statusEl = el(
     "span",
     null,
@@ -350,5 +362,6 @@ export function offlineBanner(): HTMLElement | null {
     statusEl.textContent = t("shell.sync.readFailed")
     banner.hidden = false
   })
-  return banner
+  wrap.append(banner)
+  return wrap
 }

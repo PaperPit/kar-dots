@@ -53,6 +53,7 @@ import {
   initReviewLog,
   type ReviewLogEntry,
 } from '../lib/review-log.js';
+import { fetchSchemaVersion, schemaOutdatedMessage } from './schema-version.js';
 
 export { folderSaveErrorMessage } from '../lib/folder-errors.js';
 
@@ -106,6 +107,8 @@ export class CloudStore {
   _bgSyncTail: Promise<void>
   /** Промис текущей фоновой синхронизации с облаком (если идёт). */
   _cloudSyncPromise: Promise<void> | null
+  /** Текст баннера, если schema_meta ниже REQUIRED_SCHEMA_VERSION. */
+  schemaWarning: string | null
 
   constructor(sb: MiniSupabase) {
     this.kind = 'cloud';
@@ -132,6 +135,7 @@ export class CloudStore {
     this._activityPushTimer = null;
     this._bgSyncTail = Promise.resolve();
     this._cloudSyncPromise = null;
+    this.schemaWarning = null;
   }
 
   _invalidateHomeStats() {
@@ -234,7 +238,20 @@ export class CloudStore {
     this._bindActivityCloudSync();
     this._bindReviewLogCloudSync();
     void initReviewLog();
+    await this._checkSchemaVersion();
     await this._loadData();
+  }
+
+  /** Сверить schema_meta с REQUIRED_SCHEMA_VERSION — баннер для self-host. */
+  async _checkSchemaVersion() {
+    if (!navigator.onLine) return;
+    try {
+      const current = await fetchSchemaVersion(this.sb);
+      this.schemaWarning = schemaOutdatedMessage(current);
+    } catch (e) {
+      // Сеть/офлайн — не блокируем boot; soft-деградация по capability-флагам.
+      if (!isNetworkError(e)) console.warn('schema version check failed:', e);
+    }
   }
 
   /** Активность (календарь/серия) пишется в settings.data и едет между устройствами. */

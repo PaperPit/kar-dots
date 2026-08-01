@@ -8,6 +8,7 @@
  */
 import { toastAction } from "./ui.js"
 import { t } from "../lib/i18n.js"
+import { reloadOnceForStaleChunk } from "../lib/stale-chunk.js"
 
 /** Не чаще одного тоста в этот интервал — иначе шторм ошибок завалит экран. */
 const THROTTLE_MS = 8000
@@ -18,6 +19,8 @@ let lastShownAt = 0
 
 function report(reason: unknown, where: string): void {
   console.error("[" + where + "]", reason)
+  // Устаревший hashed-чанк после деплоя — тихий reload вместо тоста.
+  if (reloadOnceForStaleChunk(reason)) return
 
   const now = Date.now()
   if (now - lastShownAt < THROTTLE_MS) return

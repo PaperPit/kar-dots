@@ -3,6 +3,8 @@ import { recordVisit } from "../lib/activity.js"
 import { parseReviewRoute, isStudyMode } from "../lib/study-modes.js"
 import { animateBootSplashOut } from "../ui/motion-lazy.js"
 import { cancelNavFallback } from "../ui/navigation.js"
+import { clearStaleChunkReloadFlag, reloadOnceForStaleChunk } from "../lib/stale-chunk.js"
+import { t } from "../lib/i18n.js"
 
 type HashParts = {
   name: string;
@@ -61,10 +63,15 @@ export async function route(): Promise<void> {
       const { renderHome } = await import("../screens/home/index.js")
       await renderHome()
     }
+    clearStaleChunkReloadFlag()
   } catch (e) {
     console.error("Route error:", e)
+    if (reloadOnceForStaleChunk(e)) return
     const { toast } = await import("../ui/ui.js")
-    toast("Ошибка экрана: " + (e instanceof Error ? e.message : String(e)), "error")
+    toast(
+      t("app.routeError", { message: e instanceof Error ? e.message : String(e) }),
+      "error"
+    )
   }
 }
 

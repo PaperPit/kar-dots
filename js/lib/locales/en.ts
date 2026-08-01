@@ -46,9 +46,14 @@ export const en: Record<string, MessageValue> = {
   "shell.sync.discarded": "Sync error dismissed",
   "shell.sync.hide": "Hide",
   "shell.sync.readFailed": "Could not read sync status.",
+  "shell.schema.outdatedOne":
+    "Update the database: run migration {n} from supabase/migrations in the Supabase SQL Editor. Until then, changes stay on this device only.",
+  "shell.schema.outdatedRange":
+    "Update the database: run migrations {from}–{to} from supabase/migrations in the Supabase SQL Editor. Until then, changes stay on this device only.",
 
   "app.error.unexpected": "Something went wrong. Your data is safe — please try again.",
   "app.error.reload": "Reload",
+  "app.routeError": "Screen error: {message}",
 
   "auth.sub":
     "Flashcards for words, terms, and quotes — with smart spaced repetition.",

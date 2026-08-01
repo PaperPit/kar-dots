@@ -3,6 +3,7 @@ import { searchStockMedia, downloadStockMedia, type StockItem, type StockSearchR
 import { hasGiphyApiKey, hasPixabayApiKey } from '../../lib/stock-media-settings.js';
 import type { Settings } from '../../data/types.js';
 import { debounce } from '../../ui/helpers.js';
+import { t } from '../../lib/i18n.js';
 
 interface StockPickerOpts {
   initialQuery?: string;
@@ -13,15 +14,15 @@ interface StockPickerOpts {
 function providerLabel(meta: StockSearchResult['searchMeta'] | null | undefined): string {
   if (meta?.provider === 'pixabay') return 'Pixabay';
   if (meta?.provider === 'giphy') return 'Giphy';
-  if (meta?.fallback) return 'Openverse (базовый)';
+  if (meta?.fallback) return t('cardEditor.stock.openverseFallback');
   return '';
 }
 
 const TAB_DEFS = [
-  { type: 'photo', label: 'Фото' },
-  { type: 'illustration', label: 'Иллюстрации' },
-  { type: 'gif', label: 'GIF' },
-  { type: 'sticker', label: 'Стикеры' },
+  { type: 'photo', labelKey: 'cardEditor.stock.tab.photo' },
+  { type: 'illustration', labelKey: 'cardEditor.stock.tab.illustration' },
+  { type: 'gif', labelKey: 'cardEditor.stock.tab.gif' },
+  { type: 'sticker', labelKey: 'cardEditor.stock.tab.sticker' },
 ];
 
 export function openStockImagePicker({ initialQuery = '', onSelect, getSettings }: StockPickerOpts = {}) {
@@ -35,7 +36,7 @@ export function openStockImagePicker({ initialQuery = '', onSelect, getSettings 
   const searchInput = el('input', {
     type: 'search',
     class: 'input stock-search-input',
-    placeholder: 'Слово на русском или английском…',
+    placeholder: t('cardEditor.stock.searchPlaceholder'),
     autocomplete: 'off',
     value: initialQuery,
   }, undefined);
@@ -44,7 +45,7 @@ export function openStockImagePicker({ initialQuery = '', onSelect, getSettings 
     type: 'button',
     class: 'btn stock-tab' + (def.type === 'photo' ? ' is-active' : ''),
     'data-type': def.type,
-  }, def.label));
+  }, t(def.labelKey)));
   const tabs = el('div', { class: 'stock-tabs' }, tabBtns);
 
   const statusEl = el('p', { class: 'stock-status', hidden: true }, undefined);
@@ -69,8 +70,8 @@ export function openStockImagePicker({ initialQuery = '', onSelect, getSettings 
     providerHintEl.hidden = hasKey;
     if (!hasKey) {
       providerHintEl.textContent = (type === 'gif' || type === 'sticker')
-        ? 'Без Giphy ключа — базовый Openverse. Настройки → Картинки для карточек.'
-        : 'Без Pixabay ключа — базовый Openverse. Настройки → Картинки для карточек.';
+        ? t('cardEditor.stock.hintGiphy')
+        : t('cardEditor.stock.hintPixabay');
     }
   }
 
@@ -87,7 +88,7 @@ export function openStockImagePicker({ initialQuery = '', onSelect, getSettings 
     runSearch();
   }
 
-  function setLoading(on: boolean, message = 'Ищем…') {
+  function setLoading(on: boolean, message = t('cardEditor.stock.searching')) {
     loading = on;
     searchInput.disabled = on;
     tabBtns.forEach(btn => { btn.disabled = on; });
@@ -112,8 +113,8 @@ export function openStockImagePicker({ initialQuery = '', onSelect, getSettings 
     if (!items.length) {
       statusEl.hidden = false;
       statusEl.textContent = lastQuery
-        ? 'Ничего не найдено — попробуйте другой запрос'
-        : 'Введите слово для поиска';
+        ? t('cardEditor.stock.noResults')
+        : t('cardEditor.stock.enterQuery');
       pager.hidden = true;
       return;
     }
@@ -148,7 +149,7 @@ export function openStockImagePicker({ initialQuery = '', onSelect, getSettings 
       btn.addEventListener('click', async () => {
         btn.disabled = true;
         grid.setAttribute('aria-busy', 'true');
-        setLoading(true, 'Загружаем…');
+        setLoading(true, t('cardEditor.stock.downloading'));
         try {
           const file = await downloadStockMedia(item);
           onSelect?.(file, item);
@@ -169,7 +170,7 @@ export function openStockImagePicker({ initialQuery = '', onSelect, getSettings 
           attrEl.textContent = item.attribution;
         } else if (item.creator) {
           attrEl.hidden = false;
-          attrEl.textContent = `Автор: ${item.creator}`;
+          attrEl.textContent = t('cardEditor.stock.author', { name: item.creator });
         } else {
           attrEl.hidden = true;
         }
@@ -186,13 +187,13 @@ export function openStockImagePicker({ initialQuery = '', onSelect, getSettings 
     if (!q) {
       grid.innerHTML = '';
       statusEl.hidden = false;
-      statusEl.textContent = 'Введите слово для поиска';
+      statusEl.textContent = t('cardEditor.stock.enterQuery');
       pager.hidden = true;
       attrEl.hidden = true;
       return;
     }
     if (loading) return;
-    setLoading(true, /[\u0400-\u04FF]/.test(q) ? 'Переводим и ищем…' : 'Ищем…');
+    setLoading(true, /[\u0400-\u04FF]/.test(q) ? t('cardEditor.stock.translating') : t('cardEditor.stock.searching'));
     try {
       const data = await searchStockMedia({
         q, type, page, pageSize: 20, settings: settings(),
@@ -205,18 +206,24 @@ export function openStockImagePicker({ initialQuery = '', onSelect, getSettings 
         translateHintEl.textContent = data.searchMeta.error;
       } else if (data.searchMeta?.translated) {
         translateHintEl.hidden = false;
-        translateHintEl.textContent =
-          `«${data.searchMeta.original}» → «${data.searchMeta.query}» · ${providerLabel(data.searchMeta)}`;
+        translateHintEl.textContent = t('cardEditor.stock.queryMapped', {
+          from: data.searchMeta.original,
+          to: data.searchMeta.query,
+          provider: providerLabel(data.searchMeta),
+        });
       } else if (data.searchMeta?.enriched && data.searchMeta.searchQuery !== data.searchMeta.query) {
         translateHintEl.hidden = false;
-        translateHintEl.textContent =
-          `«${data.searchMeta.query}» → «${data.searchMeta.searchQuery}» · ${providerLabel(data.searchMeta)}`;
+        translateHintEl.textContent = t('cardEditor.stock.queryMapped', {
+          from: data.searchMeta.query,
+          to: data.searchMeta.searchQuery,
+          provider: providerLabel(data.searchMeta),
+        });
       } else if (data.searchMeta?.provider && data.searchMeta.provider !== 'openverse') {
         translateHintEl.hidden = false;
         translateHintEl.textContent = providerLabel(data.searchMeta);
       } else if (data.searchMeta?.fallback) {
         translateHintEl.hidden = false;
-        translateHintEl.textContent = 'Openverse (базовый)';
+        translateHintEl.textContent = t('cardEditor.stock.openverseFallback');
       } else {
         translateHintEl.hidden = true;
       }
@@ -248,7 +255,7 @@ export function openStockImagePicker({ initialQuery = '', onSelect, getSettings 
 
   const body = el('div', { class: 'stock-picker' }, [
     el('p', { class: 'stock-picker-lead' },
-      'Фото, иллюстрации, GIF и стикеры с открытых баз (Pixabay, Giphy, Openverse).'),
+      t('cardEditor.stock.lead')),
     el('div', { class: 'stock-search-row' }, [searchInput, tabs]),
     providerHintEl,
     translateHintEl,
@@ -257,14 +264,14 @@ export function openStockImagePicker({ initialQuery = '', onSelect, getSettings 
     attrEl,
     pager,
     el('p', { class: 'stock-picker-note' },
-      'Укажите бесплатные API-ключи в настройках для доступа к большим каталогам.'),
+      t('cardEditor.stock.note')),
   ]);
 
   const m = modal(el('div', null, [
-    el('h3', { class: 'modal-title', id: titleId }, 'Найти картинку'),
+    el('h3', { class: 'modal-title', id: titleId }, t('cardEditor.stock.title')),
     body,
     el('div', { class: 'modal-actions modal-actions-center' }, [
-      el('button', { type: 'button', class: 'btn secondary', onclick: () => m.close() }, 'Отмена'),
+      el('button', { type: 'button', class: 'btn secondary', onclick: () => m.close() }, t('common.cancel')),
     ]),
   ]), { wide: true, labelledBy: titleId });
 

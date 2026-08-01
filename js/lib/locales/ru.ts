@@ -141,6 +141,108 @@ export const ru = {
     "Если ничего не выбрано — первая буква названия. Повторное нажатие снимает выбор.",
   "folder.dialog.nameRequired": "Введите название",
 
+  // —— folder screen ——
+  "folder.screen.rename": "Переименовать",
+  "folder.screen.deletePack": "Удалить пак",
+  "folder.screen.deleteFolder": "Удалить папку",
+  "folder.screen.confirm.deletePackTitle": "Удалить лексический пак?",
+  "folder.screen.confirm.deleteFolderTitle": "Удалить папку?",
+  "folder.screen.confirm.deletePackBody":
+    "«{name}» и все {n} {cards} будут удалены.",
+  "folder.screen.confirm.deleteFolderBody":
+    "«{name}» и все её карточки ({n}) будут удалены навсегда.",
+  "folder.screen.confirm.deletePackOk": "Удалить пак",
+  "folder.screen.confirm.deleteCardTitle": "Удалить карточку?",
+  "folder.screen.toast.packDeleted": "Пак удалён",
+  "folder.screen.toast.folderDeleted": "Папка удалена",
+  "folder.screen.toast.cardDeleted": "Карточка удалена",
+  "folder.screen.reviewDue": "Повторить ({n})",
+  "folder.screen.addCard": "Добавить карточку",
+  "folder.screen.addBulk": "Добавить списком",
+  "folder.screen.cramAll": "Повторять все карточки",
+  "folder.screen.searchPlaceholder": "Поиск по карточкам…",
+  "folder.screen.filterAll": "Все",
+  "folder.screen.filterDue": "К повторению",
+  "folder.screen.emptyFilter": "Ничего не найдено",
+  "folder.screen.emptyDue": "Сейчас нет карточек к повторению",
+  "folder.screen.packNote":
+    "Лексический пак — удаляется целиком через 🗑 или в Настройки → Каталог паков.",
+  "folder.screen.chipNew": "новая",
+  "folder.screen.chipDue": "пора",
+  "folder.screen.chipIn": "через {when}",
+  "folder.screen.imageOnly": "(картинка)",
+  "folder.screen.deleteCardAria": "Удалить карточку: {front}",
+  "folder.screen.noText": "без текста",
+
+  // —— YouTube import dialog ——
+  "folder.yt.source.url": "Ссылка",
+  "folder.yt.source.file": "Файл субтитров",
+  "folder.yt.mode.words": "Слова",
+  "folder.yt.mode.phrases": "Фразы",
+  "folder.yt.mode.both": "Слова + фразы",
+  "folder.yt.mode.sentences": "Предложения",
+  "folder.yt.hint.cache": "Транскрипт из кэша",
+  "folder.yt.hint.supadata": "Транскрипт через Supadata",
+  "folder.yt.hint.file": "Субтитры из файла",
+  "folder.yt.fileNone": "Файл не выбран",
+  "folder.yt.pickFile": "Выбрать файл",
+  "folder.yt.urlOptional": "https://www.youtube.com/watch?v=… (необязательно)",
+  "folder.yt.titleOptional": "Название видео (необязательно)",
+  "folder.yt.urlIntro":
+    "Вставь ссылку на ролик до 20 минут — выберу из него лексику, которой ещё нет в твоих паках.",
+  "folder.yt.fileIntro":
+    "Загрузи .srt или .vtt — Supadata не нужен. Ссылку можно добавить для таймкодов в карточках.",
+  "folder.yt.label.url": "Ссылка на видео",
+  "folder.yt.label.file": "Файл субтитров",
+  "folder.yt.mergeCues": "Склеивать короткие реплики в предложения",
+  "folder.yt.needOnline": "Нужно подключение к интернету",
+  "folder.yt.invalidUrl": "Не похоже на ссылку на YouTube-видео",
+  "folder.yt.needSupadata":
+    "Укажи Supadata API ключ: Настройки → «Карточки из YouTube» → «Настроить»",
+  "folder.yt.needGenerate":
+    "Укажи Gemini или Groq API ключ: Настройки → «Карточки из YouTube» → «Настроить»",
+  "folder.yt.needFile": "Выбери файл .srt или .vtt",
+  "folder.yt.getCards": "Получить карточки",
+  "folder.yt.whatToExtract": "Что достать из ролика",
+  "folder.yt.progress.compose": "Составляю карточки…",
+  "folder.yt.progress.checkSentences":
+    "Проверяю, какие предложения для тебя новые…",
+  "folder.yt.progress.checkWords": "Проверяю, какие слова для тебя новые…",
+  "folder.yt.progress.fetchVideo": "Получаю данные видео…",
+  "folder.yt.progress.cacheCompose":
+    "Транскрипт из кэша — составляю карточки…",
+  "folder.yt.progress.readFile": "Читаю файл субтитров…",
+  "folder.yt.empty.sentences":
+    "Все предложения из этого ролика уже есть в твоих папках — новых карточек не нашлось.",
+  "folder.yt.empty.lexicon":
+    "Вся лексика из этого ролика уже есть в твоих паках и папках — новых карточек не нашлось.",
+  "folder.yt.otherVideo": "Другое видео",
+  "folder.yt.gotIt": "Понятно",
+  "folder.yt.add": "Добавить",
+  "folder.yt.addN": "Добавить ({n})",
+  "folder.yt.toast.added": "Добавлено {n} {cards}",
+  "folder.yt.toast.addedWithErrors":
+    "Добавлено {n} {cards}, ошибок {failed}",
+  "folder.yt.toast.addFailed":
+    "Не удалось добавить карточки ({n} {errors})",
+  "folder.yt.errors": { one: "ошибка", few: "ошибки", many: "ошибок" },
+  "folder.yt.dropped.sentences": {
+    one: "{n} предложение уже есть в твоих папках — оно скрыты.",
+    few: "{n} предложения уже есть в твоих папках — они скрыты.",
+    many: "{n} предложений уже есть в твоих папках — они скрыты."
+  },
+  "folder.yt.dropped.words": {
+    one: "{n} слово уже есть в твоих паках — они скрыты.",
+    few: "{n} слова уже есть в твоих паках — они скрыты.",
+    many: "{n} слов уже есть в твоих паках — они скрыты."
+  },
+  "folder.yt.truncated":
+    "Переведены первые {used} из {total} предложений — лимит за один импорт.",
+  "folder.yt.group.sentences": "Предложения",
+  "folder.yt.group.phrases": "Фразы",
+  "folder.yt.group.words": "Слова",
+  "folder.yt.groupTitle": "{title} ({n})",
+
   "box.dialog.titleEdit": "Коробка",
   "box.dialog.titleNew": "Новая коробка",
   "box.dialog.namePlaceholder": "Например, Английский",
@@ -527,6 +629,84 @@ export const ru = {
   "review.voice.listening": "Слушаю: «{text}»",
   "review.voice.unavailable":
     "Голосовой режим недоступен — используйте ввод текста",
+
+  // —— card editor ——
+  "cardEditor.title.edit": "Карточка",
+  "cardEditor.title.new": "Новая карточка",
+  "cardEditor.add": "Добавить",
+  "cardEditor.preview": "Просмотр",
+  "cardEditor.translate": "Перевести",
+  "cardEditor.translate.needFront": "Сначала введите слово на лицевой стороне",
+  "cardEditor.translate.confirmReplace": "Заменить текущее определение переводом?",
+  "cardEditor.translate.done": "Перевод подставлен",
+  "cardEditor.saveMore.title": "Сохранить и добавить ещё одну карточку",
+  "cardEditor.saveMore.short": "Сохр. + ещё",
+  "cardEditor.saveMore.full": "Сохр. + добавить ещё",
+
+  "cardEditor.form.frontPlaceholder": "Слово или термин",
+  "cardEditor.form.definitionPlaceholder": "Краткое определение",
+  "cardEditor.form.descriptionPlaceholder": "Показывается на обороте под определением",
+  "cardEditor.form.frontLabel": "Лицо",
+  "cardEditor.form.frontHint": "Только слово или термин",
+  "cardEditor.form.backLabel": "Оборот",
+  "cardEditor.form.definitionLabel": "Определение",
+  "cardEditor.form.descriptionLabel": "Описание",
+
+  "cardEditor.validation.needFront": "Заполните лицевую сторону",
+  "cardEditor.validation.needBack": "Заполните определение или описание на обороте",
+  "cardEditor.toast.added": "Карточка добавлена",
+  "cardEditor.toast.deleted": "Карточка удалена",
+  "cardEditor.confirm.deleteTitle": "Удалить карточку?",
+
+  "cardEditor.bulk.title": "Добавить списком",
+  "cardEditor.bulk.hint": "По одной паре на строку.",
+  "cardEditor.bulk.placeholder":
+    "слово — перевод\nhello — привет\n# комментарии игнорируются",
+  "cardEditor.bulk.readyCount": "Готово к добавлению: {ready}",
+  "cardEditor.bulk.translateSuffix": " · перевести: {n}",
+  "cardEditor.bulk.skippedSuffix": " · пропущено: {n}",
+  "cardEditor.bulk.translating": "Перевожу {done} / {total}…",
+  "cardEditor.bulk.noneToAdd": "Нет карточек для добавления",
+  "cardEditor.bulk.addedCount": "Добавлено карточек: {n}",
+  "cardEditor.bulk.translateMissing": "Перевести строки без перевода",
+  "cardEditor.bulk.direction": "Направление:",
+
+  "cardEditor.preview.needFront": "Заполните лицевую сторону для просмотра",
+  "cardEditor.preview.needBack": "Заполните оборот для просмотра",
+  "cardEditor.preview.title": "Просмотр карточки",
+  "cardEditor.preview.lead":
+    "Как в режиме повторения — нажмите на карточку, чтобы перевернуть.",
+  "cardEditor.preview.close": "Закрыть",
+
+  "cardEditor.image.dropAria":
+    "Добавить картинку: клик — выбрать файл, Ctrl+V — вставить из буфера обмена",
+  "cardEditor.image.remove": "Убрать картинку",
+  "cardEditor.image.findStock": "Найти сток",
+  "cardEditor.image.add": "+ Картинка",
+  "cardEditor.image.hint": "файл, Ctrl+V или сток",
+
+  "cardEditor.stock.openverseFallback": "Openverse (базовый)",
+  "cardEditor.stock.tab.photo": "Фото",
+  "cardEditor.stock.tab.illustration": "Иллюстрации",
+  "cardEditor.stock.tab.gif": "GIF",
+  "cardEditor.stock.tab.sticker": "Стикеры",
+  "cardEditor.stock.searchPlaceholder": "Слово на русском или английском…",
+  "cardEditor.stock.hintGiphy":
+    "Без Giphy ключа — базовый Openverse. Настройки → Картинки для карточек.",
+  "cardEditor.stock.hintPixabay":
+    "Без Pixabay ключа — базовый Openverse. Настройки → Картинки для карточек.",
+  "cardEditor.stock.searching": "Ищем…",
+  "cardEditor.stock.noResults": "Ничего не найдено — попробуйте другой запрос",
+  "cardEditor.stock.enterQuery": "Введите слово для поиска",
+  "cardEditor.stock.downloading": "Загружаем…",
+  "cardEditor.stock.author": "Автор: {name}",
+  "cardEditor.stock.translating": "Переводим и ищем…",
+  "cardEditor.stock.queryMapped": "«{from}» → «{to}» · {provider}",
+  "cardEditor.stock.lead":
+    "Фото, иллюстрации, GIF и стикеры с открытых баз (Pixabay, Giphy, Openverse).",
+  "cardEditor.stock.note":
+    "Укажите бесплатные API-ключи в настройках для доступа к большим каталогам.",
+  "cardEditor.stock.title": "Найти картинку",
 
   // —— stats ——
   "stats.title": "Статистика",

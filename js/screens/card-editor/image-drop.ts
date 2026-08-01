@@ -1,6 +1,7 @@
 import { el, toast, spinner } from '../../ui/ui.js';
 import { store } from '../../core/state.js';
 import { resolveImageUrl, resolveImageUrlSync } from '../../data/image-url.js';
+import { t } from '../../lib/i18n.js';
 import { openStockImagePicker } from './stock-image-picker.js';
 
 interface CardEditorState {
@@ -16,7 +17,7 @@ interface ImgDropOpts {
 export function imgDrop(side: string, state: CardEditorState, opts: ImgDropOpts = {}) {
   const box = el('div', {
     class: 'img-drop', tabindex: '0', role: 'button',
-    'aria-label': 'Добавить картинку: клик — выбрать файл, Ctrl+V — вставить из буфера обмена',
+    'aria-label': t('cardEditor.image.dropAria'),
   }, undefined);
   const input = el('input', { type: 'file', accept: 'image/*', class: 'hidden' }, undefined);
 
@@ -35,7 +36,7 @@ export function imgDrop(side: string, state: CardEditorState, opts: ImgDropOpts 
       box.append(
         img,
         el('button', {
-          type: 'button', class: 'img-x', title: 'Убрать картинку',
+          type: 'button', class: 'img-x', title: t('cardEditor.image.remove'),
           onclick: (e: Event) => { e.stopPropagation(); state[side] = null; paint(); },
         }, '✕')
       );
@@ -51,10 +52,10 @@ export function imgDrop(side: string, state: CardEditorState, opts: ImgDropOpts 
             onSelect: file => handleFile(file),
           });
         },
-      }, 'Найти сток');
+      }, t('cardEditor.image.findStock'));
       box.append(
-        el('span', null, '+ Картинка'),
-        el('span', { class: 'img-drop-hint' }, 'файл, Ctrl+V или сток'),
+        el('span', null, t('cardEditor.image.add')),
+        el('span', { class: 'img-drop-hint' }, t('cardEditor.image.hint')),
         el('div', { class: 'img-drop-actions' }, [findBtn]),
         input,
       );

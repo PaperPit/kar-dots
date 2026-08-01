@@ -127,6 +127,104 @@ export const en: Record<string, MessageValue> = {
     "If nothing is selected — the first letter of the name. Tap again to clear.",
   "folder.dialog.nameRequired": "Enter a name",
 
+  "folder.screen.rename": "Rename",
+  "folder.screen.deletePack": "Delete pack",
+  "folder.screen.deleteFolder": "Delete folder",
+  "folder.screen.confirm.deletePackTitle": "Delete vocabulary pack?",
+  "folder.screen.confirm.deleteFolderTitle": "Delete folder?",
+  "folder.screen.confirm.deletePackBody":
+    "«{name}» and all {n} {cards} will be deleted.",
+  "folder.screen.confirm.deleteFolderBody":
+    "«{name}» and all its cards ({n}) will be deleted permanently.",
+  "folder.screen.confirm.deletePackOk": "Delete pack",
+  "folder.screen.confirm.deleteCardTitle": "Delete card?",
+  "folder.screen.toast.packDeleted": "Pack deleted",
+  "folder.screen.toast.folderDeleted": "Folder deleted",
+  "folder.screen.toast.cardDeleted": "Card deleted",
+  "folder.screen.reviewDue": "Review ({n})",
+  "folder.screen.addCard": "Add card",
+  "folder.screen.addBulk": "Add as list",
+  "folder.screen.cramAll": "Review all cards",
+  "folder.screen.searchPlaceholder": "Search cards…",
+  "folder.screen.filterAll": "All",
+  "folder.screen.filterDue": "Due",
+  "folder.screen.emptyFilter": "Nothing found",
+  "folder.screen.emptyDue": "No cards due for review",
+  "folder.screen.packNote":
+    "Vocabulary pack — delete entirely via 🗑 or in Settings → Pack catalog.",
+  "folder.screen.chipNew": "new",
+  "folder.screen.chipDue": "due",
+  "folder.screen.chipIn": "in {when}",
+  "folder.screen.imageOnly": "(image)",
+  "folder.screen.deleteCardAria": "Delete card: {front}",
+  "folder.screen.noText": "no text",
+
+  "folder.yt.source.url": "Link",
+  "folder.yt.source.file": "Subtitle file",
+  "folder.yt.mode.words": "Words",
+  "folder.yt.mode.phrases": "Phrases",
+  "folder.yt.mode.both": "Words + phrases",
+  "folder.yt.mode.sentences": "Sentences",
+  "folder.yt.hint.cache": "Transcript from cache",
+  "folder.yt.hint.supadata": "Transcript via Supadata",
+  "folder.yt.hint.file": "Subtitles from file",
+  "folder.yt.fileNone": "No file selected",
+  "folder.yt.pickFile": "Choose file",
+  "folder.yt.urlOptional": "https://www.youtube.com/watch?v=… (optional)",
+  "folder.yt.titleOptional": "Video title (optional)",
+  "folder.yt.urlIntro":
+    "Paste a link to a video under 20 minutes — I’ll pick vocabulary you don’t already have in your packs.",
+  "folder.yt.fileIntro":
+    "Upload .srt or .vtt — no Supadata needed. You can add a link for timestamps on cards.",
+  "folder.yt.label.url": "Video link",
+  "folder.yt.label.file": "Subtitle file",
+  "folder.yt.mergeCues": "Merge short cues into sentences",
+  "folder.yt.needOnline": "An internet connection is required",
+  "folder.yt.invalidUrl": "Doesn’t look like a YouTube video link",
+  "folder.yt.needSupadata":
+    "Set a Supadata API key: Settings → “Cards from YouTube” → “Configure”",
+  "folder.yt.needGenerate":
+    "Set a Gemini or Groq API key: Settings → “Cards from YouTube” → “Configure”",
+  "folder.yt.needFile": "Choose an .srt or .vtt file",
+  "folder.yt.getCards": "Get cards",
+  "folder.yt.whatToExtract": "What to extract from the video",
+  "folder.yt.progress.compose": "Building cards…",
+  "folder.yt.progress.checkSentences":
+    "Checking which sentences are new for you…",
+  "folder.yt.progress.checkWords": "Checking which words are new for you…",
+  "folder.yt.progress.fetchVideo": "Fetching video data…",
+  "folder.yt.progress.cacheCompose":
+    "Transcript from cache — building cards…",
+  "folder.yt.progress.readFile": "Reading subtitle file…",
+  "folder.yt.empty.sentences":
+    "All sentences from this video are already in your folders — no new cards found.",
+  "folder.yt.empty.lexicon":
+    "All vocabulary from this video is already in your packs and folders — no new cards found.",
+  "folder.yt.otherVideo": "Another video",
+  "folder.yt.gotIt": "Got it",
+  "folder.yt.add": "Add",
+  "folder.yt.addN": "Add ({n})",
+  "folder.yt.toast.added": "Added {n} {cards}",
+  "folder.yt.toast.addedWithErrors":
+    "Added {n} {cards}, {failed} errors",
+  "folder.yt.toast.addFailed":
+    "Could not add cards ({n} {errors})",
+  "folder.yt.errors": { one: "error", other: "errors" },
+  "folder.yt.dropped.sentences": {
+    one: "{n} sentence is already in your folders — it is hidden.",
+    other: "{n} sentences are already in your folders — they are hidden."
+  },
+  "folder.yt.dropped.words": {
+    one: "{n} word is already in your packs — they are hidden.",
+    other: "{n} words are already in your packs — they are hidden."
+  },
+  "folder.yt.truncated":
+    "Translated the first {used} of {total} sentences — limit per import.",
+  "folder.yt.group.sentences": "Sentences",
+  "folder.yt.group.phrases": "Phrases",
+  "folder.yt.group.words": "Words",
+  "folder.yt.groupTitle": "{title} ({n})",
+
   "box.dialog.titleEdit": "Box",
   "box.dialog.titleNew": "New box",
   "box.dialog.namePlaceholder": "e.g. English",
@@ -509,6 +607,84 @@ export const en: Record<string, MessageValue> = {
   "review.voice.listening": "Listening: «{text}»",
   "review.voice.unavailable":
     "Voice mode unavailable — use typing instead",
+
+  // —— card editor ——
+  "cardEditor.title.edit": "Card",
+  "cardEditor.title.new": "New card",
+  "cardEditor.add": "Add",
+  "cardEditor.preview": "Preview",
+  "cardEditor.translate": "Translate",
+  "cardEditor.translate.needFront": "Enter a word on the front side first",
+  "cardEditor.translate.confirmReplace": "Replace the current definition with the translation?",
+  "cardEditor.translate.done": "Translation inserted",
+  "cardEditor.saveMore.title": "Save and add another card",
+  "cardEditor.saveMore.short": "Save + more",
+  "cardEditor.saveMore.full": "Save + add another",
+
+  "cardEditor.form.frontPlaceholder": "Word or term",
+  "cardEditor.form.definitionPlaceholder": "Short definition",
+  "cardEditor.form.descriptionPlaceholder": "Shown on the back under the definition",
+  "cardEditor.form.frontLabel": "Front",
+  "cardEditor.form.frontHint": "Word or term only",
+  "cardEditor.form.backLabel": "Back",
+  "cardEditor.form.definitionLabel": "Definition",
+  "cardEditor.form.descriptionLabel": "Description",
+
+  "cardEditor.validation.needFront": "Fill in the front side",
+  "cardEditor.validation.needBack": "Fill in a definition or description on the back",
+  "cardEditor.toast.added": "Card added",
+  "cardEditor.toast.deleted": "Card deleted",
+  "cardEditor.confirm.deleteTitle": "Delete card?",
+
+  "cardEditor.bulk.title": "Add as a list",
+  "cardEditor.bulk.hint": "One pair per line.",
+  "cardEditor.bulk.placeholder":
+    "word — translation\nhello — hi\n# comments are ignored",
+  "cardEditor.bulk.readyCount": "Ready to add: {ready}",
+  "cardEditor.bulk.translateSuffix": " · to translate: {n}",
+  "cardEditor.bulk.skippedSuffix": " · skipped: {n}",
+  "cardEditor.bulk.translating": "Translating {done} / {total}…",
+  "cardEditor.bulk.noneToAdd": "No cards to add",
+  "cardEditor.bulk.addedCount": "Cards added: {n}",
+  "cardEditor.bulk.translateMissing": "Translate lines without a translation",
+  "cardEditor.bulk.direction": "Direction:",
+
+  "cardEditor.preview.needFront": "Fill in the front side to preview",
+  "cardEditor.preview.needBack": "Fill in the back to preview",
+  "cardEditor.preview.title": "Card preview",
+  "cardEditor.preview.lead":
+    "Same as review mode — tap the card to flip it.",
+  "cardEditor.preview.close": "Close",
+
+  "cardEditor.image.dropAria":
+    "Add image: click to choose a file, Ctrl+V to paste from clipboard",
+  "cardEditor.image.remove": "Remove image",
+  "cardEditor.image.findStock": "Find stock",
+  "cardEditor.image.add": "+ Image",
+  "cardEditor.image.hint": "file, Ctrl+V, or stock",
+
+  "cardEditor.stock.openverseFallback": "Openverse (basic)",
+  "cardEditor.stock.tab.photo": "Photos",
+  "cardEditor.stock.tab.illustration": "Illustrations",
+  "cardEditor.stock.tab.gif": "GIF",
+  "cardEditor.stock.tab.sticker": "Stickers",
+  "cardEditor.stock.searchPlaceholder": "Word in Russian or English…",
+  "cardEditor.stock.hintGiphy":
+    "Without a Giphy key — basic Openverse. Settings → Card images.",
+  "cardEditor.stock.hintPixabay":
+    "Without a Pixabay key — basic Openverse. Settings → Card images.",
+  "cardEditor.stock.searching": "Searching…",
+  "cardEditor.stock.noResults": "Nothing found — try a different query",
+  "cardEditor.stock.enterQuery": "Enter a word to search",
+  "cardEditor.stock.downloading": "Downloading…",
+  "cardEditor.stock.author": "Author: {name}",
+  "cardEditor.stock.translating": "Translating and searching…",
+  "cardEditor.stock.queryMapped": "«{from}» → «{to}» · {provider}",
+  "cardEditor.stock.lead":
+    "Photos, illustrations, GIFs, and stickers from open libraries (Pixabay, Giphy, Openverse).",
+  "cardEditor.stock.note":
+    "Add free API keys in settings for access to larger catalogs.",
+  "cardEditor.stock.title": "Find image",
 
   // —— stats ——
   "stats.title": "Stats",

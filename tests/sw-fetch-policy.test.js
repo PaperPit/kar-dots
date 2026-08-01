@@ -31,6 +31,13 @@ describe('service worker: ошибка «Response is a 206 partial»', () => {
     expect(sw).toContain('.catch(() => {})');
   });
 
+  it('sw.js не кэширует /api/* и storage', () => {
+    const sw = readFileSync(join(process.cwd(), 'sw.js'), 'utf8');
+    expect(sw).toContain("path.startsWith('api/')");
+    expect(sw).toContain("storage/v1/");
+    expect(sw).not.toContain('/storage/v1/object/public/');
+  });
+
   it('ts-fsrs и иконки папок — runtime, не install precache', () => {
     const sw = readFileSync(join(process.cwd(), 'sw.js'), 'utf8');
     const coreBlock = sw.slice(sw.indexOf('const CORE_FILES'), sw.indexOf('const LAZY_PREFIXES'));

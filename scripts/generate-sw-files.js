@@ -1,11 +1,12 @@
 #!/usr/bin/env node
 /**
- * Генерирует фрагмент CORE_FILES для sw.js из собранных файлов проекта (js/, скомпилированный TS на месте).
+ * Генерирует sw.js из собранных файлов проекта (js/, скомпилированный TS на месте).
  * Запуск: node scripts/generate-sw-files.js
  */
 import { readdir, readFile, writeFile } from 'fs/promises';
 import { join, relative } from 'path';
 import { EXCLUDE_ICONS, PRECACHE_FONTS } from './sw-precache-assets.mjs';
+import { swFetchHandlerSource } from './sw-fetch-handler.mjs';
 
 const ROOT = join(import.meta.dirname, '..');
 
@@ -45,7 +46,7 @@ const FOLDER_ICONS = ICON_SVG.filter(f => f.startsWith('icons/folders/'));
 const UI_ICONS = ICON_SVG.filter(f => !f.startsWith('icons/folders/'));
 
 const CORE_STATIC = [
-  './', 'index.html', 'manifest.webmanifest',
+  './', 'index.html', 'manifest.webmanifest', 'boot-theme.js',
   'css/style.css', 'css/components/modal.css',
   'css/screens/home.css', 'css/screens/folder.css',
   'css/screens/card-editor.css', 'css/screens/review.css', 'css/screens/settings.css',
@@ -59,10 +60,11 @@ const PRECACHE_JS = JS_FILES.filter(f => !isRuntimeAsset(f));
 const list = [...CORE_STATIC, ...PRECACHE_JS, ...UI_ICONS];
 const unique = [...new Set(list)];
 
-const swPath = join(ROOT, 'sw.js');
-const sw = await readFile(swPath, 'utf8');
-const versionMatch = sw.match(/const VERSION = '([^']+)'/);
-const version = versionMatch ? versionMatch[1] : 'kar-v14.0';
+const versionSrc = await readFile(join(ROOT, 'js/core/version.js'), 'utf8').catch(async () =>
+  readFile(join(ROOT, 'js/core/version.ts'), 'utf8'),
+);
+const versionMatch = versionSrc.match(/APP_VERSION\s*=\s*["']([^"']+)["']/);
+const version = versionMatch ? versionMatch[1] : 'kar-v15.5';
 
 const body = unique.map(f => `  '${f}',`).join('\n');
 const next = `const VERSION = '${version}';
@@ -106,36 +108,8 @@ self.addEventListener('activate', e => {
   );
 });
 
-self.addEventListener('fetch', e => {
-  const url = new URL(e.request.url);
-  if (e.request.method !== 'GET') return;
-  const isStorageImage = url.pathname.includes('/storage/v1/object/public/');
-  const isSameOrigin = url.origin === location.origin;
-  if (!isSameOrigin && !isStorageImage) return;
+${swFetchHandlerSource()}`;
 
-  const path = url.pathname.replace(/^\\//, '');
-  const isAppJs = isSameOrigin && /\\.(js|css|html)$/.test(url.pathname);
-  const lazy = isSameOrigin && isLazyPath(path);
-  const hasRange = e.request.headers.has('range');
-
-  e.respondWith(
-    fetch(isAppJs ? new Request(e.request, { cache: 'no-cache' }) : e.request)
-      .then(resp => {
-        if (resp.status === 200 && !hasRange) {
-          const copy = resp.clone();
-          caches.open(VERSION).then(c => c.put(e.request, copy)).catch(() => {});
-        }
-        return resp;
-      })
-      .catch(async () => {
-        const cached = await caches.match(e.request, { ignoreSearch: isSameOrigin });
-        if (cached) return cached;
-        if (lazy) throw new Error('offline');
-        return caches.match(e.request, { ignoreSearch: isSameOrigin });
-      }),
-  );
-});
-`;
-
+const swPath = join(ROOT, 'sw.js');
 await writeFile(swPath, next);
-console.log(`Updated sw.js — ${unique.length} precache files (${JS_FILES.length - PRECACHE_JS.length} runtime JS, ${FOLDER_ICONS.length} runtime folder icons)`);
+console.log(`Updated sw.js — ${unique.length} precache files, VERSION=${version} (${JS_FILES.length - PRECACHE_JS.length} runtime JS, ${FOLDER_ICONS.length} runtime folder icons)`);

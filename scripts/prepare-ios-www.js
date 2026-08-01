@@ -9,7 +9,7 @@ import { fileURLToPath } from 'url';
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const WWW = path.join(ROOT, 'www');
 
-const COPY_FILES = ['index.html', 'manifest.webmanifest', 'sw.js'];
+const COPY_FILES = ['index.html', 'manifest.webmanifest', 'sw.js', 'boot-theme.js'];
 const COPY_DIRS = ['css', 'js', 'icons', 'audio', 'packs'];
 
 function rmrf(dir) {

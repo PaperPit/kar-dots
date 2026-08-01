@@ -4,7 +4,7 @@ import { store } from "../core/state.js"
 import { route } from "../core/router.js"
 import { fetchPackManifest, fetchVocabPack } from "../lib/vocab-packs.js"
 import { crowTombIcon } from "./helpers.js"
-import { nav } from "./shell.js"
+import { nav } from "./navigation.js"
 
 interface VocabPackMeta {
   id: string

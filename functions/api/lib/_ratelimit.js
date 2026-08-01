@@ -28,13 +28,22 @@ export function rateLimitKey(scope, subject, windowSec = HOUR_SEC, nowMs = Date.
 }
 
 /**
- * Инкремент счётчика. Возвращает { ok, remaining, retryAfter, skipped }.
- * Сломанный / отсутствующий KV НЕ должен ронять API — fail open + console.warn.
+ * Инкремент счётчика. Возвращает { ok, remaining, retryAfter, skipped, missingKv? }.
+ *
+ * По умолчанию (локальный pages:dev без --kv) — fail open + console.warn.
+ * В проде middleware передаёт failClosed: true → без KV / при ошибке KV
+ * запрос отклоняется (503), а не уходит без лимита.
  */
-export async function hitRateLimit(kv, { scope, subject, limit, windowSec = HOUR_SEC, now = Date.now() }) {
+export async function hitRateLimit(
+  kv,
+  { scope, subject, limit, windowSec = HOUR_SEC, now = Date.now(), failClosed = false } = {},
+) {
   const max = Math.max(1, Math.floor(limit));
   if (!kv) {
-    console.warn('[ratelimit] нет биндинга KV — лимиты отключены', { scope });
+    console.warn('[ratelimit] нет биндинга KV — лимиты отключены', { scope, failClosed });
+    if (failClosed) {
+      return { ok: false, skipped: false, remaining: 0, retryAfter: 60, missingKv: true };
+    }
     return { ok: true, skipped: true, remaining: max, retryAfter: 0 };
   }
   const key = rateLimitKey(scope, subject, windowSec, now);
@@ -42,7 +51,10 @@ export async function hitRateLimit(kv, { scope, subject, limit, windowSec = HOUR
   try {
     used = Number(await kv.get(key)) || 0;
   } catch (e) {
-    console.warn('[ratelimit] KV.get не сработал — пропускаем запрос', scope, e?.message || e);
+    console.warn('[ratelimit] KV.get не сработал', scope, e?.message || e);
+    if (failClosed) {
+      return { ok: false, skipped: false, remaining: 0, retryAfter: 60, missingKv: true };
+    }
     return { ok: true, skipped: true, remaining: max, retryAfter: 0 };
   }
   if (used >= max) {
@@ -53,6 +65,9 @@ export async function hitRateLimit(kv, { scope, subject, limit, windowSec = HOUR
     await kv.put(key, String(used + 1), { expirationTtl: Math.max(60, Math.floor(windowSec) + 60) });
   } catch (e) {
     console.warn('[ratelimit] KV.put не сработал — счётчик не увеличен', scope, e?.message || e);
+    if (failClosed) {
+      return { ok: false, skipped: false, remaining: max - used, retryAfter: 60, missingKv: true };
+    }
     return { ok: true, skipped: true, remaining: max - used, retryAfter: 0 };
   }
   return { ok: true, skipped: false, remaining: max - used - 1, retryAfter: 0 };

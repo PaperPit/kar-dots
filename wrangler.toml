@@ -7,14 +7,18 @@ pages_build_output_dir = "dist"
 # (functions/api/_middleware.js, functions/api/lib/_ratelimit.js).
 # Ключи: job:… — задачи транскрипта, rl:… — счётчики лимитов, auth:… — кэш
 # проверенных токенов (5 минут, по хешу токена; сам токен в KV не попадает).
-# Без биндинга API продолжает работать, но БЕЗ лимитов (fail open + console.warn),
-# поэтому в проде биндинг обязателен.
+# Без биндинга при REQUIRE_RATE_LIMIT=1 API отвечает 503 (fail closed).
+# Локально без --kv лимиты fail open, чтобы не ломать pages:dev.
 # Создайте namespace: npx wrangler kv namespace create YT_JOBS
 # и подставьте id ниже (и в Dashboard → Functions → KV bindings).
 # Локально: npm run pages:dev (уже с --kv YT_JOBS).
 [[kv_namespaces]]
 binding = "YT_JOBS"
 id = "5e57b0e230ad4fc5bf23fde74ac6d625"
+
+# Прод: без KV лимиты обязательны. Локально не задавайте / ставьте "0".
+[vars]
+REQUIRE_RATE_LIMIT = "1"
 
 # Переменные окружения для /api/* задаются в Cloudflare Pages →
 # Settings → Environment variables, здесь их не дублируем (см. .env.example):

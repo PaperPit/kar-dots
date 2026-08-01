@@ -196,7 +196,7 @@ function renderAuth(error?: string) {
       el(
         "p",
         null,
-        "Чтобы сохранять карточки в свою коллекцию, подключи аккаунт на kar-tochki.pages.dev."
+        `Чтобы сохранять карточки в свою коллекцию, подключи аккаунт на ${new URL(APP_ORIGIN).host}.`
       ),
       error ? el("p", { class: "error" }, error) : null,
       el("div", { class: "actions", style: "justify-content:center" }, [

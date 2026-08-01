@@ -76,7 +76,7 @@ function sendPayload() {
       supabaseUrl,
       anonKey
     },
-    "*"
+    location.origin
   )
 
   if (ackTimer) clearTimeout(ackTimer)

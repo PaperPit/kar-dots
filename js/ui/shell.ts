@@ -137,8 +137,6 @@ function buildShell(viewName: string): ShellEl {
     "header",
     { class: "header" },
     el("div", { class: "header-in" }, [
-      /* Тема — отдельно в самом левом углу, ростом с сегменты навигации. */
-      createThemeToggle(),
       brandMark({
         onclick: () => {
           const hash = location.hash || "#home"
@@ -156,7 +154,9 @@ function buildShell(viewName: string): ShellEl {
           "nav",
           { class: "nav-desktop" },
           desktopNav.map((x) => x.btn)
-        )
+        ),
+        /* Тема — как можно правее, ростом с сегменты навигации. */
+        createThemeToggle()
       ])
     ])
   )

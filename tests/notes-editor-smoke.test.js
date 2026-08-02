@@ -23,7 +23,7 @@ describe('notes editor/graph smoke', () => {
     ed.destroy()
   })
 
-  it('mounts compact local graph for single-note ego', () => {
+  it('mounts compact local graph with fixed layout height', () => {
     const g = buildNoteGraph([{ id: 'a', title: 'A', body: 'x' }], [])
     const ego = filterEgoGraph(g, 'a', 1)
     expect(ego.nodes.map((n) => n.id)).toEqual(['a'])
@@ -34,21 +34,57 @@ describe('notes editor/graph smoke', () => {
       width: 640, height: 280, top: 0, left: 0, right: 640, bottom: 280, x: 0, y: 0, toJSON() {},
     })
     document.body.appendChild(parent)
-    const h = mountNotesGraphCanvas({
-      parent,
-      nodes: ego.nodes,
-      edges: ego.edges,
-      compact: true,
-    })
-    const canvas = parent.querySelector('canvas')
-    expect(canvas).toBeTruthy()
-    expect(canvas.classList.contains('notes-graph-canvas--compact')).toBe(true)
-    h.resize()
-    // Backing store соответствует фиксированной layout-высоте 280 (× dpr)
-    expect(canvas.height).toBe(Math.round(280 * (window.devicePixelRatio || 1)))
-    expect(canvas.width).toBe(Math.round(640 * (window.devicePixelRatio || 1)))
-    h.destroy()
-    expect(parent.querySelector('canvas')).toBeNull()
+
+    // happy-dom часто без 2d — мокаем, чтобы отработал resize, не stub.
+    const proto = HTMLCanvasElement.prototype
+    const prev = proto.getContext
+    proto.getContext = function getContext() {
+      return {
+        setTransform() {},
+        clearRect() {},
+        fillRect() {},
+        beginPath() {},
+        arc() {},
+        fill() {},
+        stroke() {},
+        moveTo() {},
+        lineTo() {},
+        setLineDash() {},
+        save() {},
+        restore() {},
+        fillText() {},
+        quadraticCurveTo() {},
+        closePath() {},
+      }
+    }
+
+    try {
+      const h = mountNotesGraphCanvas({
+        parent,
+        nodes: ego.nodes,
+        edges: ego.edges,
+        compact: true,
+      })
+      const canvas = parent.querySelector('canvas')
+      expect(canvas).toBeTruthy()
+      expect(canvas.classList.contains('notes-graph-canvas--compact')).toBe(true)
+      h.resize()
+      expect(canvas.style.height).toBe('280px')
+      expect(canvas.style.width).toBe('640px')
+      expect(canvas.height).toBe(Math.round(280 * (window.devicePixelRatio || 1)))
+      // Повторный resize не раздувает высоту
+      parent.getBoundingClientRect = () => ({
+        width: 640, height: 900, top: 0, left: 0, right: 640, bottom: 900, x: 0, y: 0, toJSON() {},
+      })
+      Object.defineProperty(parent, 'clientHeight', { value: 900 })
+      h.resize()
+      expect(canvas.style.height).toBe('280px')
+      expect(canvas.height).toBe(Math.round(280 * (window.devicePixelRatio || 1)))
+      h.destroy()
+      expect(parent.querySelector('canvas')).toBeNull()
+    } finally {
+      proto.getContext = prev
+    }
   })
 })
 

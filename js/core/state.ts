@@ -81,7 +81,12 @@ export interface AppStore {
   deleteImage(url?: string): Promise<unknown>;
 
   // —— заметки ——
-  listNotes(opts?: { includeConflicts?: boolean; query?: string }): Promise<any[]>;
+  listNotes(opts?: {
+    includeConflicts?: boolean;
+    query?: string;
+    folderId?: string | null;
+    tag?: string | null;
+  }): Promise<any[]>;
   searchNoteIds?(query: string): Promise<string[]>;
   getNote(id: string): Promise<any>;
   getNoteConflicts(noteId: string): Promise<any[]>;

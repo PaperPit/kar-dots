@@ -46,8 +46,9 @@ import {
 import {
   putNoteInMirror, deleteNoteFromMirror, listNotesFromMirror, searchNoteIdsInMirror,
   getNoteFromMirror, getNoteConflictsFromMirror, mergeNotePatch, makeConflictCopy,
-  replaceNotesMirror,
+  replaceNotesMirror, type ListNotesOpts,
 } from './store-notes.js';
+import { extractHashtags } from '../lib/note-links.js';
 import {
   setActivityCloudSync, applyRemoteActivity, loadActivity,
   type ActivityData,
@@ -1603,7 +1604,7 @@ export class CloudStore {
 
   // —— Notes ——
 
-  async listNotes(opts: { includeConflicts?: boolean; query?: string } = {}) {
+  async listNotes(opts: ListNotesOpts = {}) {
     return listNotesFromMirror(this.mirror, opts);
   }
 
@@ -1620,7 +1621,10 @@ export class CloudStore {
   }
 
   async createNote(data: Partial<Note> = {}) {
-    const row = buildNoteRecord(data, { user_id: this.sb.userId() });
+    const row = buildNoteRecord(
+      { ...data, tags: data.tags ?? extractHashtags(data.body || '') },
+      { user_id: this.sb.userId() }
+    );
     await putNoteInMirror(this.mirror, row);
     return this._cloudOrQueue('createNote', { row }, async () => row);
   }
@@ -1628,8 +1632,18 @@ export class CloudStore {
   async updateNote(id: string, patch: Partial<Note>) {
     const cur = await getNoteFromMirror(this.mirror, id);
     if (!cur) return null;
-    const loser = { title: cur.title, body: cur.body, created_at: cur.created_at, updated_at: cur.updated_at };
-    const stamped = stampUpdatedAt(patch as Record<string, unknown>) as Partial<Note>;
+    const loser = {
+      title: cur.title,
+      body: cur.body,
+      folder_id: cur.folder_id,
+      tags: cur.tags,
+      created_at: cur.created_at,
+      updated_at: cur.updated_at,
+    };
+    let stamped = stampUpdatedAt(patch as Record<string, unknown>) as Partial<Note>;
+    if (stamped.body != null && stamped.tags == null) {
+      stamped = Object.assign({}, stamped, { tags: extractHashtags(stamped.body) });
+    }
     const next = mergeNotePatch(cur, stamped);
     await putNoteInMirror(this.mirror, next);
     return this._cloudOrQueue(

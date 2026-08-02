@@ -26,6 +26,8 @@ import {
 } from './store-vocab.js';
 import { StoreCache } from './store-cache.js';
 import { buildNoteTermRows, tokenizeNotesText, rankNoteSearch } from '../lib/notes-fts.js';
+import { extractHashtags } from '../lib/note-links.js';
+import type { ListNotesOpts } from './store-notes.js';
 import { noteTitleFromBody } from '../lib/markdown.js';
 import type { Card, Folder, Box, Settings, Note } from './types.js';
 import type { Algo, SrsRow } from '../lib/srs.js';
@@ -564,7 +566,7 @@ export class LocalStore {
     const old = await indexGetAll<{ id: string }>(this.db, 'note_terms', 'note_id', note.id);
     await tx(this.db, 'note_terms', 'readwrite', s => {
       for (const row of old) s.delete(row.id);
-      for (const row of buildNoteTermRows(note.id, note.title || '', note.body || '')) {
+      for (const row of buildNoteTermRows(note.id, note.title || '', note.body || '', note.tags || [])) {
         s.put(row);
       }
     });
@@ -578,10 +580,17 @@ export class LocalStore {
     });
   }
 
-  async listNotes(opts: { includeConflicts?: boolean; query?: string } = {}): Promise<Note[]> {
+  async listNotes(opts: ListNotesOpts = {}): Promise<Note[]> {
     let notes = (await idbGetAll(this.db, 'notes')) as Note[];
     if (!opts.includeConflicts) {
       notes = notes.filter(n => !n.conflict_of);
+    }
+    if (opts.folderId) {
+      notes = notes.filter(n => n.folder_id === opts.folderId);
+    }
+    if (opts.tag) {
+      const tag = opts.tag.toLowerCase();
+      notes = notes.filter(n => (n.tags || []).includes(tag));
     }
     if (opts.query && opts.query.trim()) {
       const ids = await this.searchNoteIds(opts.query);
@@ -617,7 +626,10 @@ export class LocalStore {
   }
 
   async createNote(data: Partial<Note> = {}): Promise<Note> {
-    const row = buildNoteRecord(data);
+    const row = buildNoteRecord({
+      ...data,
+      tags: data.tags ?? extractHashtags(data.body || ''),
+    });
     await this._putNoteRecord(row);
     return row;
   }
@@ -629,6 +641,12 @@ export class LocalStore {
     if (patch.body != null && (patch.title == null || patch.title === '')) {
       next.title = noteTitleFromBody(next.body, cur.title || '');
     }
+    if (patch.body != null && patch.tags == null) {
+      next.tags = extractHashtags(next.body);
+    } else if (Array.isArray(patch.tags)) {
+      next.tags = patch.tags.map(x => String(x).toLowerCase()).filter(Boolean);
+    }
+    if (!Array.isArray(next.tags)) next.tags = extractHashtags(next.body || '');
     await this._putNoteRecord(next);
     return next;
   }

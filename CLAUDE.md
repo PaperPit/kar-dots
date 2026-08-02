@@ -15,10 +15,12 @@ Vanilla JS PWA (ES modules, **без bundler в dev**). Исходники — T
 ## Заметки (база знаний)
 
 - Атомарная единица — **note** (Markdown `body`); карточка — опциональный дериватив (`note_id`, `note_anchor`)
+- Поля: `folder_id` (полка), `tags[]` (из `#хештегов` в body); связи заметок — `[[Заголовок]]` в тексте
 - Local IDB v4: `notes` + `note_conflicts` + `note_terms` (FTS); Cloud mirror SyncQueue **v5** — те же сторы
-- Облако: миграция `0013_notes.sql`, LWW по `updated_at`, проигравшая сторона → conflict-копия (`conflict_of`), `synced_at` сервером
+- Облако: миграции `0013_notes.sql` + `0014_notes_kb.sql`, LWW по `updated_at`, conflict-копии, `synced_at`
 - Удаление заметки **не** удаляет карточки — только обнуляет ссылку
-- Экраны: `#notes` (список + поиск), `#note/:id` (редактор); плитка на home
+- Экраны: `#notes` (+ фильтры tag/folder), `#notes/graph`, `#note/:id` (редактор, backlinks, шпаргалка MD)
+- Парсеры: `js/lib/markdown.js`, `js/lib/note-links.js`, layout графа — `js/lib/note-graph-layout.js`
 - Экспорт/импорт JSON **v3** включает `notes`
 
 ## Команды

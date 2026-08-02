@@ -59,6 +59,15 @@ export async function route(): Promise<void> {
     } else if (name === "settings") {
       const { renderSettings } = await import("../screens/settings/index.js")
       await renderSettings()
+    } else if (name === "notes" && arg === "graph") {
+      const { renderNotesGraph } = await import("../screens/notes/graph.js")
+      await renderNotesGraph()
+    } else if (name === "notes" && arg === "tag" && parts[2]) {
+      const { renderNotes } = await import("../screens/notes/index.js")
+      await renderNotes({ tag: parts[2] })
+    } else if (name === "notes" && arg === "folder" && parts[2]) {
+      const { renderNotes } = await import("../screens/notes/index.js")
+      await renderNotes({ folderId: parts[2] })
     } else if (name === "notes") {
       const { renderNotes } = await import("../screens/notes/index.js")
       await renderNotes()

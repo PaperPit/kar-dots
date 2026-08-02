@@ -28,6 +28,12 @@ describe('parseHash', () => {
     expect(parseHash('#note/abc')).toEqual({
       name: 'note', arg: 'abc', parts: ['note', 'abc'],
     });
+    expect(parseHash('#notes/graph')).toEqual({
+      name: 'notes', arg: 'graph', parts: ['notes', 'graph'],
+    });
+    expect(parseHash('#notes/tag/idea')).toEqual({
+      name: 'notes', arg: 'tag', parts: ['notes', 'tag', 'idea'],
+    });
   });
 
   it('review parts feed parseReviewRoute', () => {

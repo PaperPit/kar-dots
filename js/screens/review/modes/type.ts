@@ -29,10 +29,14 @@ export function createTypeModeCard(card: SrsCard, ctx: TypeModeCtx) {
   let attempts = 0;
 
   const prompt = buildPrompt(card, promptSide);
+  const answerLabel = promptSide === 'front'
+    ? t('review.type.placeholderBack')
+    : t('review.type.placeholderFront');
   const input = el('input', {
     type: 'text',
     class: 'input study-answer-input',
-    placeholder: promptSide === 'front' ? t('review.type.placeholderBack') : t('review.type.placeholderFront'),
+    placeholder: answerLabel,
+    'aria-label': answerLabel,
     autocomplete: 'off',
     autocapitalize: 'off',
     spellcheck: 'false',

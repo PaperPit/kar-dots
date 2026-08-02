@@ -79,7 +79,9 @@ export const ru = {
   "auth.sub":
     "Карточки для запоминания слов, терминов и цитат — с умным интервальным повторением.",
   "auth.emailPlaceholder": "Почта",
+  "auth.emailLabel": "Электронная почта",
   "auth.passwordPlaceholder": "Пароль (мин. 6 символов)",
+  "auth.passwordLabel": "Пароль",
   "auth.signIn": "Войти",
   "auth.signUp": "Создать аккаунт",
   "auth.needCredentials": "Введите почту и пароль не короче 6 символов",
@@ -165,6 +167,7 @@ export const ru = {
   "folder.dialog.iconHint":
     "Если ничего не выбрано — первая буква названия. Повторное нажатие снимает выбор.",
   "folder.dialog.nameRequired": "Введите название",
+  "folder.dialog.colorSwatch": "Цвет {color}",
 
   // —— folder screen ——
   "folder.screen.rename": "Переименовать",

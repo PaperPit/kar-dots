@@ -78,9 +78,11 @@
   --fs-h1:     clamp(26px, 4.6vw, 34px);
   --fs-hero:   clamp(32px, 7vw, 52px);
 
+  /* Golos Text отдаёт 400/500/600; Unbounded — 700/800.
+     --fw-bold = 600 (потолок текста). Дисплейный «чёрный» — --fw-black. */
   --fw-regular: 400;
   --fw-medium:  500;
-  --fw-bold:    700;
+  --fw-bold:    600;
   --fw-black:   800;
 
   --lh-tight:  1.12;   /* дисплейные заголовки */

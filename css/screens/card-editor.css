@@ -90,15 +90,16 @@
 .img-drop .img-x {
   position: absolute; top: 6px; right: 6px; border: 0; cursor: pointer;
   background: var(--c-ink); color: var(--c-paper); border-radius: var(--r-1);
-  width: 32px; height: 32px; display: grid; place-items: center; font-size: 14px;
-  transition: transform .16s var(--ease);
+  width: 44px; height: 44px; display: grid; place-items: center; font-size: 14px;
+  transition: box-shadow var(--t-fast) var(--e-out);
 }
-.img-drop .img-x:hover { transform: scale(1.1); }
+.img-drop .img-x:hover { box-shadow: var(--sh-1); }
+.img-drop .img-x:focus-visible { box-shadow: var(--sh-focus); }
 .img-drop-actions { margin-top: 6px; }
 .img-drop-actions .stock-find-btn {
   padding: 5px 12px;
   font-size: 12px;
-  min-height: 36px;
+  min-height: 44px;
 }
 .stock-picker { display: flex; flex-direction: column; gap: 10px; }
 .stock-picker-lead {

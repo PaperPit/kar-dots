@@ -15,8 +15,11 @@ interface ImgDropOpts {
 }
 
 export function imgDrop(side: string, state: CardEditorState, opts: ImgDropOpts = {}) {
+  /* region, не button: внутри живут кнопки удаления / стока */
   const box = el('div', {
-    class: 'img-drop', tabindex: '0', role: 'button',
+    class: 'img-drop',
+    tabindex: '0',
+    role: 'group',
     'aria-label': t('cardEditor.image.dropAria'),
   }, undefined);
   const input = el('input', { type: 'file', accept: 'image/*', class: 'hidden' }, undefined);
@@ -36,7 +39,10 @@ export function imgDrop(side: string, state: CardEditorState, opts: ImgDropOpts 
       box.append(
         img,
         el('button', {
-          type: 'button', class: 'img-x', title: t('cardEditor.image.remove'),
+          type: 'button',
+          class: 'img-x',
+          title: t('cardEditor.image.remove'),
+          'aria-label': t('cardEditor.image.remove'),
           onclick: (e: Event) => { e.stopPropagation(); state[side] = null; paint(); },
         }, '✕')
       );

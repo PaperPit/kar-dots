@@ -234,9 +234,10 @@ export async function vocabPacksDialog(): Promise<void> {
     if (!installing) m.close()
   })
 
+  const titleId = "vocab-packs-dialog-title"
   m = modal(
     el("div", null, [
-      el("h3", { class: "modal-title" }, "Лексические паки"),
+      el("h3", { class: "modal-title", id: titleId }, "Лексические паки"),
       el(
         "p",
         { class: "modal-text" },
@@ -244,6 +245,7 @@ export async function vocabPacksDialog(): Promise<void> {
       ),
       list,
       el("div", { class: "modal-actions" }, [closeBtn])
-    ])
+    ]),
+    { labelledBy: titleId }
   )
 }

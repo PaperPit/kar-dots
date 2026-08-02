@@ -148,8 +148,16 @@ export async function renderReview(folderId: string | null, opts: ReviewOpts = {
     segs.append(el('div', { class: 'progress-seg' + (i === 0 ? ' is-current' : '') }));
   }
   const counter = el('span', { class: 'review-count' }, '');
-  const speakBtn = el('button', { class: 'icon-btn', title: t('review.toolbar.speak') }, svgNode(ICONS.speaker));
-  const editBtn = el('button', { class: 'icon-btn', title: t('review.toolbar.edit') }, featherIcon());
+  const speakBtn = el('button', {
+    class: 'icon-btn',
+    title: t('review.toolbar.speak'),
+    'aria-label': t('review.toolbar.speak'),
+  }, svgNode(ICONS.speaker));
+  const editBtn = el('button', {
+    class: 'icon-btn',
+    title: t('review.toolbar.edit'),
+    'aria-label': t('review.toolbar.edit'),
+  }, featherIcon());
   const stage = el('div', null, undefined);
   const wrap = el('div', { class: 'review-wrap' }, undefined);
   const top = el('div', { class: 'review-top' }, [

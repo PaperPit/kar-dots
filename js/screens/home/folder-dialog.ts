@@ -13,14 +13,22 @@ export function folderDialog(folder: Folder | null, opts: { box_id?: string | nu
   let color = folder ? folder.color : FOLDER_COLORS[Math.floor(Math.random() * FOLDER_COLORS.length)];
   const name = el('input', { class: 'input', value: folder ? folder.name : '', placeholder: t('folder.dialog.namePlaceholder') }, []) as HTMLInputElement;
 
-  const dots = el('div', { class: 'color-row' }, FOLDER_COLORS.map(c =>
+  const dots = el('div', { class: 'color-row', role: 'group', 'aria-label': t('common.color') }, FOLDER_COLORS.map(c =>
     el('button', {
       type: 'button',
-      class: 'color-dot' + (c === color ? ' sel' : ''), style: { background: c },
+      class: 'color-dot' + (c === color ? ' sel' : ''),
+      style: { background: c },
+      'aria-label': t('folder.dialog.colorSwatch', { color: c }),
+      'aria-pressed': c === color ? 'true' : 'false',
       onclick: (e: Event) => {
         color = c;
-        dots.querySelectorAll('.color-dot').forEach(d => d.classList.remove('sel'));
-        (e.currentTarget as HTMLElement).classList.add('sel');
+        dots.querySelectorAll('.color-dot').forEach((d) => {
+          d.classList.remove('sel');
+          d.setAttribute('aria-pressed', 'false');
+        });
+        const btn = e.currentTarget as HTMLElement;
+        btn.classList.add('sel');
+        btn.setAttribute('aria-pressed', 'true');
       },
     })
   ));

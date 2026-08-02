@@ -64,15 +64,16 @@ export function openCardPreview(ctx: PreviewCtx) {
   const wrap = el('div', { class: 'card-preview-wrap' }, [box]);
 
   let pm: ModalHandle;
+  const titleId = 'card-preview-dialog-title';
   pm = modal(el('div', null, [
-    el('h3', { class: 'modal-title' }, t('cardEditor.preview.title')),
+    el('h3', { class: 'modal-title', id: titleId }, t('cardEditor.preview.title')),
     el('p', { class: 'modal-text muted card-preview-lead' },
       t('cardEditor.preview.lead')),
     wrap,
     el('div', { class: 'modal-actions modal-actions-center' }, [
       el('button', { type: 'button', class: 'btn primary', onclick: () => pm.close() }, t('cardEditor.preview.close')),
     ]),
-  ]), { wide: true, onClose: destroy });
+  ]), { wide: true, labelledBy: titleId, onClose: destroy });
 
   // После открытия модалки высота известна — подогнать фото под окно просмотра.
   requestAnimationFrame(() => {

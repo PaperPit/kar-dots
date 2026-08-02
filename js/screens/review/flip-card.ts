@@ -63,6 +63,15 @@ export function createFlipCard(card: SrsCard, firstSide: 'front' | 'back', opts:
     );
   }
   syncFlipName(firstSide);
+  /* Лицо скрыто от AT: имя несёт aria-label; ссылки из rich-HTML не nested в button */
+  flip.querySelectorAll('.flip-face').forEach((face) => {
+    face.setAttribute('aria-hidden', 'true');
+    face.querySelectorAll('a[href]').forEach((a) => {
+      const span = document.createElement('span');
+      span.textContent = a.textContent;
+      a.replaceWith(span);
+    });
+  });
 
   const hint = el('div', { class: 'flip-hint', id: hintId }, t('review.flip.hint'));
   const grades = el('div', { class: 'grade-row' }, undefined);

@@ -78,10 +78,11 @@ export function youtubeImportDialog(folderId: string) {
   let source = 'url';
   const body = el('div', { class: 'yt-dialog' }, []);
 
+  const titleId = 'yt-import-dialog-title';
   m = modal(el('div', null, [
-    el('h3', { class: 'modal-title' }, t('settings.yt.title')),
+    el('h3', { class: 'modal-title', id: titleId }, t('settings.yt.title')),
     body,
-  ]), { wide: true, sticky: true });
+  ]), { wide: true, sticky: true, labelledBy: titleId });
 
   const origClose = m.close;
   m.close = () => { closed = true; origClose(); };

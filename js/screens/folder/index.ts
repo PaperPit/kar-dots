@@ -63,9 +63,16 @@ export async function renderFolder(folderId: string) {
     backBtn('#home'),
     folderSwatch(folder, { compact: true }),
     el('h2', { class: 'page-title grow' }, folder.name),
-    isPack ? null : el('button', { class: 'icon-btn', title: t('folder.screen.rename'), onclick: () => folderDialog(folder) }, featherIcon()),
+    isPack ? null : el('button', {
+      class: 'icon-btn',
+      title: t('folder.screen.rename'),
+      'aria-label': t('folder.screen.rename'),
+      onclick: () => folderDialog(folder),
+    }, featherIcon()),
     el('button', {
-      class: 'icon-btn', title: isPack ? t('folder.screen.deletePack') : t('folder.screen.deleteFolder'),
+      class: 'icon-btn',
+      title: isPack ? t('folder.screen.deletePack') : t('folder.screen.deleteFolder'),
+      'aria-label': isPack ? t('folder.screen.deletePack') : t('folder.screen.deleteFolder'),
       onclick: async () => {
         const yes = await confirmDialog(isPack ? t('folder.screen.confirm.deletePackTitle') : t('folder.screen.confirm.deleteFolderTitle'),
           isPack
@@ -118,6 +125,7 @@ export async function renderFolder(folderId: string) {
     type: 'search',
     class: 'input folder-search',
     placeholder: t('folder.screen.searchPlaceholder'),
+    'aria-label': t('folder.screen.searchPlaceholder'),
     autocomplete: 'off',
   }, []) as HTMLInputElement;
 

@@ -38,8 +38,20 @@ export function renderAuth(busyMsg?: string) {
     return;
   }
 
-  const email = el('input', { class: 'input', type: 'email', placeholder: t('auth.emailPlaceholder'), autocomplete: 'email' }, []) as HTMLInputElement;
-  const pass = el('input', { class: 'input', type: 'password', placeholder: t('auth.passwordPlaceholder'), autocomplete: 'current-password' }, []) as HTMLInputElement;
+  const email = el('input', {
+    class: 'input',
+    type: 'email',
+    placeholder: t('auth.emailPlaceholder'),
+    'aria-label': t('auth.emailLabel'),
+    autocomplete: 'email',
+  }, []) as HTMLInputElement;
+  const pass = el('input', {
+    class: 'input',
+    type: 'password',
+    placeholder: t('auth.passwordPlaceholder'),
+    'aria-label': t('auth.passwordLabel'),
+    autocomplete: 'current-password',
+  }, []) as HTMLInputElement;
   const btnIn = el('button', { class: 'btn primary block big' }, t('auth.signIn')) as HTMLButtonElement;
   const btnUp = el('button', { class: 'link-btn' }, t('auth.signUp')) as HTMLButtonElement;
 

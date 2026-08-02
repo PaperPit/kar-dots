@@ -504,18 +504,24 @@
   color: var(--c-paper);
 }
 .note-local-graph-stage {
+  box-sizing: border-box;
   height: 280px;
   max-height: 280px;
+  flex: 0 0 280px;
   border: var(--bw-hair) solid var(--line);
   border-radius: var(--radius-sm);
   overflow: hidden;
   background: var(--bg-raised);
+  contain: strict;
 }
-.note-local-graph-stage .notes-graph-canvas {
+.note-local-graph-stage .notes-graph-canvas,
+.note-local-graph-stage .notes-graph-canvas--compact {
   display: block;
-  width: 100%;
-  height: 100%;
-  min-height: 0;
+  box-sizing: border-box;
+  width: 100% !important;
+  height: 280px !important;
+  max-height: 280px !important;
+  min-height: 0 !important;
 }
 
 .note-backlink-item {

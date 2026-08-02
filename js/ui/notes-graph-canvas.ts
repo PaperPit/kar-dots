@@ -68,23 +68,31 @@ export function mountNotesGraphCanvas(opts: GraphCanvasOpts): GraphCanvasHandle 
 
   const resize = () => {
     const rect = opts.parent.getBoundingClientRect()
-    // Ширина/высота — строго из CSS-бокса родителя (stage с фиксированной height).
-    // Не задаём canvas.style.height в px: иначе parent растёт → RO loop.
     const nextW = Math.max(1, Math.floor(rect.width || opts.parent.clientWidth || cssWidth))
-    const measuredH = Math.floor(rect.height || opts.parent.clientHeight || 0)
-    const nextH = measuredH >= 2 ? measuredH : fixedHeight
+    // Высота всегда design-fixed для compact. Для полного графа — из stage CSS,
+    // но с потолком; никогда не следуем за intrinsic canvas (DPR × bitmap).
+    let nextH = fixedHeight
+    if (!opts.compact) {
+      const measured = Math.floor(rect.height || opts.parent.clientHeight || 0)
+      if (measured >= 2) nextH = Math.min(520, Math.max(420, measured))
+    }
     const nextDpr = Math.max(1, window.devicePixelRatio || 1)
     if (
       nextW === width &&
       nextH === height &&
       nextDpr === dpr &&
-      canvas.width === Math.round(width * dpr)
+      canvas.width === Math.round(width * dpr) &&
+      canvas.height === Math.round(height * dpr)
     ) {
       return
     }
     width = nextW
     height = nextH
     dpr = nextDpr
+    // Layout size (CSS px) ≠ backing store (device px). Без style.height
+    // canvas при dpr=2 рисуется в 2× высоту и раздувает родителя → RO loop.
+    canvas.style.width = `${width}px`
+    canvas.style.height = `${height}px`
     canvas.width = Math.round(width * dpr)
     canvas.height = Math.round(height * dpr)
     draw()

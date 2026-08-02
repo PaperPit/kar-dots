@@ -23,31 +23,57 @@ describe('notes editor/graph smoke', () => {
     ed.destroy()
   })
 
-  it('mounts compact local graph for single-note ego', () => {
+  it('mounts compact local graph with fixed layout height', () => {
     const g = buildNoteGraph([{ id: 'a', title: 'A', body: 'x' }], [])
     const ego = filterEgoGraph(g, 'a', 1)
     expect(ego.nodes.map((n) => n.id)).toEqual(['a'])
     const parent = document.createElement('div')
-    Object.defineProperty(parent, 'clientWidth', { value: 640 })
-    Object.defineProperty(parent, 'clientHeight', { value: 280 })
+    Object.defineProperty(parent, 'clientWidth', { value: 640, configurable: true })
+    Object.defineProperty(parent, 'clientHeight', { value: 280, configurable: true, writable: true })
+    let rectH = 280
     parent.getBoundingClientRect = () => ({
-      width: 640, height: 280, top: 0, left: 0, right: 640, bottom: 280, x: 0, y: 0, toJSON() {},
+      width: 640, height: rectH, top: 0, left: 0, right: 640, bottom: rectH, x: 0, y: 0, toJSON() {},
     })
     document.body.appendChild(parent)
-    const h = mountNotesGraphCanvas({
-      parent,
-      nodes: ego.nodes,
-      edges: ego.edges,
-      compact: true,
-    })
-    const canvas = parent.querySelector('canvas')
-    expect(canvas).toBeTruthy()
-    expect(canvas.classList.contains('notes-graph-canvas--compact')).toBe(true)
-    h.resize()
-    // Не раздуваем canvas выше stage (280) — защита от RO feedback loop
-    expect(canvas.height).toBeLessThanOrEqual(280 * (window.devicePixelRatio || 1) + 1)
-    h.destroy()
-    expect(parent.querySelector('canvas')).toBeNull()
+
+    // happy-dom часто без 2d — мокаем, чтобы отработал resize, не stub.
+    const proto = HTMLCanvasElement.prototype
+    const prev = proto.getContext
+    proto.getContext = function getContext() {
+      return new Proxy(
+        {},
+        {
+          get: () => () => {},
+          set: () => true,
+        }
+      )
+    }
+
+    try {
+      const h = mountNotesGraphCanvas({
+        parent,
+        nodes: ego.nodes,
+        edges: ego.edges,
+        compact: true,
+      })
+      const canvas = parent.querySelector('canvas')
+      expect(canvas).toBeTruthy()
+      expect(canvas.classList.contains('notes-graph-canvas--compact')).toBe(true)
+      h.resize()
+      expect(canvas.style.height).toBe('280px')
+      expect(canvas.style.width).toBe('640px')
+      expect(canvas.height).toBe(Math.round(280 * (window.devicePixelRatio || 1)))
+      // Повторный resize не раздувает высоту даже если parent «вырос»
+      rectH = 900
+      Object.defineProperty(parent, 'clientHeight', { value: 900, configurable: true })
+      h.resize()
+      expect(canvas.style.height).toBe('280px')
+      expect(canvas.height).toBe(Math.round(280 * (window.devicePixelRatio || 1)))
+      h.destroy()
+      expect(parent.querySelector('canvas')).toBeNull()
+    } finally {
+      proto.getContext = prev
+    }
   })
 })
 

@@ -135,10 +135,15 @@ export function buildNoteRecord(data: Partial<Note>, extras: Record<string, unkn
   const t = Date.now()
   const body = data.body ?? ""
   const title = (data.title ?? "").trim() || noteTitleFromBody(body, "")
+  const tags = Array.isArray(data.tags)
+    ? data.tags.map((x) => String(x).toLowerCase()).filter(Boolean)
+    : undefined
   return {
     id: data.id || uuid(),
     title,
     body,
+    folder_id: data.folder_id ?? null,
+    tags: tags ?? [],
     conflict_of: data.conflict_of ?? null,
     created_at: data.created_at ?? t,
     updated_at: data.updated_at ?? t,

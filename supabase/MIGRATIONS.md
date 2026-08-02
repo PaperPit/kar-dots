@@ -19,6 +19,7 @@
 | `0011_cards_synced_at.sql` | 11 | `cards.synced_at` + триггер — watermark дельта-синка по серверным часам |
 | `0012_card_images_private.sql` | 12 | бакет `card-images` приватный; чтение через signed URL |
 | `0013_notes.sql` | 13 | таблица `notes` (Markdown, LWW, `conflict_of`, `synced_at`), `cards.note_id` / `note_anchor` |
+| `0014_notes_kb.sql` | 14 | `notes.folder_id`, `notes.tags` (хештеги); wiki-связи `[[…]]` на клиенте |
 
 Нужная версия в коде: `REQUIRED_SCHEMA_VERSION` в `js/data/schema-version.js`.
 

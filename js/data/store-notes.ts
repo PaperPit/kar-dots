@@ -6,8 +6,16 @@ import {
 } from "./sync-queue.js"
 import { buildNoteTermRows, tokenizeNotesText, rankNoteSearch } from "../lib/notes-fts.js"
 import { noteTitleFromBody } from "../lib/markdown.js"
+import { extractHashtags } from "../lib/note-links.js"
 import { buildNoteRecord } from "./store-contract.js"
 import type { Note, Card } from "./types.js"
+
+export type ListNotesOpts = {
+  includeConflicts?: boolean
+  query?: string
+  folderId?: string | null
+  tag?: string | null
+}
 
 export async function putNoteInMirror(db: IDBDatabase, row: Note): Promise<void> {
   await mirrorPut(db, "notes", row)
@@ -25,7 +33,12 @@ export async function reindexNoteTerms(db: IDBDatabase, note: Note): Promise<voi
     const t = db.transaction("note_terms", "readwrite")
     const s = t.objectStore("note_terms")
     for (const row of old) s.delete(row.id)
-    for (const row of buildNoteTermRows(note.id, note.title || "", note.body || "")) {
+    for (const row of buildNoteTermRows(
+      note.id,
+      note.title || "",
+      note.body || "",
+      note.tags || []
+    )) {
       s.put(row)
     }
     t.oncomplete = () => resolve()
@@ -66,10 +79,17 @@ export async function deleteNoteFromMirror(db: IDBDatabase, id: string): Promise
 
 export async function listNotesFromMirror(
   db: IDBDatabase,
-  opts: { includeConflicts?: boolean; query?: string } = {}
+  opts: ListNotesOpts = {}
 ): Promise<Note[]> {
   let notes = await getAll<Note>(db, "notes")
   if (!opts.includeConflicts) notes = notes.filter((n) => !n.conflict_of)
+  if (opts.folderId) {
+    notes = notes.filter((n) => n.folder_id === opts.folderId)
+  }
+  if (opts.tag) {
+    const tag = opts.tag.toLowerCase()
+    notes = notes.filter((n) => (n.tags || []).includes(tag))
+  }
   if (opts.query && opts.query.trim()) {
     const ids = await searchNoteIdsInMirror(db, opts.query)
     const allow = new Set(ids)
@@ -111,6 +131,12 @@ export function mergeNotePatch(cur: Note, patch: Partial<Note>): Note {
   if (patch.body != null && (patch.title == null || patch.title === "")) {
     next.title = noteTitleFromBody(next.body, cur.title || "")
   }
+  if (patch.body != null && patch.tags == null) {
+    next.tags = extractHashtags(next.body)
+  } else if (Array.isArray(patch.tags)) {
+    next.tags = patch.tags.map((x) => String(x).toLowerCase()).filter(Boolean)
+  }
+  if (!Array.isArray(next.tags)) next.tags = extractHashtags(next.body || "")
   return next
 }
 
@@ -118,6 +144,8 @@ export function makeConflictCopy(winnerId: string, loser: Partial<Note>): Note {
   return buildNoteRecord({
     title: loser.title,
     body: loser.body,
+    folder_id: loser.folder_id ?? null,
+    tags: loser.tags ?? extractHashtags(loser.body || ""),
     conflict_of: winnerId,
     created_at: loser.created_at,
     updated_at: loser.updated_at || Date.now(),
@@ -139,7 +167,7 @@ export async function replaceNotesMirror(db: IDBDatabase, rows: Note[]): Promise
     for (const n of rows) notes.put(n)
     for (const n of conflicts) conf.put(n)
     for (const n of primaries.concat(conflicts)) {
-      for (const row of buildNoteTermRows(n.id, n.title || "", n.body || "")) {
+      for (const row of buildNoteTermRows(n.id, n.title || "", n.body || "", n.tags || [])) {
         terms.put(row)
       }
     }

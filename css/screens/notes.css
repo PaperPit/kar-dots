@@ -101,3 +101,71 @@
   padding: var(--sp-8) var(--sp-3);
   color: var(--ink-faint);
 }
+
+.notes-filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-3);
+}
+
+.notes-active-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+}
+
+.notes-graph-page { gap: var(--sp-3); }
+
+.notes-graph-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-4);
+  font-size: var(--fs-small);
+}
+
+.notes-graph-stage {
+  width: 100%;
+  overflow: auto;
+  border: var(--bw-hair) solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--bg-raised);
+  box-shadow: var(--shadow);
+}
+
+.notes-graph-svg {
+  display: block;
+  width: 100%;
+  min-height: 420px;
+  background:
+    radial-gradient(circle at 20% 20%, color-mix(in srgb, var(--c-ash) 18%, transparent), transparent 42%),
+    var(--c-paper);
+}
+
+.notes-graph-edge {
+  stroke: var(--c-ink-3);
+  stroke-width: 1.5;
+}
+.notes-graph-edge--wiki { stroke: var(--c-petrol); }
+.notes-graph-edge--folder {
+  stroke: var(--c-ash);
+  stroke-dasharray: 4 3;
+}
+
+.notes-graph-node--note circle {
+  fill: var(--c-ink);
+  stroke: var(--c-paper);
+  stroke-width: 2;
+}
+.notes-graph-node--folder rect {
+  fill: var(--c-ash);
+  stroke: var(--c-ink);
+  stroke-width: 1.5;
+}
+.notes-graph-node text {
+  fill: var(--c-ink);
+  font-family: var(--font-text);
+  font-size: 11px;
+}
+.notes-graph-node:hover circle { fill: var(--c-petrol); }
+.notes-graph-node:hover rect { fill: var(--c-petrol); }

@@ -30,6 +30,10 @@ export interface Note {
   id: string;
   title: string;
   body: string;
+  /** Папка-полка (опционально). */
+  folder_id?: string | null;
+  /** Хештеги без #, нижний регистр; синхронизируются из body при сохранении. */
+  tags?: string[];
   conflict_of?: string | null;
   created_at: number;
   updated_at: number;

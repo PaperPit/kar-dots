@@ -28,8 +28,13 @@ export function tokenizeNotesText(...parts: (string | null | undefined)[]): stri
   return out
 }
 
-export function buildNoteTermRows(noteId: string, title: string, body: string): NoteTermRow[] {
-  return tokenizeNotesText(title, body).map((term) => ({
+export function buildNoteTermRows(
+  noteId: string,
+  title: string,
+  body: string,
+  tags: string[] = []
+): NoteTermRow[] {
+  return tokenizeNotesText(title, body, tags.join(" ")).map((term) => ({
     id: noteId + ":" + term,
     note_id: noteId,
     term,

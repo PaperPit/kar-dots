@@ -261,6 +261,8 @@ input, textarea, select { font: inherit; color: inherit; }
   border-bottom: var(--bw-bold) solid var(--c-ink);
 }
 .header-in {
+  /* Общая высота тумблера темы и сегментов навигации */
+  --chrome-ctrl-h: 36px;
   max-width: var(--page-max);
   margin: 0 auto;
   padding: calc(var(--sp-3) + env(safe-area-inset-top, 0px)) var(--gutter) var(--sp-3);
@@ -296,6 +298,12 @@ input, textarea, select { font: inherit; color: inherit; }
     opacity var(--t-slow) var(--e-out),
     visibility var(--t-slow) var(--e-out);
 }
+/* Портрет: серое тело, чёрные голова и клюв, глаз выбит бумагой */
+.brand-logo .brand-body { fill: var(--c-ash); }
+.brand-logo .brand-head,
+.brand-logo .brand-beak,
+.brand-logo .brand-pupil { fill: var(--c-ink); }
+.brand-logo .brand-eye { fill: var(--c-paper); }
 /* Ворона косится, а не кувыркается */
 .brand:hover .brand-logo { transform: rotate(-6deg); }
 .brand .kar { color: var(--c-petrol); }
@@ -307,13 +315,14 @@ input, textarea, select { font: inherit; color: inherit; }
   gap: var(--sp-2);
 }
 
-/* Настольная навигация — сегментная планка в рамке, не «таблетка» */
+/* Настольная навигация — сегменты без внешней рамки */
 .nav-desktop {
   display: flex;
-  align-items: center;
+  align-items: stretch;
   gap: 0;
+  height: var(--chrome-ctrl-h);
   background: var(--c-paper-2);
-  border: var(--bw-bold) solid var(--c-ink);
+  border: 0;
   border-radius: var(--r-1);
   padding: 0;
   overflow: hidden;
@@ -322,7 +331,7 @@ input, textarea, select { font: inherit; color: inherit; }
   border: 0;
   border-left: var(--bw-hair) solid var(--c-edge);
   background: none;
-  padding: var(--sp-2) var(--sp-3);
+  padding: 0 var(--sp-3);
   border-radius: 0;
   color: var(--c-ink-2);
   font-family: var(--font-display);
@@ -967,12 +976,13 @@ html.motion-ui .toast.show { opacity: 1; transform: none; }
    ездит между двух положений внутри рамки.
    ============================================================ */
 .theme-toggle {
+  /* В самом левом углу шапки; высота = сегменты навигации */
   flex: none;
   position: relative;
   cursor: pointer;
   padding: 0;
-  width: 56px;
-  height: 30px;
+  width: 68px;
+  height: var(--chrome-ctrl-h, 36px);
   border: var(--bw-bold) solid var(--c-ink);
   border-radius: var(--r-1);
   background: var(--c-paper-3);
@@ -981,10 +991,8 @@ html.motion-ui .toast.show { opacity: 1; transform: none; }
     border-color var(--t-fast) var(--e-out);
 }
 .theme-toggle:hover { background: var(--c-paper-2); }
-/* Тумблер ростом 30px — это его вид, растягивать до 44 нельзя: трек и
-   ползунок посчитаны под эту высоту. Поэтому зону касания расширяет
-   невидимый псевдоэлемент. По горизонтали он не растёт, на соседние
-   кнопки шапки не наезжает. */
+/* Визуальная высота совпадает с навигацией; зону касания до 44px
+   расширяет невидимый псевдоэлемент, не наезжая на бренд. */
 .theme-toggle::after {
   content: '';
   position: absolute;
@@ -1024,16 +1032,16 @@ html.motion-ui .toast.show { opacity: 1; transform: none; }
 .theme-toggle-knob {
   position: absolute;
   top: 50%;
-  left: 2px;
+  left: 3px;
   z-index: 0;
-  width: 24px;
-  height: 22px;
+  width: 28px;
+  height: 28px;
   border-radius: var(--r-1);
   background: var(--c-ink);
   transform: translateY(-50%);
   transition: transform var(--t-fast) var(--e-out);
 }
-.theme-toggle.is-dark .theme-toggle-knob { transform: translate(26px, -50%); }
+.theme-toggle.is-dark .theme-toggle-knob { transform: translate(34px, -50%); }
 .theme-toggle-icon { mix-blend-mode: difference; color: var(--c-paper); }
 .theme-toggle-sun,
 .theme-toggle.is-dark .theme-toggle-moon { mix-blend-mode: normal; }

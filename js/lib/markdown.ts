@@ -156,6 +156,34 @@ export function renderMarkdown(src: string, opts: MarkdownRenderOpts = {}): stri
       continue
     }
 
+    const bq = /^>\s?(.*)$/.exec(line)
+    if (bq) {
+      closeLists()
+      out.push("<blockquote><p>" + inlineMarkdown(bq[1]!, opts) + "</p></blockquote>")
+      i++
+      continue
+    }
+
+    const task = /^[-*+]\s+\[([ xX])\]\s+(.*)$/.exec(line)
+    if (task) {
+      if (inOl) {
+        out.push("</ol>")
+        inOl = false
+      }
+      if (!inUl) {
+        out.push('<ul class="md-task-list">')
+        inUl = true
+      }
+      const checked = /[xX]/.test(task[1]!)
+      out.push(
+        `<li class="md-task"><input type="checkbox" disabled${checked ? " checked" : ""}/> ` +
+          inlineMarkdown(task[2]!, opts) +
+          "</li>"
+      )
+      i++
+      continue
+    }
+
     const ul = /^[-*+]\s+(.+)$/.exec(line)
     if (ul) {
       if (inOl) {

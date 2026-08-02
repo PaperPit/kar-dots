@@ -35,6 +35,12 @@ describe('markdown', () => {
   it('preview strips markup', () => {
     expect(notePreview('## Head\n**bold** line')).toBe('Head');
   });
+  it('renders blockquote and task list', () => {
+    const html = renderMarkdown('> tip\n\n- [ ] todo\n- [x] done');
+    expect(html).toContain('<blockquote>');
+    expect(html).toContain('class="md-task"');
+    expect(html).toContain('checked');
+  });
 });
 
 describe('notes-fts', () => {

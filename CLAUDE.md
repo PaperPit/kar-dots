@@ -19,7 +19,8 @@ Vanilla JS PWA (ES modules, **без bundler в dev**). Исходники — T
 - Local IDB v4: `notes` + `note_conflicts` + `note_terms` (FTS); Cloud mirror SyncQueue **v5** — те же сторы
 - Облако: миграции `0013_notes.sql` + `0014_notes_kb.sql`, LWW по `updated_at`, conflict-копии, `synced_at`
 - Удаление заметки **не** удаляет карточки — только обнуляет ссылку
-- Экраны: `#notes` (+ фильтры tag/folder), `#notes/graph`, `#note/:id` (редактор, backlinks, шпаргалка MD)
+- Экраны: `#notes` (+ фильтры tag/folder), `#notes/graph`, `#note/:id` (CM6-редактор, split-preview, backlinks, шпаргалка MD)
+- Редактор: `js/ui/editor.ts` + vendor `js/vendor/codemirror.mjs` (`npm run vendor:codemirror`)
 - Парсеры: `js/lib/markdown.js`, `js/lib/note-links.js`, layout графа — `js/lib/note-graph-layout.js`
 - Экспорт/импорт JSON **v3** включает `notes`
 

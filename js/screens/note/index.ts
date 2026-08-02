@@ -2,29 +2,19 @@ import { store } from '../../core/state.js';
 import { el, toast, confirmDialog, stripHtml } from '../../ui/ui.js';
 import { shell, offlineBanner } from '../../ui/shell.js';
 import { backBtn, nav } from '../../ui/navigation.js';
-import { debounce } from '../../ui/helpers.js';
+import { debounce, svgNode } from '../../ui/helpers.js';
 import { ICONS } from '../../ui/constants.js';
-import { svgNode } from '../../ui/helpers.js';
 import { renderMarkdown, noteTitleFromBody } from '../../lib/markdown.js';
 import { buildNoteTitleIndex, extractHashtags, findBacklinks } from '../../lib/note-links.js';
 import { resolveImageUrl } from '../../data/image-url.js';
 import { showMarkdownHelp } from './markdown-help.js';
+import { createNoteEditor, type NoteCmEditor } from '../../ui/editor.js';
 import { t } from '../../lib/i18n.js';
 import type { Note, Card, Folder } from '../../data/types.js';
 
 const SAVE_MS = 500;
 
-function insertAtCursor(area: HTMLTextAreaElement, text: string) {
-  const start = area.selectionStart ?? area.value.length;
-  const end = area.selectionEnd ?? start;
-  const before = area.value.slice(0, start);
-  const after = area.value.slice(end);
-  area.value = before + text + after;
-  const caret = start + text.length;
-  area.focus();
-  area.setSelectionRange(caret, caret);
-  area.dispatchEvent(new Event('input', { bubbles: true }));
-}
+type ViewMode = 'edit' | 'preview' | 'split';
 
 async function hydratePreviewImages(root: HTMLElement) {
   const imgs = root.querySelectorAll('img');
@@ -40,6 +30,21 @@ async function hydratePreviewImages(root: HTMLElement) {
   }
 }
 
+function toolBtn(
+  icon: string,
+  title: string,
+  onclick: () => void,
+  extraClass = ''
+): HTMLButtonElement {
+  return el('button', {
+    class: 'note-tool-btn' + (extraClass ? ' ' + extraClass : ''),
+    type: 'button',
+    title,
+    'aria-label': title,
+    onclick,
+  }, svgNode(icon)) as HTMLButtonElement;
+}
+
 export async function renderNote(noteId: string) {
   const note = await store.getNote(noteId) as Note | null;
   if (!note) {
@@ -48,8 +53,9 @@ export async function renderNote(noteId: string) {
     return;
   }
 
-  let previewMode = false;
+  let viewMode: ViewMode = 'edit';
   let dirty = false;
+  let cm: NoteCmEditor | null = null;
 
   const allNotes = await store.listNotes({ includeConflicts: false }) as Note[];
   const folders = (store.folders || []) as Folder[];
@@ -62,13 +68,12 @@ export async function renderNote(noteId: string) {
     'aria-label': t('notes.editor.titleLabel'),
   }) as HTMLInputElement;
 
-  const bodyArea = el('textarea', {
-    class: 'note-body-input',
-    placeholder: t('notes.editor.bodyPlaceholder'),
+  const editorHost = el('div', {
+    class: 'note-cm-host',
     'aria-label': t('notes.editor.bodyLabel'),
-  }, note.body || '') as HTMLTextAreaElement;
-
-  const preview = el('div', { class: 'note-preview md-body', hidden: true });
+  });
+  const preview = el('div', { class: 'note-preview md-body' });
+  const split = el('div', { class: 'note-split note-split--edit' }, [editorHost, preview]);
   const status = el('span', { class: 'note-save-status muted' }, '');
   const tagsRow = el('div', { class: 'note-tags' });
 
@@ -149,22 +154,25 @@ export async function renderNote(noteId: string) {
     el('p', { class: 'muted note-cards-hint' }, t('notes.backlinks.hint')),
   ]);
 
+  const bodyValue = () => (cm?.getValue() ?? note.body) || '';
+
   const saveNow = async () => {
     if (!dirty) return;
     dirty = false;
     status.textContent = t('notes.editor.saving');
-    const title = titleInput.value.trim() || noteTitleFromBody(bodyArea.value, t('notes.untitled'));
+    const body = bodyValue();
+    const title = titleInput.value.trim() || noteTitleFromBody(body, t('notes.untitled'));
     const folder_id = folderSelect.value || null;
     try {
       await store.updateNote(noteId, {
         title,
-        body: bodyArea.value,
+        body,
         folder_id,
-        tags: extractHashtags(bodyArea.value),
+        tags: extractHashtags(body),
       });
       status.textContent = t('notes.editor.saved');
       titleInput.value = title;
-      refreshTags(bodyArea.value);
+      refreshTags(body);
     } catch (e) {
       dirty = true;
       status.textContent = '';
@@ -177,50 +185,32 @@ export async function renderNote(noteId: string) {
   const markDirty = () => {
     dirty = true;
     status.textContent = t('notes.editor.unsaved');
-    refreshTags(bodyArea.value);
+    refreshTags(bodyValue());
     scheduleSave();
+    if (viewMode !== 'edit') void renderPreview();
   };
 
   titleInput.addEventListener('input', markDirty);
-  bodyArea.addEventListener('input', markDirty);
   folderSelect.addEventListener('change', markDirty);
 
-  const renderPreview = async () => {
-    const idx = buildNoteTitleIndex(await store.listNotes({}) as Note[]);
-    preview.innerHTML = renderMarkdown(bodyArea.value, { wikiIndex: idx });
+  async function renderPreview() {
+    const notes = await store.listNotes({}) as Note[];
+    const idx = buildNoteTitleIndex(notes);
+    preview.innerHTML = renderMarkdown(bodyValue(), { wikiIndex: idx });
     await hydratePreviewImages(preview);
-  };
+  }
 
-  const previewBtn = el('button', {
-    class: 'btn',
-    type: 'button',
-    onclick: async () => {
-      previewMode = !previewMode;
-      bodyArea.hidden = previewMode;
-      toolbar.hidden = previewMode;
-      preview.hidden = !previewMode;
-      if (previewMode) await renderPreview();
-      previewBtn.textContent = previewMode ? t('notes.editor.edit') : t('notes.editor.preview');
-    },
-  }, t('notes.editor.preview'));
-
-  const helpBtn = el('button', {
-    class: 'icon-btn',
-    type: 'button',
-    title: t('notes.md.help.title'),
-    'aria-label': t('notes.md.help.title'),
-    onclick: () => showMarkdownHelp(),
-  }, svgNode(ICONS.help));
-
-  const wikiBtn = el('button', {
-    class: 'btn small',
-    type: 'button',
-    title: t('notes.toolbar.wiki'),
-    onclick: () => {
-      const sel = bodyArea.value.slice(bodyArea.selectionStart, bodyArea.selectionEnd) || t('notes.md.help.wikiEx');
-      insertAtCursor(bodyArea, `[[${sel}]]`);
-    },
-  }, t('notes.toolbar.wiki'));
+  function applyViewMode(mode: ViewMode) {
+    viewMode = mode;
+    split.classList.remove('note-split--edit', 'note-split--preview', 'note-split--split');
+    split.classList.add('note-split--' + mode);
+    toolbar.hidden = mode === 'preview';
+    modeEditBtn.classList.toggle('is-active', mode === 'edit');
+    modePreviewBtn.classList.toggle('is-active', mode === 'preview');
+    modeSplitBtn.classList.toggle('is-active', mode === 'split');
+    if (mode !== 'edit') void renderPreview();
+    if (mode !== 'preview') queueMicrotask(() => cm?.focus());
+  }
 
   const imageInput = el('input', {
     type: 'file',
@@ -232,28 +222,35 @@ export async function renderNote(noteId: string) {
   imageInput.addEventListener('change', async () => {
     const file = imageInput.files?.[0];
     imageInput.value = '';
-    if (!file) return;
+    if (!file || !cm) return;
     const alt = window.prompt(t('notes.image.altPrompt'), file.name.replace(/\.[^.]+$/, '')) || '';
     try {
       const url = await store.uploadImage(file, { side: 'note' });
-      insertAtCursor(bodyArea, `\n![${alt}](${url})\n`);
+      cm.insertAtCursor(`\n![${alt}](${url})\n`);
       toast(t('notes.image.inserted'));
     } catch (e) {
       toast(e instanceof Error ? e.message : String(e), 'error');
     }
   });
 
-  const imageBtn = el('button', {
-    class: 'btn small',
-    type: 'button',
-    title: t('notes.toolbar.image'),
-    onclick: () => imageInput.click(),
-  }, [svgNode(ICONS.image), ' ', t('notes.toolbar.image')]);
+  const modeEditBtn = toolBtn(ICONS.pencil, t('notes.editor.edit'), () => applyViewMode('edit'), 'note-mode-btn');
+  const modePreviewBtn = toolBtn(ICONS.note, t('notes.editor.preview'), () => applyViewMode('preview'), 'note-mode-btn');
+  const modeSplitBtn = toolBtn(ICONS.columns, t('notes.editor.split'), () => applyViewMode('split'), 'note-mode-btn');
 
-  const toolbar = el('div', { class: 'note-toolbar' }, [
-    wikiBtn,
-    imageBtn,
-    helpBtn,
+  const toolbar = el('div', { class: 'note-toolbar', role: 'toolbar', 'aria-label': t('notes.toolbar.aria') }, [
+    toolBtn(ICONS.h1, t('notes.toolbar.h1'), () => cm?.toggleLinePrefix('#')),
+    toolBtn(ICONS.h2, t('notes.toolbar.h2'), () => cm?.toggleLinePrefix('##')),
+    toolBtn(ICONS.bold, t('notes.toolbar.bold'), () => cm?.wrapSelection('**')),
+    toolBtn(ICONS.italic, t('notes.toolbar.italic'), () => cm?.wrapSelection('*')),
+    toolBtn(ICONS.list, t('notes.toolbar.list'), () => cm?.toggleLinePrefix('-')),
+    toolBtn(ICONS.checkbox, t('notes.toolbar.checkbox'), () => cm?.toggleLinePrefix('- [ ]')),
+    toolBtn(ICONS.quote, t('notes.toolbar.quote'), () => cm?.toggleLinePrefix('>')),
+    toolBtn(ICONS.code, t('notes.toolbar.code'), () => cm?.toggleCodeFence()),
+    toolBtn(ICONS.link, t('notes.toolbar.wiki'), () => {
+      cm?.insertAtCursor(`[[${t('notes.md.help.wikiEx')}]]`);
+    }),
+    toolBtn(ICONS.image, t('notes.toolbar.image'), () => imageInput.click()),
+    toolBtn(ICONS.help, t('notes.md.help.title'), () => showMarkdownHelp()),
     imageInput,
   ]);
 
@@ -270,6 +267,7 @@ export async function renderNote(noteId: string) {
       );
       if (!yes) return;
       await saveNow();
+      cm?.destroy();
       await store.deleteNote(noteId);
       toast(t('notes.toast.deleted'));
       nav('#notes');
@@ -279,7 +277,15 @@ export async function renderNote(noteId: string) {
   const head = el('div', { class: 'page-head page-head--wrap' }, [
     backBtn('#notes'),
     el('h2', { class: 'page-title grow' }, t('notes.editor.heading')),
-    el('div', { class: 'page-head-actions' }, [status, previewBtn, deleteBtn]),
+    el('div', { class: 'page-head-actions' }, [
+      status,
+      el('div', { class: 'note-mode-switch', role: 'group', 'aria-label': t('notes.editor.viewMode') }, [
+        modeEditBtn,
+        modeSplitBtn,
+        modePreviewBtn,
+      ]),
+      deleteBtn,
+    ]),
   ]);
 
   const banner = note.conflict_of
@@ -310,11 +316,31 @@ export async function renderNote(noteId: string) {
       titleInput,
       metaRow,
       toolbar,
-      bodyArea,
-      preview,
+      split,
       backlinksBox,
       conflictBox,
       cardsBox,
     ]),
   ]), null);
+
+  cm = createNoteEditor({
+    parent: editorHost,
+    doc: note.body || '',
+    placeholder: t('notes.editor.bodyPlaceholder'),
+    ariaLabel: t('notes.editor.bodyLabel'),
+    onChange: () => markDirty(),
+    getWikiSuggestions: () =>
+      allNotes
+        .filter((n) => n.id !== noteId)
+        .map((n) => ({ title: n.title || t('notes.untitled'), id: n.id })),
+    getTagSuggestions: () => {
+      const set = new Set<string>();
+      for (const n of allNotes) {
+        for (const tag of n.tags || extractHashtags(n.body || '')) set.add(tag);
+      }
+      return [...set];
+    },
+  });
+
+  applyViewMode('edit');
 }

@@ -3,6 +3,7 @@ import { describe, it, expect } from 'vitest';
 import {
   escapeHtml, renderMarkdown, slugify, noteTitleFromBody, notePreview,
 } from '../js/lib/markdown.ts';
+import { buildNoteTitleIndex } from '../js/lib/note-links.ts';
 import { tokenizeNotesText, buildNoteTermRows, rankNoteSearch } from '../js/lib/notes-fts.ts';
 
 describe('markdown', () => {
@@ -40,6 +41,28 @@ describe('markdown', () => {
     expect(html).toContain('<blockquote>');
     expect(html).toContain('class="md-task"');
     expect(html).toContain('checked');
+  });
+
+  it('renders GFM tables and strikethrough', () => {
+    const html = renderMarkdown('| A | B |\n| --- | --- |\n| ~~old~~ | **new** |');
+    expect(html).toContain('<table>');
+    expect(html).toContain('<th>A</th>');
+    expect(html).toContain('<del>old</del>');
+    expect(html).toContain('<strong>new</strong>');
+  });
+
+  it('renders anchored wiki links', () => {
+    const idx = buildNoteTitleIndex([{ id: 'n1', title: 'Other' }]);
+    const html = renderMarkdown('see [[Other#My Heading|there]]', { wikiIndex: idx });
+    expect(html).toContain('href="#note/n1#my-heading"');
+    expect(html).toContain('>there</a>');
+  });
+
+  it('renders embed resolver placeholders', () => {
+    const html = renderMarkdown('before ![[Other#part]] after', {
+      embedResolver: (target, anchor) => `<span class="embed">${target}:${anchor}</span>`,
+    });
+    expect(html).toContain('<span class="embed">Other:part</span>');
   });
 });
 

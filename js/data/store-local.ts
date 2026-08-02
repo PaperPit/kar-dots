@@ -127,6 +127,24 @@ function idbGetAll<T = any>(db: IDBDatabase | null, store: string): Promise<T[]>
   });
 }
 
+function indexGetAllByTermPrefix<T = unknown>(db: IDBDatabase | null, prefix: string): Promise<T[]> {
+  return new Promise((resolve, reject) => {
+    const rows: T[] = [];
+    const range = IDBKeyRange.bound(prefix, prefix + '\uffff');
+    const req = db!.transaction('note_terms').objectStore('note_terms').index('term').openCursor(range);
+    req.onsuccess = () => {
+      const cursor = req.result;
+      if (!cursor) {
+        resolve(rows);
+        return;
+      }
+      rows.push(cursor.value as T);
+      cursor.continue();
+    };
+    req.onerror = () => reject(req.error);
+  });
+}
+
 function forEachCard(db: IDBDatabase | null, folderId: string | null, fn: (c: CardRecord) => void): Promise<void> {
   return new Promise((resolve, reject) => {
     const txObj = db!.transaction('cards', 'readonly');
@@ -608,8 +626,11 @@ export class LocalStore {
     if (!terms.length) return [];
     const byTerm = new Map<string, string[]>();
     for (const term of terms) {
-      const rows = await indexGetAll<{ note_id: string }>(this.db, 'note_terms', 'term', term);
-      byTerm.set(term, rows.map(r => r.note_id));
+      const exact = await indexGetAll<{ note_id: string }>(this.db, 'note_terms', 'term', term);
+      const prefix = await indexGetAllByTermPrefix<{ note_id: string }>(this.db, term);
+      const ids = new Set<string>();
+      for (const row of exact.concat(prefix)) ids.add(row.note_id);
+      byTerm.set(term, [...ids]);
     }
     return rankNoteSearch(terms, byTerm).map(r => r.noteId);
   }

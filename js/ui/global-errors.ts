@@ -14,10 +14,20 @@ import { reloadOnceForStaleChunk } from "../lib/stale-chunk.js"
 const THROTTLE_MS = 8000
 const TOAST_MS = 6000
 
+/** Известный «шум» браузера: ResizeObserver не успел доставить все уведомления.
+ *  Не баг приложения — CM6/canvas графа часто его вызывают при раскладке. */
+function isBenignBrowserNoise(reason: unknown): boolean {
+  const msg = reason instanceof Error ? reason.message : String(reason ?? "")
+  return /ResizeObserver loop completed with undelivered notifications|ResizeObserver loop limit exceeded/i.test(
+    msg
+  )
+}
+
 let bound = false
 let lastShownAt = 0
 
 function report(reason: unknown, where: string): void {
+  if (isBenignBrowserNoise(reason)) return
   console.error("[" + where + "]", reason)
   // Устаревший hashed-чанк после деплоя — тихий reload вместо тоста.
   if (reloadOnceForStaleChunk(reason)) return

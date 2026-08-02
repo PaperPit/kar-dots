@@ -78,6 +78,15 @@ export function mountNotesGraphCanvas(opts: GraphCanvasOpts): GraphCanvasHandle 
     draw()
   }
 
+  let resizeRaf = 0
+  const scheduleResize = () => {
+    if (resizeRaf) return
+    resizeRaf = requestAnimationFrame(() => {
+      resizeRaf = 0
+      resize()
+    })
+  }
+
   const screenToWorld = (x: number, y: number) => ({ x: (x - panX) / scale, y: (y - panY) / scale })
   const nodeRadius = (id: string) => 4 + 4 * Math.log(1 + (degrees.get(id) || 0))
 
@@ -267,12 +276,14 @@ export function mountNotesGraphCanvas(opts: GraphCanvasOpts): GraphCanvasHandle 
   canvas.addEventListener("pointerleave", onPointerLeave)
   canvas.addEventListener("wheel", onWheel, { passive: false })
 
-  const ro = typeof ResizeObserver !== "undefined" ? new ResizeObserver(resize) : null
+  const ro = typeof ResizeObserver !== "undefined" ? new ResizeObserver(scheduleResize) : null
   ro?.observe(opts.parent)
   resize()
 
   return {
     destroy() {
+      if (resizeRaf) cancelAnimationFrame(resizeRaf)
+      resizeRaf = 0
       ro?.disconnect()
       canvas.removeEventListener("pointerdown", onPointerDown)
       canvas.removeEventListener("pointermove", onPointerMove)

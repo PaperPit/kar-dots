@@ -8,5 +8,5 @@ export const RAVEN_BRAND_SVG =
   '<circle class="brand-head" cx="17" cy="16" r="11"/>' +
   '<path class="brand-beak" d="M26 11.5 L39.5 16.5 L26 21.5 Z"/>' +
   '<circle class="brand-eye" cx="13.5" cy="13.5" r="3.2"/>' +
-  '<circle class="brand-pupil" cx="12.7" cy="13.5" r="1.35"/>' +
+  '<circle class="brand-pupil" cx="14.15" cy="13.5" r="1.35"/>' +
   "</svg>"

@@ -39,23 +39,13 @@ describe('notes editor/graph smoke', () => {
     const proto = HTMLCanvasElement.prototype
     const prev = proto.getContext
     proto.getContext = function getContext() {
-      return {
-        setTransform() {},
-        clearRect() {},
-        fillRect() {},
-        beginPath() {},
-        arc() {},
-        fill() {},
-        stroke() {},
-        moveTo() {},
-        lineTo() {},
-        setLineDash() {},
-        save() {},
-        restore() {},
-        fillText() {},
-        quadraticCurveTo() {},
-        closePath() {},
-      }
+      return new Proxy(
+        {},
+        {
+          get: () => () => {},
+          set: () => true,
+        }
+      )
     }
 
     try {

@@ -126,17 +126,19 @@
 
 .notes-graph-stage {
   width: 100%;
-  overflow: auto;
+  min-height: 420px;
+  overflow: hidden;
   border: var(--bw-hair) solid var(--line);
   border-radius: var(--radius-sm);
   background: var(--bg-raised);
   box-shadow: var(--shadow);
 }
 
-.notes-graph-svg {
+.notes-graph-canvas {
   display: block;
   width: 100%;
   min-height: 420px;
+  touch-action: none;
   background:
     radial-gradient(circle at 20% 20%, color-mix(in srgb, var(--c-ash) 18%, transparent), transparent 42%),
     var(--c-paper);

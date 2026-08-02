@@ -42,6 +42,25 @@ export function buildNoteTermRows(
 }
 
 /**
+ * Return known terms that start with prefix. IndexedDB callers should prefer
+ * `IDBKeyRange.bound(term, term + "\uffff")` on the `term` index instead of
+ * collecting every term in memory.
+ */
+export function matchPrefixTerms(allTerms: string[], prefix: string): string[] {
+  const p = String(prefix || "").toLowerCase()
+  if (!p) return []
+  const seen = new Set<string>()
+  const out: string[] = []
+  for (const term of allTerms) {
+    const t = String(term || "").toLowerCase()
+    if (!t || seen.has(t) || !t.startsWith(p)) continue
+    seen.add(t)
+    out.push(t)
+  }
+  return out
+}
+
+/**
  * Ранжирование: сколько уникальных токенов запроса нашлось в заметке.
  * noteIdsByTerm — Map<term, noteId[]>
  */

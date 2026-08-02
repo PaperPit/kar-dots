@@ -106,10 +106,31 @@ export async function searchNoteIdsInMirror(db: IDBDatabase, query: string): Pro
   if (!terms.length) return []
   const byTerm = new Map<string, string[]>()
   for (const term of terms) {
-    const rows = await indexGetAll<{ note_id: string }>(db, "note_terms", "term", term)
-    byTerm.set(term, rows.map((r) => r.note_id))
+    const exact = await indexGetAll<{ note_id: string }>(db, "note_terms", "term", term)
+    const prefix = await indexGetAllByTermPrefix<{ note_id: string }>(db, term)
+    const ids = new Set<string>()
+    for (const row of exact.concat(prefix)) ids.add(row.note_id)
+    byTerm.set(term, [...ids])
   }
   return rankNoteSearch(terms, byTerm).map((r) => r.noteId)
+}
+
+function indexGetAllByTermPrefix<T = unknown>(db: IDBDatabase, prefix: string): Promise<T[]> {
+  return new Promise<T[]>((resolve, reject) => {
+    const rows: T[] = []
+    const range = IDBKeyRange.bound(prefix, prefix + "\uffff")
+    const req = db.transaction("note_terms").objectStore("note_terms").index("term").openCursor(range)
+    req.onsuccess = () => {
+      const cursor = req.result
+      if (!cursor) {
+        resolve(rows)
+        return
+      }
+      rows.push(cursor.value as T)
+      cursor.continue()
+    }
+    req.onerror = () => reject(req.error)
+  })
 }
 
 export async function getNoteFromMirror(db: IDBDatabase, id: string): Promise<Note | null> {

@@ -18,6 +18,15 @@ export interface LayoutEdge {
   kind: "wiki" | "folder"
 }
 
+export function nodeDegrees(edges: { from: string; to: string }[]): Map<string, number> {
+  const degrees = new Map<string, number>()
+  for (const e of edges) {
+    degrees.set(e.from, (degrees.get(e.from) || 0) + 1)
+    degrees.set(e.to, (degrees.get(e.to) || 0) + 1)
+  }
+  return degrees
+}
+
 export function layoutNoteGraph(
   nodesIn: { id: string; title: string; kind: "note" | "folder" }[],
   edgesIn: { from: string; to: string; kind: "wiki" | "folder" }[],

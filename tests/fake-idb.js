@@ -26,7 +26,16 @@ function makeObjectStore(map, indexes = {}, keyPath = 'id') {
 
   function rowsForIndex(name, key) {
     const field = indexes[name];
-    return key == null ? all() : all().filter(r => r[field] === key);
+    if (key == null) return all();
+    if (typeof key === 'object' && ('lower' in key || 'upper' in key)) {
+      return all().filter(r => {
+        const value = r[field];
+        if ('lower' in key && value < key.lower) return false;
+        if ('upper' in key && value > key.upper) return false;
+        return true;
+      });
+    }
+    return all().filter(r => r[field] === key);
   }
 
   function openCursor(rows) {
@@ -91,7 +100,7 @@ function makeObjectStore(map, indexes = {}, keyPath = 'id') {
           return makeRequest(rowsForIndex(name, key));
         },
         openCursor(range) {
-          return openCursor(rowsForIndex(name, range?.lower));
+          return openCursor(rowsForIndex(name, range));
         },
       };
     },
@@ -174,6 +183,7 @@ export function installFakeIDB({
 
   globalThis.IDBKeyRange = {
     only(v) { return { lower: v, upper: v }; },
+    bound(lower, upper) { return { lower, upper }; },
   };
   globalThis.indexedDB = {
     open(_name, version) {

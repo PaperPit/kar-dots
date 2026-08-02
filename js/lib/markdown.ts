@@ -5,10 +5,7 @@
  */
 
 import {
-  extractWikiLinks,
-  normalizeNoteTitleKey,
   resolveWikiTarget,
-  type WikiLinkRef,
 } from "./note-links.js"
 
 const ESC: Record<string, string> = {
@@ -36,9 +33,24 @@ export function slugify(text: string): string {
 export interface MarkdownRenderOpts {
   /** title/id → noteId для [[wiki]] */
   wikiIndex?: Map<string, string>
+  /** target/anchor → безопасный HTML для ![[embed]], null — стандартный плейсхолдер */
+  embedResolver?: (target: string, anchor?: string) => string | null
 }
 
 const IMG_SRC_RE = /^(https?:\/\/[^)\s]+|data:image\/[a-zA-Z0-9+.-]+;base64,[A-Za-z0-9+/=]+)$/i
+
+function splitWikiTarget(rawTarget: string): { target: string; anchor?: string } {
+  const raw = String(rawTarget || "").trim()
+  const hash = raw.indexOf("#")
+  if (hash < 0) return { target: raw }
+  const target = raw.slice(0, hash).trim()
+  const anchor = raw.slice(hash + 1).trim()
+  return anchor ? { target, anchor } : { target }
+}
+
+function wikiTargetLabel(target: string, anchor?: string): string {
+  return anchor ? `${target}#${anchor}` : target
+}
 
 function inlineMarkdown(text: string, opts: MarkdownRenderOpts = {}): string {
   // Защитить wiki и картинки плейсхолдерами до escape
@@ -62,16 +74,27 @@ function inlineMarkdown(text: string, opts: MarkdownRenderOpts = {}): string {
     )
   })
 
-  raw = raw.replace(/\[\[([^\]|#]+)(?:\|([^\]]+))?\]\]/g, (_m, target: string, label?: string) => {
-    const t = String(target || "").trim()
-    const lab = String(label || t).trim() || t
-    const id = opts.wikiIndex ? resolveWikiTarget(t, opts.wikiIndex) : null
+  raw = raw.replace(/!\[\[([^\]|]+?)(?:\|[^\]]+)?\]\]/g, (_m, rawTarget: string) => {
+    const { target, anchor } = splitWikiTarget(rawTarget)
+    if (!target) return ""
+    const html = opts.embedResolver ? opts.embedResolver(target, anchor) : null
+    if (html != null) return park(html)
+    const title = wikiTargetLabel(target, anchor)
+    return park(`<span class="md-embed md-embed--missing" title="${escapeHtml(title)}">${escapeHtml(title)}</span>`)
+  })
+
+  raw = raw.replace(/\[\[([^\]|]+?)(?:\|([^\]]+))?\]\]/g, (_m, rawTarget: string, label?: string) => {
+    const { target, anchor } = splitWikiTarget(rawTarget)
+    const title = wikiTargetLabel(target, anchor)
+    const lab = String(label || title).trim() || title
+    const id = opts.wikiIndex ? resolveWikiTarget(title, opts.wikiIndex) : null
     if (id) {
+      const href = "#note/" + escapeHtml(id) + (anchor ? "#" + escapeHtml(slugify(anchor)) : "")
       return park(
-        `<a class="md-wiki" href="#note/${escapeHtml(id)}" data-note-id="${escapeHtml(id)}">${escapeHtml(lab)}</a>`
+        `<a class="md-wiki" href="${href}" data-note-id="${escapeHtml(id)}">${escapeHtml(lab)}</a>`
       )
     }
-    return park(`<span class="md-wiki md-wiki--missing" title="${escapeHtml(t)}">${escapeHtml(lab)}</span>`)
+    return park(`<span class="md-wiki md-wiki--missing" title="${escapeHtml(title)}">${escapeHtml(lab)}</span>`)
   })
 
   let s = escapeHtml(raw)
@@ -80,6 +103,7 @@ function inlineMarkdown(text: string, opts: MarkdownRenderOpts = {}): string {
   s = s.replace(/`([^`]+)`/g, "<code>$1</code>")
   s = s.replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>")
   s = s.replace(/__([^_]+)__/g, "<strong>$1</strong>")
+  s = s.replace(/~~([^~]+)~~/g, "<del>$1</del>")
   s = s.replace(/(^|[^*])\*([^*]+)\*(?!\*)/g, "$1<em>$2</em>")
   s = s.replace(/(^|[^_])_([^_]+)_(?!_)/g, "$1<em>$2</em>")
   s = s.replace(
@@ -97,6 +121,45 @@ function inlineMarkdown(text: string, opts: MarkdownRenderOpts = {}): string {
   // Плейсхолдеры wiki/картинок — уже безопасный HTML
   s = s.replace(/\u0000MD(\d+)\u0000/g, (_m, n) => slots[Number(n)] || "")
   return s
+}
+
+function splitTableRow(line: string): string[] {
+  let s = line.trim()
+  if (s.startsWith("|")) s = s.slice(1)
+  if (s.endsWith("|")) s = s.slice(0, -1)
+  return s.split(/(?<!\\)\|/).map((cell) => cell.replace(/\\\|/g, "|").trim())
+}
+
+function isTableSeparator(line: string): boolean {
+  const cells = splitTableRow(line)
+  return cells.length > 0 && cells.every((cell) => /^:?-{3,}:?$/.test(cell.trim()))
+}
+
+function isTableStart(lines: string[], i: number): boolean {
+  const head = lines[i] || ""
+  const sep = lines[i + 1] || ""
+  return head.includes("|") && sep.includes("|") && isTableSeparator(sep)
+}
+
+function renderTable(lines: string[], start: number, opts: MarkdownRenderOpts): { html: string; next: number } {
+  const head = splitTableRow(lines[start] || "")
+  let i = start + 2
+  const rows: string[][] = []
+  while (i < lines.length && lines[i]!.trim() && lines[i]!.includes("|")) {
+    rows.push(splitTableRow(lines[i]!))
+    i++
+  }
+  const cols = Math.max(head.length, ...rows.map((r) => r.length))
+  const pad = (row: string[]) => Array.from({ length: cols }, (_, idx) => row[idx] || "")
+  const html = [
+    "<table>",
+    "<thead><tr>" + pad(head).map((cell) => `<th>${inlineMarkdown(cell, opts)}</th>`).join("") + "</tr></thead>",
+    "<tbody>",
+    ...rows.map((row) => "<tr>" + pad(row).map((cell) => `<td>${inlineMarkdown(cell, opts)}</td>`).join("") + "</tr>"),
+    "</tbody>",
+    "</table>",
+  ].join("\n")
+  return { html, next: i }
 }
 
 /**
@@ -142,6 +205,14 @@ export function renderMarkdown(src: string, opts: MarkdownRenderOpts = {}): stri
       inCode = true
       codeBuf = []
       i++
+      continue
+    }
+
+    if (isTableStart(lines, i)) {
+      closeLists()
+      const table = renderTable(lines, i, opts)
+      out.push(table.html)
+      i = table.next
       continue
     }
 
@@ -261,5 +332,5 @@ export function notePreview(body: string, max = 140): string {
   return plain.slice(0, max - 1) + "…"
 }
 
-export { extractWikiLinks, normalizeNoteTitleKey, resolveWikiTarget }
-export type { WikiLinkRef }
+export { extractWikiLinks, normalizeNoteTitleKey, resolveWikiTarget } from "./note-links.js"
+export type { WikiLinkRef } from "./note-links.js"

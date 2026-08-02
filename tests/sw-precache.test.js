@@ -64,9 +64,29 @@ describe('service worker: precache-список в sw.js', () => {
     expect(dupes).toEqual([]);
   });
 
+  it('токены стилей прекешатся — без них первый офлайн-кадр без единого цвета', () => {
+    expect(coreFiles).toContain('css/tokens.css');
+  });
+
   it('шрифты в прекеше — только из allowlist scripts/sw-precache-assets.mjs', async () => {
     const { PRECACHE_FONTS } = await import('../scripts/sw-precache-assets.mjs');
     const fonts = coreFiles.filter((f) => f.endsWith('.woff2'));
-    expect(fonts.sort()).toEqual([...PRECACHE_FONTS].sort());
+
+    // Ожидаем не весь allowlist, а его пересечение с диском. Генератор
+    // выбрасывает отсутствующие файлы намеренно: cache.addAll атомарен, и
+    // один 404 отменяет весь прекеш — лучше остаться без прекеша шрифтов,
+    // чем без офлайна целиком. Из-за этого список в sw.js законно короче
+    // allowlist'а в промежутке между сменой шрифтовой пары и вендорингом
+    // .woff2 (scripts/fetch-fonts.sh).
+    const onDisk = PRECACHE_FONTS.filter((f) => existsSync(join(ROOT, f)));
+    expect(
+      fonts.sort(),
+      'Список шрифтов в sw.js разошёлся с allowlist — прогоните npm run sw:generate',
+    ).toEqual([...onDisk].sort());
+
+    // Исходный смысл стража: ничего сверх allowlist'а. Иначе в атомарный
+    // addAll утекают лишние срезы (когда-то так уезжал deva на 115 КБ).
+    const strays = fonts.filter((f) => !PRECACHE_FONTS.includes(f));
+    expect(strays, `Шрифты вне allowlist: ${strays.join(', ')}`).toEqual([]);
   });
 });

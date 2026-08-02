@@ -48,7 +48,7 @@ input[type="range"].tts-rate { width: 100%; margin: 0; accent-color: var(--accen
   flex: none;
   margin: 0;
   border: 1px solid var(--line);
-  border-radius: 8px;
+  border-radius: var(--r-1);
   background: var(--bg-sunken);
   cursor: pointer;
   box-shadow: none;
@@ -105,7 +105,7 @@ input[type="range"].tts-rate { width: 100%; margin: 0; accent-color: var(--accen
 
 .seg { display: inline-flex; background: var(--bg-sunken); border-radius: var(--radius-sm); padding: 3px; gap: 2px; flex-wrap: wrap; max-width: 100%; }
 .seg button {
-  border: 0; background: none; padding: 8px var(--sp-3); border-radius: 9px; cursor: pointer;
+  border: 0; background: none; padding: 8px var(--sp-3); border-radius: var(--r-1); cursor: pointer;
   font-weight: 600; font-size: 13px; color: var(--ink-soft);
   transition: background var(--dur) var(--ease), color var(--dur), box-shadow var(--dur);
   min-width: 0; min-height: 44px;

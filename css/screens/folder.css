@@ -17,7 +17,7 @@
 }
 .folder-card:hover {
   transform: translateY(-2px);
-  box-shadow: 0 8px 24px rgba(44,34,25,.1);
+  box-shadow: var(--sh-2);
 }
 .folder-card:active { transform: scale(.97); }
 .swatch {
@@ -26,10 +26,10 @@
   color: var(--btn-ink);
 }
 .folder-card .swatch {
-  width: 32px; height: 32px; border-radius: 10px; margin-bottom: var(--sp-3);
+  width: 32px; height: 32px; border-radius: var(--r-2); margin-bottom: var(--sp-3);
 }
 .swatch-compact { margin-bottom: 0; }
-.swatch-compact-size { width: 28px; height: 28px; border-radius: 8px; }
+.swatch-compact-size { width: 28px; height: 28px; border-radius: var(--r-1); }
 .swatch-letter {
   font-weight: 800;
   font-size: 15px;
@@ -57,8 +57,8 @@
 .folder-card .pack-chip { align-self: flex-start; }
 .folder-card .due-chip {
   position: absolute; top: var(--sp-3); right: var(--sp-3);
-  background: var(--accent); color: #fff;
-  font-size: 11px; font-weight: 700; padding: 2px 9px; border-radius: 999px;
+  background: var(--accent); color: var(--c-on-accent);
+  font-size: 11px; font-weight: 700; padding: 2px 9px; border-radius: var(--r-1);
 }
 @keyframes itemIn { from { opacity: 0; transform: translateY(var(--sp-3)); } }
 
@@ -123,14 +123,14 @@
   .card-row .card-row-open:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 }
 .card-row .thumb {
-  width: 44px; height: 44px; border-radius: 10px; object-fit: cover; flex: none;
+  width: 44px; height: 44px; border-radius: var(--r-2); object-fit: cover; flex: none;
   background: var(--bg-sunken);
 }
 .card-row .texts { flex: 1; min-width: 0; }
 .card-row .front { font-weight: 650; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .card-row .back { color: var(--ink-soft); font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .card-row .srs-chip {
-  flex: none; font-size: 12px; font-weight: 700; padding: 4px 8px; border-radius: 999px;
+  flex: none; font-size: 12px; font-weight: 700; padding: 4px 8px; border-radius: var(--r-1);
   background: var(--chip-bg); color: var(--chip-ink);
 }
 .card-row .srs-chip.due { background: var(--chip-due-bg); color: var(--terra-deep); }
@@ -157,7 +157,7 @@
 /* --- палитра цветов папки ---------------------------------- */
 .color-row { display: flex; gap: 9px; flex-wrap: wrap; }
 .color-dot {
-  width: 40px; height: 40px; border-radius: 999px; cursor: pointer; border: 0;
+  width: 40px; height: 40px; border-radius: var(--r-1); cursor: pointer; border: 0;
   transition: transform .18s var(--ease), box-shadow .18s var(--ease);
   position: relative;
   margin: 2px;
@@ -169,7 +169,7 @@
 .folder-icon-pick {
   width: 44px;
   height: 44px;
-  border-radius: 11px;
+  border-radius: var(--r-2);
   border: 1.5px solid var(--line);
   background: var(--bg-raised);
   display: grid;

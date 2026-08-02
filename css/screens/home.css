@@ -85,11 +85,12 @@
 }
 .day-card-toggle {
   flex: none;
+  /* 44px — минимальная честная цель для пальца. */
   width: 44px;
   height: 44px;
   border: 0;
   cursor: pointer;
-  border-radius: 50%;
+  border-radius: var(--r-1);
   background: color-mix(in srgb, var(--ink) 5%, transparent);
   color: var(--ink-soft);
   display: grid;
@@ -129,14 +130,14 @@
   width: 110px;
   height: 110px;
   flex: none;
-  border-radius: 50%;
+  border-radius: var(--r-pill);
   display: grid;
   place-items: center;
 }
 .day-donut-inner {
   width: 82px;
   height: 82px;
-  border-radius: 50%;
+  border-radius: var(--r-pill);
   background: var(--bg-raised);
   display: flex;
   flex-direction: column;
@@ -152,13 +153,12 @@
   font-size: 22px;
   line-height: 1;
   margin: 0;
-  font-variant-numeric: tabular-nums;
 }
 .day-donut-of {
   font-weight: 600;
-  font-size: 12px;
+  font-size: var(--fs-micro);
   line-height: 1.1;
-  color: var(--ink-faint);
+  color: var(--ink-soft);
   margin: 3px 0 0;
 }
 .day-legend {
@@ -186,7 +186,7 @@
 .day-swatch {
   width: 10px;
   height: 10px;
-  border-radius: 4px;
+  border-radius: var(--r-1);
   flex: none;
 }
 .day-swatch-ok { background: var(--ok); }
@@ -196,13 +196,13 @@
 .day-swatch-fail-sm {
   width: 9px;
   height: 9px;
-  border-radius: 3px;
+  border-radius: var(--r-1);
   display: inline-block;
   vertical-align: middle;
   margin-right: 5px;
 }
-.day-swatch-ok-sm { background: var(--ok); }
-.day-swatch-fail-sm { background: var(--danger-text); }
+.day-swatch-ok-sm { background: var(--accent); }
+.day-swatch-fail-sm { background: var(--c-brick); }
 
 .day-card-week {
   min-height: 136px;
@@ -231,7 +231,7 @@
   width: 100%;
   max-width: 34px;
   height: 6px;
-  border-radius: 4px;
+  border-radius: var(--r-1);
   background: var(--bg-sunken);
 }
 .week-bar-stack {
@@ -242,21 +242,21 @@
   gap: 2px;
 }
 .week-bar-fail {
-  border-radius: 4px 4px 2px 2px;
-  background: var(--danger-text);
+  border-radius: var(--r-1);
+  background: var(--c-brick);
   min-height: 3px;
 }
 .week-bar-ok {
-  border-radius: 2px 2px 4px 4px;
-  background: var(--ok);
+  border-radius: var(--r-1);
+  background: var(--accent);
   min-height: 4px;
 }
 .week-bar-label {
   font-family: var(--font-body);
   font-weight: 600;
-  font-size: 11px;
+  font-size: var(--fs-micro);
   line-height: 1.2;
-  color: var(--ink-faint);
+  color: var(--ink-soft);
 }
 .week-bar-label.is-today {
   font-family: var(--font-display);
@@ -280,7 +280,7 @@
   justify-content: center;
   height: 46px;
   padding: 0 20px;
-  border-radius: 999px;
+  border-radius: var(--r-1);
   font-weight: 600;
   font-size: 15px;
   color: var(--ok-text);
@@ -292,18 +292,18 @@
   cursor: pointer;
   height: 46px;
   padding: 0 30px;
-  border-radius: 999px;
+  border-radius: var(--r-1);
   background: var(--accent);
-  color: #fff;
+  color: var(--c-on-accent);
   font-weight: 700;
   font-size: 15px;
   font-family: var(--font-body);
-  box-shadow: 0 6px 16px rgba(196, 85, 40, .28);
+  box-shadow: var(--sh-2);
   transition: transform .2s, box-shadow .2s;
 }
 .day-continue:hover {
   transform: translateY(-1px);
-  box-shadow: 0 8px 20px rgba(196, 85, 40, .36);
+  box-shadow: var(--sh-3);
 }
 .day-continue:active { transform: translateY(0); }
 [data-theme="dark"] .day-continue { color: var(--btn-ink); }
@@ -322,40 +322,37 @@
   flex: 1;
   max-width: none;
 }
+/* Шапка перестала быть кнопкой: внутри неё теперь отдельная кнопка
+   .streak-cal-toggle, название месяца и стрелки. Клик по всей полосе
+   перехватывал бы и стрелки тоже. */
 .streak-cal-head {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--sp-2);
   width: 100%;
-  margin: 0;
-  padding: 0;
-  border: 0;
-  background: none;
-  font: inherit;
-  color: inherit;
-  text-align: left;
-  cursor: default;
 }
+/* Раскрывашка «серия дней». Растянута до 44px по вертикали — иначе
+   цель для пальца получается ростом ровно с цифру. */
 .streak-cal-toggle {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--sp-2);
+  flex: none;
+  min-width: 0;
+  min-height: 44px;
   margin: 0;
   padding: 0;
   border: 0;
   background: none;
-  color: inherit;
   font: inherit;
+  color: inherit;
   text-align: left;
   cursor: default;
-  min-height: 44px;
-  min-width: 0;
-  flex: none;
 }
 .streak-cal-toggle:focus-visible {
   outline: none;
-  box-shadow: var(--focus-ring);
-  border-radius: 10px;
+  box-shadow: var(--sh-focus);
+  border-radius: var(--r-1);
 }
 .streak-cal-num {
   font-family: var(--font-display);
@@ -371,10 +368,12 @@
   color: var(--ink-faint);
   flex: none;
 }
+/* Название месяца забирает остаток строки и жмётся многоточием: иначе
+   «Сентябрь 2026» на 320 px выталкивает стрелки за край карточки. */
 .streak-cal-month {
   flex: 1;
   min-width: 0;
-  margin: 0 4px;
+  margin: 0 var(--sp-1);
   text-align: center;
   font-weight: 600;
   font-size: 13px;
@@ -386,7 +385,7 @@
 .streak-cal-navs {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: var(--sp-1);
   flex: none;
 }
 .streak-cal-chevron {
@@ -413,21 +412,23 @@
 .home-cal-weekdays > div {
   text-align: center;
   font-weight: 700;
-  font-size: 11px;
-  color: var(--ink-faint);
+  font-size: var(--fs-micro);
+  color: var(--ink-soft);
   text-transform: uppercase;
   letter-spacing: .04em;
 }
 .home-cal-grid { margin-top: 5px; }
 .home-cal-day {
   aspect-ratio: 1;
-  border-radius: 9px;
+  border-radius: var(--r-1);
   display: grid;
   place-items: center;
   font-weight: 700;
   font-size: 12px;
   background: var(--bg-sunken);
-  color: var(--ink-faint);
+  /* На утопленной плоскости --ink-3 даёт всего 3.8:1 — цифры дня
+     набраны 12px и крупным текстом не считаются. Отсюда --ink-soft. */
+  color: var(--ink-soft);
   font-variant-numeric: tabular-nums;
 }
 .home-cal-day.is-outside {
@@ -435,28 +436,34 @@
   pointer-events: none;
 }
 .home-cal-day.heat-1 {
-  background: #F5D9C8;
-  color: var(--terra-deep);
+  background: color-mix(in srgb, var(--c-petrol) var(--cal-l1), var(--c-paper-2));
+  color: var(--c-ink-2);
 }
 .home-cal-day.heat-2 {
-  background: #E8B79C;
-  color: var(--terra-deep);
+  background: color-mix(in srgb, var(--c-petrol) var(--cal-l2), var(--c-paper-2));
+  color: var(--c-ink);
 }
 .home-cal-day.heat-3 {
   background: var(--accent);
-  color: #fff;
+  color: var(--c-on-accent);
 }
 .home-cal-day.is-today {
   box-shadow: inset 0 0 0 2px var(--accent);
 }
+/* Стрелки «месяц назад / вперёд». Рамка нарисована всегда — прозрачной,
+   поэтому на hover меняется только её цвет, а не толщина: кнопка не
+   дёргается на пиксель и соседний заголовок месяца не перескакивает. */
 .streak-cal-nav {
   flex: none;
+  /* Стрелки стоят вплотную друг к другу, поэтому цель расширена самой
+     кнопкой, а не псевдоэлементом: у соседей зоны касания перекрылись
+     бы и попадание стало бы делом случая. */
   width: 44px;
   height: 44px;
   margin: 0;
   padding: 0;
-  border: 0;
-  border-radius: 10px;
+  border: var(--bw-bold) solid transparent;
+  border-radius: var(--r-1);
   background: var(--bg-sunken);
   color: var(--ink-faint);
   font: inherit;
@@ -465,20 +472,24 @@
   cursor: pointer;
   display: grid;
   place-items: center;
-  transition: background var(--dur) var(--ease), color var(--dur) var(--ease), opacity var(--dur) var(--ease);
+  transition:
+    background var(--t-fast) var(--e-out),
+    border-color var(--t-fast) var(--e-out),
+    color var(--t-fast) var(--e-out);
 }
 .streak-cal-nav:hover:not(:disabled) {
-  background: var(--bg-muted, var(--bg-sunken));
-  color: var(--ink);
+  background: var(--c-paper-2);
+  border-color: var(--c-ink);
+  color: var(--c-ink);
 }
-.streak-cal-nav:active:not(:disabled) { transform: scale(.96); }
+.streak-cal-nav:active:not(:disabled) { background: var(--c-paper-3); }
 .streak-cal-nav:disabled {
   opacity: .35;
   cursor: default;
 }
 .streak-cal-nav:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
+  outline: none;
+  box-shadow: var(--sh-focus);
 }
 
 /* --- welcome / library ------------------------------------- */
@@ -556,13 +567,13 @@
 }
 .box-card:hover {
   transform: translateY(-2px);
-  box-shadow: 0 8px 24px rgba(44, 34, 25, .1);
+  box-shadow: var(--sh-2);
 }
 .box-card:active { transform: scale(.97); }
 .box-card .swatch {
   width: 38px;
   height: 38px;
-  border-radius: 12px;
+  border-radius: var(--r-2);
   margin-bottom: 0;
 }
 .box-card h3 {
@@ -581,25 +592,25 @@
   top: 18px;
   right: 18px;
   background: var(--accent);
-  color: #fff;
+  color: var(--c-on-accent);
   font-size: 11px;
   font-weight: 700;
   padding: 2px 9px;
-  border-radius: 999px;
+  border-radius: var(--r-1);
 }
 .add-tile-box { min-height: 118px; }
 
 .library-grid .folder-card:hover,
 .library-grid .box-card:hover {
   transform: translateY(-2px);
-  box-shadow: 0 8px 24px rgba(44, 34, 25, .1);
+  box-shadow: var(--sh-2);
   border-color: transparent;
 }
 .library-grid .folder-card .swatch,
 .library-grid .box-card .swatch {
   width: 38px;
   height: 38px;
-  border-radius: 12px;
+  border-radius: var(--r-2);
   margin-bottom: 0;
 }
 .library-grid .folder-card h3,
@@ -618,11 +629,11 @@
   top: 18px;
   right: 18px;
   background: var(--accent);
-  color: #fff;
+  color: var(--c-on-accent);
   font-size: 11px;
   font-weight: 700;
   padding: 2px 9px;
-  border-radius: 999px;
+  border-radius: var(--r-1);
 }
 .library-grid .folder-card .swatch,
 .library-grid .box-card .swatch {
@@ -718,6 +729,8 @@ html.folder-drag-active .folder-unbox-zone {
     min-height: 44px;
     align-items: center;
   }
+  /* Палец-курсор только на самой кнопке: стрелки месяца лежат в той же
+     полосе, и «кликабельной» она целиком не является. */
   .streak-cal-collapsible .streak-cal-toggle {
     cursor: pointer;
     -webkit-tap-highlight-color: transparent;

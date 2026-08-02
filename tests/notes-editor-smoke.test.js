@@ -44,8 +44,9 @@ describe('notes editor/graph smoke', () => {
     expect(canvas).toBeTruthy()
     expect(canvas.classList.contains('notes-graph-canvas--compact')).toBe(true)
     h.resize()
-    // Не раздуваем canvas выше stage (280) — защита от RO feedback loop
-    expect(canvas.height).toBeLessThanOrEqual(280 * (window.devicePixelRatio || 1) + 1)
+    // Backing store соответствует фиксированной layout-высоте 280 (× dpr)
+    expect(canvas.height).toBe(Math.round(280 * (window.devicePixelRatio || 1)))
+    expect(canvas.width).toBe(Math.round(640 * (window.devicePixelRatio || 1)))
     h.destroy()
     expect(parent.querySelector('canvas')).toBeNull()
   })

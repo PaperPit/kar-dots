@@ -1,68 +1,89 @@
-/* —— список заметок —— */
+/* —— список заметок ——
+   Экран появился уже после смены оформления, поэтому здесь сразу
+   токены: ни одного зашитого цвета, радиуса или длительности. */
 
 .notes-page {
   display: flex;
   flex-direction: column;
-  gap: 14px;
-  padding-bottom: 28px;
+  gap: var(--sp-4);
+  padding-bottom: var(--sp-7);
 }
 
+/* Поле поиска повторяет .input из style.css: утопленная плоскость,
+   волосяная рамка. На фокусе рамка утолщается, а padding убавляется
+   ровно на прирост — строка не прыгает. */
 .notes-search {
   width: 100%;
   box-sizing: border-box;
-  border: 1px solid var(--line);
-  background: var(--bg-raised);
+  border: var(--bw-hair) solid var(--line);
+  background: var(--bg-sunken);
   color: var(--ink);
-  border-radius: var(--radius-sm, 10px);
-  padding: 12px 14px;
+  border-radius: var(--radius-sm);
+  padding: var(--sp-3) var(--sp-4);
   font: inherit;
-  font-size: 16px;
+  font-size: var(--fs-body);
+  outline: none;
+  transition:
+    border-color var(--t-fast) var(--e-out),
+    background var(--t-fast) var(--e-out);
 }
 
 .notes-search:focus {
-  outline: none;
-}
-.notes-search:focus-visible {
-  outline: none;
-  box-shadow: var(--focus-ring);
+  border: var(--bw-bold) solid var(--accent);
+  padding: calc(var(--sp-3) - 1px) calc(var(--sp-4) - 1px);
+  background: var(--bg-raised);
 }
 
 .notes-list {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: var(--sp-2);
 }
 
+/* Строка заметки — тот же объект, что .card-row в папке: приподнятая
+   плоскость с волосяной рамкой и офсетной тенью без размытия. */
 .notes-row {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  gap: 4px;
+  gap: var(--sp-1);
   width: 100%;
   text-align: left;
-  border: none;
+  border: var(--bw-hair) solid var(--line);
   background: var(--bg-raised);
   color: inherit;
-  border-radius: var(--radius-md);
-  padding: 14px 16px;
-  box-shadow: var(--shadow-sm);
+  border-radius: var(--radius-sm);
+  padding: var(--sp-4);
+  box-shadow: var(--shadow);
   cursor: pointer;
-  transition: transform .15s ease, background .15s ease;
+  transition:
+    transform var(--dur) var(--ease),
+    box-shadow var(--dur) var(--ease);
 }
 
 .notes-row:hover {
-  transform: translateY(-1px);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-lg);
+}
+
+.notes-row:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
 }
 
 .notes-row-title {
   font-family: var(--font-display);
-  font-weight: 700;
-  font-size: 17px;
+  font-weight: var(--fw-bold);
+  font-size: var(--fs-lead);
+  line-height: var(--lh-snug);
+  letter-spacing: var(--ls-hero);
+  color: var(--ink);
 }
 
 .notes-row-preview {
-  font-size: 13px;
-  line-height: 1.35;
+  font-size: var(--fs-small);
+  line-height: var(--lh-snug);
+  color: var(--ink-soft);
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
@@ -70,11 +91,12 @@
 }
 
 .notes-row-meta {
-  font-size: 12px;
+  font-size: var(--fs-micro);
+  color: var(--ink-faint);
 }
 
 .notes-empty {
   text-align: center;
-  padding: 40px 12px;
+  padding: var(--sp-8) var(--sp-3);
+  color: var(--ink-faint);
 }
-

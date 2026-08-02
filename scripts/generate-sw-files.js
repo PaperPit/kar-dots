@@ -4,6 +4,7 @@
  * Запуск: node scripts/generate-sw-files.js
  */
 import { readdir, readFile, writeFile } from 'fs/promises';
+import { existsSync } from 'fs';
 import { join, relative } from 'path';
 import { EXCLUDE_ICONS, PRECACHE_FONTS } from './sw-precache-assets.mjs';
 import { swFetchHandlerSource } from './sw-fetch-handler.mjs';
@@ -45,15 +46,31 @@ const ICON_SVG = (await walk(join(ROOT, 'icons')))
 const FOLDER_ICONS = ICON_SVG.filter(f => f.startsWith('icons/folders/'));
 const UI_ICONS = ICON_SVG.filter(f => !f.startsWith('icons/folders/'));
 
+/* Шрифт, которого нет на диске, обязан выпасть из списка: cache.addAll
+   атомарен, один 404 — и SW не установится вовсе. bundle.mjs фильтрует
+   по содержимому dist/, здесь фильтруем по корню репозитория. Пока
+   scripts/fetch-fonts.sh не выполнен, набор пуст — это рабочее состояние. */
+const FONTS = PRECACHE_FONTS.filter(f => existsSync(join(ROOT, f)));
+const missingFonts = PRECACHE_FONTS.filter(f => !FONTS.includes(f));
+if (missingFonts.length) {
+  console.warn(
+    `generate-sw-files: нет на диске, в precache не попадут (${missingFonts.length}):\n  ` +
+      missingFonts.join('\n  ') +
+      '\n  → выполните: bash scripts/fetch-fonts.sh',
+  );
+}
+
 const CORE_STATIC = [
   './', 'index.html', 'manifest.webmanifest', 'boot-theme.js',
+  /* tokens.css строго первым среди стилей — единственный источник правды. */
+  'css/tokens.css',
   'css/style.css', 'css/components/modal.css',
   'css/screens/home.css', 'css/screens/folder.css',
   'css/screens/card-editor.css', 'css/screens/review.css', 'css/screens/settings.css',
   'css/screens/youtube-import.css', 'css/screens/stats.css',
   'css/screens/notes.css', 'css/screens/note-editor.css',
   'css/fonts/fonts.css',
-  ...PRECACHE_FONTS,
+  ...FONTS,
   'packs/manifest.json',
 ];
 

@@ -1,7 +1,7 @@
 /* --- модальные окна ---------------------------------------- */
 .modal-overlay {
   position: fixed; inset: 0; z-index: 40;
-  background: rgba(15,16,19,.45);
+  background: color-mix(in srgb, var(--c-ink) 55%, transparent);
   display: grid; place-items: center;
   padding: max(18px, env(safe-area-inset-top, 0px)) 16px max(18px, env(safe-area-inset-bottom, 0px));
   opacity: 0; transition: opacity .26s var(--ease);
@@ -10,7 +10,7 @@
 }
 .modal-overlay.open { opacity: 1; }
 .modal-box {
-  background: var(--bg); border-radius: 20px; padding: 24px;
+  background: var(--bg); border-radius: var(--r-3); padding: 24px;
   width: 100%; max-width: 440px; box-shadow: var(--shadow-lg);
   transform: translateY(18px) scale(.97); transition: transform .26s var(--ease);
   max-height: calc(100dvh - 48px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
@@ -71,7 +71,7 @@ html.motion-ui .modal-box { transition: none; }
 .modal-actions-center .btn { min-width: 112px; }
 
 @media (max-width: 520px) {
-  .modal-box { padding: 20px 16px; border-radius: 18px; }
+  .modal-box { padding: 20px 16px; border-radius: var(--r-3); }
   .modal-box.wide { max-width: min(620px, calc(100vw - 32px)); }
   .modal-head-toolbar { flex-wrap: wrap; gap: 8px; }
   .modal-head-toolbar .modal-delete-btn { width: 100%; justify-content: center; }

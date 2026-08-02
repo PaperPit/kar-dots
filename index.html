@@ -6,16 +6,18 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>КАР-точки — запоминай слова</title>
   <meta name="description" content="КАР-точки: карточки для запоминания слов, терминов и цитат с интервальным повторением.">
-  <meta name="theme-color" content="#F6F0E6" media="(prefers-color-scheme: light)">
-  <meta name="theme-color" content="#151619" media="(prefers-color-scheme: dark)">
+  <meta name="theme-color" content="#F2EBDD" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#15120E" media="(prefers-color-scheme: dark)">
   <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
   <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
   <link rel="manifest" href="manifest.webmanifest">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="apple-mobile-web-app-title" content="КАР-точки">
-  <link rel="preload" href="css/fonts/nunito-cyr.woff2" as="font" type="font/woff2" crossorigin>
-  <link rel="preload" href="css/fonts/nunito-latin.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="css/fonts/golos-cyr.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="css/fonts/golos-latin.woff2" as="font" type="font/woff2" crossorigin>
+  <!-- tokens.css — единственный источник правды. Строго первым. -->
+  <link rel="stylesheet" href="css/tokens.css">
   <link rel="stylesheet" href="css/fonts/fonts.css">
   <!-- Параллельные link вместо @import в style.css — все CSS стартуют одним RTT -->
   <link rel="stylesheet" href="css/components/modal.css">
@@ -33,14 +35,21 @@
 <body>
   <div id="app" class="app">
     <div class="boot-splash" id="bootSplash">
-      <svg class="boot-crow" viewBox="0 0 256 256" width="72" height="72" aria-hidden="true">
+      <!-- Знак «В · Портрет»: Corvus cornix крупным планом, две краски.
+           Тело — серое перо, обрезано краем формата. Точки внизу — «кар». -->
+      <svg class="boot-crow" viewBox="0 0 40 54" width="80" height="108" aria-hidden="true">
+        <defs><clipPath id="bootCrop"><rect x="0" y="0" width="40" height="40"/></clipPath></defs>
         <g fill="currentColor">
-          <circle cx="112" cy="102" r="54"/>
-          <path d="M 152 84 Q 196 88 220 101 Q 196 114 152 120 Q 162 101 152 84 Z"/>
-          <circle class="boot-eye" cx="124" cy="88" r="10"/>
-          <circle cx="76" cy="196" r="13" class="boot-dot d1"/>
-          <circle cx="120" cy="196" r="13" class="boot-dot d2"/>
-          <circle cx="164" cy="196" r="13" class="boot-dot d3"/>
+          <rect class="boot-plate" x="0" y="0" width="40" height="40" rx="3"/>
+          <g clip-path="url(#bootCrop)">
+            <circle class="boot-body" cx="19" cy="37" r="16"/>
+            <circle class="boot-head" cx="17" cy="17" r="11"/>
+            <path class="boot-head" d="M26 12.5 L40 17.5 L26 22.5 Z"/>
+            <circle class="boot-eye" cx="13.5" cy="14" r="3.4"/>
+          </g>
+          <circle cx="8"  cy="49" r="3" class="boot-dot d1"/>
+          <circle cx="20" cy="49" r="3" class="boot-dot d2"/>
+          <circle cx="32" cy="49" r="3" class="boot-dot d3"/>
         </g>
       </svg>
     </div>

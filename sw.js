@@ -1,4 +1,4 @@
-const VERSION = 'kar-v15.6';
+const VERSION = 'kar-v16.0';
 
 /** AUTO-GENERATED CORE_FILES — node scripts/generate-sw-files.js */
 const CORE_FILES = [
@@ -6,6 +6,7 @@ const CORE_FILES = [
   'index.html',
   'manifest.webmanifest',
   'boot-theme.js',
+  'css/tokens.css',
   'css/style.css',
   'css/components/modal.css',
   'css/screens/home.css',
@@ -18,11 +19,12 @@ const CORE_FILES = [
   'css/screens/notes.css',
   'css/screens/note-editor.css',
   'css/fonts/fonts.css',
-  'css/fonts/baloo2-latin.woff2',
-  'css/fonts/nunito-cyr-ext.woff2',
-  'css/fonts/nunito-cyr.woff2',
-  'css/fonts/nunito-latin-ext.woff2',
-  'css/fonts/nunito-latin.woff2',
+  'css/fonts/unbounded-cyr.woff2',
+  'css/fonts/unbounded-latin.woff2',
+  'css/fonts/golos-cyr.woff2',
+  'css/fonts/golos-latin.woff2',
+  'css/fonts/golos-500-cyr.woff2',
+  'css/fonts/golos-600-cyr.woff2',
   'packs/manifest.json',
   'js/app.js',
   'js/core/router.js',
@@ -44,6 +46,7 @@ const CORE_FILES = [
   'js/data/store-common.js',
   'js/data/store-contract.js',
   'js/data/store-local.js',
+  'js/data/store-notes.js',
   'js/data/store-vocab.js',
   'js/data/supabase.js',
   'js/data/sync-queue.js',
@@ -67,7 +70,9 @@ const CORE_FILES = [
   'js/lib/llm-api-keys.js',
   'js/lib/locales/en.js',
   'js/lib/locales/ru.js',
+  'js/lib/markdown.js',
   'js/lib/motion-ui.js',
+  'js/lib/notes-fts.js',
   'js/lib/orpheus-tts.js',
   'js/lib/raven-easter-egg.js',
   'js/lib/review-log.js',

@@ -19,6 +19,7 @@ export declare class EditorView {
   static editable: { of(v: boolean): Extension }
   static contentAttributes: { of(attrs: Record<string, string>): Extension }
   static domEventHandlers(handlers: Record<string, unknown>): Extension
+  static baseTheme(spec: Record<string, unknown>): Extension
 }
 
 export declare class EditorState {
@@ -60,6 +61,7 @@ export declare function placeholder(text: string): Extension
 export declare function drawSelection(config?: Record<string, unknown>): Extension
 export declare function highlightActiveLine(): Extension
 export declare const dropCursor: Extension
+export declare function lineNumbers(config?: Record<string, unknown>): Extension
 
 export declare const defaultKeymap: unknown[]
 export declare function history(): Extension

@@ -8,7 +8,8 @@ export {
   placeholder,
   drawSelection,
   highlightActiveLine,
-  Decoration,
+  dropCursor,
+  lineNumbers,
 } from "@codemirror/view"
 
 export {

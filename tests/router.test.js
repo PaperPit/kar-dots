@@ -5,34 +5,37 @@ import { parseReviewRoute } from '../js/lib/study-modes.ts';
 
 describe('parseHash', () => {
   it('defaults to home', () => {
-    expect(parseHash('')).toEqual({ name: 'home', arg: null, parts: ['home'] });
-    expect(parseHash('#home')).toEqual({ name: 'home', arg: null, parts: ['home'] });
+    expect(parseHash('')).toEqual({ name: 'home', arg: null, parts: ['home'], fragment: null });
+    expect(parseHash('#home')).toEqual({ name: 'home', arg: null, parts: ['home'], fragment: null });
   });
 
   it('folder route', () => {
     expect(parseHash('#folder/abc-123')).toEqual({
-      name: 'folder', arg: 'abc-123', parts: ['folder', 'abc-123'],
+      name: 'folder', arg: 'abc-123', parts: ['folder', 'abc-123'], fragment: null,
     });
   });
 
   it('settings route', () => {
     expect(parseHash('#settings')).toEqual({
-      name: 'settings', arg: null, parts: ['settings'],
+      name: 'settings', arg: null, parts: ['settings'], fragment: null,
     });
   });
 
   it('notes routes', () => {
     expect(parseHash('#notes')).toEqual({
-      name: 'notes', arg: null, parts: ['notes'],
+      name: 'notes', arg: null, parts: ['notes'], fragment: null,
     });
     expect(parseHash('#note/abc')).toEqual({
-      name: 'note', arg: 'abc', parts: ['note', 'abc'],
+      name: 'note', arg: 'abc', parts: ['note', 'abc'], fragment: null,
+    });
+    expect(parseHash('#note/abc#my-heading')).toEqual({
+      name: 'note', arg: 'abc', parts: ['note', 'abc'], fragment: 'my-heading',
     });
     expect(parseHash('#notes/graph')).toEqual({
-      name: 'notes', arg: 'graph', parts: ['notes', 'graph'],
+      name: 'notes', arg: 'graph', parts: ['notes', 'graph'], fragment: null,
     });
     expect(parseHash('#notes/tag/idea')).toEqual({
-      name: 'notes', arg: 'tag', parts: ['notes', 'tag', 'idea'],
+      name: 'notes', arg: 'tag', parts: ['notes', 'tag', 'idea'], fragment: null,
     });
   });
 

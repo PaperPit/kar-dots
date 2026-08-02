@@ -87,11 +87,11 @@ function inlineMarkdown(text: string, opts: MarkdownRenderOpts = {}): string {
     const { target, anchor } = splitWikiTarget(rawTarget)
     const title = wikiTargetLabel(target, anchor)
     const lab = String(label || title).trim() || title
-    const id = opts.wikiIndex ? resolveWikiTarget(title, opts.wikiIndex) : null
+    const id = opts.wikiIndex ? resolveWikiTarget(target, opts.wikiIndex) : null
     if (id) {
       const href = "#note/" + escapeHtml(id) + (anchor ? "#" + escapeHtml(slugify(anchor)) : "")
       return park(
-        `<a class="md-wiki" href="${href}" data-note-id="${escapeHtml(id)}">${escapeHtml(lab)}</a>`
+        `<a class="md-wiki" href="${href}" data-note-id="${escapeHtml(id)}"${anchor ? ` data-heading="${escapeHtml(slugify(anchor))}"` : ""}>${escapeHtml(lab)}</a>`
       )
     }
     return park(`<span class="md-wiki md-wiki--missing" title="${escapeHtml(title)}">${escapeHtml(lab)}</span>`)

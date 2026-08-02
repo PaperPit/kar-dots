@@ -255,7 +255,8 @@
 
 .note-tags-empty { font-size: var(--fs-micro); }
 
-.note-backlinks {
+.note-backlinks,
+.note-unlinked {
   margin-top: var(--sp-2);
   padding: var(--sp-4);
   border: var(--bw-hair) solid var(--line);
@@ -264,7 +265,8 @@
   box-shadow: var(--shadow);
 }
 
-.note-backlinks h4 {
+.note-backlinks h4,
+.note-unlinked h4 {
   margin: 0 0 var(--sp-3);
   font-family: var(--font-display);
   font-weight: var(--fw-bold);
@@ -274,6 +276,8 @@
   list-style: none;
   margin: 0;
   padding: 0;
+  display: grid;
+  gap: var(--sp-3);
 }
 
 .md-wiki {
@@ -510,17 +514,6 @@
   min-height: 280px;
 }
 
-.note-backlinks,
-.note-unlinked {
-  margin-top: var(--sp-5);
-}
-.note-backlinks-list {
-  list-style: none;
-  padding: 0;
-  margin: var(--sp-2) 0 0;
-  display: grid;
-  gap: var(--sp-3);
-}
 .note-backlink-item {
   display: grid;
   gap: var(--sp-1);

@@ -151,6 +151,8 @@ export function extractWikiLinks(body: string): WikiLinkRef[] {
   WIKI_RE.lastIndex = 0
   let m: RegExpExecArray | null
   while ((m = WIKI_RE.exec(src))) {
+    // Не считать ![[embed]] обычной wiki-ссылкой (см. extractEmbeds).
+    if (m.index > 0 && src[m.index - 1] === "!") continue
     const parsed = splitTargetAnchor(m[1] || "")
     const target = parsed.target
     if (!target) continue
@@ -283,6 +285,10 @@ export function buildNoteGraph(
       const toId = resolveWikiTarget(withAnchor(link.target, link.anchor), byTitle)
       if (toId) addEdge({ from: n.id, to: toId, kind: "wiki" })
     }
+    for (const emb of extractEmbeds(n.body || "")) {
+      const toId = resolveWikiTarget(withAnchor(emb.target, emb.anchor), byTitle)
+      if (toId) addEdge({ from: n.id, to: toId, kind: "wiki" })
+    }
   }
 
   return { nodes, edges }
@@ -303,6 +309,7 @@ export function findBacklinks(
     WIKI_RE.lastIndex = 0
     let m: RegExpExecArray | null
     while ((m = WIKI_RE.exec(body))) {
+      if (m.index > 0 && body[m.index - 1] === "!") continue
       const parsed = splitTargetAnchor(m[1] || "")
       const targetKey = normalizeNoteTitleKey(parsed.target)
       const matchesId = parsed.target.toLowerCase() === noteId.toLowerCase()
@@ -368,6 +375,20 @@ export function rewriteWikiLinks(body: string, oldTitle: string, newTitle: strin
     const target = withAnchor(newTitle, parsed.anchor)
     return labelRaw === undefined ? `[[${target}]]` : `[[${target}|${labelRaw}]]`
   })
+}
+
+/** Сколько wiki/embed ссылок на title (включая ![[…]]). */
+export function countWikiLinksToTitle(body: string, title: string): number {
+  const key = normalizeNoteTitleKey(title)
+  if (!key) return 0
+  const src = String(body ?? "")
+  let n = 0
+  WIKI_RE.lastIndex = 0
+  let m: RegExpExecArray | null
+  while ((m = WIKI_RE.exec(src))) {
+    if (titleKeyMatches(m[1] || "", title)) n++
+  }
+  return n
 }
 
 /** Оставить часть графа, достижимую от rootId за depth шагов (для глубины граф неориентированный). */

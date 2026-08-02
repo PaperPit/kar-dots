@@ -10,21 +10,30 @@ type HashParts = {
   name: string;
   arg: string | null;
   parts: string[];
+  /** Внутренний якорь после второго `#`, напр. `#note/id#heading` → `heading`. */
+  fragment: string | null;
 };
 
 export function parseHash(hash: string): HashParts {
-  const parts = (hash || "#home").slice(1).split("/").filter(Boolean)
+  const raw = (hash || "#home").slice(1)
+  const fragAt = raw.indexOf("#")
+  const path = fragAt >= 0 ? raw.slice(0, fragAt) : raw
+  const fragment = fragAt >= 0 ? raw.slice(fragAt + 1).trim() || null : null
+  const parts = path.split("/").filter(Boolean)
   return {
     name: parts[0] || "home",
     arg: parts[1] || null,
-    parts
+    parts,
+    fragment,
   }
 }
 
 
 export async function route(): Promise<void> {
   try {
-    const { name, arg, parts } = parseHash(location.hash)
+    const { runRouteDisposer } = await import("./route-lifecycle.js")
+    await runRouteDisposer()
+    const { name, arg, parts, fragment } = parseHash(location.hash)
     const reviewOpts = name === "review" ? parseReviewRoute(parts) : null
     if (!store) {
       const { renderAuth } = await import("../screens/auth/index.js")
@@ -73,7 +82,7 @@ export async function route(): Promise<void> {
       await renderNotes()
     } else if (name === "note" && arg) {
       const { renderNote } = await import("../screens/note/index.js")
-      await renderNote(arg)
+      await renderNote(arg, { heading: fragment })
     } else {
       const { renderHome } = await import("../screens/home/index.js")
       await renderHome()

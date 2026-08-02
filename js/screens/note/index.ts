@@ -1,4 +1,5 @@
 import { store } from '../../core/state.js';
+import { setRouteDisposer } from '../../core/route-lifecycle.js';
 import { el, toast, confirmDialog, stripHtml } from '../../ui/ui.js';
 import { shell, offlineBanner } from '../../ui/shell.js';
 import { backBtn, nav } from '../../ui/navigation.js';
@@ -12,6 +13,7 @@ import {
   findUnlinkedMentions,
   linkFirstUnlinkedMention,
   rewriteWikiLinks,
+  countWikiLinksToTitle,
   buildNoteGraph,
   filterEgoGraph,
   resolveWikiTarget,
@@ -28,8 +30,13 @@ import { t } from '../../lib/i18n.js';
 import type { Note, Card, Folder } from '../../data/types.js';
 
 const SAVE_MS = 500;
+const PREVIEW_MS = 200;
 
 type ViewMode = 'edit' | 'preview' | 'split';
+
+export type RenderNoteOpts = {
+  heading?: string | null;
+};
 
 async function hydratePreviewImages(root: HTMLElement) {
   const imgs = root.querySelectorAll('img');
@@ -76,7 +83,7 @@ function backlinkList(items: BacklinkRef[], emptyText: string, action?: (item: B
   ));
 }
 
-export async function renderNote(noteId: string) {
+export async function renderNote(noteId: string, opts: RenderNoteOpts = {}) {
   const note = await store.getNote(noteId) as Note | null;
   if (!note) {
     toast(t('notes.toast.missing'), 'error');
@@ -84,13 +91,16 @@ export async function renderNote(noteId: string) {
     return;
   }
 
-  let viewMode: ViewMode = 'edit';
+  const initialHeading = (opts.heading || '').trim();
+  let viewMode: ViewMode = initialHeading ? 'preview' : 'edit';
   let dirty = false;
+  let disposed = false;
   let cm: NoteCmEditor | null = null;
   let lineNums = false;
   let savedTitle = note.title || '';
   let localDepth = 1;
   let localGraph: GraphCanvasHandle | null = null;
+  let pendingHeading = initialHeading;
 
   let allNotes = await store.listNotes({ includeConflicts: false }) as Note[];
   const folders = (store.folders || []) as Folder[];
@@ -246,10 +256,9 @@ export async function renderNote(noteId: string) {
     const hits: { id: string; title: string; count: number }[] = [];
     for (const n of allNotes) {
       if (n.id === noteId || n.conflict_of) continue;
-      const next = rewriteWikiLinks(n.body || '', oldTitle, newTitle);
-      if (next === (n.body || '')) continue;
-      const count = (n.body || '').split(`[[${oldTitle}`).length - 1;
-      hits.push({ id: n.id, title: n.title || '', count: Math.max(1, count) });
+      const count = countWikiLinksToTitle(n.body || '', oldTitle);
+      if (!count) continue;
+      hits.push({ id: n.id, title: n.title || '', count });
     }
     if (!hits.length) return;
     const ok = await confirmWikiRename({ oldTitle, newTitle, hits });
@@ -259,12 +268,12 @@ export async function renderNote(noteId: string) {
       if (!cur) continue;
       await store.updateNote(h.id, { body: rewriteWikiLinks(cur.body || '', oldTitle, newTitle) });
     }
-    allNotes = await store.listNotes({}) as Note[];
+    allNotes = await store.listNotes({ includeConflicts: false }) as Note[];
     toast(t('notes.rename.done', { n: String(hits.length) }));
   }
 
   const saveNow = async () => {
-    if (!dirty) return;
+    if (disposed || !dirty) return;
     dirty = false;
     status.textContent = t('notes.editor.saving');
     const body = bodyValue();
@@ -278,38 +287,42 @@ export async function renderNote(noteId: string) {
         folder_id,
         tags: extractHashtags(body),
       });
+      if (disposed) return;
       status.textContent = t('notes.editor.saved');
       titleInput.value = title;
       if (prevTitle && prevTitle !== title) await maybeRewriteWikiLinks(prevTitle, title);
+      if (disposed) return;
       savedTitle = title;
       refreshTags(body);
-      allNotes = await store.listNotes({}) as Note[];
+      allNotes = await store.listNotes({ includeConflicts: false }) as Note[];
       refreshBacklinks();
       refreshLocalGraph();
     } catch (e) {
-      dirty = true;
-      status.textContent = '';
-      toast(e instanceof Error ? e.message : String(e), 'error');
+      if (!disposed) {
+        dirty = true;
+        status.textContent = '';
+        toast(e instanceof Error ? e.message : String(e), 'error');
+      }
     }
   };
 
   const scheduleSave = debounce(() => { void saveNow(); }, SAVE_MS);
+  const schedulePreview = debounce(() => { void renderPreview(); }, PREVIEW_MS);
 
   const markDirty = () => {
     dirty = true;
     status.textContent = t('notes.editor.unsaved');
     refreshTags(bodyValue());
     scheduleSave();
-    if (viewMode !== 'edit') void renderPreview();
+    if (viewMode !== 'edit') schedulePreview();
   };
 
   titleInput.addEventListener('input', markDirty);
   folderSelect.addEventListener('change', markDirty);
 
   async function renderPreview() {
-    const notes = await store.listNotes({}) as Note[];
-    const idx = buildNoteTitleIndex(notes);
-    const byId = new Map(notes.map((n) => [n.id, n]));
+    const idx = buildNoteTitleIndex(allNotes);
+    const byId = new Map(allNotes.map((n) => [n.id, n]));
     preview.innerHTML = renderMarkdown(bodyValue(), {
       wikiIndex: idx,
       embedResolver: (target, anchor) => {
@@ -347,9 +360,10 @@ export async function renderNote(noteId: string) {
       },
     });
     await hydratePreviewImages(preview);
-    const hash = location.hash.split('#')[2];
-    if (hash) {
-      const target = preview.querySelector('#' + CSS.escape(hash));
+    const heading = pendingHeading || location.hash.split('#')[2] || '';
+    if (heading) {
+      pendingHeading = '';
+      const target = preview.querySelector('#' + CSS.escape(heading));
       target?.scrollIntoView({ block: 'start' });
     }
   }
@@ -559,12 +573,29 @@ export async function renderNote(noteId: string) {
       return [...set];
     },
     onCreateWikiNote: async (title) => {
-      const created = await store.createNote({ title, body: `# ${title}\n` }) as Note;
-      allNotes = await store.listNotes({}) as Note[];
-      toast(t('notes.wiki.created', { title: created.title || title }));
+      try {
+        const created = await store.createNote({
+          title,
+          body: `# ${title}\n`,
+          folder_id: folderSelect.value || note.folder_id || null,
+        }) as Note;
+        allNotes = await store.listNotes({ includeConflicts: false }) as Note[];
+        toast(t('notes.wiki.created', { title: created.title || title }));
+      } catch (e) {
+        toast(e instanceof Error ? e.message : String(e), 'error');
+      }
     },
   });
 
-  applyViewMode('edit');
+  setRouteDisposer(async () => {
+    await saveNow();
+    disposed = true;
+    cm?.destroy();
+    localGraph?.destroy();
+    cm = null;
+    localGraph = null;
+  });
+
+  applyViewMode(viewMode);
   refreshLocalGraph();
 }

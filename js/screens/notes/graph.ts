@@ -3,8 +3,9 @@ import { shell, offlineBanner } from '../../ui/shell.js';
 import { backBtn, nav } from '../../ui/navigation.js';
 import { t } from '../../lib/i18n.js';
 import { store } from '../../core/state.js';
+import { setRouteDisposer } from '../../core/route-lifecycle.js';
 import { buildNoteGraph } from '../../lib/note-links.js';
-import { mountNotesGraphCanvas } from '../../ui/notes-graph-canvas.js';
+import { mountNotesGraphCanvas, type GraphCanvasHandle } from '../../ui/notes-graph-canvas.js';
 import type { Note, Folder } from '../../data/types.js';
 
 /** Экран графа: заметки, папки и wiki-связи. */
@@ -30,8 +31,9 @@ export async function renderNotesGraph() {
     el('p', { class: 'muted' }, t('notes.graph.emptyText')),
   ]);
 
+  let canvas: GraphCanvasHandle | null = null;
   if (graph.nodes.length) {
-    mountNotesGraphCanvas({
+    canvas = mountNotesGraphCanvas({
       parent: stage,
       nodes: graph.nodes,
       edges: graph.edges,
@@ -41,6 +43,11 @@ export async function renderNotesGraph() {
       },
     });
   }
+
+  setRouteDisposer(() => {
+    canvas?.destroy();
+    canvas = null;
+  });
 
   shell('notes', el('div', null, [
     offlineBanner(),

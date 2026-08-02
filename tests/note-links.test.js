@@ -11,6 +11,7 @@ import {
   findUnlinkedMentions,
   linkFirstUnlinkedMention,
   rewriteWikiLinks,
+  countWikiLinksToTitle,
   filterEgoGraph,
 } from '../js/lib/note-links.ts'
 import { renderMarkdown } from '../js/lib/markdown.ts'
@@ -89,6 +90,19 @@ describe('note-links', () => {
     expect(linkFirstUnlinkedMention(body, 'Alpha Note')).toBe(
       'see [[Alpha Note]] then [[Alpha Note]] and ```\nAlpha Note\n```'
     )
+  })
+
+  it('skips embeds in extractWikiLinks but keeps them via extractEmbeds', () => {
+    expect(extractWikiLinks('see [[Alpha]] and ![[Beta]]')).toEqual([
+      { target: 'Alpha', label: 'Alpha', raw: '[[Alpha]]' },
+    ])
+    expect(extractEmbeds('see [[Alpha]] and ![[Beta]]')).toEqual([
+      { target: 'Beta', raw: '![[Beta]]' },
+    ])
+  })
+
+  it('counts wiki links including embeds for rename dialogs', () => {
+    expect(countWikiLinksToTitle('[[Old]] ![[Old#a]] [[Other]]', 'Old')).toBe(2)
   })
 
   it('rewrites wiki links for renamed titles', () => {

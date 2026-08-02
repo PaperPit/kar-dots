@@ -89,12 +89,12 @@ function wikiCompletions(
         type: "text",
         detail: "new",
         apply: (view: InstanceType<typeof EditorView>, _c: unknown, from: number, to: number) => {
-          void Promise.resolve(onCreate(title)).then(() => {
-            view.dispatch({
-              changes: { from, to, insert: title + "]]" },
-              selection: EditorSelection.cursor(from + title.length + 2),
-            })
+          // Вставляем сразу — иначе после await createNote from/to устаревают.
+          view.dispatch({
+            changes: { from, to, insert: title + "]]" },
+            selection: EditorSelection.cursor(from + title.length + 2),
           })
+          void Promise.resolve(onCreate(title)).catch(() => { /* toast в экране */ })
         },
       } as never)
     }

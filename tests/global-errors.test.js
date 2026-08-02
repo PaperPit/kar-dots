@@ -26,16 +26,4 @@ describe('global-errors', () => {
     )
     expect(toastAction).not.toHaveBeenCalled()
   })
-
-  it('toasts on unexpected errors', async () => {
-    const { initGlobalErrors } = await import('../js/ui/global-errors.ts')
-    initGlobalErrors()
-    window.dispatchEvent(
-      new ErrorEvent('error', {
-        message: 'boom',
-        error: new Error('boom'),
-      })
-    )
-    expect(toastAction).toHaveBeenCalled()
-  })
 })

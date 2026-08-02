@@ -20,8 +20,9 @@ type GraphColors = {
 }
 
 export function mountNotesGraphCanvas(opts: GraphCanvasOpts): GraphCanvasHandle {
+  const fixedHeight = opts.compact ? 280 : 420
   const canvas = document.createElement("canvas")
-  canvas.className = "notes-graph-canvas"
+  canvas.className = "notes-graph-canvas" + (opts.compact ? " notes-graph-canvas--compact" : "")
   canvas.tabIndex = 0
   canvas.setAttribute("role", "img")
   opts.parent.appendChild(canvas)
@@ -35,8 +36,7 @@ export function mountNotesGraphCanvas(opts: GraphCanvasOpts): GraphCanvasHandle 
   }
 
   const cssWidth = Math.max(320, opts.parent.clientWidth || opts.parent.getBoundingClientRect().width || 640)
-  const cssHeight = Math.max(opts.compact ? 280 : 420, opts.parent.clientHeight || 0)
-  const laid = layoutNoteGraph(opts.nodes, opts.edges, cssWidth, cssHeight, opts.compact ? 55 : 80)
+  const laid = layoutNoteGraph(opts.nodes, opts.edges, cssWidth, fixedHeight, opts.compact ? 55 : 80)
   const nodes = laid.nodes
   const edges = laid.edges
   const byId = new Map(nodes.map((n) => [n.id, n]))
@@ -50,7 +50,7 @@ export function mountNotesGraphCanvas(opts: GraphCanvasOpts): GraphCanvasHandle 
 
   let dpr = 1
   let width = cssWidth
-  let height = cssHeight
+  let height = fixedHeight
   let scale = 1
   let panX = 0
   let panY = 0
@@ -68,11 +68,23 @@ export function mountNotesGraphCanvas(opts: GraphCanvasOpts): GraphCanvasHandle 
 
   const resize = () => {
     const rect = opts.parent.getBoundingClientRect()
-    width = Math.max(320, rect.width || opts.parent.clientWidth || cssWidth)
-    height = Math.max(opts.compact ? 280 : 420, rect.height || opts.parent.clientHeight || cssHeight)
-    dpr = Math.max(1, window.devicePixelRatio || 1)
-    canvas.style.width = `${width}px`
-    canvas.style.height = `${height}px`
+    // Ширина/высота — строго из CSS-бокса родителя (stage с фиксированной height).
+    // Не задаём canvas.style.height в px: иначе parent растёт → RO loop.
+    const nextW = Math.max(1, Math.floor(rect.width || opts.parent.clientWidth || cssWidth))
+    const measuredH = Math.floor(rect.height || opts.parent.clientHeight || 0)
+    const nextH = measuredH >= 2 ? measuredH : fixedHeight
+    const nextDpr = Math.max(1, window.devicePixelRatio || 1)
+    if (
+      nextW === width &&
+      nextH === height &&
+      nextDpr === dpr &&
+      canvas.width === Math.round(width * dpr)
+    ) {
+      return
+    }
+    width = nextW
+    height = nextH
+    dpr = nextDpr
     canvas.width = Math.round(width * dpr)
     canvas.height = Math.round(height * dpr)
     draw()

@@ -40,9 +40,14 @@ describe('notes editor/graph smoke', () => {
       edges: ego.edges,
       compact: true,
     })
-    expect(parent.querySelector('canvas')).toBeTruthy()
+    const canvas = parent.querySelector('canvas')
+    expect(canvas).toBeTruthy()
+    expect(canvas.classList.contains('notes-graph-canvas--compact')).toBe(true)
     h.resize()
+    // Не раздуваем canvas выше stage (280) — защита от RO feedback loop
+    expect(canvas.height).toBeLessThanOrEqual(280 * (window.devicePixelRatio || 1) + 1)
     h.destroy()
     expect(parent.querySelector('canvas')).toBeNull()
   })
 })
+

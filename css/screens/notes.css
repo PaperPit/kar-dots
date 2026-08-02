@@ -134,7 +134,9 @@
 
 .notes-graph-stage {
   width: 100%;
+  height: min(70vh, 520px);
   min-height: 420px;
+  max-height: 520px;
   overflow: hidden;
   border: var(--bw-hair) solid var(--line);
   border-radius: var(--radius-sm);
@@ -145,7 +147,8 @@
 .notes-graph-canvas {
   display: block;
   width: 100%;
-  min-height: 420px;
+  height: 100%;
+  min-height: 0;
   touch-action: none;
   background:
     radial-gradient(circle at 20% 20%, color-mix(in srgb, var(--c-ash) 18%, transparent), transparent 42%),

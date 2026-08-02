@@ -60,7 +60,7 @@ export declare const keymap: {
 export declare function placeholder(text: string): Extension
 export declare function drawSelection(config?: Record<string, unknown>): Extension
 export declare function highlightActiveLine(): Extension
-export declare const dropCursor: Extension
+export declare function dropCursor(): Extension
 export declare function lineNumbers(config?: Record<string, unknown>): Extension
 
 export declare const defaultKeymap: unknown[]

@@ -189,7 +189,7 @@ export function createNoteEditor(opts: NoteCmEditorOpts): NoteCmEditor {
   const extensions: Extension[] = [
     history(),
     drawSelection(),
-    dropCursor,
+    dropCursor(),
     highlightActiveLine(),
     bracketMatching(),
     EditorView.lineWrapping,

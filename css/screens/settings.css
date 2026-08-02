@@ -62,7 +62,7 @@ input[type="range"].tts-rate { width: 100%; margin: 0; accent-color: var(--accen
 .chk:hover:not(:disabled) {
   border-color: color-mix(in srgb, var(--accent) 45%, var(--line));
 }
-.chk:active:not(:disabled) { transform: scale(.94); }
+.chk:active:not(:disabled) { transform: translate(1px, 1px); }
 .chk:checked {
   background: var(--accent);
   border-color: var(--accent);

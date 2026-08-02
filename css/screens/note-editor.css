@@ -36,17 +36,18 @@
 
 .note-body-input {
   width: 100%;
+  max-width: var(--measure);
   min-height: 42vh;
   box-sizing: border-box;
   resize: vertical;
-  border: var(--bw-hair) solid var(--line);
+  border: var(--bw-hair) solid var(--c-ink-3);
   border-radius: var(--radius-sm);
   background: var(--bg-sunken);
   color: var(--ink);
   padding: var(--sp-4);
   font: inherit;
   font-size: var(--fs-body);
-  line-height: var(--lh-body);
+  line-height: var(--lh-loose);
   outline: none;
   transition:
     border-color var(--t-fast) var(--e-out),
@@ -62,13 +63,14 @@
 }
 
 .note-preview.md-body {
+  max-width: var(--measure);
   min-height: 42vh;
   padding: var(--sp-4);
-  border: var(--bw-hair) solid var(--line);
+  border: var(--bw-hair) solid var(--c-ink-3);
   border-radius: var(--radius-sm);
   background: var(--bg-raised);
-  box-shadow: var(--shadow);
-  line-height: var(--lh-body);
+  box-shadow: var(--sh-1);
+  line-height: var(--lh-loose);
 }
 
 .note-preview.md-body h1,

@@ -196,8 +196,9 @@ function openKeysModal(s: Settings, save: (patch?: Partial<Settings>) => void, o
   const fields = getKeyDefs().map(def => buildKeyField(def, s, save));
   const body = el('div', { class: 'integrations-keys-modal' }, fields.map(f => f.node));
 
+  const titleId = 'integrations-keys-title';
   const m = modal(el('div', null, [
-    el('h3', { class: 'modal-title' }, t('settings.yt.modalTitle')),
+    el('h3', { class: 'modal-title', id: titleId }, t('settings.yt.modalTitle')),
     el('p', { class: 'modal-text muted' }, t('settings.yt.modalIntro')),
     body,
     el('div', { class: 'modal-actions' }, [
@@ -209,7 +210,7 @@ function openKeysModal(s: Settings, save: (patch?: Partial<Settings>) => void, o
         },
       }, t('common.done')),
     ]),
-  ]), { wide: true });
+  ]), { wide: true, labelledBy: titleId });
 
   const origClose = m.close;
   m.close = () => {

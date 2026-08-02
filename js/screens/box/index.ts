@@ -26,10 +26,16 @@ export async function renderBox(boxId: string) {
     backBtn('#home'),
     boxSwatch(box, { compact: true }),
     el('h2', { class: 'page-title grow' }, box.name),
-    el('button', { class: 'icon-btn', title: t('box.screen.edit'), onclick: () => boxDialog(box) }, featherIcon()),
+    el('button', {
+      class: 'icon-btn',
+      title: t('box.screen.edit'),
+      'aria-label': t('box.screen.edit'),
+      onclick: () => boxDialog(box),
+    }, featherIcon()),
     el('button', {
       class: 'icon-btn',
       title: t('box.screen.delete'),
+      'aria-label': t('box.screen.delete'),
       onclick: async () => {
         const c = boxDeleteConfirm(box);
         const yes = await confirmDialog(c.title, c.text, c.ok, true);

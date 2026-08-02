@@ -1,18 +1,18 @@
 /* --- модальные окна ---------------------------------------- */
 .modal-overlay {
   position: fixed; inset: 0; z-index: 40;
-  background: color-mix(in srgb, var(--c-ink) 55%, transparent);
+  /* Плотная плашка без blur — в МОДЕРНИЗМ-80 blur запрещён */
+  background: color-mix(in srgb, var(--c-ink) 62%, transparent);
   display: grid; place-items: center;
   padding: max(18px, env(safe-area-inset-top, 0px)) 16px max(18px, env(safe-area-inset-bottom, 0px));
-  opacity: 0; transition: opacity .26s var(--ease);
-  backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px);
+  opacity: 0; transition: opacity var(--t-base) var(--e-out);
   overflow-y: auto;
 }
 .modal-overlay.open { opacity: 1; }
 .modal-box {
   background: var(--bg); border-radius: var(--r-3); padding: 24px;
   width: 100%; max-width: 440px; box-shadow: var(--shadow-lg);
-  transform: translateY(18px) scale(.97); transition: transform .26s var(--ease);
+  transform: translateY(18px); transition: transform var(--t-base) var(--e-out);
   max-height: calc(100dvh - 48px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
   overflow-y: auto;
 }
@@ -22,7 +22,7 @@
 html.motion-ui .modal-overlay { transition: none; }
 html.motion-ui .modal-box { transition: none; }
 
-.modal-title { margin: 0 0 8px; font-size: 19px; letter-spacing: -.01em; }
+.modal-title { margin: 0 0 8px; font-size: var(--fs-h3); letter-spacing: var(--ls-display); }
 .modal-head { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; }
 .modal-head-toolbar { justify-content: space-between; gap: 10px; }
 .modal-head-left { display: flex; align-items: center; gap: 12px; min-width: 0; }

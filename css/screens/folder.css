@@ -19,7 +19,10 @@
   transform: translateY(-2px);
   box-shadow: var(--sh-2);
 }
-.folder-card:active { transform: scale(.97); }
+.folder-card:active {
+  transform: translate(1px, 1px);
+  box-shadow: var(--sh-press);
+}
 .swatch {
   display: grid;
   place-items: center;
@@ -70,7 +73,10 @@
   animation: itemIn .4s var(--ease) backwards;
 }
 .add-tile:hover { border-color: var(--accent); color: var(--accent-text); background: transparent; }
-.add-tile:active { transform: scale(.97); }
+.add-tile:active {
+  transform: translate(1px, 1px);
+  box-shadow: var(--sh-press);
+}
 
 /* --- список карточек --------------------------------------- */
 .card-list { display: flex; flex-direction: column; gap: var(--sp-2); }
@@ -157,13 +163,13 @@
 /* --- палитра цветов папки ---------------------------------- */
 .color-row { display: flex; gap: 9px; flex-wrap: wrap; }
 .color-dot {
-  width: 40px; height: 40px; border-radius: var(--r-1); cursor: pointer; border: 0;
-  transition: transform .18s var(--ease), box-shadow .18s var(--ease);
+  width: 44px; height: 44px; border-radius: var(--r-1); cursor: pointer; border: 0;
+  transition: box-shadow var(--t-fast) var(--e-out);
   position: relative;
   margin: 2px;
 }
-.color-dot:hover { transform: scale(1.12); }
-.color-dot.sel { box-shadow: 0 0 0 2.5px var(--bg), 0 0 0 5px var(--ink); transform: scale(1.08); }
+.color-dot:hover { box-shadow: var(--sh-1); }
+.color-dot.sel { box-shadow: var(--sh-focus); }
 
 .folder-icon-row { display: flex; flex-wrap: wrap; gap: 8px; }
 .folder-icon-pick {

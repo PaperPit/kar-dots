@@ -88,8 +88,9 @@ export function bulkCardDialog(folderId: string) {
   previewEl = el('p', { class: 'bulk-preview muted' }, t('cardEditor.bulk.readyCount', { ready: 0 }));
   addBtn = el('button', { class: 'btn primary', onclick: submit, disabled: true }, t('cardEditor.add'));
 
+  const titleId = 'bulk-card-dialog-title';
   m = modal(el('div', null, [
-    el('h3', { class: 'modal-title' }, t('cardEditor.bulk.title')),
+    el('h3', { class: 'modal-title', id: titleId }, t('cardEditor.bulk.title')),
     el('p', { class: 'modal-text' }, t('cardEditor.bulk.hint')),
     textarea,
     el('div', { class: 'bulk-options' }, [
@@ -107,7 +108,7 @@ export function bulkCardDialog(folderId: string) {
       el('button', { class: 'btn ghost', onclick: () => m.close() }, t('common.cancel')),
       addBtn,
     ]),
-  ]), { wide: true, sticky: true });
+  ]), { wide: true, sticky: true, labelledBy: titleId });
 
   updatePreview();
   setTimeout(() => textarea.focus(), 260);

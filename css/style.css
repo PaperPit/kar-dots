@@ -430,6 +430,7 @@ html.motion-ui .auth-wrap { animation: none; }
   .app--study-session .toasts { bottom: calc(var(--sp-5) + env(safe-area-inset-bottom)); }
 }
 
+/* Пять вкладок: Golos + умеренная разрядка — Unbounded+0.14em режет подписи */
 .tab-btn {
   border: 0;
   border-left: var(--bw-hair) solid var(--c-edge);
@@ -441,10 +442,10 @@ html.motion-ui .auth-wrap { animation: none; }
   justify-content: center;
   gap: var(--sp-1);
   color: var(--c-ink-2);
-  font-family: var(--font-display);
+  font-family: var(--font-text);
   font-size: var(--fs-micro);
-  font-weight: var(--fw-bold);
-  letter-spacing: var(--ls-label);
+  font-weight: var(--fw-medium);
+  letter-spacing: 0.04em;
   text-transform: uppercase;
   min-height: 44px;
   min-width: 0;
@@ -623,7 +624,8 @@ html.motion-ui .auth-wrap { animation: none; }
 .input,
 textarea.input {
   width: 100%;
-  border: var(--bw-hair) solid var(--c-edge);
+  /* ink-3 на paper-3 ≥3:1 (UI); edge был ~1.2:1 */
+  border: var(--bw-hair) solid var(--c-ink-3);
   border-radius: var(--r-1);
   background: var(--c-paper-3);
   color: var(--c-ink);
@@ -634,8 +636,9 @@ textarea.input {
     border-color var(--t-fast) var(--e-out),
     background var(--t-fast) var(--e-out);
 }
-.input::placeholder { color: var(--c-ink-3); }
-.input:hover { border-color: var(--c-ink-3); }
+/* placeholder: ink-3 на paper-3 ≈3.87 < AA → ink-2 ≈5.25 */
+.input::placeholder { color: var(--c-ink-2); }
+.input:hover { border-color: var(--c-ink-2); }
 .input:focus {
   border: var(--bw-bold) solid var(--c-petrol);
   padding: calc(var(--sp-3) - 1px);
@@ -817,8 +820,8 @@ textarea.input { resize: vertical; min-height: 72px; line-height: var(--lh-body)
 
 /* ============================================================
    11 · ТОСТЫ
-   Чернильная плашка со сдвинутой тенью. Действие — охрой:
-   на чернилах охра даёт 7.29:1.
+   Чернильная плашка. Охра на тёмных чернилах (светлая тема);
+   в тёмной теме --c-ink светлый — действие перекрашивается.
    ============================================================ */
 .toasts {
   position: fixed;
@@ -871,6 +874,7 @@ html.motion-ui .toast.show { opacity: 1; transform: none; }
   border-radius: var(--r-1);
   cursor: pointer;
   padding: var(--sp-1) var(--sp-3);
+  min-height: 44px;
   font-family: var(--font-display);
   font-weight: var(--fw-bold);
   font-size: var(--fs-micro);
@@ -880,10 +884,19 @@ html.motion-ui .toast.show { opacity: 1; transform: none; }
   color: var(--c-ochre);
 }
 .toast-action:hover { background: color-mix(in srgb, var(--c-ochre) 20%, transparent); }
-.toast.ok .toast-action,
-.toast.error .toast-action { color: var(--c-paper); }
+/* Тёмная тема: плашка --c-ink светлая → охра как текст запрещена */
+:root[data-theme='dark'] .toast:not(.ok):not(.error) .toast-action {
+  color: var(--c-paper);
+}
+:root[data-theme='dark'] .toast:not(.ok):not(.error) .toast-action:hover {
+  background: color-mix(in srgb, var(--c-paper) 18%, transparent);
+}
+.toast.ok .toast-action { color: var(--c-on-moss); }
+.toast.error .toast-action { color: var(--c-on-brick); }
 .toast.ok .toast-action:hover,
-.toast.error .toast-action:hover { background: color-mix(in srgb, var(--c-paper) 22%, transparent); }
+.toast.error .toast-action:hover {
+  background: color-mix(in srgb, currentColor 18%, transparent);
+}
 
 /* ============================================================
    12 · СПИННЕР
@@ -1003,7 +1016,8 @@ html.motion-ui .toast.show { opacity: 1; transform: none; }
     opacity var(--t-fast) var(--e-out);
 }
 .theme-toggle-icon svg { width: 14px; height: 14px; display: block; }
-.theme-toggle-sun  { color: var(--c-ochre); }
+/* Охра как stroke на бумаге <3:1 — солнце/луна через petrol/ink */
+.theme-toggle-sun  { color: var(--c-petrol); }
 .theme-toggle-moon { opacity: 0.5; }
 .theme-toggle.is-dark .theme-toggle-sun  { color: var(--c-ink-3); opacity: 0.5; }
 .theme-toggle.is-dark .theme-toggle-moon { color: var(--c-petrol); opacity: 1; }
@@ -1366,8 +1380,11 @@ html.motion-ui .toast.show { opacity: 1; transform: none; }
   visibility: visible;
   pointer-events: auto;
 }
-.study-voice-card:focus,
-.study-voice-card:focus-visible { outline: none; }
+.study-voice-card:focus { outline: none; }
+.study-voice-card:focus-visible {
+  outline: none;
+  box-shadow: var(--sh-focus);
+}
 .study-voice-actions [hidden] { display: none !important; }
 .study-voice-status { text-align: center; margin: 0 0 var(--sp-3); min-height: 1.4em; color: var(--c-ink-2); }
 
@@ -1635,6 +1652,8 @@ html.motion-ui .toast.show { opacity: 1; transform: none; }
   font-weight: var(--fw-medium);
   cursor: pointer;
   text-align: left;
+  cursor: pointer;
+  text-align: left;
   transition: background var(--t-instant) var(--e-out);
 }
 .melody-picker-menu > .melody-picker-option:first-child { border-top: 0; }
@@ -1643,8 +1662,8 @@ html.motion-ui .toast.show { opacity: 1; transform: none; }
 .melody-picker-option-label { flex: 1; }
 .melody-picker-play {
   flex: none;
-  width: 34px;
-  height: 34px;
+  width: 44px;
+  height: 44px;
   padding: 0;
   border-radius: var(--r-1);
   border: var(--bw-hair) solid var(--c-edge);

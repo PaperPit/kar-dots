@@ -64,20 +64,35 @@ export function melodyPickerField(opts: MelodyOpts): HTMLElement & { destroy: ()
       opts.play(m.id)
     })
 
+    /* option — не <button>: иначе playBtn оказывается nested interactive */
     const opt = el(
-      "button",
+      "div",
       {
-        type: "button",
         class: "melody-picker-option" + (m.id === opts.value ? " is-active" : ""),
-        role: "option"
+        role: "option",
+        tabindex: "0",
+        "aria-selected": m.id === opts.value ? "true" : "false"
       },
       [el("span", { class: "melody-picker-option-label" }, m.label), playBtn]
     )
+    const choose = () => {
+      menu.querySelectorAll(".melody-picker-option").forEach((o) => {
+        o.classList.remove("is-active")
+        o.setAttribute("aria-selected", "false")
+      })
+      opt.classList.add("is-active")
+      opt.setAttribute("aria-selected", "true")
+      select(m.id)
+    }
     opt.addEventListener("click", (e) => {
       if (e.target instanceof Element && e.target.closest(".melody-picker-play")) return
-      menu.querySelectorAll(".melody-picker-option").forEach((o) => o.classList.remove("is-active"))
-      opt.classList.add("is-active")
-      select(m.id)
+      choose()
+    })
+    opt.addEventListener("keydown", (e: KeyboardEvent) => {
+      if (e.key !== "Enter" && e.key !== " ") return
+      if (e.target instanceof Element && e.target.closest(".melody-picker-play")) return
+      e.preventDefault()
+      choose()
     })
     menu.append(opt)
   })

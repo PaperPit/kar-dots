@@ -67,7 +67,9 @@ export const en: Record<string, MessageValue> = {
   "auth.sub":
     "Flashcards for words, terms, and quotes — with smart spaced repetition.",
   "auth.emailPlaceholder": "Email",
+  "auth.emailLabel": "Email",
   "auth.passwordPlaceholder": "Password (min. 6 characters)",
+  "auth.passwordLabel": "Password",
   "auth.signIn": "Sign in",
   "auth.signUp": "Create account",
   "auth.needCredentials": "Enter email and a password of at least 6 characters",
@@ -151,6 +153,7 @@ export const en: Record<string, MessageValue> = {
   "folder.dialog.iconHint":
     "If nothing is selected — the first letter of the name. Tap again to clear.",
   "folder.dialog.nameRequired": "Enter a name",
+  "folder.dialog.colorSwatch": "Color {color}",
 
   "folder.screen.rename": "Rename",
   "folder.screen.deletePack": "Delete pack",

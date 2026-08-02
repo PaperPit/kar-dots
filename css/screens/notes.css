@@ -15,7 +15,7 @@
 .notes-search {
   width: 100%;
   box-sizing: border-box;
-  border: var(--bw-hair) solid var(--line);
+  border: var(--bw-hair) solid var(--c-ink-3);
   background: var(--bg-sunken);
   color: var(--ink);
   border-radius: var(--radius-sm);
@@ -27,6 +27,7 @@
     border-color var(--t-fast) var(--e-out),
     background var(--t-fast) var(--e-out);
 }
+.notes-search::placeholder { color: var(--c-ink-2); }
 
 .notes-search:focus {
   border: var(--bw-bold) solid var(--accent);

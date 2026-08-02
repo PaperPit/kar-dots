@@ -35,6 +35,14 @@
   background: var(--bg-raised);
 }
 
+.notes-row-preview mark,
+.notes-row-title mark {
+  background: color-mix(in srgb, var(--c-petrol) 28%, transparent);
+  color: inherit;
+  padding: 0 0.1em;
+  border-radius: 2px;
+}
+
 .notes-list {
   display: flex;
   flex-direction: column;

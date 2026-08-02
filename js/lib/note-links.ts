@@ -342,6 +342,22 @@ export function findUnlinkedMentions(
   return out
 }
 
+/** Заменить первое несвязанное упоминание title на [[title]] (вне wiki и fences). */
+export function linkFirstUnlinkedMention(body: string, title: string): string {
+  const needle = String(title || "").trim()
+  const src = String(body ?? "")
+  if (!needle || !src) return src
+  const re = new RegExp(`(^|[^\\p{L}\\p{N}_])(${escapeRegExp(needle)})(?=$|[^\\p{L}\\p{N}_])`, "gu")
+  let masked = maskedFenceSource(src)
+  masked = masked.replace(WIKI_RE, (m) => " ".repeat(m.length))
+  re.lastIndex = 0
+  const m = re.exec(masked)
+  if (!m) return src
+  const match = m[2] || needle
+  const index = m.index + (m[1] || "").length
+  return src.slice(0, index) + `[[${match}]]` + src.slice(index + match.length)
+}
+
 /** Переписать wiki-ссылки на заметку при переименовании title. */
 export function rewriteWikiLinks(body: string, oldTitle: string, newTitle: string): string {
   const oldKey = normalizeNoteTitleKey(oldTitle)

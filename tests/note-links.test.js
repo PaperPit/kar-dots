@@ -9,6 +9,7 @@ import {
   buildNoteGraph,
   findBacklinks,
   findUnlinkedMentions,
+  linkFirstUnlinkedMention,
   rewriteWikiLinks,
   filterEgoGraph,
 } from '../js/lib/note-links.ts'
@@ -81,6 +82,13 @@ describe('note-links', () => {
     expect(refs).toHaveLength(1)
     expect(refs[0].snippets[0].match).toBe('Alpha Note')
     expect(refs[0].snippets).toHaveLength(1)
+  })
+
+  it('links first unlinked mention without touching wiki or fences', () => {
+    const body = 'see [[Alpha Note]] then Alpha Note and ```\nAlpha Note\n```'
+    expect(linkFirstUnlinkedMention(body, 'Alpha Note')).toBe(
+      'see [[Alpha Note]] then [[Alpha Note]] and ```\nAlpha Note\n```'
+    )
   })
 
   it('rewrites wiki links for renamed titles', () => {

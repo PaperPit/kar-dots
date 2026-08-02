@@ -2,7 +2,7 @@ import { el } from '../../ui/ui.js';
 import { shell, offlineBanner } from '../../ui/shell.js';
 import { backBtn, nav } from '../../ui/navigation.js';
 import { debounce, svgNode } from '../../ui/helpers.js';
-import { notePreview } from '../../lib/markdown.js';
+import { notePreview, escapeHtml } from '../../lib/markdown.js';
 import { ICONS } from '../../ui/constants.js';
 import { t } from '../../lib/i18n.js';
 import { store } from '../../core/state.js';
@@ -14,6 +14,22 @@ export type NotesRouteOpts = {
   tag?: string | null;
   folderId?: string | null;
 };
+
+function highlightPrefix(text: string, query: string): string | HTMLElement {
+  const raw = String(text || '');
+  const q = String(query || '').trim();
+  if (!q || q.length < 2) return raw;
+  const lower = raw.toLowerCase();
+  const needle = q.toLowerCase();
+  const idx = lower.indexOf(needle);
+  if (idx < 0) return raw;
+  const before = escapeHtml(raw.slice(0, idx));
+  const match = escapeHtml(raw.slice(idx, idx + q.length));
+  const after = escapeHtml(raw.slice(idx + q.length));
+  const span = el('span');
+  span.innerHTML = `${before}<mark>${match}</mark>${after}`;
+  return span;
+}
 
 export async function renderNotes(opts: NotesRouteOpts = {}) {
   let activeTag = opts.tag ? decodeURIComponent(opts.tag).toLowerCase() : '';
@@ -96,27 +112,29 @@ export async function renderNotes(opts: NotesRouteOpts = {}) {
   }
 
   async function refresh(query = '') {
+    const q = query.trim();
     const notes = await store.listNotes({
-      query: query.trim() || undefined,
+      query: q || undefined,
       folderId: activeFolder || undefined,
       tag: activeTag || undefined,
     }) as Note[];
     list.replaceChildren();
     empty.hidden = notes.length > 0;
-    for (const n of notes) list.append(noteRow(n));
+    for (const n of notes) list.append(noteRow(n, q));
   }
 
-  function noteRow(n: Note) {
+  function noteRow(n: Note, query = '') {
     const title = n.title || t('notes.untitled');
     const tags = n.tags || [];
     const folderLabel = n.folder_id ? folderName.get(n.folder_id) : '';
+    const previewText = notePreview(n.body) || t('notes.empty.body');
     return el('button', {
       class: 'notes-row',
       type: 'button',
       onclick: () => nav('#note/' + n.id),
     }, [
-      el('div', { class: 'notes-row-title' }, title),
-      el('div', { class: 'notes-row-preview muted' }, notePreview(n.body) || t('notes.empty.body')),
+      el('div', { class: 'notes-row-title' }, highlightPrefix(title, query)),
+      el('div', { class: 'notes-row-preview muted' }, highlightPrefix(previewText, query)),
       el('div', { class: 'notes-row-meta muted' }, [
         formatUpdated(n.updated_at),
         folderLabel ? el('span', { class: 'notes-row-folder' }, ' · ' + folderLabel) : null,

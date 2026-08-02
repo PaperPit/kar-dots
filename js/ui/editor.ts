@@ -1,5 +1,6 @@
 /**
- * Обёртка CodeMirror 6 для заметок: Markdown, autocomplete [[ и #.
+ * Обёртка CodeMirror 6 для заметок: Markdown, autocomplete [[ и #,
+ * line numbers, create-new для wiki.
  */
 import {
   EditorView,
@@ -8,6 +9,7 @@ import {
   drawSelection,
   highlightActiveLine,
   dropCursor,
+  lineNumbers,
   EditorState,
   EditorSelection,
   Compartment,
@@ -35,11 +37,13 @@ export interface NoteCmEditorOpts {
   doc?: string
   placeholder?: string
   ariaLabel?: string
+  lineNumbers?: boolean
   onChange?: (value: string) => void
-  /** Актуальный список заметок для [[autocomplete]] */
+  onSelectionChange?: (info: { empty: boolean; text: string; from: number; to: number }) => void
   getWikiSuggestions?: () => WikiSuggest[]
-  /** Известные теги для #autocomplete */
   getTagSuggestions?: () => TagSuggest[]
+  /** Создать заметку из autocomplete и вернуть title для вставки */
+  onCreateWikiNote?: (title: string) => void | Promise<void>
 }
 
 export interface NoteCmEditor {
@@ -50,22 +54,25 @@ export interface NoteCmEditor {
   destroy(): void
   insertAtCursor(text: string): void
   wrapSelection(before: string, after?: string): void
-  /** Префикс строки: # / ## / - / > / - [ ] */
   toggleLinePrefix(prefix: string): void
-  /** Обернуть выделение в fence ``` */
   toggleCodeFence(): void
+  setLineNumbers(on: boolean): void
+  getSelection(): { empty: boolean; text: string; from: number; to: number; head: number }
 }
 
 function wikiCompletions(
-  getWiki: () => WikiSuggest[]
+  getWiki: () => WikiSuggest[],
+  onCreate?: (title: string) => void | Promise<void>
 ): (context: InstanceType<typeof CompletionContext>) => unknown {
   return (context) => {
     const match = context.matchBefore(/\[\[[^\]\n]*$/)
     if (!match) return null
     if (match.from === match.to && !context.explicit) return null
-    const typed = match.text.slice(2).toLowerCase()
-    const options = getWiki()
-      .filter((n) => n.title && (!typed || n.title.toLowerCase().includes(typed)))
+    const typedRaw = match.text.slice(2)
+    const typed = typedRaw.toLowerCase()
+    const notes = getWiki().filter((n) => n.title)
+    const options = notes
+      .filter((n) => !typed || n.title.toLowerCase().includes(typed))
       .slice(0, 40)
       .map((n) => ({
         label: n.title,
@@ -73,6 +80,24 @@ function wikiCompletions(
         apply: n.title + "]]",
         detail: n.id ? "note" : undefined,
       }))
+
+    const exact = notes.some((n) => n.title.toLowerCase() === typed)
+    if (typedRaw.trim() && !exact && onCreate) {
+      const title = typedRaw.trim()
+      options.unshift({
+        label: title,
+        type: "text",
+        detail: "new",
+        apply: (view: InstanceType<typeof EditorView>, _c: unknown, from: number, to: number) => {
+          void Promise.resolve(onCreate(title)).then(() => {
+            view.dispatch({
+              changes: { from, to, insert: title + "]]" },
+              selection: EditorSelection.cursor(from + title.length + 2),
+            })
+          })
+        },
+      } as never)
+    }
     return { from: match.from + 2, options, validFor: /[^\]\n]*/ }
   }
 }
@@ -86,7 +111,6 @@ function tagCompletions(
     const hashAt = match.text.lastIndexOf("#")
     if (hashAt < 0) return null
     const typed = match.text.slice(hashAt + 1).toLowerCase()
-    // Не предлагать внутри заголовка «# » (пробел сразу после #)
     if (match.text.slice(hashAt + 1).startsWith(" ")) return null
     const known = new Set(getTags().map((t) => t.toLowerCase()))
     if (typed && !known.has(typed)) known.add(typed)
@@ -127,7 +151,11 @@ const baseTheme = EditorView.theme({
     overflow: "auto",
   },
   "&.cm-focused": { outline: "none" },
-  ".cm-gutters": { display: "none" },
+  ".cm-gutters": {
+    backgroundColor: "transparent",
+    border: "none",
+    color: "var(--c-ink-3)",
+  },
   ".cm-activeLine": {
     backgroundColor: "color-mix(in srgb, var(--c-ink) 4%, transparent)",
   },
@@ -156,7 +184,7 @@ const baseTheme = EditorView.theme({
 export function createNoteEditor(opts: NoteCmEditorOpts): NoteCmEditor {
   const getWiki = opts.getWikiSuggestions || (() => [])
   const getTags = opts.getTagSuggestions || (() => [])
-  const editable = new Compartment()
+  const gutters = new Compartment()
 
   const extensions: Extension[] = [
     history(),
@@ -175,17 +203,22 @@ export function createNoteEditor(opts: NoteCmEditorOpts): NoteCmEditor {
       ...defaultKeymap,
     ]),
     autocompletion({
-      override: [wikiCompletions(getWiki), tagCompletions(getTags)],
+      override: [wikiCompletions(getWiki, opts.onCreateWikiNote), tagCompletions(getTags)],
       activateOnTyping: true,
     }),
     baseTheme,
-    editable.of([]),
+    gutters.of(opts.lineNumbers ? lineNumbers() : []),
     EditorView.contentAttributes.of({
       "aria-label": opts.ariaLabel || "Note body",
       spellcheck: "true",
     }),
     EditorView.updateListener.of((update: ViewUpdate) => {
       if (update.docChanged) opts.onChange?.(update.state.doc.toString())
+      if (update.docChanged || update.selectionSet) {
+        const { from, to, empty } = update.state.selection.main
+        const text = empty ? "" : update.state.doc.toString().slice(from, to)
+        opts.onSelectionChange?.({ empty, text, from, to })
+      }
     }),
   ]
 
@@ -200,6 +233,7 @@ export function createNoteEditor(opts: NoteCmEditorOpts): NoteCmEditor {
   })
 
   view.dom.classList.add("note-cm")
+  if (opts.lineNumbers) view.dom.classList.add("note-cm--gutters")
 
   function dispatchInsert(from: number, to: number, text: string, cursor?: number) {
     const head = cursor ?? from + text.length
@@ -284,6 +318,20 @@ export function createNoteEditor(opts: NoteCmEditorOpts): NoteCmEditor {
       const selected = view.state.doc.toString().slice(from, to)
       const wrapped = "```\n" + selected + "\n```"
       dispatchInsert(from, to, wrapped, from + wrapped.length)
+    },
+    setLineNumbers(on: boolean) {
+      view.dispatch({ effects: gutters.reconfigure(on ? lineNumbers() : []) })
+      view.dom.classList.toggle("note-cm--gutters", on)
+    },
+    getSelection() {
+      const { from, to, empty, head } = view.state.selection.main
+      return {
+        empty,
+        from,
+        to,
+        head,
+        text: empty ? "" : view.state.doc.toString().slice(from, to),
+      }
     },
   }
 

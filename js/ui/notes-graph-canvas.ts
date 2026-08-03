@@ -2,7 +2,7 @@ import { layoutNoteGraph, nodeDegrees, type LayoutNode } from "../lib/note-graph
 
 export type GraphCanvasOpts = {
   parent: HTMLElement
-  nodes: { id: string; title: string; kind: "note" | "folder" }[]
+  nodes: { id: string; title: string; kind: "note" | "folder"; memory?: "none" | "new" | "learning" | "rooted" | "fading" }[]
   edges: { from: string; to: string; kind: "wiki" | "folder" }[]
   compact?: boolean
   onNodeClick?: (id: string, kind: string) => void
@@ -17,6 +17,8 @@ type GraphColors = {
   paper: string
   petrol: string
   ash: string
+  ochre: string
+  accent: string
 }
 
 export function mountNotesGraphCanvas(opts: GraphCanvasOpts): GraphCanvasHandle {
@@ -186,10 +188,20 @@ export function mountNotesGraphCanvas(opts: GraphCanvasOpts): GraphCanvasHandle 
         const r = nodeRadius(n.id)
         ctx.beginPath()
         ctx.arc(n.x, n.y, r, 0, Math.PI * 2)
-        ctx.fillStyle = degree === 0 ? colors.ash : hot && hovered === n.id ? colors.petrol : colors.ink
+        ctx.fillStyle = degree === 0
+          ? colors.ash
+          : hot && hovered === n.id
+            ? colors.petrol
+            : memoryColor(n.memory, colors, hot)
         ctx.fill()
-        ctx.strokeStyle = colors.paper
-        ctx.lineWidth = 2 / scale
+        // fading — охряная обводка
+        if (n.memory === "fading") {
+          ctx.strokeStyle = colors.ochre
+          ctx.lineWidth = 2.4 / scale
+        } else {
+          ctx.strokeStyle = colors.paper
+          ctx.lineWidth = 2 / scale
+        }
         ctx.stroke()
       }
     }
@@ -325,6 +337,20 @@ function readColors(parent: HTMLElement): GraphColors {
     paper: css("--c-paper", "#fffaf0"),
     petrol: css("--c-petrol", "#1f6f78"),
     ash: css("--c-ash", "#a8a29e"),
+    ochre: css("--c-ochre", "#d19a2a"),
+    accent: css("--accent", "#1f6f78"),
+  }
+}
+
+/** Цвет узла-заметки по memory-state. */
+function memoryColor(mem: string | undefined, colors: GraphColors, isHot: boolean): string {
+  switch (mem) {
+    case "rooted": return colors.accent
+    case "learning": return colors.petrol
+    case "fading": return colors.ochre
+    case "new": return colors.ink
+    case "none":
+    default: return isHot ? colors.petrol : colors.ash
   }
 }
 

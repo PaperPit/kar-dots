@@ -3,6 +3,7 @@ import type { SrsRow } from "../lib/srs.js"
 interface SrsSource {
   id?: string;
   folder_id?: string;
+  note_id?: string | null;
   sm2_ef?: number | null;
   sm2_reps?: number | null;
   sm2_ivl?: number | null;
@@ -25,7 +26,7 @@ interface SrsSource {
 /** Slim SRS fields synced to cloud and stored in mirror kv `srs_meta`. */
 
 export const SRS_FIELDS =
-  "id,folder_id,sm2_ef,sm2_reps,sm2_ivl,sm2_due,box,box_due,fsrs_state,fsrs_stability,fsrs_difficulty,fsrs_due,fsrs_scheduled_days,fsrs_elapsed_days,fsrs_reps,fsrs_lapses,fsrs_learning_steps,fsrs_last_review,created_at"
+  "id,folder_id,note_id,sm2_ef,sm2_reps,sm2_ivl,sm2_due,box,box_due,fsrs_state,fsrs_stability,fsrs_difficulty,fsrs_due,fsrs_scheduled_days,fsrs_elapsed_days,fsrs_reps,fsrs_lapses,fsrs_learning_steps,fsrs_last_review,created_at"
 
 /** Content + SRS — enough for an online review session (no select=*). */
 export const REVIEW_CARD_FIELDS = SRS_FIELDS + ",front,back,description,front_img,back_img"
@@ -33,6 +34,7 @@ export const REVIEW_CARD_FIELDS = SRS_FIELDS + ",front,back,description,front_im
 export interface SrsMeta extends SrsRow {
   id: string;
   folder_id: string;
+  note_id?: string | null;
   sm2_ef?: number | null;
   sm2_reps?: number | null;
   sm2_ivl?: number | null;
@@ -53,7 +55,7 @@ export interface SrsMeta extends SrsRow {
 }
 
 export function toSrsMeta(card: SrsSource): SrsMeta {
-  return {
+  const out: SrsMeta = {
     id: card.id ?? "",
     folder_id: card.folder_id ?? "",
     sm2_ef: card.sm2_ef,
@@ -74,6 +76,10 @@ export function toSrsMeta(card: SrsSource): SrsMeta {
     fsrs_last_review: card.fsrs_last_review,
     created_at: card.created_at
   }
+  // note_id не заполняем «вхолостую» — чтобы не тащить везде undefined/null
+  // и не засорять snapshots в тестах, где карточка вне заметочного контура.
+  if (card.note_id != null) out.note_id = card.note_id
+  return out
 }
 
 /** Upsert slim meta in-place; returns the slim record. */

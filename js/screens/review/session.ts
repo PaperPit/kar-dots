@@ -43,6 +43,8 @@ export interface ReviewSessionContext extends GradeContext {
   editBtn: HTMLElement;
   speakBtn: HTMLElement;
   folderId?: string;
+  /** Ограничение сессии одной заметкой (P2: повторение узла графа). */
+  noteId?: string;
 }
 
 export function runReviewSession(ctx: ReviewSessionContext) {
@@ -332,7 +334,12 @@ export function runReviewSession(ctx: ReviewSessionContext) {
     const stars = computeLessonStars({ stats: ctx.stats as unknown as LessonStats, sessionCards: ctx.sessionTotal });
     const known = ctx.stats.known;
     const failed = ctx.stats.failed;
-    const homeHash = ctx.folderId ? '#folder/' + ctx.folderId : '#home';
+    const homeHash = ctx.noteId
+      ? '#note/' + ctx.noteId
+      : (ctx.folderId ? '#folder/' + ctx.folderId : '#home');
+    const homeLabel = ctx.noteId
+      ? t('review.session.backToNote')
+      : (ctx.folderId ? t('review.empty.toFolder') : t('review.empty.toHome'));
     ctx.stage.append(el('div', { class: 'review-done' }, [
       el('img', { class: 'review-done-raven', src: 'icons/raven.svg', alt: '', draggable: 'false' }),
       el('h2', null, t('review.session.doneTitle')),
@@ -349,7 +356,7 @@ export function runReviewSession(ctx: ReviewSessionContext) {
         ]),
       ]),
       el('div', { class: 'review-done-actions' }, [
-        el('button', {
+        ctx.noteId ? null : el('button', {
           class: 'btn accent review-done-again',
           onclick: () => studyModePicker({
             folderId: ctx.folderId || undefined,
@@ -359,7 +366,7 @@ export function runReviewSession(ctx: ReviewSessionContext) {
         el('button', {
           class: 'btn review-done-home',
           onclick: () => nav(homeHash),
-        }, ctx.folderId ? t('review.empty.toFolder') : t('review.empty.toHome')),
+        }, homeLabel),
       ]),
     ]));
     playLessonCompleteFromStore(stars);

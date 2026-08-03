@@ -1,5 +1,5 @@
 import { store } from '../../core/state.js';
-import { el, spinner } from '../../ui/ui.js';
+import { el, spinner, toast } from '../../ui/ui.js';
 import { ICONS } from '../../ui/constants.js';
 import { crowBox, featherIcon, newBudget, reviewsBudget, reviewsTodayCount, shuffle, svgNode, trophyBox } from '../../ui/helpers.js';
 import { shell, offlineBanner, refreshDueBadge } from '../../ui/shell.js';
@@ -9,6 +9,7 @@ import {
   consumeSessionPromptSide, getLastPromptSide, consumeSessionCramLimit, getLastCramLimit,
 } from '../../lib/study-modes.js';
 import { t, tp } from '../../lib/i18n.js';
+import * as SRS from '../../lib/srs.js';
 import { studyModePicker } from './mode-picker.js';
 import { runReviewSession, type ReviewSessionContext, type ReviewMode } from './session.js';
 import type { Folder } from '../../data/types.js';
@@ -24,10 +25,12 @@ interface ReviewOpts {
   onSaved?: unknown;
   onDeleted?: unknown;
   box_id?: string | null;
+  noteId?: string | null;
 }
 
 export async function renderReview(folderId: string | null, opts: ReviewOpts = {}) {
   const session = ++reviewSession;
+  const noteId = opts.noteId ? String(opts.noteId) : null;
   const cram = !!opts.cram && !!folderId;
   const cramPromptSide = cram
     ? (consumeSessionPromptSide() || getLastPromptSide())
@@ -49,6 +52,12 @@ export async function renderReview(folderId: string | null, opts: ReviewOpts = {
   const now = Date.now();
   const budget = newBudget();
   const folder = folderId ? store.folders.find((f: Folder) => f.id === folderId) : null;
+  const noteCtx = noteId ? await store.getNote(noteId).catch(() => null) : null;
+  if (noteId && !noteCtx) {
+    toast(t('notes.toast.missing'), 'error');
+    nav('#notes');
+    return;
+  }
 
   if (algo === 'fsrs') {
     const { preloadFsrs, configureFsrs, fsrsConfigFromSettings } = await import('../../lib/srs.js');
@@ -66,9 +75,20 @@ export async function renderReview(folderId: string | null, opts: ReviewOpts = {
       : shuffle([...(await store.getFolderCards(folderId))]).slice(0, limit || undefined);
   } else {
     const dayLeft = reviewsBudget();
-    if (dayLeft <= 0) {
+    if (dayLeft <= 0 && !noteId) {
       dayLimitHit = true;
       queue = [];
+    } else if (noteId) {
+      // Note-scope: только карточки, связанные с этой заметкой. Без дневных лимитов —
+      // это точечное повторение концепта.
+      const linked = await store.getNoteCards(noteId);
+      const dueCards: typeof linked = [];
+      const newCards: typeof linked = [];
+      for (const c of linked) {
+        if (SRS.isDue(c, algo, now)) dueCards.push(c);
+        else if (SRS.isNew(c, algo)) newCards.push(c);
+      }
+      queue = shuffle(dueCards.concat(newCards));
     } else {
       const { due: dueCards, fresh: newCards } = await store.getReviewCards(folderId || null, algo, budget, now);
       queue = shuffle(dueCards.concat(newCards)).slice(0, dayLeft);
@@ -78,6 +98,19 @@ export async function renderReview(folderId: string | null, opts: ReviewOpts = {
   if (session !== reviewSession) return;
 
   if (!queue.length) {
+    if (noteId) {
+      const title = (noteCtx && (noteCtx.title || '').trim()) || t('notes.untitled');
+      shell('review', el('div', { class: 'review-done' }, [
+        trophyBox(),
+        el('h2', null, t('review.note.emptyTitle')),
+        el('p', null, t('review.note.emptyText', { title })),
+        el('button', {
+          class: 'btn primary big',
+          onclick: () => nav('#note/' + noteId),
+        }, t('review.note.back')),
+      ]));
+      return;
+    }
     if (dayLimitHit) {
       const limit = store.settings.reviewsPerDay || 50;
       const done = reviewsTodayCount();
@@ -134,6 +167,14 @@ export async function renderReview(folderId: string | null, opts: ReviewOpts = {
       }),
       folder ? t('review.intro.cramFrom', { name: folder.name }) : '',
     ])
+    : noteId
+    ? el('p', { class: 'review-intro review-intro-note' }, [
+      t('review.intro.note', {
+        n: sessionTotal,
+        cards: cardsWord,
+        title: (noteCtx && (noteCtx.title || '').trim()) || t('notes.untitled'),
+      }),
+    ])
     : el('p', { class: 'review-intro' }, [
       t('review.intro.regular', {
         mode: modeLabel,
@@ -161,7 +202,7 @@ export async function renderReview(folderId: string | null, opts: ReviewOpts = {
   const stage = el('div', null, undefined);
   const wrap = el('div', { class: 'review-wrap' }, undefined);
   const top = el('div', { class: 'review-top' }, [
-    backBtn(folderId ? '#folder/' + folderId : '#home'),
+    backBtn(noteId ? '#note/' + noteId : (folderId ? '#folder/' + folderId : '#home')),
     segs,
     counter,
     speakBtn,
@@ -171,6 +212,7 @@ export async function renderReview(folderId: string | null, opts: ReviewOpts = {
 
   const ctx: ReviewSessionContext = {
     folderId: folderId ?? undefined,
+    noteId: noteId ?? undefined,
     mode,
     cram,
     cramPromptSide: cramPromptSide ?? undefined,

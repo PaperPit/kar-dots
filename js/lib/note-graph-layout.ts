@@ -10,6 +10,8 @@ export interface LayoutNode {
   vy: number
   kind: "note" | "folder"
   title: string
+  /** Memory-state заметки — для окраски узла. */
+  memory?: "none" | "new" | "learning" | "rooted" | "fading"
 }
 
 export interface LayoutEdge {
@@ -28,7 +30,7 @@ export function nodeDegrees(edges: { from: string; to: string }[]): Map<string, 
 }
 
 export function layoutNoteGraph(
-  nodesIn: { id: string; title: string; kind: "note" | "folder" }[],
+  nodesIn: { id: string; title: string; kind: "note" | "folder"; memory?: LayoutNode["memory"] }[],
   edgesIn: { from: string; to: string; kind: "wiki" | "folder" }[],
   width: number,
   height: number,
@@ -43,6 +45,7 @@ export function layoutNoteGraph(
       id: n.id,
       title: n.title,
       kind: n.kind,
+      memory: n.memory,
       x: cx + Math.cos(a) * r + (Math.random() - 0.5) * 8,
       y: cy + Math.sin(a) * r + (Math.random() - 0.5) * 8,
       vx: 0,

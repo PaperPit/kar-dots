@@ -126,7 +126,8 @@
 }
 
 .note-conflicts,
-.note-cards {
+.note-cards,
+.note-memory {
   margin-top: var(--sp-2);
   padding: var(--sp-4);
   border: var(--bw-hair) solid var(--line);
@@ -136,7 +137,8 @@
 }
 
 .note-conflicts h4,
-.note-cards h4 {
+.note-cards h4,
+.note-memory h4 {
   margin: 0 0 var(--sp-3);
   font-family: var(--font-display);
   font-weight: var(--fw-bold);
@@ -557,4 +559,36 @@
   color: inherit;
   padding: 0 0.1em;
   border-radius: 2px;
+}
+
+/* —— memory-панель на экране заметки —— */
+.note-memory:empty { display: none; }
+.note-memory-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-2);
+}
+.note-memory-head h4 { margin: 0; }
+.note-memory-chips {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-3);
+  margin: var(--sp-2) 0;
+}
+.note-memory-summary {
+  font-size: var(--fs-small);
+  color: var(--c-ink-2);
+}
+.note-memory-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+  margin-top: var(--sp-2);
+}
+.note-memory-empty p {
+  margin: 0;
+  font-size: var(--fs-small);
+  color: var(--c-ink-2);
 }

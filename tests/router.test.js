@@ -42,7 +42,7 @@ describe('parseHash', () => {
   it('review parts feed parseReviewRoute', () => {
     const { parts } = parseHash('#review/f1/cram/10/type');
     expect(parseReviewRoute(parts)).toEqual({
-      folderId: 'f1', cram: true, mode: 'type', cramLimit: 10,
+      folderId: 'f1', noteId: null, cram: true, mode: 'type', cramLimit: 10,
     });
   });
 });

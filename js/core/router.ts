@@ -55,12 +55,13 @@ export async function route(): Promise<void> {
     } else if (name === "review") {
       const opts = reviewOpts;
       if (!opts) return;
-      const { folderId, cram, mode, cramLimit } = opts;
+      const { folderId, noteId, cram, mode, cramLimit } = opts;
       const { renderReview } = await import("../screens/review/index.js")
       await renderReview(folderId, {
         cram: cram && !!folderId,
         mode: isStudyMode(mode) ? mode : "flip",
-        cramLimit: cramLimit && cramLimit > 0 ? cramLimit : undefined
+        cramLimit: cramLimit && cramLimit > 0 ? cramLimit : undefined,
+        noteId: noteId ?? undefined,
       })
     } else if (name === "stats") {
       const { renderStats } = await import("../screens/stats/index.js")

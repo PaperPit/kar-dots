@@ -26,7 +26,10 @@ import { mountNotesGraphCanvas, type GraphCanvasHandle } from '../../ui/notes-gr
 import { selectionToCardPayload } from './selection-to-card.js';
 import { pickFolderDialog } from './pick-folder.js';
 import { confirmWikiRename } from './rename-wiki.js';
-import { t } from '../../lib/i18n.js';
+import { t, tp } from '../../lib/i18n.js';
+import { noteMemory, type NoteMemoryState } from '../../lib/note-memory.js';
+import { buildReviewHash } from '../../lib/study-modes.js';
+import type { SrsRow } from '../../lib/srs.js';
 import type { Note, Card, Folder } from '../../data/types.js';
 
 const SAVE_MS = 500;
@@ -105,6 +108,25 @@ export async function renderNote(noteId: string, opts: RenderNoteOpts = {}) {
   let allNotes = await store.listNotes({ includeConflicts: false }) as Note[];
   const folders = (store.folders || []) as Folder[];
 
+  // Memory-state агрегаты по note_id — однопроходно, для бейджей и локального графа.
+  const memoryByNoteId = buildMemoryIndex();
+  function buildMemoryIndex(): Map<string, NoteMemoryState> {
+    const algo = store.settings.algo;
+    const rows = store.getAllSrsRows() as (SrsRow & { note_id?: string | null })[];
+    const byNote = new Map<string, SrsRow[]>();
+    for (const r of rows) {
+      if (!r.note_id) continue;
+      let list = byNote.get(r.note_id);
+      if (!list) byNote.set(r.note_id, (list = []));
+      list.push(r);
+    }
+    const map = new Map<string, NoteMemoryState>();
+    for (const [id, cards] of byNote) {
+      map.set(id, noteMemory({ cards, algo }).state);
+    }
+    return map;
+  }
+
   const titleInput = el('input', {
     class: 'note-title-input',
     type: 'text',
@@ -161,9 +183,69 @@ export async function renderNote(noteId: string, opts: RenderNoteOpts = {}) {
     : null;
 
   const cardsBox = el('div', { class: 'note-cards' });
+  const memoryBox = el('div', { class: 'note-memory' });
+
+  function renderMemoryPanel(cards: SrsRow[]) {
+    const algo = store.settings.algo;
+    const mem = noteMemory({ cards, algo });
+    memoryBox.replaceChildren();
+
+    if (mem.state === 'none') {
+      memoryBox.append(
+        el('div', { class: 'note-memory-empty' }, [
+          el('p', { class: 'muted' }, t('notes.memory.noCardsHint')),
+        ])
+      );
+      return;
+    }
+
+    const state = mem.state as NoteMemoryState;
+    const chips = el('div', { class: 'note-memory-chips' }, [
+      el('span', { class: 'note-memory-badge note-memory-badge--' + state }, [
+        el('span', { class: 'note-memory-dot', 'aria-hidden': 'true' }),
+        t(`notes.memory.state.${state}`),
+      ]),
+      el('span', { class: 'muted note-memory-summary' },
+        mem.due > 0
+          ? t('notes.memory.summary', {
+            total: String(mem.total),
+            due: String(mem.due),
+            cards: tp('common.card', mem.total),
+          })
+          : t('notes.memory.summaryNoDue', {
+            total: String(mem.total),
+            cards: tp('common.card', mem.total),
+          })),
+    ]);
+
+    const actions = el('div', { class: 'note-memory-actions' }, [
+      mem.due > 0
+        ? el('button', {
+          class: 'btn accent small',
+          type: 'button',
+          onclick: () => nav(buildReviewHash(null, { noteId })),
+        }, t('notes.memory.reviewDue', { n: String(mem.due) }))
+        : null,
+      el('button', {
+        class: 'btn ghost small',
+        type: 'button',
+        onclick: () => nav(buildReviewHash(null, { noteId })),
+      }, t('notes.memory.reviewAll')),
+    ]);
+
+    memoryBox.append(
+      el('div', { class: 'note-memory-head' }, [
+        el('h4', null, t('notes.memory.title')),
+      ]),
+      chips,
+      actions,
+    );
+  }
 
   async function refreshCards() {
     const cards = await store.getNoteCards(noteId) as Card[];
+    const rows = store.getAllSrsRows() as (SrsRow & { note_id?: string | null })[];
+    renderMemoryPanel(rows.filter((r) => r.note_id === noteId));
     cardsBox.replaceChildren(
       el('div', { class: 'note-cards-head' }, [el('h4', null, t('notes.cards.title'))]),
       el('p', { class: 'muted note-cards-hint' }, t('notes.cards.linkHint')),
@@ -236,6 +318,9 @@ export async function renderNote(noteId: string, opts: RenderNoteOpts = {}) {
     if (!ego.nodes.length) {
       localGraphHost.append(el('p', { class: 'muted' }, t('notes.localGraph.empty')));
       return;
+    }
+    for (const n of ego.nodes) {
+      if (n.kind === 'note') n.memory = memoryByNoteId.get(n.id) || 'none';
     }
     localGraph = mountNotesGraphCanvas({
       parent: localGraphHost,
@@ -551,7 +636,7 @@ export async function renderNote(noteId: string, opts: RenderNoteOpts = {}) {
     offlineBanner(),
     el('div', { class: 'note-editor-page' }, [
       head, banner, titleInput, metaRow, toolbar, split,
-      localGraphBox, backlinksHost, unlinkedHost, conflictBox, cardsBox,
+      memoryBox, localGraphBox, backlinksHost, unlinkedHost, conflictBox, cardsBox,
     ]),
   ]), null);
 

@@ -38,6 +38,8 @@ export interface NoteGraphNode {
   kind: "note" | "folder"
   folderId?: string | null
   tags?: string[]
+  /** Memory-state (передаётся из store на этапе рендера графа). */
+  memory?: "none" | "new" | "learning" | "rooted" | "fading"
 }
 
 export interface NoteGraphEdge {

@@ -895,6 +895,27 @@ export const ru = {
   "notes.graph.emptyTitle": "Граф пуст",
   "notes.graph.emptyText":
     "Создайте заметки, положите их в папки и свяжите через [[заголовок]].",
+  "notes.memory.title": "Память",
+  "notes.memory.all": "Все состояния",
+  "notes.memory.filter": "Фильтр по памяти",
+  "notes.memory.state.none": "Без карточек",
+  "notes.memory.state.new": "Новое",
+  "notes.memory.state.learning": "Учится",
+  "notes.memory.state.rooted": "Закрепилось",
+  "notes.memory.state.fading": "Забывается",
+  "notes.memory.summary": "{total} {cards} · {due} к повторению",
+  "notes.memory.summaryNoDue": "{total} {cards} · всё выучено",
+  "notes.memory.reviewDue": "Повторить {n}",
+  "notes.memory.reviewAll": "Повторить всё",
+  "notes.memory.nextDue": "Следующее повторение {when}",
+  "notes.memory.noCardsHint":
+    "Выделите фрагмент текста и нажмите «Карточка из выделения» — и заметка подключится к интервальному повторению.",
+  "review.intro.note": "Заметка · {n} {cards} — «{title}»",
+  "review.note.emptyTitle": "В этой заметке всё выучено",
+  "review.note.emptyText":
+    "Связанные с «{title}» карточки не требуют повторения прямо сейчас.",
+  "review.note.back": "К заметке",
+  "review.session.backToNote": "К заметке",
 } as const satisfies Record<string, MessageValue>
 
 export type MessageKey = keyof typeof ru

@@ -54,6 +54,7 @@ export function isStudyMode(v: unknown): v is Mode {
 
 export interface ReviewRoute {
   folderId: string | null;
+  noteId: string | null;
   cram: boolean;
   mode: Mode;
   cramLimit: number | null;
@@ -61,16 +62,24 @@ export interface ReviewRoute {
 
 export function parseReviewRoute(parts: string[]): ReviewRoute {
   let folderId: string | null = null;
+  let noteId: string | null = null;
   let cram = false;
   let mode: Mode = "flip";
   let cramLimit: number | null = null;
   const rest = parts.slice(1);
-  if (!rest.length) return { folderId, cram, mode, cramLimit };
+  if (!rest.length) return { folderId, noteId, cram, mode, cramLimit };
 
   let i = 0;
   const first = rest[0];
   if (MODES.has(first as Mode)) {
-    return { folderId: null, cram: false, mode: first as Mode, cramLimit: null };
+    return { folderId: null, noteId: null, cram: false, mode: first as Mode, cramLimit: null };
+  }
+  if (first === "note" && rest[1]) {
+    noteId = decodeURIComponent(rest[1] ?? "");
+    i = 2;
+    const modeRaw = rest[i];
+    if (modeRaw && MODES.has(modeRaw as Mode)) mode = modeRaw as Mode;
+    return { folderId: null, noteId, cram: false, mode, cramLimit: null };
   }
 
   folderId = first ?? null;
@@ -91,14 +100,19 @@ export function parseReviewRoute(parts: string[]): ReviewRoute {
     if (modeRaw && MODES.has(modeRaw as Mode)) mode = modeRaw as Mode;
   }
 
-  return { folderId, cram, mode, cramLimit };
+  return { folderId, noteId, cram, mode, cramLimit };
 }
 
 export function buildReviewHash(
   folderId: string | null,
-  { cram = false, mode = "flip", cramLimit = null }: { cram?: boolean; mode?: Mode; cramLimit?: number | null } = {}
+  { cram = false, mode = "flip", cramLimit = null, noteId = null }: { cram?: boolean; mode?: Mode; cramLimit?: number | null; noteId?: string | null } = {}
 ): string {
   const segs: string[] = ["review"];
+  if (noteId) {
+    segs.push("note", encodeURIComponent(noteId));
+    if (mode && mode !== "flip") segs.push(mode);
+    return "#" + segs.join("/");
+  }
   if (folderId) segs.push(folderId);
   if (cram) segs.push("cram");
   if (cram && cramLimit != null && cramLimit > 0) segs.push(String(cramLimit));

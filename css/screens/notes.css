@@ -99,9 +99,54 @@
   overflow: hidden;
 }
 
+.notes-row-head {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  width: 100%;
+}
+
+.notes-row-title {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
 .notes-row-meta {
   font-size: var(--fs-micro);
   color: var(--ink-faint);
+}
+
+/* —— memory-бейдж —— */
+.note-memory-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-1);
+  padding: 2px var(--sp-2);
+  border-radius: var(--r-1);
+  border: var(--bw-hair) solid var(--c-ink-3);
+  background: var(--bg-sunken);
+  color: var(--c-ink-2);
+  font-size: var(--fs-micro);
+  font-family: var(--font-display);
+  font-weight: var(--fw-bold);
+  letter-spacing: var(--ls-label);
+  white-space: nowrap;
+}
+.note-memory-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--c-ash);
+}
+.note-memory-badge--none .note-memory-dot { background: var(--c-ash); }
+.note-memory-badge--new .note-memory-dot { background: var(--c-teak); }
+.note-memory-badge--learning .note-memory-dot { background: var(--c-petrol); }
+.note-memory-badge--rooted .note-memory-dot { background: var(--c-moss); }
+.note-memory-badge--fading .note-memory-dot { background: var(--c-ochre); }
+.note-memory-badge--fading {
+  border-color: var(--c-ochre);
+  color: var(--c-ink);
+  background: color-mix(in srgb, var(--c-ochre) 14%, transparent);
 }
 
 .notes-empty {

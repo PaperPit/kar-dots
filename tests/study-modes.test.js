@@ -10,31 +10,43 @@ import {
 describe('parseReviewRoute', () => {
   it('defaults for bare review', () => {
     expect(parseReviewRoute(['review'])).toEqual({
-      folderId: null, cram: false, mode: 'flip', cramLimit: null,
+      folderId: null, noteId: null, cram: false, mode: 'flip', cramLimit: null,
+    });
+  });
+
+  it('note-scoped route', () => {
+    expect(parseReviewRoute(['review', 'note', 'n1'])).toEqual({
+      folderId: null, noteId: 'n1', cram: false, mode: 'flip', cramLimit: null,
+    });
+  });
+
+  it('note-scoped route with mode', () => {
+    expect(parseReviewRoute(['review', 'note', 'n1', 'type'])).toEqual({
+      folderId: null, noteId: 'n1', cram: false, mode: 'type', cramLimit: null,
     });
   });
 
   it('mode-only global review', () => {
     expect(parseReviewRoute(['review', 'voice'])).toEqual({
-      folderId: null, cram: false, mode: 'voice', cramLimit: null,
+      folderId: null, noteId: null, cram: false, mode: 'voice', cramLimit: null,
     });
   });
 
   it('folder with mode', () => {
     expect(parseReviewRoute(['review', 'abc', 'type'])).toEqual({
-      folderId: 'abc', cram: false, mode: 'type', cramLimit: null,
+      folderId: 'abc', noteId: null, cram: false, mode: 'type', cramLimit: null,
     });
   });
 
   it('cram with limit and mode', () => {
     expect(parseReviewRoute(['review', 'abc', 'cram', '20', 'combo'])).toEqual({
-      folderId: 'abc', cram: true, mode: 'combo', cramLimit: 20,
+      folderId: 'abc', noteId: null, cram: true, mode: 'combo', cramLimit: 20,
     });
   });
 
   it('cram without explicit mode stays flip', () => {
     expect(parseReviewRoute(['review', 'abc', 'cram', '20'])).toEqual({
-      folderId: 'abc', cram: true, mode: 'flip', cramLimit: 20,
+      folderId: 'abc', noteId: null, cram: true, mode: 'flip', cramLimit: 20,
     });
   });
 });
@@ -45,7 +57,25 @@ describe('buildReviewHash', () => {
     expect(hash).toBe('#review/f1/cram/15/type');
     const parts = hash.slice(1).split('/');
     expect(parseReviewRoute(parts)).toEqual({
-      folderId: 'f1', cram: true, mode: 'type', cramLimit: 15,
+      folderId: 'f1', noteId: null, cram: true, mode: 'type', cramLimit: 15,
+    });
+  });
+
+  it('round-trips note-scoped route', () => {
+    const hash = buildReviewHash(null, { noteId: 'n42', mode: 'flip' });
+    expect(hash).toBe('#review/note/n42');
+    const parts = hash.slice(1).split('/');
+    expect(parseReviewRoute(parts)).toEqual({
+      folderId: null, noteId: 'n42', cram: false, mode: 'flip', cramLimit: null,
+    });
+  });
+
+  it('round-trips note-scoped route with mode', () => {
+    const hash = buildReviewHash(null, { noteId: 'n42', mode: 'voice' });
+    expect(hash).toBe('#review/note/n42/voice');
+    const parts = hash.slice(1).split('/');
+    expect(parseReviewRoute(parts)).toEqual({
+      folderId: null, noteId: 'n42', cram: false, mode: 'voice', cramLimit: null,
     });
   });
 });

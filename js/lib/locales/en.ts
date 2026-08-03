@@ -873,4 +873,25 @@ export const en: Record<string, MessageValue> = {
   "notes.graph.emptyTitle": "Graph is empty",
   "notes.graph.emptyText":
     "Create notes, put them in folders, and link with [[title]].",
+  "notes.memory.title": "Memory",
+  "notes.memory.all": "All states",
+  "notes.memory.filter": "Filter by memory",
+  "notes.memory.state.none": "No cards",
+  "notes.memory.state.new": "New",
+  "notes.memory.state.learning": "Learning",
+  "notes.memory.state.rooted": "Rooted",
+  "notes.memory.state.fading": "Fading",
+  "notes.memory.summary": "{total} {cards} · {due} due",
+  "notes.memory.summaryNoDue": "{total} {cards} · all learned",
+  "notes.memory.reviewDue": "Review {n}",
+  "notes.memory.reviewAll": "Review all",
+  "notes.memory.nextDue": "Next review {when}",
+  "notes.memory.noCardsHint":
+    "Select a fragment and press “Card from selection” — the note joins spaced repetition.",
+  "review.intro.note": "Note · {n} {cards} — «{title}»",
+  "review.note.emptyTitle": "All learned in this note",
+  "review.note.emptyText":
+    "Cards linked to «{title}» don't need review right now.",
+  "review.note.back": "Back to note",
+  "review.session.backToNote": "Back to note",
 }

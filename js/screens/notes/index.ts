@@ -4,8 +4,10 @@ import { backBtn, nav } from '../../ui/navigation.js';
 import { debounce, svgNode } from '../../ui/helpers.js';
 import { notePreview, escapeHtml } from '../../lib/markdown.js';
 import { ICONS } from '../../ui/constants.js';
-import { t } from '../../lib/i18n.js';
+import { t, tp } from '../../lib/i18n.js';
 import { store } from '../../core/state.js';
+import { noteMemory, noteMemoryLabelKey, type NoteMemoryState, type NoteMemory } from '../../lib/note-memory.js';
+import type { SrsRow } from '../../lib/srs.js';
 import type { Note, Folder } from '../../data/types.js';
 
 const SEARCH_MS = 200;
@@ -37,6 +39,21 @@ export async function renderNotes(opts: NotesRouteOpts = {}) {
 
   const folders = (store.folders || []) as Folder[];
   const folderName = new Map(folders.map((f) => [f.id, f.name || f.id]));
+
+  // Агрегация SRS по note_id — дешёвая, по in-memory slim meta.
+  const algo = store.settings.algo;
+  const rows = store.getAllSrsRows() as (SrsRow & { note_id?: string | null })[];
+  const byNote = new Map<string, SrsRow[]>();
+  for (const r of rows) {
+    if (!r.note_id) continue;
+    let list = byNote.get(r.note_id);
+    if (!list) byNote.set(r.note_id, (list = []));
+    list.push(r);
+  }
+  const memoryByNote = new Map<string, NoteMemory>();
+  for (const [noteId, cards] of byNote) {
+    memoryByNote.set(noteId, noteMemory({ cards, algo }));
+  }
 
   const head = el('div', { class: 'page-head page-head--wrap' }, [
     backBtn('#home'),
@@ -80,8 +97,21 @@ export async function renderNotes(opts: NotesRouteOpts = {}) {
   ]) as HTMLSelectElement;
   folderFilter.value = activeFolder;
 
+  let activeMemory: NoteMemoryState | '' = '';
+
+  const memoryFilter = el('select', {
+    class: 'notes-filter-select',
+    'aria-label': t('notes.memory.filter'),
+  }, [
+    el('option', { value: '' }, t('notes.memory.all')),
+    ...(['fading', 'learning', 'rooted', 'new', 'none'] as NoteMemoryState[]).map((s) =>
+      el('option', { value: s }, t(noteMemoryLabelKey(s)))
+    ),
+  ]) as HTMLSelectElement;
+
   const filters = el('div', { class: 'notes-filters' }, [
     folderFilter,
+    memoryFilter,
     el('div', { class: 'notes-active-filters' }),
   ]);
   const activeFilters = filters.querySelector('.notes-active-filters') as HTMLElement;
@@ -113,14 +143,29 @@ export async function renderNotes(opts: NotesRouteOpts = {}) {
 
   async function refresh(query = '') {
     const q = query.trim();
-    const notes = await store.listNotes({
+    let notes = await store.listNotes({
       query: q || undefined,
       folderId: activeFolder || undefined,
       tag: activeTag || undefined,
     }) as Note[];
+    if (activeMemory) {
+      notes = notes.filter((n) => (memoryByNote.get(n.id)?.state || 'none') === activeMemory);
+    }
     list.replaceChildren();
     empty.hidden = notes.length > 0;
     for (const n of notes) list.append(noteRow(n, q));
+  }
+
+  function memoryBadge(mem: NoteMemory | undefined) {
+    if (!mem || mem.state === 'none') return null;
+    const state = mem.state as NoteMemoryState;
+    return el('span', {
+      class: 'note-memory-badge note-memory-badge--' + state,
+      title: t(`notes.memory.state.${state}`) + (mem.due > 0 ? ` · ${mem.due} ${tp('common.card', mem.due)}` : ''),
+    }, [
+      el('span', { class: 'note-memory-dot', 'aria-hidden': 'true' }),
+      mem.due > 0 ? String(mem.due) : t(`notes.memory.state.${state}`),
+    ]);
   }
 
   function noteRow(n: Note, query = '') {
@@ -128,12 +173,17 @@ export async function renderNotes(opts: NotesRouteOpts = {}) {
     const tags = n.tags || [];
     const folderLabel = n.folder_id ? folderName.get(n.folder_id) : '';
     const previewText = notePreview(n.body) || t('notes.empty.body');
+    const mem = memoryByNote.get(n.id);
+    const memEl = memoryBadge(mem);
     return el('button', {
       class: 'notes-row',
       type: 'button',
       onclick: () => nav('#note/' + n.id),
     }, [
-      el('div', { class: 'notes-row-title' }, highlightPrefix(title, query)),
+      el('div', { class: 'notes-row-head' }, [
+        el('div', { class: 'notes-row-title' }, highlightPrefix(title, query)),
+        memEl,
+      ]),
       el('div', { class: 'notes-row-preview muted' }, highlightPrefix(previewText, query)),
       el('div', { class: 'notes-row-meta muted' }, [
         formatUpdated(n.updated_at),
@@ -154,6 +204,11 @@ export async function renderNotes(opts: NotesRouteOpts = {}) {
     if (activeFolder) nav('#notes/folder/' + activeFolder);
     else if (activeTag) nav('#notes/tag/' + encodeURIComponent(activeTag));
     else nav('#notes');
+    void refresh(search.value);
+  });
+
+  memoryFilter.addEventListener('change', () => {
+    activeMemory = memoryFilter.value as NoteMemoryState | '';
     void refresh(search.value);
   });
 

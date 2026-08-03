@@ -5,7 +5,9 @@ import { t } from '../../lib/i18n.js';
 import { store } from '../../core/state.js';
 import { setRouteDisposer } from '../../core/route-lifecycle.js';
 import { buildNoteGraph } from '../../lib/note-links.js';
+import { noteMemory } from '../../lib/note-memory.js';
 import { mountNotesGraphCanvas, type GraphCanvasHandle } from '../../ui/notes-graph-canvas.js';
+import type { SrsRow } from '../../lib/srs.js';
 import type { Note, Folder } from '../../data/types.js';
 
 /** Экран графа: заметки, папки и wiki-связи. */
@@ -13,6 +15,22 @@ export async function renderNotesGraph() {
   const notes = await store.listNotes({}) as Note[];
   const folders = (store.folders || []) as Folder[];
   const graph = buildNoteGraph(notes, folders);
+
+  // Memory-state агрегаты для окраски узлов.
+  const algo = store.settings.algo;
+  const rows = store.getAllSrsRows() as (SrsRow & { note_id?: string | null })[];
+  const byNote = new Map<string, SrsRow[]>();
+  for (const r of rows) {
+    if (!r.note_id) continue;
+    let list = byNote.get(r.note_id);
+    if (!list) byNote.set(r.note_id, (list = []));
+    list.push(r);
+  }
+  for (const n of graph.nodes) {
+    if (n.kind !== 'note') continue;
+    const cards = byNote.get(n.id);
+    n.memory = cards ? noteMemory({ cards, algo }).state : 'none';
+  }
 
   const head = el('div', { class: 'page-head page-head--wrap' }, [
     backBtn('#notes'),

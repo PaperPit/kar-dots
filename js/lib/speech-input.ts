@@ -39,7 +39,7 @@ export function releaseSpeechSession(
     .then(() => {
       stopFn({ cancel: true })
     })
-    .catch(() => {})
+    .catch(() => { console.warn('[kar] cancelSpeech failed'); })
   return speechDrain
 }
 
@@ -202,7 +202,7 @@ function listenOnceNative(options: ListenOptions = {}): () => Promise<void> {
 
   async function teardown(): Promise<void> {
     stopPolling()
-    await Promise.all(handles.splice(0).map((h) => h.remove().catch(() => {})))
+    await Promise.all(handles.splice(0).map((h) => h.remove().catch(() => { console.warn('[kar] handle remove failed'); })))
   }
 
   function finish(onResultArg?: string): void {
@@ -218,7 +218,7 @@ function listenOnceNative(options: ListenOptions = {}): () => Promise<void> {
       const last = await withTimeout(SR.getLastPartialResult(), 1500, "partial timeout")
       const text = pickNativeTranscript(last as NativeSpeechEvent)
       if (text) transcript = text
-    } catch (e) {}
+    } catch (e) { console.warn('[kar] refreshTranscript failed:', e); }
   }
 
   function startPolling(): void {
@@ -229,7 +229,7 @@ function listenOnceNative(options: ListenOptions = {}): () => Promise<void> {
         .then(() => {
           if (transcript) onInterim?.(transcript)
         })
-        .catch(() => {})
+        .catch(() => { console.warn('[kar] poll refreshTranscript failed'); })
     }, POLL_MS)
   }
 
@@ -247,7 +247,7 @@ function listenOnceNative(options: ListenOptions = {}): () => Promise<void> {
           try {
             await SR.stop()
           } catch (e) {
-            await SR.forceStop().catch(() => {})
+            await SR.forceStop().catch(() => { console.warn('[kar] forceStop failed'); })
           }
         })(),
         STOP_TIMEOUT_MS,
@@ -257,7 +257,7 @@ function listenOnceNative(options: ListenOptions = {}): () => Promise<void> {
       try {
         const sr = SR;
         if (sr) await sr.forceStop().catch(() => sr.stop())
-      } catch (e2) {}
+      } catch (e2) { console.warn('[kar] haltRecognition forceStop failed:', e2); }
     }
     await sleep(250)
     await refreshTranscript()
@@ -277,7 +277,7 @@ function listenOnceNative(options: ListenOptions = {}): () => Promise<void> {
       try {
         const sr = SR;
         if (sr) await sr.forceStop().catch(() => sr.stop())
-      } catch (e) {}
+      } catch (e) { console.warn('[kar] begin forceStop failed:', e); }
 
       if (!(await ensureNativePermissions(SR))) {
         if (!stopped) onError?.(new Error("Нет доступа к микрофону"))
@@ -461,7 +461,7 @@ function listenOnceWeb(options: ListenOptions = {}): () => Promise<void> {
     }
     try {
       rec.stop()
-    } catch (e) {}
+    } catch (e) { console.warn('[kar] listenOnceWeb stop failed:', e); }
     await Promise.race([endPromise, sleep(4000)])
     if (!delivered) finish("")
   }

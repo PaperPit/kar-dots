@@ -56,9 +56,9 @@ export class MiniSupabase {
     try {
       const raw = localStorage.getItem(LS_KEY)
       if (raw) this.session = JSON.parse(raw)
-    } catch (e) {
-      /* ignore */
-    }
+} catch (e) {
+       console.warn('[kar] session parse failed:', e);
+     }
   }
 
   _saveSession(s: AuthSession | null) {
@@ -123,7 +123,7 @@ export class MiniSupabase {
         headers: this._authHeaders()
       })
     } catch (e) {
-      /* offline */
+      console.error('[kar] signOut network error:', e);
     }
     this._saveSession(null)
   }
@@ -318,9 +318,9 @@ export class MiniSupabase {
         method: "DELETE",
         headers: this._authHeaders()
       })
-    } catch (e) {
-      /* некритично */
-    }
+} catch (e) {
+       console.warn('[kar] deleteFile failed:', e);
+     }
   }
 }
 

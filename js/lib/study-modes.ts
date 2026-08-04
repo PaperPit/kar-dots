@@ -133,7 +133,7 @@ export function setLastStudyMode(mode: Mode): void {
   if (!MODES.has(mode)) return;
   try {
     localStorage.setItem(STORAGE_KEY, mode);
-  } catch (e) {}
+  } catch (e) { console.warn('[kar] setLastStudyMode failed:', e); }
 }
 
 /** Режим текущей сессии — надёжнее hash при переходе из picker. */
@@ -141,7 +141,7 @@ export function setSessionStudyMode(mode: Mode): void {
   if (!MODES.has(mode)) return;
   try {
     sessionStorage.setItem(SESSION_KEY, mode);
-  } catch (e) {}
+  } catch (e) { console.warn('[kar] setSessionStudyMode failed:', e); }
 }
 
 export function resolveStudyMode(urlMode: string): Mode {
@@ -152,7 +152,7 @@ export function resolveStudyMode(urlMode: string): Mode {
       sessionStorage.removeItem(SESSION_KEY);
       return pending as Mode;
     }
-  } catch (e) {}
+  } catch (e) { console.warn('[kar] resolveStudyMode sessionStorage failed:', e); }
   if (fromUrl !== "flip") return fromUrl;
   const last = getLastStudyMode();
   if (last && last !== "flip") return last;
@@ -186,14 +186,14 @@ export function setLastPromptSide(side: "front" | "back"): void {
   const s = normalizePromptSide(side);
   try {
     localStorage.setItem(PROMPT_SIDE_KEY, s);
-  } catch (e) {}
+  } catch (e) { console.warn('[kar] setLastPromptSide failed:', e); }
 }
 
 export function setSessionPromptSide(side: "front" | "back"): void {
   const s = normalizePromptSide(side);
   try {
     sessionStorage.setItem(SESSION_PROMPT_SIDE_KEY, s);
-  } catch (e) {}
+  } catch (e) { console.warn('[kar] setSessionPromptSide failed:', e); }
   setLastPromptSide(s);
 }
 
@@ -223,7 +223,7 @@ export function setLastCramLimit(limit: number | null): void {
   try {
     if (limit == null || limit <= 0) localStorage.removeItem(CRAM_LIMIT_KEY);
     else localStorage.setItem(CRAM_LIMIT_KEY, String(limit));
-  } catch (e) {}
+  } catch (e) { console.warn('[kar] setLastCramLimit failed:', e); }
 }
 
 /** Лимит карточек для закрепления (null = все). Считывается один раз при старте. */
@@ -232,7 +232,7 @@ export function setSessionCramLimit(limit: number | null): void {
     if (limit == null || limit <= 0) sessionStorage.removeItem(SESSION_CRAM_LIMIT_KEY);
     else sessionStorage.setItem(SESSION_CRAM_LIMIT_KEY, String(limit));
     setLastCramLimit(limit);
-  } catch (e) {}
+  } catch (e) { console.warn('[kar] setSessionCramLimit failed:', e); }
 }
 
 export function consumeSessionCramLimit(): number | null {

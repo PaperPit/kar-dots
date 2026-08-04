@@ -22,7 +22,7 @@ export function getHeroView(): HeroView {
 export function setHeroView(view: HeroView): void {
   try {
     localStorage.setItem(HERO_VIEW_KEY, view)
-  } catch {}
+  } catch (e) { console.warn('[kar] setHeroView failed:', e); }
 }
 
 function greetingText(): string {

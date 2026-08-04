@@ -28,7 +28,7 @@ export { shuffle }
 export function haptic(ms: number): void {
   try {
     if (navigator.vibrate) navigator.vibrate(ms || 8)
-  } catch (e) {}
+  } catch (e) { console.warn('[kar] haptic failed:', e); }
 }
 
 /**

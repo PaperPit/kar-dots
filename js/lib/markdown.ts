@@ -78,7 +78,7 @@ function inlineMarkdown(text: string, opts: MarkdownRenderOpts = {}): string {
     const { target, anchor } = splitWikiTarget(rawTarget)
     if (!target) return ""
     const html = opts.embedResolver ? opts.embedResolver(target, anchor) : null
-    if (html != null) return park(html)
+    if (html != null) return park(sanitizeEmbedHtml(html))
     const title = wikiTargetLabel(target, anchor)
     return park(`<span class="md-embed md-embed--missing" title="${escapeHtml(title)}">${escapeHtml(title)}</span>`)
   })
@@ -160,6 +160,44 @@ function renderTable(lines: string[], start: number, opts: MarkdownRenderOpts): 
     "</table>",
   ].join("\n")
   return { html, next: i }
+}
+
+const ALLOWED_EMBED_TAGS = new Set(["a", "aside", "div", "p", "br", "b", "strong", "i", "em", "u", "mark", "code", "pre", "span", "h1", "h2", "h3", "h4", "h5", "h6", "ul", "ol", "li", "blockquote", "table", "thead", "tbody", "tr", "th", "td", "img"]);
+
+function sanitizeEmbedHtml(html: string): string {
+  const doc = new DOMParser().parseFromString("<div>" + html + "</div>", "text/html");
+  function clean(node: Node): string {
+    const out: string[] = [];
+    node.childNodes.forEach((ch) => {
+      if (ch.nodeType === Node.TEXT_NODE) {
+        out.push(escapeHtml(ch.textContent || ""));
+      } else if (ch instanceof Element) {
+        const tag = ch.tagName.toLowerCase();
+        if (ALLOWED_EMBED_TAGS.has(tag)) {
+          const attrs = Array.from(ch.attributes)
+            .filter((a) => a.name === "class" || a.name === "href" || a.name === "title" || a.name.startsWith("data-"))
+            .map((a) => {
+              const val = a.name === "href" ? safeHrefAttr(a.value) : escapeHtml(a.value);
+              return val ? ` ${a.name}="${val}"` : "";
+            })
+            .join("");
+          out.push(`<${tag}${attrs}>${clean(ch)}</${tag}>`);
+        } else {
+          out.push(clean(ch));
+        }
+      }
+    });
+    return out.join("");
+  }
+  const first = doc.body.firstChild;
+  if (!first) return "";
+  return clean(first);
+}
+
+function safeHrefAttr(href: string): string | null {
+  const h = href.trim();
+  if (/^(https?:|mailto:|#)/i.test(h)) return escapeHtml(h);
+  return null;
 }
 
 /**

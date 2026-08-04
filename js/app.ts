@@ -18,7 +18,6 @@ function dismissBootSplash() {
 }
 
 async function boot() {
-  // Первым делом — сетка безопасности: всё, что упадёт ниже, будет видно.
   initGlobalErrors();
   initTheme();
   initMotionUi();
@@ -49,11 +48,9 @@ async function boot() {
       setStore(cloud);
       applyUiLocale(cloud.settings.language);
       attachCloudDataReload(cloud);
-      // Пустое зеркало при старте: дождаться облака, иначе первый кадр — «Пока пусто».
       if (navigator.onLine && !cloud.folders.length && !cloud.boxes.length) {
         await cloud.whenCloudReady();
       }
-      // Отправить локальную статистику дня в облако (и забрать чужую), пока splash ещё виден.
       if (navigator.onLine) {
         await cloud.whenCloudReady();
         await cloud.syncActivityNow();
@@ -82,6 +79,30 @@ boot().catch(e => {
   const note = document.querySelector('#app .auth-note');
   if (note) note.textContent = t('app.bootFailed');
 });
+
+let deferredPrompt: Event | null = null;
+
+window.addEventListener('beforeinstallprompt', (e) => {
+  e.preventDefault();
+  deferredPrompt = e;
+});
+
+window.addEventListener('appinstalled', () => {
+  deferredPrompt = null;
+});
+
+export function isAppInstalled(): boolean {
+  return window.matchMedia('(display-mode: standalone)').matches
+    || (window.navigator as any).standalone === true;
+}
+
+export function promptInstall(): Promise<boolean> {
+  if (deferredPrompt) {
+    (deferredPrompt as any).prompt();
+    return (deferredPrompt as any).userChoice.then((choice: { outcome: string }) => choice.outcome === 'accepted');
+  }
+  return Promise.resolve(false);
+}
 
 if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) {
   navigator.serviceWorker.register('sw.js')

@@ -7,7 +7,7 @@ export function newBudget() {
   let rec = { date: "", count: 0 }
   try {
     rec = JSON.parse(localStorage.getItem("kar_new_today") || "{}")
-  } catch (e) {}
+  } catch (e) { console.warn('[kar] newBudget parse failed:', e); }
   const today = new Date().toDateString()
   if (rec.date !== today) rec = { date: today, count: 0 }
   return Math.max(0, (s.newPerDay || 20) - (rec.count || 0))
@@ -19,7 +19,7 @@ export function spendNewBudget() {
   try {
     rec = JSON.parse(localStorage.getItem("kar_new_today") || "{}")
     if (rec.date !== today) rec = { date: today, count: 0 }
-  } catch (e) {}
+  } catch (e) { console.warn('[kar] spendNewBudget parse failed:', e); }
   rec.count = (rec.count || 0) + 1
   localStorage.setItem("kar_new_today", JSON.stringify(rec))
 }
@@ -31,6 +31,7 @@ export function refundNewBudget() {
     rec = JSON.parse(localStorage.getItem("kar_new_today") || "{}")
     if (rec.date !== today) return
   } catch (e) {
+    console.warn('[kar] refundNewBudget parse failed:', e);
     return
   }
   rec.count = Math.max(0, (rec.count || 0) - 1)

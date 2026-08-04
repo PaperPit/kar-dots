@@ -9,7 +9,7 @@ export function motionEnabled(): boolean {
 
 function run(el: HTMLElement | null, keyframes: Record<string, unknown>, options: Record<string, unknown>): Promise<void> {
   if (!el) return Promise.resolve()
-  return animate(el, keyframes, options).finished.catch(() => {})
+  return animate(el, keyframes, options).finished.catch((e) => console.warn('[kar] motion animation failed:', e))
 }
 
 export function initMotionUi(): void {

@@ -100,9 +100,12 @@ export function removeSrsMetaForFolder(list: SrsMeta[], folderId: string): SrsMe
 }
 
 export function countSrsMetaByFolder(srsMeta: SrsMeta[], folders: { id: string }[]): Map<string, number> {
-  const counts = new Map<string, number>()
-  for (const f of folders) {
-    counts.set(f.id, srsMeta.filter((c) => c.folder_id === f.id).length)
-  }
-  return counts
-}
+   const counts = new Map<string, number>()
+   for (const c of srsMeta) {
+     counts.set(c.folder_id, (counts.get(c.folder_id) || 0) + 1)
+   }
+   for (const f of folders) {
+     counts.set(f.id, counts.get(f.id) || 0)
+   }
+   return counts
+ }

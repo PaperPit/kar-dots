@@ -117,7 +117,7 @@ export function createVoiceModeCard(card: SrsCard, ctx: VoiceCtx) {
   async function cleanupListen(silent: boolean = true) {
     const fn = stopListen;
     stopListen = null;
-    if (fn) await fn({ cancel: silent }).catch(() => {});
+    if (fn) await fn({ cancel: silent }).catch(() => { console.warn('[kar] voice cleanupListen failed'); });
     setUiIdle();
   }
 

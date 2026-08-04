@@ -124,7 +124,25 @@ export function homeStreakCalendarCard(): HTMLElement {
 
   const expand = el("div", { class: "streak-cal-expand", id: "streak-cal-expand" }, [
     weekdays,
-    grid
+    grid,
+    el("div", { class: "home-cal-legend" }, [
+      el("span", null, [
+        el("span", { class: "home-cal-legend-dot", style: { background: "var(--bg-sunken)" } }),
+        t("home.cal.legendLess"),
+      ]),
+      el("span", null, [
+        el("span", { class: "home-cal-legend-dot", style: { background: "var(--c-petrol)", opacity: ".4" } }),
+        "",
+      ]),
+      el("span", null, [
+        el("span", { class: "home-cal-legend-dot", style: { background: "var(--c-petrol)", opacity: ".7" } }),
+        "",
+      ]),
+      el("span", null, [
+        el("span", { class: "home-cal-legend-dot", style: { background: "var(--accent)" } }),
+        t("home.cal.legendMore"),
+      ]),
+    ]),
   ])
   toggleBtn.setAttribute("aria-controls", "streak-cal-expand")
   const card = el("div", { class: "streak-cal-card streak-cal-collapsible" }, [head, expand])

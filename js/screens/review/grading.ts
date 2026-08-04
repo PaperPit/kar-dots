@@ -270,15 +270,22 @@ export async function applyGrade(ctx: GradeContext, card: SrsCard, g: Grade, opt
     }, delay);
   }
 
-  try { await store.updateCard(card.id ?? '', patch); }
-  catch (e) { toast(t('review.grade.saveFailed', { message: e instanceof Error ? e.message : String(e) }), 'error'); }
-  const reviewSplit = failed ? { failed: 1 } : { known: 1 };
-  // Счётчик активности не критичен: сама оценка уже сохранена выше.
-  try { await recordReview(1, reviewSplit); }
-  catch (e) { console.error('recordReview failed:', e); }
-  let reviewLogId: string | null = null;
-  try { reviewLogId = await logReview(buildLogEntry(ctx, card, g, failed, now)); }
-  catch (e) { /* журнал не критичен для оценки */ }
+const reviewSplit = failed ? { failed: 1 } : { known: 1 };
+   try {
+     await Promise.all([
+       store.updateCard(card.id ?? '', patch),
+       recordReview(1, reviewSplit),
+     ])
+   } catch (e) {
+     if (e instanceof Error && e.message.includes('saveFailed')) {
+       toast(t('review.grade.saveFailed', { message: e.message }), 'error')
+     } else {
+       console.error('grade save failed:', e)
+     }
+   }
+   let reviewLogId: string | null = null
+   try { reviewLogId = await logReview(buildLogEntry(ctx, card, g, failed, now)) }
+   catch (e) { /* журнал не критичен для оценки */ }
 
   ctx.pendingUndo = {
     card: Object.assign({}, card),

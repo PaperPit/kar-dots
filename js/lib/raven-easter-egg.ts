@@ -34,7 +34,7 @@ function playCrowScream() {
   if (typeof Audio === "undefined") return
   crowAudio = new Audio(CROW_SCREAM)
   crowAudio.volume = 0.95
-  crowAudio.play().catch(() => {})
+  crowAudio.play().catch((e) => console.warn('[kar] crow audio play failed:', e))
 }
 
 /** Сначала глитч, по окончании — карканье вороны. */

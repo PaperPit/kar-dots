@@ -128,7 +128,7 @@ export function homeStreakCalendarCard(): HTMLElement {
     el("div", { class: "home-cal-legend" }, [
       el("span", null, [
         el("span", { class: "home-cal-legend-dot", style: { background: "var(--bg-sunken)" } }),
-        "Меньше",
+        t("home.cal.legendLess"),
       ]),
       el("span", null, [
         el("span", { class: "home-cal-legend-dot", style: { background: "var(--c-petrol)", opacity: ".4" } }),
@@ -140,7 +140,7 @@ export function homeStreakCalendarCard(): HTMLElement {
       ]),
       el("span", null, [
         el("span", { class: "home-cal-legend-dot", style: { background: "var(--accent)" } }),
-        "Больше",
+        t("home.cal.legendMore"),
       ]),
     ]),
   ])

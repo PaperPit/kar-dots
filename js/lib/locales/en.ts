@@ -139,6 +139,8 @@ export const en: Record<string, MessageValue> = {
   "home.cal.collapse": "Collapse calendar",
   "home.cal.dayTip": "{day} {month}",
   "home.cal.dayTipReviews": "{day} {month} · {n} {cards}",
+  "home.cal.legendLess": "Less",
+  "home.cal.legendMore": "More",
   "home.day.weekBarAria": "{day}: know {known}, don’t know {failed}",
 
   "home.card.folder": "folder",

@@ -152,6 +152,8 @@ export const ru = {
   "home.cal.collapse": "Свернуть календарь",
   "home.cal.dayTip": "{day} {month}",
   "home.cal.dayTipReviews": "{day} {month} · {n} {cards}",
+  "home.cal.legendLess": "Меньше",
+  "home.cal.legendMore": "Больше",
   "home.day.weekBarAria": "{day}: знаю {known}, не знаю {failed}",
 
   "home.card.folder": "папка",

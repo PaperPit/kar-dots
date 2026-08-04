@@ -328,7 +328,11 @@ async init() {
          console.warn('[kar] store-local: IDB recovered successfully');
        } catch (recoveryErr) {
          console.error('[kar] store-local: IDB recovery failed:', recoveryErr);
-         throw new Error('IDB recovery failed — close other tabs and try again: ' + (recoveryErr instanceof Error ? recoveryErr.message : String(recoveryErr)));
+         throw new Error(
+           'IDB recovery failed — close other tabs and try again: ' +
+             (recoveryErr instanceof Error ? recoveryErr.message : String(recoveryErr)),
+           { cause: recoveryErr },
+         );
        }
      }
      this.folders = (await idbGetAll(this.db, 'folders')).map(normalizeFolderRecord).filter((f): f is FolderRecord => !!f);

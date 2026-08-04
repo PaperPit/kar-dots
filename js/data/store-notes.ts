@@ -78,28 +78,29 @@ export async function deleteNoteFromMirror(db: IDBDatabase, id: string): Promise
 }
 
 export async function listNotesFromMirror(
-  db: IDBDatabase,
-  opts: ListNotesOpts = {}
-): Promise<Note[]> {
-  let notes = await getAll<Note>(db, "notes")
-  if (!opts.includeConflicts) notes = notes.filter((n) => !n.conflict_of)
-  if (opts.folderId) {
-    notes = notes.filter((n) => n.folder_id === opts.folderId)
-  }
-  if (opts.tag) {
-    const tag = opts.tag.toLowerCase()
-    notes = notes.filter((n) => (n.tags || []).includes(tag))
-  }
-  if (opts.query && opts.query.trim()) {
-    const ids = await searchNoteIdsInMirror(db, opts.query)
-    const allow = new Set(ids)
-    notes = notes.filter((n) => allow.has(n.id))
-    notes.sort((a, b) => ids.indexOf(a.id) - ids.indexOf(b.id))
-  } else {
-    notes.sort((a, b) => (b.updated_at || 0) - (a.updated_at || 0))
-  }
-  return notes
-}
+   db: IDBDatabase,
+   opts: ListNotesOpts = {}
+ ): Promise<Note[]> {
+   const allNotes = await getAll<Note>(db, "notes")
+   const query = opts.query && opts.query.trim() ? opts.query.trim() : ""
+   const tag = opts.tag ? opts.tag.toLowerCase() : ""
+   const allow = query ? new Set(await searchNoteIdsInMirror(db, query)) : null
+   const out: Note[] = []
+   for (const n of allNotes) {
+     if (!opts.includeConflicts && n.conflict_of) continue
+     if (opts.folderId && n.folder_id !== opts.folderId) continue
+     if (tag && !(n.tags || []).includes(tag)) continue
+     if (allow && !allow.has(n.id)) continue
+     out.push(n)
+   }
+   if (query) {
+     const ids = [...allow!]
+     out.sort((a, b) => ids.indexOf(a.id) - ids.indexOf(b.id))
+   } else {
+     out.sort((a, b) => (b.updated_at || 0) - (a.updated_at || 0))
+   }
+   return out
+ }
 
 export async function searchNoteIdsInMirror(db: IDBDatabase, query: string): Promise<string[]> {
   const terms = tokenizeNotesText(query)

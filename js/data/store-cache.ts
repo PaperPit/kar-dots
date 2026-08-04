@@ -49,12 +49,16 @@ export class StoreCache {
     return this.cardCounts.get(folderId)
   }
 
-  rebuildCountsFromSrsMeta(folders: { id: string }[], srsMeta: SrsMeta[]) {
-    this.cardCounts.clear()
-    for (const f of folders) {
-      this.cardCounts.set(f.id, srsMeta.filter((c) => c.folder_id === f.id).length)
-    }
-  }
+rebuildCountsFromSrsMeta(folders: { id: string }[], srsMeta: SrsMeta[]) {
+     this.cardCounts.clear()
+     const counts = new Map<string, number>()
+     for (const c of srsMeta) {
+       counts.set(c.folder_id, (counts.get(c.folder_id) || 0) + 1)
+     }
+     for (const f of folders) {
+       this.cardCounts.set(f.id, counts.get(f.id) || 0)
+     }
+   }
 
   prependCard(folderId: string, card: Card) {
     const cached = this.folderCache.get(folderId)

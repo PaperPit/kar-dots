@@ -10,14 +10,15 @@ import {
   formatPercent,
   type RetentionAdvice,
 } from '../../lib/fsrs-optimize.js';
-import { barChart, type Bar } from '../../lib/charts.js';
+import { barChart, retentionRing, algoRetentionBars, type Bar } from '../../lib/charts.js';
 import * as SRS from '../../lib/srs.js';
 import type { SrsRow, Algo } from '../../lib/srs.js';
 import type { ReviewLogEntry } from '../../lib/review-log.js';
 import { t, localeTag } from '../../lib/i18n.js';
 
-function tile(label: string, value: string, sub?: string): HTMLElement {
+function tile(label: string, value: string, sub?: string | null, icon?: string): HTMLElement {
   return el('div', { class: 'stat-card' }, [
+    icon ? el('div', { class: 'stat-card-icon' }, [el('span', { class: 'stat-card-icon-svg', html: icon })]) : null,
     el('div', { class: 'stat-card-val tnum' }, value),
     el('div', { class: 'stat-card-lab' }, label),
     sub ? el('div', { class: 'stat-card-sub muted' }, sub) : null,
@@ -110,21 +111,26 @@ export async function renderStats(): Promise<void> {
   const forecast = buildForecast(srsRows, algo, 14);
   const folders = store?.folders || [];
 
+  const retentionRingEl = retentionRing(stats.reviewRetention, {
+    size: 110,
+    stroke: 9,
+    label: t('stats.tile.retention'),
+  });
+
+  const iconTotal = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>';
+  const iconCards = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>';
+  const iconStreak = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>';
+  const iconMature = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>';
+
   const tiles = el('div', { class: 'stats-grid' }, [
-    tile(t('stats.tile.totalReviews'), String(stats.totalReviews)),
-    tile(t('stats.tile.uniqueCards'), String(stats.uniqueCards)),
-    tile(t('stats.tile.streak'), String(streak)),
-    tile(
-      t('stats.tile.retention'),
-      formatPercent(stats.reviewRetention),
-      stats.reviewCount
-        ? t('stats.tile.retentionSub', { n: stats.reviewCount })
-        : t('stats.tile.noData'),
-    ),
+    tile(t('stats.tile.totalReviews'), String(stats.totalReviews), null, iconTotal),
+    tile(t('stats.tile.uniqueCards'), String(stats.uniqueCards), null, iconCards),
+    tile(t('stats.tile.streak'), String(streak), null, iconStreak),
     tile(
       t('stats.tile.mature'),
       formatPercent(stats.matureRetention),
       stats.matureCount ? t('stats.tile.matureSub', { n: stats.matureCount }) : '—',
+      iconMature,
     ),
   ]);
 
@@ -136,13 +142,18 @@ export async function renderStats(): Promise<void> {
 
   const retentionBlock = section(t('stats.section.retention'),
     el('div', { class: 'retention-head' }, [
-      el('div', { class: 'retention-big tnum' }, formatPercent(stats.reviewRetention)),
+      retentionRingEl,
       el('div', { class: 'retention-advice' }, formatRetentionAdvice(advice, stats.reviewRetention)),
     ]),
     Object.keys(stats.byAlgo).length > 1
       ? el('div', { class: 'retention-by-algo muted' }, Object.keys(stats.byAlgo).map((k) =>
           el('span', null, k.toUpperCase() + ': ' + formatPercent(stats.byAlgo[k]!.retention))
         ))
+      : null,
+    stats.reviewCount > 0
+      ? section(t('stats.section.gradeDist'),
+          algoRetentionBars(stats.byAlgo),
+        )
       : null,
   );
 

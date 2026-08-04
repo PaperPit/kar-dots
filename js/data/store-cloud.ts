@@ -28,6 +28,35 @@ import {
 } from './srs-meta.js';
 import { StoreCache } from './store-cache.js';
 import { buildHomeStats, type HomeStats } from './home-stats.js';
+
+/**
+ * Валидация JSON при импорте — защищает от prototype pollution, неверных типов
+ * и отсутствия обязательных полей. Не использует внешние библиотеки.
+ */
+function validateImportJSON(data: unknown): void {
+  if (!data || typeof data !== 'object') throw new Error('JSON: не объект');
+  const obj = data as Record<string, unknown>;
+  if (!Array.isArray(obj.folders)) throw new Error('JSON: нет folders[]');
+  if (!Array.isArray(obj.cards)) throw new Error('JSON: нет cards[]');
+  for (const [i, f] of obj.folders.entries()) {
+    if (!f || typeof f !== 'object') throw new Error(`folders[${i}]: не объект`);
+    const fo = f as Record<string, unknown>;
+    if (typeof fo.id !== 'string') throw new Error(`folders[${i}].id: не строка`);
+    if (typeof fo.name !== 'string') throw new Error(`folders[${i}].name: не строка`);
+  }
+  for (const [i, c] of obj.cards.entries()) {
+    if (!c || typeof c !== 'object') throw new Error(`cards[${i}]: не объект`);
+    const co = c as Record<string, unknown>;
+    if (typeof co.id !== 'string') throw new Error(`cards[${i}].id: не строка`);
+    if (typeof co.front !== 'string') throw new Error(`cards[${i}].front: не строка`);
+    if (typeof co.back !== 'string') throw new Error(`cards[${i}].back: не строка`);
+  }
+  if (obj.boxes && !Array.isArray(obj.boxes)) throw new Error('JSON: boxes не массив');
+  if (obj.notes && !Array.isArray(obj.notes)) throw new Error('JSON: notes не массив');
+  if (obj.settings && (typeof obj.settings !== 'object' || obj.settings === null)) {
+    throw new Error('JSON: settings не объект');
+  }
+}
 import { invalidateDerivedCaches } from './cache-invalidate.js';
 import { getCardsByIds, hydrateWithMisses } from './card-hydrate.js';
 import { configureImageUrls } from './image-url.js';
@@ -354,7 +383,7 @@ export class CloudStore {
   async _onOnline() {
     this._offline = false;
     await this.flushSync();
-    try { await this._fetchFromCloud(); this._notifySync(); this._emitDataChange(); } catch (e) { /* mirror */ }
+    try { await this._fetchFromCloud(); this._notifySync(); this._emitDataChange(); } catch (e) { console.warn('[kar] cloud fetch on online failed:', e); }
   }
 
   async flushSync() {
@@ -1518,7 +1547,8 @@ export class CloudStore {
     const marker = '/object/public/card-images/';
     const i = url.indexOf(marker);
     if (i === -1) return;
-    try { await this.sb.deleteFile('card-images', url.slice(i + marker.length)); } catch (e) {}
+    try { await this.sb.deleteFile('card-images', url.slice(i + marker.length)); }
+    catch (e) { console.error('[kar] deleteImage failed:', e); }
   }
 
   async saveSettings(s: Settings) {
@@ -1539,6 +1569,7 @@ export class CloudStore {
 
   async importJSON(text: string) {
     const data = JSON.parse(text);
+    validateImportJSON(data);
     if (!data.folders || !data.cards) throw new Error('Неверный формат файла');
     for (const b of (data.boxes || [])) {
       if (this.boxes.find(x => x.id === b.id)) continue;

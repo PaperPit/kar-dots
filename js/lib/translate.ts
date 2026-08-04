@@ -32,7 +32,7 @@ export function getTranslateDir(): "ru-en" | "en-ru" {
 export function setTranslateDir(dir: string): void {
   try {
     localStorage.setItem("kar_translate_dir", dir)
-  } catch (e) {}
+  } catch (e) { console.warn('[kar] setTranslateDir failed:', e); }
 }
 
 export async function translateText(text: string, dir: string = getTranslateDir()): Promise<string> {

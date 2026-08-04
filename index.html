@@ -3,7 +3,7 @@
 <head>
   <script src="boot-theme.js"></script>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=5.0, user-scalable=yes">
   <title>КАР-точки — запоминай слова</title>
   <meta name="description" content="КАР-точки: карточки для запоминания слов, терминов и цитат с интервальным повторением.">
   <meta name="theme-color" content="#F2EBDD" media="(prefers-color-scheme: light)">
@@ -12,8 +12,10 @@
   <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
   <link rel="manifest" href="manifest.webmanifest">
   <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="КАР-точки">
+  <meta name="format-detection" content="telephone=no">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; connect-src 'self' https://*.supabase.co https://api.giphy.com https://pixabay.com https://generativelanguage.googleapis.com https://api.groq.com https://supadata.ai; font-src 'self' data:; frame-ancestors 'none'; base-uri 'self'; form-action 'self';">
   <link rel="preload" href="css/fonts/golos-cyr.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="preload" href="css/fonts/golos-latin.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="preload" href="css/fonts/unbounded-cyr.woff2" as="font" type="font/woff2" crossorigin>
@@ -23,15 +25,6 @@
   <link rel="stylesheet" href="css/fonts/fonts.css">
   <!-- Параллельные link вместо @import в style.css — все CSS стартуют одним RTT -->
   <link rel="stylesheet" href="css/components/modal.css">
-  <link rel="stylesheet" href="css/screens/home.css">
-  <link rel="stylesheet" href="css/screens/folder.css">
-  <link rel="stylesheet" href="css/screens/card-editor.css">
-  <link rel="stylesheet" href="css/screens/review.css">
-  <link rel="stylesheet" href="css/screens/settings.css">
-  <link rel="stylesheet" href="css/screens/stats.css">
-  <link rel="stylesheet" href="css/screens/youtube-import.css">
-  <link rel="stylesheet" href="css/screens/notes.css">
-  <link rel="stylesheet" href="css/screens/note-editor.css">
   <link rel="stylesheet" href="css/style.css">
 </head>
 <body>

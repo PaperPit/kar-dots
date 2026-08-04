@@ -6,6 +6,7 @@ import { renderAuth } from '../auth/index.js';
 import { route } from '../../core/router.js';
 import { initActivity } from '../../lib/activity.js';
 import { t } from '../../lib/i18n.js';
+import { isAppInstalled, promptInstall } from '../../app.js';
 import { buildLanguageGroup } from './sections/language.js';
 import { buildCalendarGroup } from './sections/calendar.js';
 import { buildAlgoGroup } from './sections/algo.js';
@@ -15,6 +16,7 @@ import { buildDataGroup } from './sections/data.js';
 import { buildAccountGroup } from './sections/account.js';
 import { buildIntegrationsGroup } from './sections/integrations.js';
 import { buildStockMediaGroup } from './sections/stock-media.js';
+import { buildDonateGroup } from './sections/donate.js';
 
 function buildAboutGroup() {
   return el('div', { class: 'settings-group' }, [
@@ -57,11 +59,29 @@ export async function renderSettings() {
   const dataGroup = buildDataGroup(store, route);
   const accGroup = buildAccountGroup(store, sb, setStore, renderAuth, route);
   const aboutGroup = buildAboutGroup();
+  const donateGroup = buildDonateGroup();
+
+  const installBtn = !isAppInstalled()
+    ? el('button', {
+        class: 'btn accent big',
+        type: 'button',
+        onclick: async () => {
+          const ok = await promptInstall();
+          if (ok) toast(t('settings.install.installed'), 'ok');
+        },
+      }, t('settings.install.button'))
+    : null;
 
   shell('settings', el('div', null, [
     offlineBanner(),
     el('div', { class: 'page-head' }, el('h2', { class: 'page-title' }, t('settings.title'))),
     languageGroup, calendarGroup, algoGroup, soundGroup, packsGroup, integrationsGroup, stockMediaGroup, dataGroup, accGroup,
+    donateGroup,
+    installBtn ? el('div', { class: 'settings-group' }, [
+      el('h4', null, t('settings.install.title')),
+      el('p', { class: 'muted' }, t('settings.install.lead')),
+      installBtn,
+    ]) : null,
     aboutGroup,
     el('p', { class: 'muted settings-footer' }, t('settings.footer', { version: APP_VERSION_SHORT })),
   ]));

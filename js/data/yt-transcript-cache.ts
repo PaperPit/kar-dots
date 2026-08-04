@@ -50,7 +50,7 @@ let dbPromise: Promise<IDBDatabase | null> | null = null
 
 function getDB(): Promise<IDBDatabase | null> {
   if (typeof indexedDB === "undefined") return Promise.resolve(null)
-  if (!dbPromise) dbPromise = openDB().catch(() => null)
+  if (!dbPromise) dbPromise = openDB().catch((e) => { console.warn('[kar] yt-transcript-cache DB open failed:', e); return null; })
   return dbPromise
 }
 

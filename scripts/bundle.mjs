@@ -48,21 +48,42 @@ const configExternal = {
   },
 };
 
-await build({
-  entryPoints: [path.join(JS, 'app.js')],
-  bundle: true,
-  format: 'esm',
-  splitting: true,
-  outbase: 'js',
-  outdir: path.join(DIST, 'js'),
-  platform: 'browser',
-  target: ['es2020'],
-  minify: true,
-  metafile: true,
-  conditions: ['browser'],
-  plugins: [configExternal],
-  logLevel: 'info',
-});
+const buildResult = await build({
+   entryPoints: [path.join(JS, 'app.js')],
+   bundle: true,
+   format: 'esm',
+   splitting: true,
+   outbase: 'js',
+   outdir: path.join(DIST, 'js'),
+   platform: 'browser',
+   target: ['es2020'],
+   minify: true,
+   metafile: true,
+   conditions: ['browser'],
+   plugins: [configExternal],
+   logLevel: 'info',
+ });
+
+ // --- Bundle size budgets ---
+ const MAX_CHUNK_KB = 150
+ const MAX_TOTAL_JS_KB = 800
+ const metafile = buildResult.metafile
+ if (metafile) {
+   let totalJs = 0
+   for (const [fileName, info] of Object.entries(metafile.outputs)) {
+     if (!fileName.endsWith('.js')) continue
+     const sizeKb = (info.bytes || 0) / 1024
+     totalJs += sizeKb
+     if (sizeKb > MAX_CHUNK_KB) {
+       console.warn(`[bundle] WARNING: ${fileName} is ${sizeKb.toFixed(1)}KB (limit: ${MAX_CHUNK_KB}KB)`)
+     }
+   }
+   if (totalJs > MAX_TOTAL_JS_KB) {
+     console.warn(`[bundle] WARNING: Total JS is ${(totalJs / 1024).toFixed(1)}MB (limit: ${MAX_TOTAL_JS_KB / 1024}MB)`)
+   } else {
+     console.log(`[bundle] Total JS: ${(totalJs / 1024).toFixed(1)}KB (limit: ${MAX_TOTAL_JS_KB / 1024}MB)`)
+   }
+ }
 
 // --- Копируем статики (vendor .mjs бандлятся внутрь чанков, копировать не нужно) ---
 cpDir(path.join(ROOT, 'css'), path.join(DIST, 'css'));

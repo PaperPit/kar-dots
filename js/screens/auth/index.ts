@@ -98,7 +98,6 @@ export function renderAuth(busyMsg?: string) {
   const demoBtn = el('button', {
     class: 'btn block big',
     onclick: async () => {
-      localStorage.setItem('kar_mode', 'local');
       renderAuth(t('auth.opening'));
       await enterLocal();
     },
@@ -129,7 +128,6 @@ export async function enterLocal() {
 }
 
 export async function enterCloud() {
-  localStorage.setItem('kar_mode', 'cloud');
   renderAuth(t('auth.loadingCloud'));
   try {
     const { CloudStore } = await import('../../data/store-cloud.js');

@@ -168,7 +168,7 @@ export function modal(content: Node, opts?: ModalOpts): ModalHandle {
       if (prevFocus instanceof HTMLElement) {
         try {
           prevFocus.focus({ preventScroll: true })
-        } catch (e) {}
+        } catch (e) { console.warn('[kar] modal focus restore failed:', e); }
       }
     })
   }

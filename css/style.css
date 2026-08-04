@@ -1739,6 +1739,86 @@ html.motion-ui .toast.show { opacity: 1; transform: none; }
 }
 
 /* ============================================================
+   21 · МОБИЛЬНАЯ ОПТИМИЗАЦИЯ
+   ============================================================ */
+
+/* Предотвращаем zoom при фокусе на input, но разрешаем pinch-zoom */
+input, textarea, select {
+  font-size: 16px;
+}
+
+/* Улучшаем touch-цели на iOS */
+@media (pointer: coarse) {
+  .tab-btn {
+    min-height: 48px;
+    min-width: 48px;
+  }
+  .btn {
+    min-height: 44px;
+    padding-left: var(--sp-4);
+    padding-right: var(--sp-4);
+  }
+  .setting-row {
+    min-height: 48px;
+  }
+  .grade-btn {
+    min-height: 48px;
+  }
+  .icon-btn {
+    min-width: 44px;
+    min-height: 44px;
+  }
+}
+
+/* iOS: предотвращаем прокрутку за пределы экрана */
+@supports (-webkit-touch-callout: none) {
+  html, body {
+    overscroll-behavior: none;
+    -webkit-overflow-scrolling: touch;
+  }
+  .main {
+    -webkit-overflow-scrolling: touch;
+  }
+}
+
+/* Мобильная навигация: скрыть таббар в режиме учёбы */
+@media (max-width: 719px) {
+  .app--study-session .tabbar {
+    transform: translateY(100%);
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+  }
+  .app--study-session .toasts {
+    bottom: calc(var(--sp-5) + env(safe-area-inset-bottom, 0px));
+  }
+}
+
+/* Улучшаем читаемость на малых экранах */
+@media (max-width: 480px) {
+  body {
+    font-size: 15px;
+  }
+  .stat-card-val {
+    font-size: 1.5rem;
+  }
+  .day-donut {
+    width: 80px;
+    height: 80px;
+  }
+  .day-donut-inner {
+    width: 60px;
+    height: 60px;
+  }
+  .day-donut-num {
+    font-size: 18px;
+  }
+  .retention-big {
+    font-size: 2rem;
+  }
+}
+
+/* ============================================================
    22 · УМЕНЬШИТЬ ДВИЖЕНИЕ
    ============================================================ */
 @media (prefers-reduced-motion: reduce) {

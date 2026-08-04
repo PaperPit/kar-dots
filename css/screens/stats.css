@@ -22,6 +22,25 @@
   padding: var(--sp-4);
   box-shadow: var(--shadow-sm);
   text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--sp-2);
+}
+
+.stat-card-icon {
+  width: 32px;
+  height: 32px;
+  color: var(--accent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.stat-card-icon-svg {
+  width: 100%;
+  height: 100%;
+  display: block;
 }
 
 .stat-card-val {
@@ -95,34 +114,71 @@
   max-width: 100%;
 }
 
-/* --- Удержание --- */
-.retention-head {
+/* --- Кольцо удержания (SVG) -------------------------- */
+.retention-ring-wrap {
+  flex: none;
   display: flex;
   align-items: center;
-  gap: var(--sp-4);
-  flex-wrap: wrap;
+  justify-content: center;
 }
-
-.retention-big {
+.retention-ring {
+  display: block;
+}
+.retention-ring-fill {
+  transition: stroke-dashoffset .6s var(--ease);
+}
+.retention-ring-value {
   font-family: var(--font-display);
-  font-size: 2.4rem;
   font-weight: 800;
-  color: var(--ok-text);
+  font-size: 22px;
+  fill: var(--ink);
+}
+.retention-ring-label {
+  font-size: 11px;
+  fill: var(--ink-soft);
+  font-weight: 600;
 }
 
-.retention-advice {
-  flex: 1 1 200px;
-  font-size: .88rem;
-  color: var(--ink-soft);
-  line-height: 1.4;
-}
-
-.retention-by-algo {
+/* --- Распределение оценок ---------------------------- */
+.grade-dist {
   display: flex;
-  gap: var(--sp-4);
-  margin-top: var(--sp-3);
-  font-size: .8rem;
-  flex-wrap: wrap;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: var(--sp-2);
+}
+.grade-dist-row {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+}
+.grade-dist-label {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--ink-soft);
+  min-width: 36px;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+}
+.grade-dist-track {
+  flex: 1;
+  height: 8px;
+  background: var(--bg-sunken);
+  border-radius: var(--r-1);
+  overflow: hidden;
+}
+.grade-dist-fill {
+  height: 100%;
+  border-radius: var(--r-1);
+  transition: width .4s var(--ease);
+  min-width: 0;
+}
+.grade-dist-count {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--ink-soft);
+  min-width: 28px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
 }
 
 /* --- Папки --- */

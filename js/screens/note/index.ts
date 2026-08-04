@@ -21,7 +21,6 @@ import {
 } from '../../lib/note-links.js';
 import { resolveImageUrl } from '../../data/image-url.js';
 import { showMarkdownHelp } from './markdown-help.js';
-import { createNoteEditor, type NoteCmEditor } from '../../ui/editor.js';
 import { mountNotesGraphCanvas, type GraphCanvasHandle } from '../../ui/notes-graph-canvas.js';
 import { selectionToCardPayload } from './selection-to-card.js';
 import { pickFolderDialog } from './pick-folder.js';
@@ -98,7 +97,20 @@ export async function renderNote(noteId: string, opts: RenderNoteOpts = {}) {
   let viewMode: ViewMode = initialHeading ? 'preview' : 'edit';
   let dirty = false;
   let disposed = false;
-  let cm: NoteCmEditor | null = null;
+  let cm: {
+   readonly dom: HTMLElement;
+   getValue(): string;
+   setValue(value: string): void;
+   focus(): void;
+   destroy(): void;
+   insertAtCursor(text: string): void;
+   wrapSelection(before: string, after?: string): void;
+   toggleLinePrefix(prefix: string): void;
+   toggleCodeFence(): void;
+   setLineNumbers(on: boolean): void;
+   getSelection(): { empty: boolean; text: string; from: number; to: number; head: number };
+ } | null = null;
+  let cmInitialized = false;
   let lineNums = false;
   let savedTitle = note.title || '';
   let localDepth = 1;
@@ -445,7 +457,7 @@ export async function renderNote(noteId: string, opts: RenderNoteOpts = {}) {
       },
     });
     await hydratePreviewImages(preview);
-    const heading = pendingHeading || location.hash.split('#')[2] || '';
+    const heading = pendingHeading || slugify(location.hash.split('#')[2] || '') || '';
     if (heading) {
       pendingHeading = '';
       const target = preview.querySelector('#' + CSS.escape(heading));
@@ -453,38 +465,41 @@ export async function renderNote(noteId: string, opts: RenderNoteOpts = {}) {
     }
   }
 
-  function applyViewMode(mode: ViewMode) {
-    viewMode = mode;
-    split.classList.remove('note-split--edit', 'note-split--preview', 'note-split--split');
-    split.classList.add('note-split--' + mode);
-    toolbar.hidden = mode === 'preview';
-    modeEditBtn.classList.toggle('is-active', mode === 'edit');
-    modePreviewBtn.classList.toggle('is-active', mode === 'preview');
-    modeSplitBtn.classList.toggle('is-active', mode === 'split');
-    if (mode !== 'edit') void renderPreview();
-    if (mode !== 'preview') queueMicrotask(() => cm?.focus());
-  }
+function applyViewMode(mode: ViewMode) {
+     viewMode = mode;
+     split.classList.remove('note-split--edit', 'note-split--preview', 'note-split--split');
+     split.classList.add('note-split--' + mode);
+     toolbar.hidden = mode === 'preview';
+     modeEditBtn.classList.toggle('is-active', mode === 'edit');
+     modePreviewBtn.classList.toggle('is-active', mode === 'preview');
+     modeSplitBtn.classList.toggle('is-active', mode === 'split');
+     if (mode !== 'edit') void renderPreview();
+     if (mode !== 'preview') { ensureEditor(); queueMicrotask(() => cm?.focus()); }
+   }
 
   const imageInput = el('input', {
     type: 'file', accept: 'image/*', class: 'hidden', 'aria-hidden': 'true',
   }) as HTMLInputElement;
-  imageInput.addEventListener('change', async () => {
-    const file = imageInput.files?.[0];
-    imageInput.value = '';
-    if (!file || !cm) return;
-    const alt = window.prompt(t('notes.image.altPrompt'), file.name.replace(/\.[^.]+$/, '')) || '';
-    try {
-      const url = await store.uploadImage(file, { side: 'note' });
-      cm.insertAtCursor(`\n![${alt}](${url})\n`);
-      toast(t('notes.image.inserted'));
-    } catch (e) {
-      toast(e instanceof Error ? e.message : String(e), 'error');
-    }
-  });
+imageInput.addEventListener('change', async () => {
+     const file = imageInput.files?.[0];
+     imageInput.value = '';
+     if (!file) return;
+     ensureEditor();
+     if (!cm) return;
+     const alt = window.prompt(t('notes.image.altPrompt'), file.name.replace(/\.[^.]+$/, '')) || '';
+     try {
+       const url = await store.uploadImage(file, { side: 'note' });
+       cm.insertAtCursor(`\n![${alt}](${url})\n`);
+       toast(t('notes.image.inserted'));
+     } catch (e) {
+       toast(e instanceof Error ? e.message : String(e), 'error');
+     }
+   });
 
-  const cardFromSelBtn = toolBtn(ICONS.cards, t('notes.cardFromSelection.title'), async () => {
-    if (!cm) return;
-    const sel = cm.getSelection();
+   const cardFromSelBtn = toolBtn(ICONS.cards, t('notes.cardFromSelection.title'), async () => {
+     ensureEditor();
+     if (!cm) return;
+     const sel = cm.getSelection();
     if (sel.empty || !sel.text.trim()) {
       toast(t('notes.cardFromSelection.needSelection'), 'error');
       return;
@@ -640,46 +655,53 @@ export async function renderNote(noteId: string, opts: RenderNoteOpts = {}) {
     ]),
   ]), null);
 
-  cm = createNoteEditor({
-    parent: editorHost,
-    doc: note.body || '',
-    placeholder: t('notes.editor.bodyPlaceholder'),
-    ariaLabel: t('notes.editor.bodyLabel'),
-    onChange: () => markDirty(),
-    getWikiSuggestions: () =>
-      allNotes
-        .filter((n) => n.id !== noteId)
-        .map((n) => ({ title: n.title || t('notes.untitled'), id: n.id })),
-    getTagSuggestions: () => {
-      const set = new Set<string>();
-      for (const n of allNotes) {
-        for (const tag of n.tags || extractHashtags(n.body || '')) set.add(tag);
-      }
-      return [...set];
-    },
-    onCreateWikiNote: async (title) => {
-      try {
-        const created = await store.createNote({
-          title,
-          body: `# ${title}\n`,
-          folder_id: folderSelect.value || note.folder_id || null,
-        }) as Note;
-        allNotes = await store.listNotes({ includeConflicts: false }) as Note[];
-        toast(t('notes.wiki.created', { title: created.title || title }));
-      } catch (e) {
-        toast(e instanceof Error ? e.message : String(e), 'error');
-      }
-    },
-  });
+function ensureEditor(): void {
+   if (cmInitialized) return;
+   cmInitialized = true;
+   import('../../ui/editor.js').then(({ createNoteEditor }) => {
+     cm = createNoteEditor({
+       parent: editorHost,
+       doc: note!.body || '',
+       placeholder: t('notes.editor.bodyPlaceholder'),
+       ariaLabel: t('notes.editor.bodyLabel'),
+       onChange: () => markDirty(),
+       getWikiSuggestions: () =>
+         allNotes
+           .filter((n) => n.id !== noteId)
+           .map((n) => ({ title: n.title || t('notes.untitled'), id: n.id })),
+       getTagSuggestions: () => {
+         const set = new Set<string>();
+         for (const n of allNotes) {
+           for (const tag of n.tags || extractHashtags(n.body || '')) set.add(tag);
+         }
+         return [...set];
+       },
+       onCreateWikiNote: async (title) => {
+         try {
+           const created = await store.createNote({
+             title,
+             body: `# ${title}\n`,
+             folder_id: folderSelect.value || note!.folder_id || null,
+           }) as Note;
+           allNotes = await store.listNotes({ includeConflicts: false }) as Note[];
+           toast(t('notes.wiki.created', { title: created.title || title }));
+         } catch (e) {
+           toast(e instanceof Error ? e.message : String(e), 'error');
+         }
+       },
+     });
+   });
+ }
 
-  setRouteDisposer(async () => {
-    await saveNow();
-    disposed = true;
-    cm?.destroy();
-    localGraph?.destroy();
-    cm = null;
-    localGraph = null;
-  });
+setRouteDisposer(async () => {
+     await saveNow();
+     disposed = true;
+     cm?.destroy();
+     localGraph?.destroy();
+     cm = null;
+     cmInitialized = false;
+     localGraph = null;
+   });
 
   applyViewMode(viewMode);
   refreshLocalGraph();

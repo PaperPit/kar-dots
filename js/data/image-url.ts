@@ -50,13 +50,20 @@ export function clearImageUrlCache() {
 /**
  * Разобрать публичную ссылку storage в {bucket, path}.
  * Чужие адреса, data:/blob:, уже подписанные ссылки → null (их не трогаем).
+ * Любой URL, не принадлежащий нашему бакету, тоже → null — защита от
+ * подмены ссылок в БД (компрометация клиента Supabase, вредоносный импорт).
  */
 export function parseStorageUrl(
   url: string | null | undefined,
   base: string = baseUrl
 ): { bucket: string; path: string } | null {
   const raw = String(url || "")
-  if (!raw || !/^https?:\/\//i.test(raw)) return null
+  if (!raw) return null
+  // data:-URL и blob:-URL — от локальных загрузок, пропускаем
+  if (/^data:/i.test(raw)) return null
+  if (/^blob:/i.test(raw)) return null
+  // Допускаем только https и только наш baseUrl
+  if (!/^https:\/\//i.test(raw)) return null
   if (!base) return null
   const prefix = base.replace(/\/+$/, "") + PUBLIC_MARKER
   if (!raw.startsWith(prefix)) return null

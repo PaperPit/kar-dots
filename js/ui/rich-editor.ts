@@ -78,10 +78,10 @@ export function richEditor(opts: RichEditorOpts): RichEditor {
   function updateToolbarState() {
     try {
       boldBtn.classList.toggle("active", document.queryCommandState("bold"))
-    } catch (e) {}
+    } catch (e) { console.warn('[kar] queryCommandState bold failed:', e); }
     try {
       underlineBtn.classList.toggle("active", document.queryCommandState("underline"))
-    } catch (e) {}
+    } catch (e) { console.warn('[kar] queryCommandState underline failed:', e); }
     const sel = window.getSelection()
     const inLink = !!(
       sel &&

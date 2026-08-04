@@ -18,6 +18,35 @@ import {
   type SrsMeta,
 } from './srs-meta.js';
 import { isYoutubeCard } from '../lib/youtube-import.js';
+
+/**
+ * Валидация JSON при импорте — защищает от prototype pollution, неверных типов
+ * и отсутствия обязательных полей.
+ */
+function validateImportJSON(data: unknown): void {
+  if (!data || typeof data !== 'object') throw new Error('JSON: не объект');
+  const obj = data as Record<string, unknown>;
+  if (!Array.isArray(obj.folders)) throw new Error('JSON: нет folders[]');
+  if (!Array.isArray(obj.cards)) throw new Error('JSON: нет cards[]');
+  for (const [i, f] of obj.folders.entries()) {
+    if (!f || typeof f !== 'object') throw new Error(`folders[${i}]: не объект`);
+    const fo = f as Record<string, unknown>;
+    if (typeof fo.id !== 'string') throw new Error(`folders[${i}].id: не строка`);
+    if (typeof fo.name !== 'string') throw new Error(`folders[${i}].name: не строка`);
+  }
+  for (const [i, c] of obj.cards.entries()) {
+    if (!c || typeof c !== 'object') throw new Error(`cards[${i}]: не объект`);
+    const co = c as Record<string, unknown>;
+    if (typeof co.id !== 'string') throw new Error(`cards[${i}].id: не строка`);
+    if (typeof co.front !== 'string') throw new Error(`cards[${i}].front: не строка`);
+    if (typeof co.back !== 'string') throw new Error(`cards[${i}].back: не строка`);
+  }
+  if (obj.boxes && !Array.isArray(obj.boxes)) throw new Error('JSON: boxes не массив');
+  if (obj.notes && !Array.isArray(obj.notes)) throw new Error('JSON: notes не массив');
+  if (obj.settings && (typeof obj.settings !== 'object' || obj.settings === null)) {
+    throw new Error('JSON: settings не объект');
+  }
+}
 import { shuffle } from '../lib/shuffle.js';
 import {
   findFolderByPackId, importVocabPack as doImportVocabPack,
@@ -69,45 +98,46 @@ const IDB_NAME = 'kartochki';
 const IDB_VERSION = 4;
 
 function openDB(): Promise<IDBDatabase> {
-  return new Promise((resolve, reject) => {
-    const req = indexedDB.open(IDB_NAME, IDB_VERSION);
-    req.onupgradeneeded = (e: IDBVersionChangeEvent) => {
-      const db = req.result;
-      if (!db!.objectStoreNames.contains('folders')) db.createObjectStore('folders', { keyPath: 'id' });
-      if (!db!.objectStoreNames.contains('cards')) {
-        const cards = db.createObjectStore('cards', { keyPath: 'id' });
-        cards.createIndex('folder_id', 'folder_id', { unique: false });
-        cards.createIndex('note_id', 'note_id', { unique: false });
-      } else {
-        const cards = req.transaction!.objectStore('cards');
-        if (e.oldVersion < 2 && !cards.indexNames.contains('folder_id')) {
-          cards.createIndex('folder_id', 'folder_id', { unique: false });
-        }
-        if (e.oldVersion < 4 && !cards.indexNames.contains('note_id')) {
-          cards.createIndex('note_id', 'note_id', { unique: false });
-        }
-      }
-      if (!db!.objectStoreNames.contains('boxes')) db.createObjectStore('boxes', { keyPath: 'id' });
-      if (!db!.objectStoreNames.contains('notes')) {
-        const notes = db.createObjectStore('notes', { keyPath: 'id' });
-        notes.createIndex('updated_at', 'updated_at', { unique: false });
-        notes.createIndex('conflict_of', 'conflict_of', { unique: false });
-      }
-      if (!db!.objectStoreNames.contains('note_conflicts')) {
-        const conflicts = db.createObjectStore('note_conflicts', { keyPath: 'id' });
-        conflicts.createIndex('conflict_of', 'conflict_of', { unique: false });
-      }
-      if (!db!.objectStoreNames.contains('note_terms')) {
-        const terms = db.createObjectStore('note_terms', { keyPath: 'id' });
-        terms.createIndex('term', 'term', { unique: false });
-        terms.createIndex('note_id', 'note_id', { unique: false });
-      }
-      if (!db!.objectStoreNames.contains('kv')) db.createObjectStore('kv');
-    };
-    req.onsuccess = () => resolve(req.result);
-    req.onerror = () => reject(req.error);
-  });
-}
+   return new Promise((resolve, reject) => {
+     const req = indexedDB.open(IDB_NAME, IDB_VERSION);
+     req.onupgradeneeded = (e: IDBVersionChangeEvent) => {
+       const db = req.result;
+       if (!db!.objectStoreNames.contains('folders')) db.createObjectStore('folders', { keyPath: 'id' });
+       if (!db!.objectStoreNames.contains('cards')) {
+         const cards = db.createObjectStore('cards', { keyPath: 'id' });
+         cards.createIndex('folder_id', 'folder_id', { unique: false });
+         cards.createIndex('note_id', 'note_id', { unique: false });
+       } else {
+         const cards = req.transaction!.objectStore('cards');
+         if (e.oldVersion < 2 && !cards.indexNames.contains('folder_id')) {
+           cards.createIndex('folder_id', 'folder_id', { unique: false });
+         }
+         if (e.oldVersion < 4 && !cards.indexNames.contains('note_id')) {
+           cards.createIndex('note_id', 'note_id', { unique: false });
+         }
+       }
+       if (!db!.objectStoreNames.contains('boxes')) db.createObjectStore('boxes', { keyPath: 'id' });
+       if (!db!.objectStoreNames.contains('notes')) {
+         const notes = db.createObjectStore('notes', { keyPath: 'id' });
+         notes.createIndex('updated_at', 'updated_at', { unique: false });
+         notes.createIndex('conflict_of', 'conflict_of', { unique: false });
+       }
+       if (!db!.objectStoreNames.contains('note_conflicts')) {
+         const conflicts = db.createObjectStore('note_conflicts', { keyPath: 'id' });
+         conflicts.createIndex('conflict_of', 'conflict_of', { unique: false });
+       }
+       if (!db!.objectStoreNames.contains('note_terms')) {
+         const terms = db.createObjectStore('note_terms', { keyPath: 'id' });
+         terms.createIndex('term', 'term', { unique: false });
+         terms.createIndex('note_id', 'note_id', { unique: false });
+       }
+       if (!db!.objectStoreNames.contains('kv')) db.createObjectStore('kv');
+     };
+     req.onsuccess = () => resolve(req.result);
+     req.onerror = () => reject(req.error);
+     req.onblocked = () => reject(new Error('IDB blocked — close other tabs and retry'));
+   });
+ }
 
 function tx(db: IDBDatabase | null, store: string, mode: IDBTransactionMode, fn: (s: IDBObjectStore) => unknown): Promise<unknown> {
   return new Promise((resolve, reject) => {
@@ -199,28 +229,41 @@ const SRS_META_KEY = 'srs_meta';
 const SRS_META_PERSIST_MS = 200;
 
 export class LocalStore {
-  kind: string = 'local';
-  folders: FolderRecord[] = [];
-  boxes: BoxRecord[] = [];
-  settings: Settings = Object.assign({}, DEFAULT_SETTINGS);
-  db: IDBDatabase | null = null;
-  private _cache: StoreCache = new StoreCache();
-  private _srsMeta: SrsMeta[] = [];
-  private _homeStatsCache: ReturnType<typeof buildHomeStats> | null = null;
-  private _homeStatsCacheAlgo: Algo | null = null;
-  private _srsMetaPersistTimer: ReturnType<typeof setTimeout> | null = null;
+   kind: string = 'local';
+   folders: FolderRecord[] = [];
+   boxes: BoxRecord[] = [];
+   settings: Settings = Object.assign({}, DEFAULT_SETTINGS);
+   db: IDBDatabase | null = null;
+   private _cache: StoreCache = new StoreCache();
+   private _srsMeta: SrsMeta[] = [];
+   private _homeStatsCache: ReturnType<typeof buildHomeStats> | null = null;
+   private _homeStatsCacheAlgo: Algo | null = null;
+   private _srsMetaPersistTimer: ReturnType<typeof setTimeout> | null = null;
 
-  constructor() {
-    this.kind = 'local';
-    this.folders = [];
-    this.boxes = [];
-    this.settings = Object.assign({}, DEFAULT_SETTINGS);
-    this._cache = new StoreCache();
-    this._srsMeta = [];
-    this._homeStatsCache = null;
-    this._homeStatsCacheAlgo = null;
-    this._srsMetaPersistTimer = null;
-  }
+   constructor() {
+     this.kind = 'local';
+     this.folders = [];
+     this.boxes = [];
+     this.settings = Object.assign({}, DEFAULT_SETTINGS);
+     this._cache = new StoreCache();
+     this._srsMeta = [];
+     this._homeStatsCache = null;
+     this._homeStatsCacheAlgo = null;
+     this._srsMetaPersistTimer = null;
+   }
+
+   /** Delete the corrupted DB and return a fresh LocalStore. */
+   static async recover(): Promise<LocalStore> {
+     return new Promise((resolve, reject) => {
+       const req = indexedDB.deleteDatabase(IDB_NAME);
+       req.onsuccess = () => {
+         const fresh = new LocalStore();
+         resolve(fresh);
+       };
+       req.onerror = () => reject(req.error);
+       req.onblocked = () => reject(new Error('IDB delete blocked — close other tabs and retry'));
+     });
+   }
 
   _patchSrsMeta(card: CardRecord) {
     upsertSrsMeta(this._srsMeta, card);
@@ -274,20 +317,32 @@ export class LocalStore {
     return this._srsMeta as unknown as SrsRow[];
   }
 
-  async init() {
-    this.db = await openDB();
-    this.folders = (await idbGetAll(this.db, 'folders')).map(normalizeFolderRecord).filter((f): f is FolderRecord => !!f);
-    this.folders.sort((a, b) => (a.created_at || 0) - (b.created_at || 0));
-    this.boxes = (await idbGetAll(this.db, 'boxes')).map(normalizeBoxRecord).filter((b): b is BoxRecord => !!b);
-    this.boxes.sort((a, b) => (a.created_at || 0) - (b.created_at || 0));
-    const raw = localStorage.getItem('kar_settings_local');
-    if (raw) try { this.settings = Object.assign({}, DEFAULT_SETTINGS, JSON.parse(raw)); } catch (e) {}
-    await this._loadSrsMeta();
-    if (this.settings.algo === 'fsrs') {
-      const { preloadFsrs } = await import('../lib/srs.js');
-      preloadFsrs();
-    }
-  }
+async init() {
+     try {
+       this.db = await openDB();
+     } catch (e) {
+       console.warn('[kar] store-local: IDB open failed, attempting recovery:', e);
+       try {
+         await LocalStore.recover();
+         this.db = await openDB();
+         console.warn('[kar] store-local: IDB recovered successfully');
+       } catch (recoveryErr) {
+         console.error('[kar] store-local: IDB recovery failed:', recoveryErr);
+         throw new Error('IDB recovery failed — close other tabs and try again: ' + (recoveryErr instanceof Error ? recoveryErr.message : String(recoveryErr)));
+       }
+     }
+     this.folders = (await idbGetAll(this.db, 'folders')).map(normalizeFolderRecord).filter((f): f is FolderRecord => !!f);
+     this.folders.sort((a, b) => (a.created_at || 0) - (b.created_at || 0));
+     this.boxes = (await idbGetAll(this.db, 'boxes')).map(normalizeBoxRecord).filter((b): b is BoxRecord => !!b);
+     this.boxes.sort((a, b) => (a.created_at || 0) - (b.created_at || 0));
+     const raw = localStorage.getItem('kar_settings_local');
+     if (raw) try { this.settings = Object.assign({}, DEFAULT_SETTINGS, JSON.parse(raw)); } catch (e) { console.warn('[kar] store-local parse settings failed:', e); }
+     await this._loadSrsMeta();
+     if (this.settings.algo === 'fsrs') {
+       const { preloadFsrs } = await import('../lib/srs.js');
+       preloadFsrs();
+     }
+   }
 
   async _loadSrsMeta() {
     const cached = await kvGet(this.db, SRS_META_KEY);
@@ -527,6 +582,7 @@ export class LocalStore {
 
   async importJSON(text: string) {
     const data = JSON.parse(text);
+    validateImportJSON(data);
     if (!data.folders || !data.cards) throw new Error('Неверный формат файла');
     for (const b of (data.boxes || [])) {
       if (!this.boxes.find(x => x.id === b.id)) {
@@ -598,28 +654,27 @@ export class LocalStore {
     });
   }
 
-  async listNotes(opts: ListNotesOpts = {}): Promise<Note[]> {
-    let notes = (await idbGetAll(this.db, 'notes')) as Note[];
-    if (!opts.includeConflicts) {
-      notes = notes.filter(n => !n.conflict_of);
-    }
-    if (opts.folderId) {
-      notes = notes.filter(n => n.folder_id === opts.folderId);
-    }
-    if (opts.tag) {
-      const tag = opts.tag.toLowerCase();
-      notes = notes.filter(n => (n.tags || []).includes(tag));
-    }
-    if (opts.query && opts.query.trim()) {
-      const ids = await this.searchNoteIds(opts.query);
-      const allow = new Set(ids);
-      notes = notes.filter(n => allow.has(n.id));
-      notes.sort((a, b) => ids.indexOf(a.id) - ids.indexOf(b.id));
-    } else {
-      notes.sort((a, b) => (b.updated_at || 0) - (a.updated_at || 0));
-    }
-    return notes;
-  }
+async listNotes(opts: ListNotesOpts = {}): Promise<Note[]> {
+     const allNotes = (await idbGetAll(this.db, 'notes')) as Note[]
+     const query = opts.query && opts.query.trim() ? opts.query.trim() : ''
+     const tag = opts.tag ? opts.tag.toLowerCase() : ''
+     const allow = query ? new Set(await this.searchNoteIds(query)) : null
+     const out: Note[] = []
+     for (const n of allNotes) {
+       if (!opts.includeConflicts && n.conflict_of) continue
+       if (opts.folderId && n.folder_id !== opts.folderId) continue
+       if (tag && !(n.tags || []).includes(tag)) continue
+       if (allow && !allow.has(n.id)) continue
+       out.push(n)
+     }
+     if (query) {
+       const ids = [...allow!]
+       out.sort((a, b) => ids.indexOf(a.id) - ids.indexOf(b.id))
+     } else {
+       out.sort((a, b) => (b.updated_at || 0) - (a.updated_at || 0))
+     }
+     return out
+   }
 
   async searchNoteIds(query: string): Promise<string[]> {
     const terms = tokenizeNotesText(query);

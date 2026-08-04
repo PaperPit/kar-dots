@@ -29,7 +29,9 @@ function readWebStore(store: Storage): ActivityData | null {
     if (!raw) return null;
     const data = JSON.parse(raw);
     if (data && typeof data.days === "object") return data;
-  } catch (e) {}
+  } catch (e) {
+    console.error('[kar] activity readWebStore failed:', e);
+  }
   return null;
 }
 
@@ -140,7 +142,9 @@ async function persistActivity(data: ActivityData, opts: { skipCloud?: boolean }
   }
   try {
     sessionStorage.setItem(LS_KEY, json);
-  } catch (e) {}
+  } catch (e) {
+    console.warn("activity sessionStorage", e);
+  }
   await idbSave(data);
   if (!opts.skipCloud && cloudSyncFn) {
     try { cloudSyncFn(data); } catch (e) { console.warn("activity cloud sync", e); }

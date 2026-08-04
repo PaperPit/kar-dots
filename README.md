@@ -80,7 +80,7 @@
 ### Платформа
 
 - **Self-hosted** на Cloudflare Pages (статика `dist/` + Functions `/api/*`)
-- **PWA**: офлайн-кэш, установка на iOS/Android
+- **PWA**: офлайн-кэш, установка на iOS/Android через браузер или prompt-установка
 - **Локальный режим** (IndexedDB) и **облако** (ваш Supabase)
 - Светлая / тёмная тема; клавиатура и свайпы на review
 
@@ -226,7 +226,7 @@ tests/                  — unit-тесты
 
 **KAR-dots** is a **self-hosted, open-source** flashcard PWA. Live demo: [kar-tochki.pages.dev](https://kar-tochki.pages.dev). Deploy on **Cloudflare Pages** (recommended) — share the link; each person gets a private collection (optional Supabase). Not a commercial SaaS.
 
-Features: SM-2, FSRS, Leitner; typing, cloze, voice and matching modes; YouTube import; stock images; daily review budget; review log and stats screen; light/dark theme; offline PWA. TypeScript → vanilla JS, MIT license.
+Features: SM-2, FSRS, Leitner; typing, cloze, voice and matching modes; YouTube import; stock images; daily review budget; review log and stats screen; light/dark theme; offline PWA with install prompt. TypeScript → vanilla JS, MIT license.
 
 See [docs/cloudflare-pages-setup.md](docs/cloudflare-pages-setup.md) and [docs/DEPLOY.md](docs/DEPLOY.md). Ideas: [CONTRIBUTING.md](CONTRIBUTING.md), [ROADMAP.md](ROADMAP.md).
 

@@ -425,7 +425,7 @@ export const ru = {
   "settings.sounds.uiClicksLabel": "Клики",
   "settings.sounds.answerMelodies": "Мелодии ответов",
   "settings.sounds.answerMelodiesHint":
-    "Короткие отбивки в режимах «Ввод», «Голос» и «Пары»; отдельно — мелодия при появлении кубка. Нажмите ▶ в меню, чтобы прослушать.",
+    "Короткие отбивки в «Классике», «Вводе», «Голосе», «Пара́х» и «Пропусках»; отдельно — мелодия при появлении кубка. Нажмите ▶ в меню, чтобы прослушать.",
   "settings.sounds.correct": "Верно",
   "settings.sounds.wrong": "Неверно",
   "settings.sounds.cup": "Кубок",

@@ -3,7 +3,7 @@ import { initMotionUi, animateBootSplashOut } from './ui/motion-lazy.js';
 import { initConfig, cloudConfigured, setSb, setStore, sb, cfg } from './core/state.js';
 import { toast } from './ui/ui.js';
 import { MiniSupabase } from './data/supabase.js';
-import { renderAuth, attachCloudDataReload } from './screens/auth/index.js';
+import { renderAuth, enterLocal, attachCloudDataReload } from './screens/auth/index.js';
 import { initActivity } from './lib/activity.js';
 import { initUiClicks } from './lib/ui-clicks.js';
 import { initRouter, route } from './core/router.js';
@@ -36,9 +36,12 @@ async function boot() {
   initUiClicks();
   initSpeechVoices();
   initStudyKeyboardLock();
+  const mode = localStorage.getItem('kar_mode');
 
   try {
-    if (sb && sb.hasSession()) {
+    if (mode === 'local') {
+      await enterLocal();
+    } else if (mode === 'cloud' && sb && sb.hasSession()) {
       const { CloudStore } = await import('./data/store-cloud.js');
       const cloud = new CloudStore(sb);
       await cloud.init();

@@ -41,6 +41,7 @@ export function buildAccountGroup(
             setActivityCloudSync(null);
             await sb?.signOut();
           }
+          localStorage.removeItem('kar_mode');
           setStore(null);
           nav('#home');
           renderAuth();

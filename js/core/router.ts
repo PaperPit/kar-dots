@@ -49,7 +49,10 @@ function loadScreenCSS(href: string): void {
 }
 
 function ensureScreenCSS(name: string, arg?: string | null): void {
-  if (name === "home") return
+  if (name === "home") {
+    loadScreenCSS("css/screens/home.css")
+    return
+  }
   if (name === "folder") {
     loadScreenCSS("css/screens/folder.css")
     loadScreenCSS("css/screens/youtube-import.css")

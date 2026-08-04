@@ -1,4 +1,4 @@
-const VERSION = 'kar-v16.0';
+const VERSION = 'kar-v16.2';
 
 /** AUTO-GENERATED CORE_FILES — node scripts/generate-sw-files.js */
 const CORE_FILES = [
@@ -27,6 +27,7 @@ const CORE_FILES = [
   'css/fonts/golos-600-cyr.woff2',
   'packs/manifest.json',
   'js/app.js',
+  'js/core/route-lifecycle.js',
   'js/core/router.js',
   'js/core/state.js',
   'js/core/state.reexport.js',
@@ -74,6 +75,7 @@ const CORE_FILES = [
   'js/lib/motion-ui.js',
   'js/lib/note-graph-layout.js',
   'js/lib/note-links.js',
+  'js/lib/note-memory.js',
   'js/lib/notes-fts.js',
   'js/lib/orpheus-tts.js',
   'js/lib/raven-easter-egg.js',
@@ -119,6 +121,7 @@ const CORE_FILES = [
   'js/ui/melody-picker.js',
   'js/ui/motion-lazy.js',
   'js/ui/navigation.js',
+  'js/ui/notes-graph-canvas.js',
   'js/ui/raven-brand.js',
   'js/ui/rich-editor.js',
   'js/ui/shell.js',

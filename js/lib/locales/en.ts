@@ -404,7 +404,7 @@ export const en: Record<string, MessageValue> = {
   "settings.sounds.uiClicksLabel": "Clicks",
   "settings.sounds.answerMelodies": "Answer melodies",
   "settings.sounds.answerMelodiesHint":
-    "Short cues in Type, Voice, and Match modes; plus a melody when the cup appears. Tap ▶ in the menu to preview.",
+    "Short cues in Classic, Type, Voice, Match, and Cloze; plus a melody when the cup appears. Tap ▶ in the menu to preview.",
   "settings.sounds.correct": "Correct",
   "settings.sounds.wrong": "Wrong",
   "settings.sounds.cup": "Cup",

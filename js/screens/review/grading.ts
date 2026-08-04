@@ -7,6 +7,7 @@ import { recordReview, undoReview, type ReviewSplit } from '../../lib/activity.j
 import { animateCardExit } from '../../ui/swipe-grades.js';
 import { comboMatchBatchProgress } from '../../lib/review-progress.js';
 import { buildReviewEntry, logReview, removeReview } from '../../lib/review-log.js';
+import { playAnswerFeedback, unlockAnswerAudio } from '../../lib/sounds.js';
 import { t } from '../../lib/i18n.js';
 
 export const UNDO_TOAST_MS = 3000;
@@ -150,6 +151,11 @@ export function submitGrade(
     ctx.currentBox.classList.add('is-grading');
   }
   const know = gradeKnows(ctx.algo, g);
+  if (flipGrade && !quiet) {
+    unlockAnswerAudio(store.settings);
+    // Hard (FSRS) — не fail: успех; Again / «Не знаю» — fail.
+    playAnswerFeedback(!gradeFailed(ctx.algo, g), store.settings);
+  }
   const firstTryRecorded = flipGrade ? ctx.trackFlipFirstTry(card, know) : false;
   const run = () => {
     applyGrade(ctx, card, g, {

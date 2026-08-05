@@ -14,6 +14,7 @@ import { buildSoundGroup } from './sections/sounds.js';
 import { buildPacksGroup } from './sections/packs.js';
 import { buildDataGroup } from './sections/data.js';
 import { buildAccountGroup } from './sections/account.js';
+import { buildSyncGroup } from './sections/sync.js';
 import { buildIntegrationsGroup } from './sections/integrations.js';
 import { buildStockMediaGroup } from './sections/stock-media.js';
 import { buildDonateGroup } from './sections/donate.js';
@@ -57,6 +58,7 @@ export async function renderSettings() {
   const integrationsGroup = buildIntegrationsGroup(s, save);
   const stockMediaGroup = buildStockMediaGroup(s, save);
   const dataGroup = buildDataGroup(store, route);
+  const syncGroup = buildSyncGroup(store, route);
   const accGroup = buildAccountGroup(store, sb, setStore, renderAuth, route);
   const aboutGroup = buildAboutGroup();
   const donateGroup = buildDonateGroup();
@@ -75,7 +77,7 @@ export async function renderSettings() {
   shell('settings', el('div', null, [
     offlineBanner(),
     el('div', { class: 'page-head' }, el('h2', { class: 'page-title' }, t('settings.title'))),
-    languageGroup, calendarGroup, algoGroup, soundGroup, packsGroup, integrationsGroup, stockMediaGroup, dataGroup, accGroup,
+    languageGroup, calendarGroup, algoGroup, soundGroup, packsGroup, integrationsGroup, stockMediaGroup, dataGroup, syncGroup, accGroup,
     donateGroup,
     installBtn ? el('div', { class: 'settings-group' }, [
       el('h4', null, t('settings.install.title')),

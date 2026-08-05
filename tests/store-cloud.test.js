@@ -448,6 +448,42 @@ describe('CloudStore online review + optimistic updateCard', () => {
   });
 });
 
+describe('CloudStore flushSync happy path', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('flushSync drains offline createCard queue when online handler succeeds', async () => {
+    installFakeIDB({
+      folders: [folderA],
+      cards: [],
+      kv: { settings: DEFAULT_SETTINGS, srs_meta: [] },
+    });
+    vi.stubGlobal('navigator', { onLine: false, addEventListener: vi.fn() });
+    const { CloudStore } = await import('../js/data/store-cloud.ts');
+    const insert = vi.fn(async () => true);
+    const store = new CloudStore({
+      userId: () => 'user-1',
+      insert,
+      update: vi.fn(async () => true),
+      remove: vi.fn(async () => true),
+      select: vi.fn(async () => []),
+    });
+    await store.init();
+    await store.createCard({ folder_id: 'fa', front: 'hello', back: 'привет', description: '' });
+    expect(await store.pendingSync()).toBeGreaterThan(0);
+
+    // Имитируем появление сети: flush идёт через queue.onFlush → sb.insert.
+    vi.stubGlobal('navigator', { onLine: true, addEventListener: vi.fn() });
+    store._offline = false;
+    const r = await store.flushSync();
+    expect(r.ok).toBeGreaterThan(0);
+    expect(r.fail).toBe(0);
+    expect(await store.pendingSync()).toBe(0);
+    expect(insert).toHaveBeenCalled();
+  });
+});
+
 describe('CloudStore deleteFolder + srs_meta debounce', () => {
   it('deleteFolder removes all folder cards in one mirror batch', async () => {
     installFakeIDB({

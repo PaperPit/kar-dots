@@ -7,6 +7,7 @@ import {
   MODES,
   type ImportMode
 } from "../lib/constants.js"
+import { detectExtLocale, modeLabel, setExtLocale, t } from "../lib/i18n.js"
 import { getAuth, getPrefs, getVideo, setPrefs, setAuth } from "../lib/storage.js"
 import { ExtSupabase } from "../lib/supabase-client.js"
 import { listImportFolders, loadUserSettings, type ExtFolder } from "../lib/folders.js"
@@ -94,7 +95,7 @@ function el<K extends keyof HTMLElementTagNameMap>(
 function brand() {
   return el("div", { class: "brand" }, [
     el("div", { class: "brand-mark" }, "К"),
-    el("div", null, [el("h1", null, "КАР-точки"), el("p", null, "Карточки из YouTube")])
+    el("div", null, [el("h1", null, t("brand.title")), el("p", null, t("brand.sub"))])
   ])
 }
 
@@ -134,14 +135,10 @@ function renderFatal(e: unknown) {
   root.replaceChildren(
     brand(),
     el("div", { class: "card" }, [
-      el("p", { class: "error" }, "Окно не смогло запуститься: " + msg),
-      el(
-        "p",
-        { class: "muted" },
-        "Если это повторяется — правый клик по окну → «Просмотреть код» и пришли текст из вкладки Console."
-      ),
+      el("p", { class: "error" }, t("fatal.title", { message: msg })),
+      el("p", { class: "muted" }, t("fatal.hint")),
       el("div", { class: "actions" }, [
-        el("button", { class: "btn primary", onclick: () => void boot() }, "Попробовать снова")
+        el("button", { class: "btn primary", onclick: () => void boot() }, t("fatal.retry"))
       ])
     ])
   )
@@ -149,6 +146,7 @@ function renderFatal(e: unknown) {
 
 async function boot() {
   try {
+    setExtLocale(detectExtLocale())
     await bootInner()
   } catch (e) {
     renderFatal(e)
@@ -172,7 +170,7 @@ async function bootInner() {
     const sb = await ExtSupabase.fromStorage()
     if (!sb || !(await sb.ensureFresh())) {
       await setAuth(null)
-      renderAuth("Сессия истекла — подключите аккаунт снова")
+      renderAuth(t("auth.expired"))
       return
     }
     accountEmail = sb.email()
@@ -193,11 +191,7 @@ function renderAuth(error?: string) {
   root.replaceChildren(
     brand(),
     el("div", { class: "card auth-box" }, [
-      el(
-        "p",
-        null,
-        `Чтобы сохранять карточки в свою коллекцию, подключи аккаунт на ${new URL(APP_ORIGIN).host}.`
-      ),
+      el("p", null, t("auth.body", { host: new URL(APP_ORIGIN).host })),
       error ? el("p", { class: "error" }, error) : null,
       el("div", { class: "actions", style: "justify-content:center" }, [
         el(
@@ -208,21 +202,21 @@ function renderAuth(error?: string) {
               chrome.tabs.create({ url: CONNECT_URL })
             }
           },
-          "Войти через КАР-точки"
+          t("auth.login")
         )
       ]),
-      el(
-        "p",
-        { class: "muted" },
-        "Откроется сайт — войди, если ещё не вошёл. Расширение получит сессию автоматически."
-      )
+      el("p", { class: "muted" }, t("auth.hint"))
     ])
   )
 }
 
 function accountBar() {
   return el("div", { class: "account-row" }, [
-    el("span", null, accountEmail ? `Аккаунт: ${accountEmail}` : "Аккаунт подключён"),
+    el(
+      "span",
+      null,
+      accountEmail ? t("account.email", { email: accountEmail }) : t("account.connected")
+    ),
     el(
       "button",
       {
@@ -233,7 +227,7 @@ function accountBar() {
           renderAuth()
         }
       },
-      "Отключить"
+      t("account.disconnect")
     )
   ])
 }
@@ -253,7 +247,7 @@ function renderForm(error = "") {
             void setPrefs({ mode }).then(() => renderForm(error))
           }
         },
-        mo.label
+        modeLabel(mo.id)
       )
     )
   }
@@ -270,14 +264,14 @@ function renderForm(error = "") {
   const sentencesOpts = el("div", { class: "field" }, [
     el("label", { class: "check-label" }, [
       mergeChk,
-      el("span", null, "Склеивать короткие реплики в предложения")
+      el("span", null, t("form.mergeCues"))
     ])
   ])
   sentencesOpts.style.display = mode === "sentences" ? "" : "none"
 
   const folderSelect = el("select", { class: "input" }, []) as HTMLSelectElement
   if (!folders.length) {
-    folderSelect.append(el("option", { value: "" }, "Нет папок — создай в приложении"))
+    folderSelect.append(el("option", { value: "" }, t("form.noFolders")))
   } else {
     for (const f of folders) {
       folderSelect.append(el("option", { value: f.id, selected: f.id === folderId }, f.name))
@@ -298,18 +292,18 @@ function renderForm(error = "") {
       disabled: !folders.length || !videoUrl,
       onclick: () => void runImport()
     },
-    "Сформировать"
+    t("form.generate")
   ) as HTMLButtonElement
 
   root.replaceChildren(
     brand(),
     accountBar(),
     el("div", { class: "card" }, [
-      el("p", { class: "video-title" }, videoTitle || "Текущее видео"),
-      el("p", { class: "video-url" }, videoUrl || "Открой ролик на YouTube"),
-      el("div", { class: "field" }, [el("label", null, "Что достать из ролика"), modeSeg]),
+      el("p", { class: "video-title" }, videoTitle || t("form.videoFallback")),
+      el("p", { class: "video-url" }, videoUrl || t("form.urlFallback")),
+      el("div", { class: "field" }, [el("label", null, t("form.whatLabel")), modeSeg]),
       sentencesOpts,
-      el("div", { class: "field" }, [el("label", null, "Папка"), folderSelect]),
+      el("div", { class: "field" }, [el("label", null, t("form.folderLabel")), folderSelect]),
       errEl,
       el("div", { class: "actions" }, [goBtn])
     ])
@@ -332,12 +326,12 @@ function renderProgress(text: string) {
             renderForm()
           }
         },
-        "Отмена"
+        t("progress.cancel")
       )
     ])
   )
-  return (t: string) => {
-    statusEl.textContent = t
+  return (next: string) => {
+    statusEl.textContent = next
   }
 }
 
@@ -345,32 +339,28 @@ async function runImport() {
   cancelled = false
 
   if (!videoUrl || !parseYouTubeId(videoUrl)) {
-    renderForm("Не похоже на ссылку на YouTube-видео — открой ролик на YouTube")
+    renderForm(t("form.badUrl"))
     return
   }
   if (!folderId) {
-    renderForm("Выбери папку")
+    renderForm(t("form.pickFolder"))
     return
   }
   if (!hasSupadataApiKey(settings)) {
-    renderForm(
-      "Укажи Supadata API ключ в КАР-точки: Настройки → «Карточки из YouTube» → «Настроить»"
-    )
+    renderForm(t("form.needSupadata"))
     return
   }
   if (!hasGenerateApiKey(settings)) {
-    renderForm(
-      "Укажи Gemini или Groq API ключ в КАР-точки: Настройки → «Карточки из YouTube» → «Настроить»"
-    )
+    renderForm(t("form.needLlm"))
     return
   }
 
-  const setStatus = renderProgress("Получаю данные видео…")
+  const setStatus = renderProgress(t("progress.fetchVideo"))
   const isClosed = () => cancelled
 
   try {
     const sb = await ExtSupabase.fromStorage()
-    if (!sb) throw new Error("Нет сессии")
+    if (!sb) throw new Error(t("save.noSession"))
 
     const { video, transcript } = await fetchTranscriptFromUrl(videoUrl, settings, {
       isClosed,
@@ -381,7 +371,7 @@ async function runImport() {
     videoId = video.videoId || parseYouTubeId(videoUrl)
     if (video.title) videoTitle = String(video.title)
 
-    setStatus("Составляю карточки…")
+    setStatus(t("progress.generate"))
     const prepared = prepareTranscriptForMode(transcript, mode, { mergeCues })
     const gen = await generateYoutubeCards(
       { video, transcript: prepared, mode, settings },
@@ -389,7 +379,7 @@ async function runImport() {
     )
     if (cancelled) return
 
-    setStatus(mode === "sentences" ? "Проверяю новые предложения…" : "Проверяю новые слова…")
+    setStatus(mode === "sentences" ? t("progress.checkSentences") : t("progress.checkWords"))
     const known = await loadKnownTermsForImport(sb, folders, folderId)
     if (cancelled) return
 
@@ -411,7 +401,7 @@ async function runImport() {
     }
 
     if (!previewItems.length) {
-      renderForm("Новых карточек не нашлось — всё уже есть в паках или папках")
+      renderForm(t("form.empty"))
       return
     }
     renderPreview()
@@ -426,16 +416,16 @@ function renderPreview() {
   for (const item of previewItems) {
     const kind =
       item.cand.kind === "sentence"
-        ? "Предложения"
+        ? t("preview.group.sentences")
         : item.cand.kind === "phrase"
-          ? "Фразы"
-          : "Слова"
+          ? t("preview.group.phrases")
+          : t("preview.group.words")
     if (!groups.has(kind)) groups.set(kind, [])
     groups.get(kind)!.push(item)
   }
 
   const selectedCount = () => previewItems.filter((i) => i.checked && i.back.trim()).length
-  const countLabel = el("span", { class: "muted" }, `Выбрано: ${selectedCount()}`)
+  const countLabel = el("span", { class: "muted" }, t("preview.selected", { n: selectedCount() }))
   const toast = el("div", { class: "toast" }, "")
   toast.style.display = "none"
 
@@ -446,13 +436,13 @@ function renderPreview() {
       const chk = el("input", { type: "checkbox", checked: item.checked }) as HTMLInputElement
       chk.addEventListener("change", () => {
         item.checked = chk.checked
-        countLabel.textContent = `Выбрано: ${selectedCount()}`
+        countLabel.textContent = t("preview.selected", { n: selectedCount() })
         saveBtn.disabled = selectedCount() === 0
       })
       const back = el("input", { class: "back", value: item.back }) as HTMLInputElement
       back.addEventListener("input", () => {
         item.back = back.value
-        countLabel.textContent = `Выбрано: ${selectedCount()}`
+        countLabel.textContent = t("preview.selected", { n: selectedCount() })
         saveBtn.disabled = selectedCount() === 0
       })
       const metaParts = [
@@ -481,7 +471,7 @@ function renderPreview() {
       disabled: selectedCount() === 0,
       onclick: () => void saveSelected(saveBtn, toast, countLabel)
     },
-    "Создать карточки"
+    t("preview.create")
   ) as HTMLButtonElement
 
   root.replaceChildren(
@@ -489,15 +479,15 @@ function renderPreview() {
     el("div", { class: "card" }, [
       el("div", { class: "preview-head" }, [
         el("div", null, [
-          el("p", { class: "video-title" }, videoTitle || "Превью"),
-          el("p", { class: "muted" }, "Отметь, что сохранить, при необходимости поправь перевод")
+          el("p", { class: "video-title" }, videoTitle || t("preview.title")),
+          el("p", { class: "muted" }, t("preview.hint"))
         ]),
         countLabel
       ]),
       list,
       toast,
       el("div", { class: "actions" }, [
-        el("button", { class: "btn ghost", onclick: () => renderForm() }, "Назад"),
+        el("button", { class: "btn ghost", onclick: () => renderForm() }, t("preview.back")),
         saveBtn
       ])
     ])
@@ -518,15 +508,19 @@ async function saveSelected(
   toast.style.display = "none"
   try {
     const sb = await ExtSupabase.fromStorage()
-    if (!sb) throw new Error("Нет сессии")
+    if (!sb) throw new Error(t("save.noSession"))
     const { ok, failed } = await createYoutubeCardsBatch(sb, folderId, selected, videoId)
     const folder = folders.find((f) => f.id === folderId)
     toast.className = failed.length && !ok ? "toast error" : "toast"
     toast.style.display = ""
     toast.textContent =
       ok > 0
-        ? `Создано: ${ok}` + (failed.length ? `, ошибок: ${failed.length}` : "")
-        : `Не удалось сохранить (${failed[0]?.message || "ошибка"})`
+        ? failed.length
+          ? t("save.createdWithFail", { ok, fail: failed.length })
+          : t("save.created", { ok })
+        : t("save.fail", {
+            message: failed[0]?.message || t("error.generic"),
+          })
     if (ok > 0) {
       toast.append(
         el("br"),
@@ -538,11 +532,11 @@ async function saveSelected(
             rel: "noopener noreferrer",
             style: "display:inline-block;margin-top:8px;color:inherit;font-weight:700"
           },
-          folder ? `Открыть «${folder.name}»` : "Открыть папку"
+          folder ? t("save.openNamed", { name: folder.name }) : t("save.openFolder")
         )
       )
     }
-    countLabel.textContent = `Создано: ${ok}`
+    countLabel.textContent = t("save.created", { ok })
   } catch (e) {
     toast.className = "toast error"
     toast.style.display = ""

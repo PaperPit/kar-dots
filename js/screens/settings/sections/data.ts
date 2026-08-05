@@ -17,6 +17,45 @@ export function buildDataGroup(store: AppStore, route: () => void | Promise<void
     }
   });
 
+  const ankiInput = el('input', {
+    type: 'file',
+    accept: '.apkg,application/zip,application/octet-stream',
+    class: 'hidden',
+  }, []) as HTMLInputElement;
+  ankiInput.addEventListener('change', async () => {
+    if (!ankiInput.files?.length) return;
+    const f = ankiInput.files[0];
+    if (!f) return;
+    ankiInput.value = '';
+    toast(t('settings.data.ankiProgress'), 'ok');
+    try {
+      const { parseApkg } = await import('../../../lib/anki-apkg.js');
+      const parsed = await parseApkg(await f.arrayBuffer());
+      if (!parsed.decks.length) {
+        toast(t('settings.data.ankiEmpty'), 'error');
+        return;
+      }
+      let imported = 0;
+      for (const deck of parsed.decks) {
+        const existing = store.folders.find((folder) => folder.name === deck.name);
+        const folder = existing || await store.createFolder({ name: deck.name });
+        for (const card of deck.cards) {
+          await store.createCard({
+            folder_id: folder.id,
+            front: card.front,
+            back: card.back,
+            description: '',
+          });
+          imported++;
+        }
+      }
+      toast(t('settings.data.ankiDone', { cards: imported, decks: parsed.decks.length }), 'ok');
+      await route();
+    } catch (e) {
+      toast(t('settings.data.ankiFailed', { message: e instanceof Error ? e.message : String(e) }), 'error');
+    }
+  });
+
   return el('div', { class: 'settings-group' }, [
     el('h4', null, t('settings.data.title')),
     el('div', { class: 'setting-row' }, [
@@ -41,6 +80,18 @@ export function buildDataGroup(store: AppStore, route: () => void | Promise<void
       ]),
       el('button', { class: 'btn', onclick: () => importInput.click() }, t('settings.data.importFile')),
       importInput,
+    ]),
+    el('div', { class: 'setting-row' }, [
+      el('div', { class: 'lab' }, [
+        el('b', null, t('settings.data.anki')),
+        el('span', null, t('settings.data.ankiHint')),
+      ]),
+      el('button', {
+        class: 'btn',
+        type: 'button',
+        onclick: () => ankiInput.click(),
+      }, t('settings.data.ankiFile')),
+      ankiInput,
     ]),
   ]);
 }

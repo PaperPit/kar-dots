@@ -17,7 +17,11 @@
 <p align="center">
   <b><a href="https://kar-tochki.pages.dev">Живое демо</a></b> ·
   <a href="docs/USER-GUIDE.md"><b>Полная инструкция</b></a> ·
+  <a href="docs/ARCHITECTURE.md">Architecture</a> ·
+  <a href="docs/API.md">API</a> ·
   <a href="docs/cloudflare-pages-setup.md">Деплой за вечер</a> ·
+  <a href="docs/SECURITY.md">Security</a> ·
+  <a href="CHANGELOG.md">Changelog</a> ·
   <a href="ROADMAP.md">Roadmap</a> ·
   <a href="CONTRIBUTING.md">Участие</a> ·
   <a href="#english">English</a>
@@ -64,7 +68,7 @@
 - Картинки на любой стороне, drag-and-drop; **поиск стоковых фото и GIF** (Openverse, Pixabay, Giphy)
 - **Просмотр карточки** перед сохранением (flip-превью в редакторе)
 - Папки с цветами и иконками, **коробки** для групп папок; **перетаскивание папок** в коробку и обратно
-- Массовый импорт (`слово — перевод`), автоперевод RU↔EN, экспорт/импорт JSON
+- Массовый импорт (`слово — перевод`), автоперевод RU↔EN, экспорт/импорт JSON, **базовый импорт Anki (.apkg)**
 - **Карточки из YouTube** — субтитры + LLM (Gemini / Groq), см. [docs/youtube-import-setup.md](docs/youtube-import-setup.md)
 - **Chrome-расширение** — кнопка на YouTube → Side Panel без копирования ссылки, см. [docs/chrome-extension.md](docs/chrome-extension.md)
 - Готовые **паки слов** в [`packs/`](packs/)

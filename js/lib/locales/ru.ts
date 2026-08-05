@@ -452,6 +452,14 @@ export const ru = {
   "settings.data.importFile": "Выбрать файл",
   "settings.data.importDone": "Импорт завершён",
   "settings.data.importFailed": "Импорт не удался: {message}",
+  "settings.data.anki": "Импорт Anki (.apkg)",
+  "settings.data.ankiHint":
+    "Заметки → карточки (Front/Back). Без медиа и без интервалов Anki — все как новые.",
+  "settings.data.ankiFile": "Выбрать .apkg",
+  "settings.data.ankiProgress": "Читаю колоду Anki…",
+  "settings.data.ankiEmpty": "В файле нет заметок для импорта",
+  "settings.data.ankiDone": "Импортировано {cards} карточек из {decks} колод",
+  "settings.data.ankiFailed": "Импорт Anki не удался: {message}",
 
   "settings.account.title": "Режим работы",
   "settings.account.cloudLabel": "Облако: {email}",
@@ -471,6 +479,16 @@ export const ru = {
   "settings.account.syncHint": "Принудительно отправить отложенные изменения в облако.",
   "settings.account.syncBtn": "Синхронизировать",
   "settings.account.syncStatsUpdated": "Статистика и очередь обновлены",
+
+  "settings.sync.title": "Очередь синхронизации",
+  "settings.sync.localOnly": "Очередь и ошибки синка доступны только в облачном режиме.",
+  "settings.sync.loading": "Загрузка…",
+  "settings.sync.queue": "Статус очереди",
+  "settings.sync.status": "Ожидают: {pending} · Ошибки: {failed}",
+  "settings.sync.noDead": "Нет отложенных ошибок.",
+  "settings.sync.flush": "Синхронизировать сейчас",
+  "settings.sync.retry": "Повторить",
+  "settings.sync.discard": "Отбросить",
 
   "settings.yt.title": "Карточки из YouTube",
   "settings.yt.apiKeys": "API-ключи",
@@ -628,6 +646,7 @@ export const ru = {
   "review.grade.swipeBinary": "← не знаю · → знаю",
   "review.grade.keysBinary":
     "клавиши: пробел — перевернуть · ← не знаю · → знаю",
+  "review.grade.groupAria": "Оценка ответа",
   "review.grade.saveFailed": "Не сохранилось: {message}",
   "review.grade.saved": "Оценка сохранена",
   "review.grade.undoFailed": "Не удалось отменить: {message}",

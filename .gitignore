@@ -30,6 +30,9 @@ www/
 test-results/
 playwright-report/
 
+# Coverage (vitest --coverage)
+coverage/
+
 # Graphify
 graphify-out/
 

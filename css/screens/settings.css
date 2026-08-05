@@ -199,6 +199,16 @@ input[type="range"].tts-rate { width: 100%; margin: 0; accent-color: var(--accen
 .api-key-status.is-set { color: var(--ok); }
 .api-key-status.is-invalid { color: var(--danger); }
 
+.settings-sync-note { margin: 0; font-size: 13px; }
+.settings-sync-list { display: flex; flex-direction: column; gap: 0; }
+.settings-sync-dead .lab span { display: block; }
+.settings-sync-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
 /* Позиция календаря left/right/hide — только на широких экранах */
 @media (max-width: 719px) {
   .settings-desktop-only { display: none !important; }

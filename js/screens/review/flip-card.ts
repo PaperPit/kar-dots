@@ -74,7 +74,11 @@ export function createFlipCard(card: SrsCard, firstSide: 'front' | 'back', opts:
   });
 
   const hint = el('div', { class: 'flip-hint', id: hintId }, t('review.flip.hint'));
-  const grades = el('div', { class: 'grade-row' }, undefined);
+  const grades = el('div', {
+    class: 'grade-row',
+    role: 'group',
+    'aria-label': t('review.grade.groupAria'),
+  }, undefined);
   const swipeWrap = el('div', { class: 'flip-swipe-wrap' }, [flip]);
   // декоративные слои-«стопка» позади карточки: создают ощущение колоды
   const swipeArea = el('div', { class: 'flip-swipe-area' }, [

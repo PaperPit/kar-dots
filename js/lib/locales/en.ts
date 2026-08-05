@@ -431,6 +431,14 @@ export const en: Record<string, MessageValue> = {
   "settings.data.importFile": "Choose file",
   "settings.data.importDone": "Import complete",
   "settings.data.importFailed": "Import failed: {message}",
+  "settings.data.anki": "Import Anki (.apkg)",
+  "settings.data.ankiHint":
+    "Notes → cards (Front/Back). No media and no Anki scheduling — all cards start as new.",
+  "settings.data.ankiFile": "Choose .apkg",
+  "settings.data.ankiProgress": "Reading Anki deck…",
+  "settings.data.ankiEmpty": "No notes to import in this file",
+  "settings.data.ankiDone": "Imported {cards} cards from {decks} decks",
+  "settings.data.ankiFailed": "Anki import failed: {message}",
 
   "settings.account.title": "Mode",
   "settings.account.cloudLabel": "Cloud: {email}",
@@ -450,6 +458,16 @@ export const en: Record<string, MessageValue> = {
   "settings.account.syncHint": "Force-send pending changes to the cloud.",
   "settings.account.syncBtn": "Sync now",
   "settings.account.syncStatsUpdated": "Stats and queue updated",
+
+  "settings.sync.title": "Sync queue",
+  "settings.sync.localOnly": "The sync queue and dead letters are available in cloud mode only.",
+  "settings.sync.loading": "Loading…",
+  "settings.sync.queue": "Queue status",
+  "settings.sync.status": "Pending: {pending} · Failed: {failed}",
+  "settings.sync.noDead": "No failed sync items.",
+  "settings.sync.flush": "Sync now",
+  "settings.sync.retry": "Retry",
+  "settings.sync.discard": "Discard",
 
   "settings.yt.title": "Cards from YouTube",
   "settings.yt.apiKeys": "API keys",
@@ -606,6 +624,7 @@ export const en: Record<string, MessageValue> = {
   "review.grade.swipeBinary": "← don’t know · → know",
   "review.grade.keysBinary":
     "keys: space — flip · ← don’t know · → know",
+  "review.grade.groupAria": "Answer grade",
   "review.grade.saveFailed": "Could not save: {message}",
   "review.grade.saved": "Grade saved",
   "review.grade.undoFailed": "Could not undo: {message}",

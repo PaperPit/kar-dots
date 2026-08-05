@@ -1,0 +1,41 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Extract CHANGELOG section
+        id: changelog
+        run: |
+          TAG="${GITHUB_REF_NAME}"
+          # Keep a Changelog: ## [1.2.3] - date  OR ## [1.2.3]
+          SECTION=$(awk -v tag="${TAG#v}" '
+            BEGIN { grab=0 }
+            /^## \[/{
+              if ($0 ~ "\\[" tag "\\]") { grab=1; next }
+              else if (grab) { exit }
+            }
+            grab { print }
+          ' CHANGELOG.md)
+          if [ -z "$SECTION" ]; then
+            SECTION="Release ${TAG}"
+          fi
+          {
+            echo "body<<EOF"
+            echo "$SECTION"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          body: ${{ steps.changelog.outputs.body }}
+          generate_release_notes: false

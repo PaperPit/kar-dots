@@ -60,7 +60,15 @@ export function el<K extends string = "div">(
 
 export function toast(msg: string, type?: string): void {
   const root = document.getElementById("toasts") as HTMLElement
-  const t = el("div", { class: "toast " + (type || "") }, msg)
+  const t = el(
+    "div",
+    {
+      class: "toast " + (type || ""),
+      role: type === "error" ? "alert" : "status",
+      "aria-atomic": "true"
+    },
+    msg
+  )
   root.appendChild(t)
   animateToastIn(t)
   setTimeout(() => {
@@ -87,7 +95,7 @@ export function toastAction(
 
   const root = document.getElementById("toasts") as HTMLElement
   let hideTimer: ReturnType<typeof setTimeout> | undefined
-  const t = el("div", { class: "toast toast-actionable" }, [
+  const t = el("div", { class: "toast toast-actionable", role: "status", "aria-atomic": "true" }, [
     el("span", { class: "toast-msg" }, msg),
     el(
       "button",

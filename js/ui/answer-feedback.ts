@@ -15,6 +15,9 @@ export function showStudyFeedback(el: HTMLElement | null, isCorrect: boolean, te
   if (!el) return
   el.hidden = false
   el.className = `study-feedback is-enter ${isCorrect ? "is-correct" : "is-wrong"}`
+  el.setAttribute("role", "status")
+  el.setAttribute("aria-live", isCorrect ? "polite" : "assertive")
+  el.setAttribute("aria-atomic", "true")
   const row = Object.assign(document.createElement("span"), {
     className: "answer-feedback-row"
   })

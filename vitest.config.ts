@@ -9,6 +9,28 @@ export default defineConfig({
   test: {
     environment: 'happy-dom',
     include: ['tests/**/*.test.{js,ts}'],
+    coverage: {
+      provider: 'v8',
+      reporter: ['text', 'lcov'],
+      include: [
+        'js/data/store-cloud.ts',
+        'js/screens/review/session.ts',
+        'js/screens/review/grading.ts',
+      ],
+      thresholds: {
+        // session.ts heavily UI-bound; gate on grading + cloud store instead.
+        'js/data/store-cloud.ts': {
+          lines: 40,
+          functions: 40,
+          statements: 40,
+        },
+        'js/screens/review/grading.ts': {
+          lines: 35,
+          functions: 40,
+          statements: 35,
+        },
+      },
+    },
   },
   resolve: {
     alias: [

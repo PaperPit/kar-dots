@@ -20,6 +20,7 @@
   <a href="docs/ARCHITECTURE.md">Architecture</a> ·
   <a href="docs/API.md">API</a> ·
   <a href="docs/cloudflare-pages-setup.md">Деплой за вечер</a> ·
+  <a href="docs/OPS.md">OPS</a> ·
   <a href="docs/SECURITY.md">Security</a> ·
   <a href="CHANGELOG.md">Changelog</a> ·
   <a href="ROADMAP.md">Roadmap</a> ·

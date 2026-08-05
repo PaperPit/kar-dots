@@ -9,6 +9,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
@@ -20,6 +22,10 @@ jobs:
         run: npm run lint
       - name: i18n check
         run: npm run i18n:check
+      - name: Check format (changed files, Prettier)
+        run: node scripts/check-format-changed.mjs
+      - name: Security audit (prod deps only)
+        run: npm audit --omit=dev --audit-level=high
       - name: Test
         run: npm test
       - name: Coverage gates
@@ -27,6 +33,10 @@ jobs:
       - name: Extension build
         run: npm run ext:build
       - name: Bundle
+        env:
+          KAR_BUNDLE_BUDGET_STRICT: "1"
+          KAR_BUNDLE_EDITOR_MAX_KB: "600"
+          KAR_BUNDLE_APP_MAX_KB: "5"
         run: npm run build:bundle
       - name: Bundle smoke
         run: |

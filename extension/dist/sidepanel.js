@@ -56,6 +56,141 @@ var DEFAULT_PREFS = {
   folderId: null
 };
 
+// src/lib/i18n.ts
+var ru = {
+  "brand.title": "\u041A\u0410\u0420-\u0442\u043E\u0447\u043A\u0438",
+  "brand.sub": "\u041A\u0430\u0440\u0442\u043E\u0447\u043A\u0438 \u0438\u0437 YouTube",
+  "fatal.title": "\u041E\u043A\u043D\u043E \u043D\u0435 \u0441\u043C\u043E\u0433\u043B\u043E \u0437\u0430\u043F\u0443\u0441\u0442\u0438\u0442\u044C\u0441\u044F: {message}",
+  "fatal.hint": "\u0415\u0441\u043B\u0438 \u044D\u0442\u043E \u043F\u043E\u0432\u0442\u043E\u0440\u044F\u0435\u0442\u0441\u044F \u2014 \u043F\u0440\u0430\u0432\u044B\u0439 \u043A\u043B\u0438\u043A \u043F\u043E \u043E\u043A\u043D\u0443 \u2192 \xAB\u041F\u0440\u043E\u0441\u043C\u043E\u0442\u0440\u0435\u0442\u044C \u043A\u043E\u0434\xBB \u0438 \u043F\u0440\u0438\u0448\u043B\u0438 \u0442\u0435\u043A\u0441\u0442 \u0438\u0437 \u0432\u043A\u043B\u0430\u0434\u043A\u0438 Console.",
+  "fatal.retry": "\u041F\u043E\u043F\u0440\u043E\u0431\u043E\u0432\u0430\u0442\u044C \u0441\u043D\u043E\u0432\u0430",
+  "auth.body": "\u0427\u0442\u043E\u0431\u044B \u0441\u043E\u0445\u0440\u0430\u043D\u044F\u0442\u044C \u043A\u0430\u0440\u0442\u043E\u0447\u043A\u0438 \u0432 \u0441\u0432\u043E\u044E \u043A\u043E\u043B\u043B\u0435\u043A\u0446\u0438\u044E, \u043F\u043E\u0434\u043A\u043B\u044E\u0447\u0438 \u0430\u043A\u043A\u0430\u0443\u043D\u0442 \u043D\u0430 {host}.",
+  "auth.login": "\u0412\u043E\u0439\u0442\u0438 \u0447\u0435\u0440\u0435\u0437 \u041A\u0410\u0420-\u0442\u043E\u0447\u043A\u0438",
+  "auth.hint": "\u041E\u0442\u043A\u0440\u043E\u0435\u0442\u0441\u044F \u0441\u0430\u0439\u0442 \u2014 \u0432\u043E\u0439\u0434\u0438, \u0435\u0441\u043B\u0438 \u0435\u0449\u0451 \u043D\u0435 \u0432\u043E\u0448\u0451\u043B. \u0420\u0430\u0441\u0448\u0438\u0440\u0435\u043D\u0438\u0435 \u043F\u043E\u043B\u0443\u0447\u0438\u0442 \u0441\u0435\u0441\u0441\u0438\u044E \u0430\u0432\u0442\u043E\u043C\u0430\u0442\u0438\u0447\u0435\u0441\u043A\u0438.",
+  "auth.expired": "\u0421\u0435\u0441\u0441\u0438\u044F \u0438\u0441\u0442\u0435\u043A\u043B\u0430 \u2014 \u043F\u043E\u0434\u043A\u043B\u044E\u0447\u0438\u0442\u0435 \u0430\u043A\u043A\u0430\u0443\u043D\u0442 \u0441\u043D\u043E\u0432\u0430",
+  "account.connected": "\u0410\u043A\u043A\u0430\u0443\u043D\u0442 \u043F\u043E\u0434\u043A\u043B\u044E\u0447\u0451\u043D",
+  "account.email": "\u0410\u043A\u043A\u0430\u0443\u043D\u0442: {email}",
+  "account.disconnect": "\u041E\u0442\u043A\u043B\u044E\u0447\u0438\u0442\u044C",
+  "mode.words": "\u0421\u043B\u043E\u0432\u0430",
+  "mode.phrases": "\u0424\u0440\u0430\u0437\u044B",
+  "mode.both": "\u0421\u043B\u043E\u0432\u0430 + \u0444\u0440\u0430\u0437\u044B",
+  "mode.sentences": "\u041F\u0440\u0435\u0434\u043B\u043E\u0436\u0435\u043D\u0438\u044F",
+  "form.mergeCues": "\u0421\u043A\u043B\u0435\u0438\u0432\u0430\u0442\u044C \u043A\u043E\u0440\u043E\u0442\u043A\u0438\u0435 \u0440\u0435\u043F\u043B\u0438\u043A\u0438 \u0432 \u043F\u0440\u0435\u0434\u043B\u043E\u0436\u0435\u043D\u0438\u044F",
+  "form.noFolders": "\u041D\u0435\u0442 \u043F\u0430\u043F\u043E\u043A \u2014 \u0441\u043E\u0437\u0434\u0430\u0439 \u0432 \u043F\u0440\u0438\u043B\u043E\u0436\u0435\u043D\u0438\u0438",
+  "form.generate": "\u0421\u0444\u043E\u0440\u043C\u0438\u0440\u043E\u0432\u0430\u0442\u044C",
+  "form.videoFallback": "\u0422\u0435\u043A\u0443\u0449\u0435\u0435 \u0432\u0438\u0434\u0435\u043E",
+  "form.urlFallback": "\u041E\u0442\u043A\u0440\u043E\u0439 \u0440\u043E\u043B\u0438\u043A \u043D\u0430 YouTube",
+  "form.whatLabel": "\u0427\u0442\u043E \u0434\u043E\u0441\u0442\u0430\u0442\u044C \u0438\u0437 \u0440\u043E\u043B\u0438\u043A\u0430",
+  "form.folderLabel": "\u041F\u0430\u043F\u043A\u0430",
+  "form.badUrl": "\u041D\u0435 \u043F\u043E\u0445\u043E\u0436\u0435 \u043D\u0430 \u0441\u0441\u044B\u043B\u043A\u0443 \u043D\u0430 YouTube-\u0432\u0438\u0434\u0435\u043E \u2014 \u043E\u0442\u043A\u0440\u043E\u0439 \u0440\u043E\u043B\u0438\u043A \u043D\u0430 YouTube",
+  "form.pickFolder": "\u0412\u044B\u0431\u0435\u0440\u0438 \u043F\u0430\u043F\u043A\u0443",
+  "form.needSupadata": "\u0423\u043A\u0430\u0436\u0438 Supadata API \u043A\u043B\u044E\u0447 \u0432 \u041A\u0410\u0420-\u0442\u043E\u0447\u043A\u0438: \u041D\u0430\u0441\u0442\u0440\u043E\u0439\u043A\u0438 \u2192 \xAB\u041A\u0430\u0440\u0442\u043E\u0447\u043A\u0438 \u0438\u0437 YouTube\xBB \u2192 \xAB\u041D\u0430\u0441\u0442\u0440\u043E\u0438\u0442\u044C\xBB",
+  "form.needLlm": "\u0423\u043A\u0430\u0436\u0438 Gemini \u0438\u043B\u0438 Groq API \u043A\u043B\u044E\u0447 \u0432 \u041A\u0410\u0420-\u0442\u043E\u0447\u043A\u0438: \u041D\u0430\u0441\u0442\u0440\u043E\u0439\u043A\u0438 \u2192 \xAB\u041A\u0430\u0440\u0442\u043E\u0447\u043A\u0438 \u0438\u0437 YouTube\xBB \u2192 \xAB\u041D\u0430\u0441\u0442\u0440\u043E\u0438\u0442\u044C\xBB",
+  "form.empty": "\u041D\u043E\u0432\u044B\u0445 \u043A\u0430\u0440\u0442\u043E\u0447\u0435\u043A \u043D\u0435 \u043D\u0430\u0448\u043B\u043E\u0441\u044C \u2014 \u0432\u0441\u0451 \u0443\u0436\u0435 \u0435\u0441\u0442\u044C \u0432 \u043F\u0430\u043A\u0430\u0445 \u0438\u043B\u0438 \u043F\u0430\u043F\u043A\u0430\u0445",
+  "progress.cancel": "\u041E\u0442\u043C\u0435\u043D\u0430",
+  "progress.fetchVideo": "\u041F\u043E\u043B\u0443\u0447\u0430\u044E \u0434\u0430\u043D\u043D\u044B\u0435 \u0432\u0438\u0434\u0435\u043E\u2026",
+  "progress.generate": "\u0421\u043E\u0441\u0442\u0430\u0432\u043B\u044F\u044E \u043A\u0430\u0440\u0442\u043E\u0447\u043A\u0438\u2026",
+  "progress.checkSentences": "\u041F\u0440\u043E\u0432\u0435\u0440\u044F\u044E \u043D\u043E\u0432\u044B\u0435 \u043F\u0440\u0435\u0434\u043B\u043E\u0436\u0435\u043D\u0438\u044F\u2026",
+  "progress.checkWords": "\u041F\u0440\u043E\u0432\u0435\u0440\u044F\u044E \u043D\u043E\u0432\u044B\u0435 \u0441\u043B\u043E\u0432\u0430\u2026",
+  "preview.selected": "\u0412\u044B\u0431\u0440\u0430\u043D\u043E: {n}",
+  "preview.title": "\u041F\u0440\u0435\u0432\u044C\u044E",
+  "preview.hint": "\u041E\u0442\u043C\u0435\u0442\u044C, \u0447\u0442\u043E \u0441\u043E\u0445\u0440\u0430\u043D\u0438\u0442\u044C, \u043F\u0440\u0438 \u043D\u0435\u043E\u0431\u0445\u043E\u0434\u0438\u043C\u043E\u0441\u0442\u0438 \u043F\u043E\u043F\u0440\u0430\u0432\u044C \u043F\u0435\u0440\u0435\u0432\u043E\u0434",
+  "preview.create": "\u0421\u043E\u0437\u0434\u0430\u0442\u044C \u043A\u0430\u0440\u0442\u043E\u0447\u043A\u0438",
+  "preview.back": "\u041D\u0430\u0437\u0430\u0434",
+  "preview.group.words": "\u0421\u043B\u043E\u0432\u0430",
+  "preview.group.phrases": "\u0424\u0440\u0430\u0437\u044B",
+  "preview.group.sentences": "\u041F\u0440\u0435\u0434\u043B\u043E\u0436\u0435\u043D\u0438\u044F",
+  "save.noSession": "\u041D\u0435\u0442 \u0441\u0435\u0441\u0441\u0438\u0438",
+  "save.fail": "\u041D\u0435 \u0443\u0434\u0430\u043B\u043E\u0441\u044C \u0441\u043E\u0445\u0440\u0430\u043D\u0438\u0442\u044C ({message})",
+  "save.created": "\u0421\u043E\u0437\u0434\u0430\u043D\u043E: {ok}",
+  "save.createdWithFail": "\u0421\u043E\u0437\u0434\u0430\u043D\u043E: {ok}, \u043E\u0448\u0438\u0431\u043E\u043A: {fail}",
+  "save.openFolder": "\u041E\u0442\u043A\u0440\u044B\u0442\u044C \u043F\u0430\u043F\u043A\u0443",
+  "save.openNamed": "\u041E\u0442\u043A\u0440\u044B\u0442\u044C \xAB{name}\xBB",
+  "error.generic": "\u043E\u0448\u0438\u0431\u043A\u0430"
+};
+var en = {
+  "brand.title": "KAR-dots",
+  "brand.sub": "Cards from YouTube",
+  "fatal.title": "The panel failed to start: {message}",
+  "fatal.hint": "If this keeps happening \u2014 right-click the panel \u2192 Inspect and send the Console text.",
+  "fatal.retry": "Try again",
+  "auth.body": "To save cards to your collection, connect an account on {host}.",
+  "auth.login": "Sign in with KAR-dots",
+  "auth.hint": "The site will open \u2014 sign in if needed. The extension picks up the session automatically.",
+  "auth.expired": "Session expired \u2014 connect your account again",
+  "account.connected": "Account connected",
+  "account.email": "Account: {email}",
+  "account.disconnect": "Disconnect",
+  "mode.words": "Words",
+  "mode.phrases": "Phrases",
+  "mode.both": "Words + phrases",
+  "mode.sentences": "Sentences",
+  "form.mergeCues": "Merge short cues into sentences",
+  "form.noFolders": "No folders \u2014 create one in the app",
+  "form.generate": "Generate",
+  "form.videoFallback": "Current video",
+  "form.urlFallback": "Open a YouTube video",
+  "form.whatLabel": "What to extract",
+  "form.folderLabel": "Folder",
+  "form.badUrl": "That doesn\u2019t look like a YouTube video URL \u2014 open a video on YouTube",
+  "form.pickFolder": "Pick a folder",
+  "form.needSupadata": "Add a Supadata API key in KAR-dots: Settings \u2192 YouTube cards \u2192 Configure",
+  "form.needLlm": "Add a Gemini or Groq API key in KAR-dots: Settings \u2192 YouTube cards \u2192 Configure",
+  "form.empty": "No new cards \u2014 everything is already in packs or folders",
+  "progress.cancel": "Cancel",
+  "progress.fetchVideo": "Fetching video\u2026",
+  "progress.generate": "Building cards\u2026",
+  "progress.checkSentences": "Checking new sentences\u2026",
+  "progress.checkWords": "Checking new words\u2026",
+  "preview.selected": "Selected: {n}",
+  "preview.title": "Preview",
+  "preview.hint": "Tick what to keep; edit the translation if needed",
+  "preview.create": "Create cards",
+  "preview.back": "Back",
+  "preview.group.words": "Words",
+  "preview.group.phrases": "Phrases",
+  "preview.group.sentences": "Sentences",
+  "save.noSession": "No session",
+  "save.fail": "Could not save ({message})",
+  "save.created": "Created: {ok}",
+  "save.createdWithFail": "Created: {ok}, failed: {fail}",
+  "save.openFolder": "Open folder",
+  "save.openNamed": "Open \u201C{name}\u201D",
+  "error.generic": "error"
+};
+var catalogs = { ru, en };
+var locale = "ru";
+function detectExtLocale() {
+  try {
+    const ui = typeof chrome !== "undefined" && chrome.i18n?.getUILanguage ? chrome.i18n.getUILanguage() : typeof navigator !== "undefined" ? navigator.language : "ru";
+    return String(ui || "ru").toLowerCase().startsWith("en") ? "en" : "ru";
+  } catch {
+    return "ru";
+  }
+}
+function setExtLocale(next) {
+  locale = next;
+}
+function t(key, vars) {
+  const catalog = catalogs[locale] || ru;
+  let s = catalog[key] ?? ru[key] ?? key;
+  if (vars) {
+    for (const [k, v] of Object.entries(vars)) {
+      s = s.replaceAll(`{${k}}`, String(v));
+    }
+  }
+  return s;
+}
+function modeLabel(id) {
+  const map = {
+    words: "mode.words",
+    phrases: "mode.phrases",
+    both: "mode.both",
+    sentences: "mode.sentences"
+  };
+  return t(map[id] || id);
+}
+var EXT_I18N_KEYS = Object.keys(ru);
+
 // src/lib/storage.ts
 async function getAuth() {
   const data = await chrome.storage.local.get(STORAGE_KEYS.auth);
@@ -332,10 +467,10 @@ function mergeCaptionSegments(segments, { maxChars = DEFAULT_MAX_CHARS } = {}) {
     const text = String(s?.text || "").replace(/\s+/g, " ").trim();
     if (!text)
       continue;
-    const t = Math.max(0, Math.round(Number(s?.t) || 0));
+    const t2 = Math.max(0, Math.round(Number(s?.t) || 0));
     const end = Number.isFinite(Number(s?.end)) ? Math.max(0, Math.round(Number(s?.end))) : null;
     if (!buf) {
-      buf = { t, text, end: end ?? t };
+      buf = { t: t2, text, end: end ?? t2 };
       if (endsSentence(text) || text.length >= maxChars)
         flush();
       continue;
@@ -343,12 +478,12 @@ function mergeCaptionSegments(segments, { maxChars = DEFAULT_MAX_CHARS } = {}) {
     const joined = buf.text + " " + text;
     if (joined.length > maxChars && buf.text) {
       flush();
-      buf = { t, text, end: end ?? t };
+      buf = { t: t2, text, end: end ?? t2 };
       if (endsSentence(text) || text.length >= maxChars)
         flush();
     } else {
       buf.text = joined;
-      buf.end = end ?? t;
+      buf.end = end ?? t2;
       if (endsSentence(joined) || joined.length >= maxChars)
         flush();
     }
@@ -489,9 +624,9 @@ function filterTranscriptSegments(segments, { minWords = 3, dedupe = true } = {}
         continue;
       seen.add(n);
     }
-    const t = Math.max(0, Math.round(Number(s?.t) || 0));
+    const t2 = Math.max(0, Math.round(Number(s?.t) || 0));
     const end = Number.isFinite(Number(s?.end)) ? Math.max(0, Math.round(Number(s?.end))) : void 0;
-    out.push(end != null ? { t, text, end } : { t, text });
+    out.push(end != null ? { t: t2, text, end } : { t: t2, text });
   }
   return out;
 }
@@ -518,8 +653,8 @@ function fmtTimestamp(sec) {
   return h ? `${h}:${mm}:${ss}` : `${mm}:${ss}`;
 }
 var LINK_LEAD_SEC = 2;
-function buildYtLink(videoId2, t) {
-  const sec = Math.max(0, Math.floor(Number(t) || 0) - LINK_LEAD_SEC);
+function buildYtLink(videoId2, t2) {
+  const sec = Math.max(0, Math.floor(Number(t2) || 0) - LINK_LEAD_SEC);
   return `https://www.youtube.com/watch?v=${videoId2}&t=${sec}s`;
 }
 function buildCardDescription(candidate, videoId2) {
@@ -708,11 +843,11 @@ function uuid() {
   });
 }
 function buildCardRow(data, userId) {
-  const t = Date.now();
+  const t2 = Date.now();
   return {
     id: uuid(),
-    created_at: t,
-    updated_at: t,
+    created_at: t2,
+    updated_at: t2,
     front: data.front,
     back: data.back,
     description: data.description,
@@ -808,7 +943,7 @@ function el(tag, attrs, children) {
 function brand() {
   return el("div", { class: "brand" }, [
     el("div", { class: "brand-mark" }, "\u041A"),
-    el("div", null, [el("h1", null, "\u041A\u0410\u0420-\u0442\u043E\u0447\u043A\u0438"), el("p", null, "\u041A\u0430\u0440\u0442\u043E\u0447\u043A\u0438 \u0438\u0437 YouTube")])
+    el("div", null, [el("h1", null, t("brand.title")), el("p", null, t("brand.sub"))])
   ]);
 }
 async function refreshVideoFromStorage() {
@@ -835,20 +970,17 @@ function renderFatal(e) {
   root.replaceChildren(
     brand(),
     el("div", { class: "card" }, [
-      el("p", { class: "error" }, "\u041E\u043A\u043D\u043E \u043D\u0435 \u0441\u043C\u043E\u0433\u043B\u043E \u0437\u0430\u043F\u0443\u0441\u0442\u0438\u0442\u044C\u0441\u044F: " + msg),
-      el(
-        "p",
-        { class: "muted" },
-        "\u0415\u0441\u043B\u0438 \u044D\u0442\u043E \u043F\u043E\u0432\u0442\u043E\u0440\u044F\u0435\u0442\u0441\u044F \u2014 \u043F\u0440\u0430\u0432\u044B\u0439 \u043A\u043B\u0438\u043A \u043F\u043E \u043E\u043A\u043D\u0443 \u2192 \xAB\u041F\u0440\u043E\u0441\u043C\u043E\u0442\u0440\u0435\u0442\u044C \u043A\u043E\u0434\xBB \u0438 \u043F\u0440\u0438\u0448\u043B\u0438 \u0442\u0435\u043A\u0441\u0442 \u0438\u0437 \u0432\u043A\u043B\u0430\u0434\u043A\u0438 Console."
-      ),
+      el("p", { class: "error" }, t("fatal.title", { message: msg })),
+      el("p", { class: "muted" }, t("fatal.hint")),
       el("div", { class: "actions" }, [
-        el("button", { class: "btn primary", onclick: () => void boot() }, "\u041F\u043E\u043F\u0440\u043E\u0431\u043E\u0432\u0430\u0442\u044C \u0441\u043D\u043E\u0432\u0430")
+        el("button", { class: "btn primary", onclick: () => void boot() }, t("fatal.retry"))
       ])
     ])
   );
 }
 async function boot() {
   try {
+    setExtLocale(detectExtLocale());
     await bootInner();
   } catch (e) {
     renderFatal(e);
@@ -869,7 +1001,7 @@ async function bootInner() {
     const sb = await ExtSupabase.fromStorage();
     if (!sb || !await sb.ensureFresh()) {
       await setAuth(null);
-      renderAuth("\u0421\u0435\u0441\u0441\u0438\u044F \u0438\u0441\u0442\u0435\u043A\u043B\u0430 \u2014 \u043F\u043E\u0434\u043A\u043B\u044E\u0447\u0438\u0442\u0435 \u0430\u043A\u043A\u0430\u0443\u043D\u0442 \u0441\u043D\u043E\u0432\u0430");
+      renderAuth(t("auth.expired"));
       return;
     }
     accountEmail = sb.email();
@@ -889,11 +1021,7 @@ function renderAuth(error) {
   root.replaceChildren(
     brand(),
     el("div", { class: "card auth-box" }, [
-      el(
-        "p",
-        null,
-        `\u0427\u0442\u043E\u0431\u044B \u0441\u043E\u0445\u0440\u0430\u043D\u044F\u0442\u044C \u043A\u0430\u0440\u0442\u043E\u0447\u043A\u0438 \u0432 \u0441\u0432\u043E\u044E \u043A\u043E\u043B\u043B\u0435\u043A\u0446\u0438\u044E, \u043F\u043E\u0434\u043A\u043B\u044E\u0447\u0438 \u0430\u043A\u043A\u0430\u0443\u043D\u0442 \u043D\u0430 ${new URL(APP_ORIGIN).host}.`
-      ),
+      el("p", null, t("auth.body", { host: new URL(APP_ORIGIN).host })),
       error ? el("p", { class: "error" }, error) : null,
       el("div", { class: "actions", style: "justify-content:center" }, [
         el(
@@ -904,20 +1032,20 @@ function renderAuth(error) {
               chrome.tabs.create({ url: CONNECT_URL });
             }
           },
-          "\u0412\u043E\u0439\u0442\u0438 \u0447\u0435\u0440\u0435\u0437 \u041A\u0410\u0420-\u0442\u043E\u0447\u043A\u0438"
+          t("auth.login")
         )
       ]),
-      el(
-        "p",
-        { class: "muted" },
-        "\u041E\u0442\u043A\u0440\u043E\u0435\u0442\u0441\u044F \u0441\u0430\u0439\u0442 \u2014 \u0432\u043E\u0439\u0434\u0438, \u0435\u0441\u043B\u0438 \u0435\u0449\u0451 \u043D\u0435 \u0432\u043E\u0448\u0451\u043B. \u0420\u0430\u0441\u0448\u0438\u0440\u0435\u043D\u0438\u0435 \u043F\u043E\u043B\u0443\u0447\u0438\u0442 \u0441\u0435\u0441\u0441\u0438\u044E \u0430\u0432\u0442\u043E\u043C\u0430\u0442\u0438\u0447\u0435\u0441\u043A\u0438."
-      )
+      el("p", { class: "muted" }, t("auth.hint"))
     ])
   );
 }
 function accountBar() {
   return el("div", { class: "account-row" }, [
-    el("span", null, accountEmail ? `\u0410\u043A\u043A\u0430\u0443\u043D\u0442: ${accountEmail}` : "\u0410\u043A\u043A\u0430\u0443\u043D\u0442 \u043F\u043E\u0434\u043A\u043B\u044E\u0447\u0451\u043D"),
+    el(
+      "span",
+      null,
+      accountEmail ? t("account.email", { email: accountEmail }) : t("account.connected")
+    ),
     el(
       "button",
       {
@@ -928,7 +1056,7 @@ function accountBar() {
           renderAuth();
         }
       },
-      "\u041E\u0442\u043A\u043B\u044E\u0447\u0438\u0442\u044C"
+      t("account.disconnect")
     )
   ]);
 }
@@ -947,7 +1075,7 @@ function renderForm(error = "") {
             void setPrefs({ mode }).then(() => renderForm(error));
           }
         },
-        mo.label
+        modeLabel(mo.id)
       )
     );
   }
@@ -962,13 +1090,13 @@ function renderForm(error = "") {
   const sentencesOpts = el("div", { class: "field" }, [
     el("label", { class: "check-label" }, [
       mergeChk,
-      el("span", null, "\u0421\u043A\u043B\u0435\u0438\u0432\u0430\u0442\u044C \u043A\u043E\u0440\u043E\u0442\u043A\u0438\u0435 \u0440\u0435\u043F\u043B\u0438\u043A\u0438 \u0432 \u043F\u0440\u0435\u0434\u043B\u043E\u0436\u0435\u043D\u0438\u044F")
+      el("span", null, t("form.mergeCues"))
     ])
   ]);
   sentencesOpts.style.display = mode === "sentences" ? "" : "none";
   const folderSelect = el("select", { class: "input" }, []);
   if (!folders.length) {
-    folderSelect.append(el("option", { value: "" }, "\u041D\u0435\u0442 \u043F\u0430\u043F\u043E\u043A \u2014 \u0441\u043E\u0437\u0434\u0430\u0439 \u0432 \u043F\u0440\u0438\u043B\u043E\u0436\u0435\u043D\u0438\u0438"));
+    folderSelect.append(el("option", { value: "" }, t("form.noFolders")));
   } else {
     for (const f of folders) {
       folderSelect.append(el("option", { value: f.id, selected: f.id === folderId }, f.name));
@@ -987,17 +1115,17 @@ function renderForm(error = "") {
       disabled: !folders.length || !videoUrl,
       onclick: () => void runImport()
     },
-    "\u0421\u0444\u043E\u0440\u043C\u0438\u0440\u043E\u0432\u0430\u0442\u044C"
+    t("form.generate")
   );
   root.replaceChildren(
     brand(),
     accountBar(),
     el("div", { class: "card" }, [
-      el("p", { class: "video-title" }, videoTitle || "\u0422\u0435\u043A\u0443\u0449\u0435\u0435 \u0432\u0438\u0434\u0435\u043E"),
-      el("p", { class: "video-url" }, videoUrl || "\u041E\u0442\u043A\u0440\u043E\u0439 \u0440\u043E\u043B\u0438\u043A \u043D\u0430 YouTube"),
-      el("div", { class: "field" }, [el("label", null, "\u0427\u0442\u043E \u0434\u043E\u0441\u0442\u0430\u0442\u044C \u0438\u0437 \u0440\u043E\u043B\u0438\u043A\u0430"), modeSeg]),
+      el("p", { class: "video-title" }, videoTitle || t("form.videoFallback")),
+      el("p", { class: "video-url" }, videoUrl || t("form.urlFallback")),
+      el("div", { class: "field" }, [el("label", null, t("form.whatLabel")), modeSeg]),
       sentencesOpts,
-      el("div", { class: "field" }, [el("label", null, "\u041F\u0430\u043F\u043A\u0430"), folderSelect]),
+      el("div", { class: "field" }, [el("label", null, t("form.folderLabel")), folderSelect]),
       errEl,
       el("div", { class: "actions" }, [goBtn])
     ])
@@ -1019,41 +1147,37 @@ function renderProgress(text) {
             renderForm();
           }
         },
-        "\u041E\u0442\u043C\u0435\u043D\u0430"
+        t("progress.cancel")
       )
     ])
   );
-  return (t) => {
-    statusEl.textContent = t;
+  return (next) => {
+    statusEl.textContent = next;
   };
 }
 async function runImport() {
   cancelled = false;
   if (!videoUrl || !parseYouTubeId(videoUrl)) {
-    renderForm("\u041D\u0435 \u043F\u043E\u0445\u043E\u0436\u0435 \u043D\u0430 \u0441\u0441\u044B\u043B\u043A\u0443 \u043D\u0430 YouTube-\u0432\u0438\u0434\u0435\u043E \u2014 \u043E\u0442\u043A\u0440\u043E\u0439 \u0440\u043E\u043B\u0438\u043A \u043D\u0430 YouTube");
+    renderForm(t("form.badUrl"));
     return;
   }
   if (!folderId) {
-    renderForm("\u0412\u044B\u0431\u0435\u0440\u0438 \u043F\u0430\u043F\u043A\u0443");
+    renderForm(t("form.pickFolder"));
     return;
   }
   if (!hasSupadataApiKey(settings)) {
-    renderForm(
-      "\u0423\u043A\u0430\u0436\u0438 Supadata API \u043A\u043B\u044E\u0447 \u0432 \u041A\u0410\u0420-\u0442\u043E\u0447\u043A\u0438: \u041D\u0430\u0441\u0442\u0440\u043E\u0439\u043A\u0438 \u2192 \xAB\u041A\u0430\u0440\u0442\u043E\u0447\u043A\u0438 \u0438\u0437 YouTube\xBB \u2192 \xAB\u041D\u0430\u0441\u0442\u0440\u043E\u0438\u0442\u044C\xBB"
-    );
+    renderForm(t("form.needSupadata"));
     return;
   }
   if (!hasGenerateApiKey(settings)) {
-    renderForm(
-      "\u0423\u043A\u0430\u0436\u0438 Gemini \u0438\u043B\u0438 Groq API \u043A\u043B\u044E\u0447 \u0432 \u041A\u0410\u0420-\u0442\u043E\u0447\u043A\u0438: \u041D\u0430\u0441\u0442\u0440\u043E\u0439\u043A\u0438 \u2192 \xAB\u041A\u0430\u0440\u0442\u043E\u0447\u043A\u0438 \u0438\u0437 YouTube\xBB \u2192 \xAB\u041D\u0430\u0441\u0442\u0440\u043E\u0438\u0442\u044C\xBB"
-    );
+    renderForm(t("form.needLlm"));
     return;
   }
-  const setStatus = renderProgress("\u041F\u043E\u043B\u0443\u0447\u0430\u044E \u0434\u0430\u043D\u043D\u044B\u0435 \u0432\u0438\u0434\u0435\u043E\u2026");
+  const setStatus = renderProgress(t("progress.fetchVideo"));
   const isClosed = () => cancelled;
   try {
     const sb = await ExtSupabase.fromStorage();
-    if (!sb) throw new Error("\u041D\u0435\u0442 \u0441\u0435\u0441\u0441\u0438\u0438");
+    if (!sb) throw new Error(t("save.noSession"));
     const { video, transcript } = await fetchTranscriptFromUrl(videoUrl, settings, {
       isClosed,
       onStatus: setStatus
@@ -1061,14 +1185,14 @@ async function runImport() {
     if (cancelled) return;
     videoId = video.videoId || parseYouTubeId(videoUrl);
     if (video.title) videoTitle = String(video.title);
-    setStatus("\u0421\u043E\u0441\u0442\u0430\u0432\u043B\u044F\u044E \u043A\u0430\u0440\u0442\u043E\u0447\u043A\u0438\u2026");
+    setStatus(t("progress.generate"));
     const prepared = prepareTranscriptForMode(transcript, mode, { mergeCues });
     const gen = await generateYoutubeCards(
       { video, transcript: prepared, mode, settings },
       { isClosed }
     );
     if (cancelled) return;
-    setStatus(mode === "sentences" ? "\u041F\u0440\u043E\u0432\u0435\u0440\u044F\u044E \u043D\u043E\u0432\u044B\u0435 \u043F\u0440\u0435\u0434\u043B\u043E\u0436\u0435\u043D\u0438\u044F\u2026" : "\u041F\u0440\u043E\u0432\u0435\u0440\u044F\u044E \u043D\u043E\u0432\u044B\u0435 \u0441\u043B\u043E\u0432\u0430\u2026");
+    setStatus(mode === "sentences" ? t("progress.checkSentences") : t("progress.checkWords"));
     const known = await loadKnownTermsForImport(sb, folders, folderId);
     if (cancelled) return;
     if (mode === "sentences") {
@@ -1087,7 +1211,7 @@ async function runImport() {
       }));
     }
     if (!previewItems.length) {
-      renderForm("\u041D\u043E\u0432\u044B\u0445 \u043A\u0430\u0440\u0442\u043E\u0447\u0435\u043A \u043D\u0435 \u043D\u0430\u0448\u043B\u043E\u0441\u044C \u2014 \u0432\u0441\u0451 \u0443\u0436\u0435 \u0435\u0441\u0442\u044C \u0432 \u043F\u0430\u043A\u0430\u0445 \u0438\u043B\u0438 \u043F\u0430\u043F\u043A\u0430\u0445");
+      renderForm(t("form.empty"));
       return;
     }
     renderPreview();
@@ -1099,12 +1223,12 @@ async function runImport() {
 function renderPreview() {
   const groups = /* @__PURE__ */ new Map();
   for (const item of previewItems) {
-    const kind = item.cand.kind === "sentence" ? "\u041F\u0440\u0435\u0434\u043B\u043E\u0436\u0435\u043D\u0438\u044F" : item.cand.kind === "phrase" ? "\u0424\u0440\u0430\u0437\u044B" : "\u0421\u043B\u043E\u0432\u0430";
+    const kind = item.cand.kind === "sentence" ? t("preview.group.sentences") : item.cand.kind === "phrase" ? t("preview.group.phrases") : t("preview.group.words");
     if (!groups.has(kind)) groups.set(kind, []);
     groups.get(kind).push(item);
   }
   const selectedCount = () => previewItems.filter((i) => i.checked && i.back.trim()).length;
-  const countLabel = el("span", { class: "muted" }, `\u0412\u044B\u0431\u0440\u0430\u043D\u043E: ${selectedCount()}`);
+  const countLabel = el("span", { class: "muted" }, t("preview.selected", { n: selectedCount() }));
   const toast = el("div", { class: "toast" }, "");
   toast.style.display = "none";
   const list = el("div", null, []);
@@ -1114,13 +1238,13 @@ function renderPreview() {
       const chk = el("input", { type: "checkbox", checked: item.checked });
       chk.addEventListener("change", () => {
         item.checked = chk.checked;
-        countLabel.textContent = `\u0412\u044B\u0431\u0440\u0430\u043D\u043E: ${selectedCount()}`;
+        countLabel.textContent = t("preview.selected", { n: selectedCount() });
         saveBtn.disabled = selectedCount() === 0;
       });
       const back = el("input", { class: "back", value: item.back });
       back.addEventListener("input", () => {
         item.back = back.value;
-        countLabel.textContent = `\u0412\u044B\u0431\u0440\u0430\u043D\u043E: ${selectedCount()}`;
+        countLabel.textContent = t("preview.selected", { n: selectedCount() });
         saveBtn.disabled = selectedCount() === 0;
       });
       const metaParts = [
@@ -1148,22 +1272,22 @@ function renderPreview() {
       disabled: selectedCount() === 0,
       onclick: () => void saveSelected(saveBtn, toast, countLabel)
     },
-    "\u0421\u043E\u0437\u0434\u0430\u0442\u044C \u043A\u0430\u0440\u0442\u043E\u0447\u043A\u0438"
+    t("preview.create")
   );
   root.replaceChildren(
     brand(),
     el("div", { class: "card" }, [
       el("div", { class: "preview-head" }, [
         el("div", null, [
-          el("p", { class: "video-title" }, videoTitle || "\u041F\u0440\u0435\u0432\u044C\u044E"),
-          el("p", { class: "muted" }, "\u041E\u0442\u043C\u0435\u0442\u044C, \u0447\u0442\u043E \u0441\u043E\u0445\u0440\u0430\u043D\u0438\u0442\u044C, \u043F\u0440\u0438 \u043D\u0435\u043E\u0431\u0445\u043E\u0434\u0438\u043C\u043E\u0441\u0442\u0438 \u043F\u043E\u043F\u0440\u0430\u0432\u044C \u043F\u0435\u0440\u0435\u0432\u043E\u0434")
+          el("p", { class: "video-title" }, videoTitle || t("preview.title")),
+          el("p", { class: "muted" }, t("preview.hint"))
         ]),
         countLabel
       ]),
       list,
       toast,
       el("div", { class: "actions" }, [
-        el("button", { class: "btn ghost", onclick: () => renderForm() }, "\u041D\u0430\u0437\u0430\u0434"),
+        el("button", { class: "btn ghost", onclick: () => renderForm() }, t("preview.back")),
         saveBtn
       ])
     ])
@@ -1176,12 +1300,14 @@ async function saveSelected(saveBtn, toast, countLabel) {
   toast.style.display = "none";
   try {
     const sb = await ExtSupabase.fromStorage();
-    if (!sb) throw new Error("\u041D\u0435\u0442 \u0441\u0435\u0441\u0441\u0438\u0438");
+    if (!sb) throw new Error(t("save.noSession"));
     const { ok, failed } = await createYoutubeCardsBatch(sb, folderId, selected, videoId);
     const folder = folders.find((f) => f.id === folderId);
     toast.className = failed.length && !ok ? "toast error" : "toast";
     toast.style.display = "";
-    toast.textContent = ok > 0 ? `\u0421\u043E\u0437\u0434\u0430\u043D\u043E: ${ok}` + (failed.length ? `, \u043E\u0448\u0438\u0431\u043E\u043A: ${failed.length}` : "") : `\u041D\u0435 \u0443\u0434\u0430\u043B\u043E\u0441\u044C \u0441\u043E\u0445\u0440\u0430\u043D\u0438\u0442\u044C (${failed[0]?.message || "\u043E\u0448\u0438\u0431\u043A\u0430"})`;
+    toast.textContent = ok > 0 ? failed.length ? t("save.createdWithFail", { ok, fail: failed.length }) : t("save.created", { ok }) : t("save.fail", {
+      message: failed[0]?.message || t("error.generic")
+    });
     if (ok > 0) {
       toast.append(
         el("br"),
@@ -1193,11 +1319,11 @@ async function saveSelected(saveBtn, toast, countLabel) {
             rel: "noopener noreferrer",
             style: "display:inline-block;margin-top:8px;color:inherit;font-weight:700"
           },
-          folder ? `\u041E\u0442\u043A\u0440\u044B\u0442\u044C \xAB${folder.name}\xBB` : "\u041E\u0442\u043A\u0440\u044B\u0442\u044C \u043F\u0430\u043F\u043A\u0443"
+          folder ? t("save.openNamed", { name: folder.name }) : t("save.openFolder")
         )
       );
     }
-    countLabel.textContent = `\u0421\u043E\u0437\u0434\u0430\u043D\u043E: ${ok}`;
+    countLabel.textContent = t("save.created", { ok });
   } catch (e) {
     toast.className = "toast error";
     toast.style.display = "";

@@ -1,49 +1,46 @@
 # Дорожная карта КАР-точек
 
-Живой список идей для **self-hosted open source**, который каждый разворачивает под себя. Приоритеты не зафиксированы — голосуйте в [Issues](https://github.com/PaperPit/kar-dots/issues) или предлагайте своё.
+Живой список идей для **self-hosted open source**. Голосуйте в [Issues](https://github.com/PaperPit/kar-dots/issues).
 
 ## Сейчас в продукте
 
 - PWA: локальный режим (IndexedDB) и облако (Supabase)
-- SRS: SM-2, FSRS (желаемое удержание + fuzz), коробки Лейтнера
-- Режимы повторения: классика, ввод, пропуски, голос, пары, микс
-- Импорт карточек из YouTube (Supadata + Gemini/Groq)
-- Chrome-расширение: кнопка на YouTube → Side Panel ([docs/chrome-extension.md](docs/chrome-extension.md))
-- Озвучка (Web Speech), автоперевод, массовый импорт, экспорт JSON
-- Паки слов, «коробки» папок, календарь активности
-- Журнал повторений и экран статистики: удержание, прогноз нагрузки, разбивка по папкам
-- **Заметки** (Markdown, FTS, conflict-копии, связь с карточками, `[[wiki]]`, #теги, папки, граф) — миграции 0013–0014
-- Лимит повторений в день; хостинг на **Cloudflare Pages** ([демо](https://kar-tochki.pages.dev))
+- SRS: SM-2, FSRS, коробки Лейтнера; 6 режимов повторения
+- Импорт из YouTube + Chrome-расширение (RU/EN UI)
+- Заметки (Markdown, FTS, граф, wiki-ссылки)
+- i18n core screens (ru/en), sync / dead-letter UI в настройках
+- Базовый импорт Anki `.apkg` (notes → Front/Back, без media/SRS)
+- CSP, API rate-limit, SECURITY.md, coverage gates, Dependabot, CHANGELOG
+- Хостинг: **Cloudflare Pages** ([демо](https://kar-tochki.pages.dev))
 
 ## Ближайшие направления (нужна помощь)
 
 | Направление | Идея | Сложность |
 |-------------|------|-----------|
-| **Локализация** | ✅ ru/en через `t()`; дальше — покрытие оставшихся экранов | средняя |
-| **Демо онлайн** | ✅ [kar-tochki.pages.dev](https://kar-tochki.pages.dev); дальше — отдельный демо-режим без чужих данных | лёгкая |
-| **Anki-импорт** | `.apkg` → карточки (хотя бы базовые поля) | высокая |
-| **Статистика** | ✅ база готова (удержание, прогноз, по папкам); дальше — heatmap, графики по времени | средняя |
-| **Заметки → карточки** | UX: выделить фрагмент заметки → создать карточку с якорем | средняя |
-| **Граф заметок** | ✅ базовый force-graph; дальше — фильтры, сохраняемые виды | средняя |
-| **Коллаборация** | Общие папки / шаринг колоды по ссылке | высокая |
-| **Мобильный UX** | Жесты, haptics, улучшение review на iOS | средняя |
-| **Офлайн-облако** | Дожать sync-queue, конфликты, dead letter UI | высокая |
-| **TTS** | Лучший выбор голосов / optional neural TTS | средняя |
-| **Доступность** | WCAG-аудит экранов повторения и редактора | средняя |
-| **Тесты** | Покрытие store-cloud, sync-queue, review session | средняя |
+| **Локализация** | Хвосты: rich-editor, ошибки store, полный EN e2e | средняя |
+| **Anki v2** | Медиа + интервалы / cloze | высокая |
+| **Статистика** | Heatmap, графики по времени | средняя |
+| **Заметки → карточки** | Выделить фрагмент → карточка с якорем | средняя |
+| **Граф заметок** | Фильтры, сохраняемые виды | средняя |
+| **Коллаборация** | Общие папки / шаринг по ссылке | высокая |
+| **Мобильный UX** | Жесты, haptics, review на iOS | средняя |
+| **A11y** | axe/Lighthouse в CI; editor + modals | средняя |
+| **Extension Store** | Публикация CWS (privacy уже есть) | средняя |
+| **Observability** | Опциональные логи CF Functions / post-deploy smoke | средняя |
+| **TTS** | Лучший выбор голосов / neural TTS | средняя |
 
 ## Дальше по мечте
 
-- Режим «предложений» от сообщества: готовые колоды в `packs/`
-- Web Share Target — «поделиться текстом» → новая карточка
-- Widget / shortcut «5 карточек за завтраком»
-- Интеграция с Readwise / Kindle highlights
-- Лёгкий spaced repetition для **фраз из подкастов** (не только YouTube)
+- Готовые колоды сообщества в `packs/`
+- Web Share Target → новая карточка
+- Widget «5 карточек за завтраком»
+- Readwise / Kindle highlights
+- Фразы из подкастов (не только YouTube)
 
-## Как повлиять на roadmap
+## Как повлиять
 
-1. Откройте [Issue → Feature request](https://github.com/PaperPit/kar-dots/issues/new?template=feature_request.yml)
-2. Опишите **зачем** это нужно и **кому**
-3. Если готовы помочь кодом — напишите «могу взять PR»
+1. [Feature request](https://github.com/PaperPit/kar-dots/issues/new?template=feature_request.yml)
+2. Опишите **зачем** и **кому**
+3. «Могу взять PR» — если готовы помочь кодом
 
-Maintainer отмечает принятые идеи лейблом `accepted` и по возможности `good first issue`.
+Maintainer отмечает идеи лейблами `accepted` / `good first issue`.

@@ -1,5 +1,8 @@
 # YouTube → Flashcards Pipeline
 
+> **Status (2026):** historical / design notes. The **shipping** stack is the vanilla PWA + Cloudflare Pages Functions (`functions/api/yt-video.js`, `yt-generate.js`), not React/Next.js.  
+> Operational setup: [youtube-import-setup.md](./youtube-import-setup.md) · Architecture: [ARCHITECTURE.md](./ARCHITECTURE.md) · HTTP API: [API.md](./API.md).
+
 Architecture and processing logic for converting YouTube videos into English vocabulary flashcards. Designed for MVP-first development with a clear path to scale.
 
 > **Scope:** English source audio/captions → vocabulary cards with CEFR tags, examples, timestamps, and optional Russian (or other) translations.
@@ -7,6 +10,22 @@ Architecture and processing logic for converting YouTube videos into English voc
 ---
 
 ## Overview
+
+```
+Frontend (React + Next.js)   ← aspirational sketch; production UI is vanilla TS PWA
+         │
+         ▼
+   Paste YouTube URL
+         │
+         ▼
+   Backend API (Node.js)     ← production: Cloudflare Pages Functions
+```
+
+*(Diagrams below are kept for research; do not treat paths as current source layout.)*
+
+---
+
+## Overview (legacy draft)
 
 ```
 Frontend (React + Next.js)

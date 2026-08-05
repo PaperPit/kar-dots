@@ -17,6 +17,8 @@
 <p align="center">
   <b><a href="https://kar-tochki.pages.dev">Живое демо</a></b> ·
   <a href="docs/USER-GUIDE.md"><b>Полная инструкция</b></a> ·
+  <a href="docs/ARCHITECTURE.md">Architecture</a> ·
+  <a href="docs/API.md">API</a> ·
   <a href="docs/cloudflare-pages-setup.md">Деплой за вечер</a> ·
   <a href="docs/SECURITY.md">Security</a> ·
   <a href="CHANGELOG.md">Changelog</a> ·

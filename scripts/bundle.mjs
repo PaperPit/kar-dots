@@ -69,11 +69,29 @@ const buildResult = await build({
  const MAX_TOTAL_JS_KB = 800
  const metafile = buildResult.metafile
  if (metafile) {
+  const STRICT = process.env.KAR_BUNDLE_BUDGET_STRICT === '1'
+  const MAX_EDITOR_CHUNK_KB = Number(process.env.KAR_BUNDLE_EDITOR_MAX_KB || 600)
+  const MAX_APP_CHUNK_KB = Number(process.env.KAR_BUNDLE_APP_MAX_KB || 20)
+
    let totalJs = 0
    for (const [fileName, info] of Object.entries(metafile.outputs)) {
      if (!fileName.endsWith('.js')) continue
      const sizeKb = (info.bytes || 0) / 1024
      totalJs += sizeKb
+
+    // Strict budgets only for “core” chunks.
+    // Anki vendor is intentionally large and must not block CI.
+    if (STRICT) {
+      const isEditor = fileName.includes('/editor-') || fileName.includes('editor-')
+      const isApp = fileName.endsWith('/app.js') || fileName.endsWith('js/app.js') || fileName === 'js/app.js' || fileName === 'app.js'
+      if (isEditor && sizeKb > MAX_EDITOR_CHUNK_KB) {
+        throw new Error(`[bundle] STRICT: ${fileName} is ${sizeKb.toFixed(1)}KB (limit: ${MAX_EDITOR_CHUNK_KB}KB)`)
+      }
+      if (isApp && sizeKb > MAX_APP_CHUNK_KB) {
+        throw new Error(`[bundle] STRICT: ${fileName} is ${sizeKb.toFixed(1)}KB (limit: ${MAX_APP_CHUNK_KB}KB)`)
+      }
+    }
+
      if (sizeKb > MAX_CHUNK_KB) {
        console.warn(`[bundle] WARNING: ${fileName} is ${sizeKb.toFixed(1)}KB (limit: ${MAX_CHUNK_KB}KB)`)
      }

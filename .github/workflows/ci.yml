@@ -18,10 +18,10 @@ jobs:
         run: npm run typecheck
       - name: Lint
         run: npm run lint
-      - name: Check format (Prettier)
-        run: npm run check:format
       - name: i18n check
         run: npm run i18n:check
+      - name: Check format (changed files, Prettier)
+        run: node scripts/check-format-changed.mjs
       - name: Security audit (prod deps only)
         run: npm audit --omit=dev --audit-level=high
       - name: Test

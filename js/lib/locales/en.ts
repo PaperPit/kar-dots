@@ -666,6 +666,9 @@ export const en: Record<string, MessageValue> = {
 
   "review.voice.start": "🎤 Say answer",
   "review.voice.check": "✓ Check",
+  "review.voice.showTranslation": "Show translation",
+  "review.voice.skip": "Skip",
+  "review.voice.translationIs": "Translation: {answer}",
   "review.voice.statusIdle": "Space or the button — start recording",
   "review.voice.notRecognized":
     "Speech not recognized — say the translation aloud and tap «Check»",

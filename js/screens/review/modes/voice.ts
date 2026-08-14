@@ -21,6 +21,7 @@ interface VoiceCtx {
 
 function labelStart() { return t('review.voice.start'); }
 function labelCheck() { return t('review.voice.check'); }
+function labelSkip() { return t('review.voice.skip'); }
 
 function buildPrompt(card: SrsCard, promptSide: 'front' | 'back') {
   return el('div', { class: 'study-prompt-card' }, [
@@ -28,22 +29,34 @@ function buildPrompt(card: SrsCard, promptSide: 'front' | 'back') {
   ]);
 }
 
+function restoreVoiceActionLayout(
+  actions: HTMLElement,
+  startBtn: HTMLButtonElement,
+  checkBtn: HTMLButtonElement,
+  showTranslationBtn: HTMLButtonElement,
+) {
+  actions.innerHTML = '';
+  actions.append(startBtn, checkBtn, showTranslationBtn);
+}
+
 export function createVoiceModeCard(card: SrsCard, ctx: VoiceCtx) {
   const { promptSide, onSuccess, onFail, getSettings } = ctx;
   let answered = false;
   let listens = 0;
+  let translationRevealed = false;
   let stopListen: ((o?: { cancel: boolean }) => Promise<void>) | null = null;
   let listening = false;
   let stopping = false;
   let autoCheckTriggered = false;
 
   const answerOpts = { fuzzy: true, fuzzyThreshold: 0.68 };
+  const expectedAnswer = () => getExpectedAnswer(card, promptSide);
 
   /** iOS шлёт один и тот же partial каждые ~300 ms — debounce сбрасывал таймер бесконечно. */
   function maybeAutoCheck(transcript: string) {
     if (autoCheckTriggered || !listening || stopping || answered) return;
-    const t = String(transcript || '').trim();
-    if (!t || !checkCardAnswer(t, card, promptSide, answerOpts).ok) return;
+    const trimmed = String(transcript || '').trim();
+    if (!trimmed || !checkCardAnswer(trimmed, card, promptSide, answerOpts).ok) return;
     autoCheckTriggered = true;
     finishListen();
   }
@@ -65,6 +78,28 @@ export function createVoiceModeCard(card: SrsCard, ctx: VoiceCtx) {
     hidden: true,
   }, labelCheck()) as HTMLButtonElement;
 
+  const showTranslationBtn = el('button', {
+    type: 'button',
+    class: 'btn ghost study-voice-reveal-translation-btn',
+  }, t('review.voice.showTranslation')) as HTMLButtonElement;
+
+  function syncTranslationButton() {
+    showTranslationBtn.hidden = answered || listening || translationRevealed;
+  }
+
+  function syncPrimaryButton() {
+    if (translationRevealed) {
+      startBtn.textContent = labelSkip();
+      startBtn.classList.remove('study-mic-btn');
+      startBtn.classList.add('study-skip-btn');
+    } else {
+      startBtn.textContent = labelStart();
+      startBtn.classList.add('study-mic-btn');
+      startBtn.classList.remove('study-skip-btn');
+    }
+    startBtn.disabled = answered || (!translationRevealed && !speechRecognitionSupported());
+  }
+
   function setUiIdle() {
     listening = false;
     stopping = false;
@@ -74,15 +109,17 @@ export function createVoiceModeCard(card: SrsCard, ctx: VoiceCtx) {
     checkBtn.style.display = 'none';
     checkBtn.classList.remove('is-listening');
     checkBtn.textContent = labelCheck();
-    startBtn.disabled = answered || !speechRecognitionSupported();
     checkBtn.disabled = false;
     checkBtn.removeAttribute('disabled');
+    syncPrimaryButton();
+    syncTranslationButton();
     showVoiceActions();
   }
 
   function hideVoiceActions() {
     startBtn.hidden = true;
     checkBtn.hidden = true;
+    showTranslationBtn.hidden = true;
     actions.classList.remove('is-action-visible');
     void actions.offsetWidth;
     actions.classList.add('is-action-hidden');
@@ -104,6 +141,7 @@ export function createVoiceModeCard(card: SrsCard, ctx: VoiceCtx) {
     checkBtn.textContent = labelCheck();
     checkBtn.disabled = false;
     checkBtn.removeAttribute('disabled');
+    syncTranslationButton();
   }
 
   function playFeedback(isCorrect: boolean) {
@@ -121,6 +159,32 @@ export function createVoiceModeCard(card: SrsCard, ctx: VoiceCtx) {
     setUiIdle();
   }
 
+  function skipAsWrong() {
+    if (answered) return;
+    answered = true;
+    void cleanupListen();
+    playFeedback(false);
+    haptic(4);
+    flashStudyCard(prompt, false);
+    hideVoiceActions();
+    onFail({ firstTry: false });
+  }
+
+  function revealTranslation() {
+    if (answered || translationRevealed) return;
+    translationRevealed = true;
+    const display = formatExpectedDisplay(expectedAnswer());
+    showStudyFeedback(heard, false, t('review.voice.translationIs', { answer: display }));
+    status.textContent = '';
+    if (listening) void finishListen();
+    else setUiIdle();
+  }
+
+  function onPrimaryAction() {
+    if (translationRevealed) skipAsWrong();
+    else startListen();
+  }
+
   function evaluateTranscript(transcript: string) {
     stopListen = null;
     stopping = false;
@@ -134,7 +198,7 @@ export function createVoiceModeCard(card: SrsCard, ctx: VoiceCtx) {
     }
     listens++;
     const firstTry = listens === 1;
-    const expected = getExpectedAnswer(card, promptSide);
+    const expected = expectedAnswer();
     const { ok } = checkCardAnswer(transcript, card, promptSide, answerOpts);
     if (ok) {
       answered = true;
@@ -210,7 +274,7 @@ export function createVoiceModeCard(card: SrsCard, ctx: VoiceCtx) {
   }
 
   function startListen() {
-    if (answered || listening || !speechRecognitionSupported()) return;
+    if (answered || listening || translationRevealed || !speechRecognitionSupported()) return;
     autoCheckTriggered = false;
     const settings = getSettings?.();
 
@@ -222,11 +286,10 @@ export function createVoiceModeCard(card: SrsCard, ctx: VoiceCtx) {
     if (prev) releaseSpeechSession(prev);
 
     if (!actions.contains(startBtn)) {
-      actions.innerHTML = '';
-      actions.append(startBtn, checkBtn);
+      restoreVoiceActionLayout(actions, startBtn, checkBtn, showTranslationBtn);
     }
 
-    const expected = getExpectedAnswer(card, promptSide);
+    const expected = expectedAnswer();
     const { lang, hint } = resolveVoiceSpeechLang(expected);
     status.textContent = `${hint}…`;
     heard.hidden = true;
@@ -255,23 +318,27 @@ export function createVoiceModeCard(card: SrsCard, ctx: VoiceCtx) {
 
   startBtn.addEventListener('click', (e: MouseEvent) => {
     e.preventDefault();
-    startListen();
+    onPrimaryAction();
   });
   checkBtn.addEventListener('click', (e: MouseEvent) => {
     e.preventDefault();
     finishListen();
+  });
+  showTranslationBtn.addEventListener('click', (e: MouseEvent) => {
+    e.preventDefault();
+    revealTranslation();
   });
 
   const onVoiceKey = (e: KeyboardEvent) => {
     if (!isSpaceKey(e)) return;
     e.preventDefault();
     if (listening) finishListen();
-    else startListen();
+    else onPrimaryAction();
   };
   startBtn.addEventListener('keydown', onVoiceKey);
   checkBtn.addEventListener('keydown', onVoiceKey);
 
-  actions.append(startBtn, checkBtn);
+  actions.append(startBtn, checkBtn, showTranslationBtn);
   actions.classList.add('is-action-hidden');
 
   const box = el('div', { class: 'study-voice-card', tabindex: '-1' }, [
@@ -289,7 +356,7 @@ export function createVoiceModeCard(card: SrsCard, ctx: VoiceCtx) {
     if (!shouldStartVoiceFromSpace(e, box)) return;
     e.preventDefault();
     if (listening) finishListen();
-    else startListen();
+    else onPrimaryAction();
   };
   document.addEventListener('keydown', onKey, true);
 

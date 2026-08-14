@@ -688,6 +688,9 @@ export const ru = {
 
   "review.voice.start": "🎤 Сказать ответ",
   "review.voice.check": "✓ Проверить",
+  "review.voice.showTranslation": "Показать перевод",
+  "review.voice.skip": "Пропустить",
+  "review.voice.translationIs": "Перевод: {answer}",
   "review.voice.statusIdle": "Пробел или кнопка — начать запись",
   "review.voice.notRecognized":
     "Речь не распознана — произнесите перевод вслух и нажмите «Проверить»",

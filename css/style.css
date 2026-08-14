@@ -1788,7 +1788,7 @@ html.motion-ui .toast.show { opacity: 1; transform: none; }
 
 /* Предотвращаем zoom при фокусе на input, но разрешаем pinch-zoom */
 input, textarea, select {
-  font-size: 16px;
+  font-size: var(--fs-body);
 }
 
 /* Улучшаем touch-цели на iOS */

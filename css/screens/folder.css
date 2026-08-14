@@ -52,7 +52,7 @@
 }
 .swatch-compact .folder-icon-glyph { width: 16px; height: 16px; }
 .folder-card h3 {
-  margin: 0 0 var(--sp-1); font-size: 16px; font-weight: 700; letter-spacing: -.01em;
+  margin: 0 0 var(--sp-1); font-size: var(--fs-body); font-weight: 700; letter-spacing: var(--ls-body);
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
   font-family: var(--font-display);
 }
@@ -134,9 +134,9 @@
 }
 .card-row .texts { flex: 1; min-width: 0; }
 .card-row .front { font-weight: 650; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.card-row .back { color: var(--ink-soft); font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.card-row .back { color: var(--ink-soft); font-size: var(--fs-small); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .card-row .srs-chip {
-  flex: none; font-size: 12px; font-weight: 700; padding: 4px 8px; border-radius: var(--r-1);
+  flex: none; font-size: var(--fs-micro); font-weight: 700; padding: var(--sp-1) var(--sp-2); border-radius: var(--r-1);
   background: var(--chip-bg); color: var(--chip-ink);
 }
 .card-row .srs-chip.due { background: var(--chip-due-bg); color: var(--terra-deep); }
@@ -179,7 +179,7 @@
 .color-dot:hover { box-shadow: var(--sh-1); }
 .color-dot.sel { box-shadow: var(--sh-focus); }
 
-.folder-icon-row { display: flex; flex-wrap: wrap; gap: 8px; }
+.folder-icon-row { display: flex; flex-wrap: wrap; gap: var(--sp-2); }
 .folder-icon-pick {
   width: 44px;
   height: 44px;
@@ -219,7 +219,7 @@
   .folder-actions-pair { flex-wrap: nowrap; }
   .folder-actions-pair .btn {
     font-size: 13px;
-    padding: 10px 8px;
+    padding: 10px var(--sp-2);
     line-height: 1.25;
   }
   .folder-actions-pair .btn svg { width: 15px; height: 15px; }
@@ -228,18 +228,18 @@
 
 @media (max-width: 520px) {
   .folder-card,
-  .box-card { padding: 12px; min-height: 112px; }
+  .box-card { padding: var(--sp-3); min-height: 112px; }
   .folder-card h3,
   .box-card h3 { font-size: 15px; }
   .folder-card .due-chip,
   .box-card .due-chip { top: 10px; right: 10px; font-size: 11px; padding: 2px 7px; }
-  .folder-toolbar { flex-direction: column; align-items: stretch; gap: 8px; }
+  .folder-toolbar { flex-direction: column; align-items: stretch; gap: var(--sp-2); }
   .folder-search { min-width: 0; width: 100%; }
   .folder-filter-seg { width: 100%; display: flex; }
   .folder-filter-seg button { flex: 1 1 0; }
-  .card-row { padding: 12px; gap: 10px; }
+  .card-row { padding: var(--sp-3); gap: 10px; }
   .card-row .thumb { width: 40px; height: 40px; }
   .card-row .back { font-size: 13px; }
   .add-tile,
-  .add-tile-box { min-height: 100px; font-size: 14px; }
+  .add-tile-box { min-height: 100px; font-size: var(--fs-small); }
 }

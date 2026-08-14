@@ -1,8 +1,8 @@
 /* Импорт карточек из YouTube (js/screens/folder/youtube-dialog.js) */
 
-.yt-dialog .field { margin-top: 12px; }
+.yt-dialog .field { margin-top: var(--sp-3); }
 
-.yt-source-seg { display: flex; width: 100%; margin-bottom: 4px; }
+.yt-source-seg { display: flex; width: 100%; margin-bottom: var(--sp-1); }
 .yt-source-seg button { flex: 1 1 0; min-width: 0; }
 
 .yt-source-panel .modal-text { margin-top: var(--sp-2); }
@@ -32,8 +32,8 @@
 .yt-file-pick-btn {
   flex: none;
   min-height: 40px;
-  padding: 8px 16px;
-  font-size: 14px;
+  padding: var(--sp-2) var(--sp-4);
+  font-size: var(--fs-small);
   background: var(--bg-raised);
   color: var(--ink);
   box-shadow: var(--shadow);
@@ -63,13 +63,13 @@
 .yt-mode-seg { display: flex; flex-wrap: wrap; width: 100%; gap: 6px; }
 .yt-mode-seg button { flex: 1 1 calc(50% - 6px); min-width: 0; }
 
-.yt-sentences-options { margin-top: 8px; }
+.yt-sentences-options { margin-top: var(--sp-2); }
 
 .yt-check-label {
   display: flex;
   align-items: flex-start;
-  gap: 8px;
-  font-size: 14px;
+  gap: var(--sp-2);
+  font-size: var(--fs-small);
   cursor: pointer;
 }
 .yt-check-label .chk { margin-top: 2px; }
@@ -77,7 +77,7 @@
 .yt-error {
   margin: 10px 0 0;
   color: var(--danger);
-  font-size: 14px;
+  font-size: var(--fs-small);
 }
 
 .yt-progress {
@@ -85,13 +85,13 @@
   flex-direction: column;
   align-items: center;
   gap: 14px;
-  padding: 26px 8px 18px;
+  padding: 26px var(--sp-2) 18px;
   text-align: center;
 }
 .yt-status { margin: 0; font-size: 14.5px; opacity: 0.85; }
 
 .yt-video-title {
-  margin: 4px 0 2px;
+  margin: var(--sp-1) 0 2px;
   font-weight: 700;
   font-size: 15px;
 }
@@ -110,20 +110,20 @@
 .yt-group-title {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--sp-2);
   font-weight: 700;
-  font-size: 14px;
+  font-size: var(--fs-small);
   margin-bottom: 6px;
   cursor: pointer;
 }
 
-.yt-rows { display: flex; flex-direction: column; gap: 8px; }
+.yt-rows { display: flex; flex-direction: column; gap: var(--sp-2); }
 
 .yt-row {
   display: flex;
   align-items: flex-start;
   gap: 10px;
-  padding: 8px 10px;
+  padding: var(--sp-2) 10px;
   border: 1px solid var(--border);
   border-radius: var(--r-2);
 }
@@ -134,7 +134,7 @@
   display: flex;
   align-items: center;
   flex-wrap: wrap;
-  gap: 6px 8px;
+  gap: 6px var(--sp-2);
   margin-bottom: 6px;
 }
 .yt-row-front { font-weight: 700; font-size: 15px; overflow-wrap: anywhere; }
@@ -149,7 +149,7 @@
 }
 .yt-chip-time { opacity: 0.65; }
 
-.yt-back-input { width: 100%; font-size: 14px; padding: 7px 10px; }
+.yt-back-input { width: 100%; font-size: var(--fs-small); padding: 7px 10px; }
 
 /* Banner подключения Chrome-расширения (?ext_connect=1) */
 .ext-connect-banner {
@@ -160,15 +160,15 @@
   z-index: 10050;
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: var(--sp-3);
   max-width: min(520px, calc(100vw - 24px));
-  padding: 12px 14px;
+  padding: var(--sp-3) 14px;
   border-radius: var(--r-2);
   background: var(--bg-raised);
   color: var(--ink);
   border: 1px solid var(--line);
   box-shadow: var(--sh-3);
-  font-size: 14px;
+  font-size: var(--fs-small);
 }
 .ext-connect-banner.ext-connect-ok {
   border-color: color-mix(in srgb, var(--c-moss) 40%, var(--line));
@@ -179,5 +179,5 @@
 .ext-connect-banner .ext-connect-close {
   flex: none;
   min-height: 32px;
-  padding: 4px 10px;
+  padding: var(--sp-1) 10px;
 }

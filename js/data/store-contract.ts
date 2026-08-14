@@ -65,7 +65,10 @@ import { noteTitleFromBody } from "../lib/markdown.js"
 import type { Folder, Box, Card, Note } from "./types.js"
 
 /** Поля новой папки — общие для local и cloud. */
-export function buildFolderRecord(data: Partial<Folder>, extras: Record<string, unknown> = {}): Folder {
+export function buildFolderRecord(
+  data: Partial<Folder>,
+  extras: Record<string, unknown> = {}
+): Folder {
   const t = Date.now()
   return {
     id: uuid(),
@@ -147,7 +150,7 @@ export function buildNoteRecord(data: Partial<Note>, extras: Record<string, unkn
     conflict_of: data.conflict_of ?? null,
     created_at: data.created_at ?? t,
     updated_at: data.updated_at ?? t,
-    ...extras,
+    ...extras
   }
 }
 
@@ -159,4 +162,34 @@ export function exportJSONPayload(
   notes: unknown[] = []
 ): string {
   return JSON.stringify({ v: 3, folders, cards, settings, boxes, notes }, null, 2)
+}
+
+/**
+ * Валидация JSON при импорте — защищает от prototype pollution, неверных типов
+ * и отсутствия обязательных полей. Не использует внешние библиотеки. Общая для
+ * LocalStore и CloudStore — раньше была продублирована в обоих.
+ */
+export function validateImportJSON(data: unknown): void {
+  if (!data || typeof data !== "object") throw new Error("JSON: не объект")
+  const obj = data as Record<string, unknown>
+  if (!Array.isArray(obj.folders)) throw new Error("JSON: нет folders[]")
+  if (!Array.isArray(obj.cards)) throw new Error("JSON: нет cards[]")
+  for (const [i, f] of obj.folders.entries()) {
+    if (!f || typeof f !== "object") throw new Error(`folders[${i}]: не объект`)
+    const fo = f as Record<string, unknown>
+    if (typeof fo.id !== "string") throw new Error(`folders[${i}].id: не строка`)
+    if (typeof fo.name !== "string") throw new Error(`folders[${i}].name: не строка`)
+  }
+  for (const [i, c] of obj.cards.entries()) {
+    if (!c || typeof c !== "object") throw new Error(`cards[${i}]: не объект`)
+    const co = c as Record<string, unknown>
+    if (typeof co.id !== "string") throw new Error(`cards[${i}].id: не строка`)
+    if (typeof co.front !== "string") throw new Error(`cards[${i}].front: не строка`)
+    if (typeof co.back !== "string") throw new Error(`cards[${i}].back: не строка`)
+  }
+  if (obj.boxes && !Array.isArray(obj.boxes)) throw new Error("JSON: boxes не массив")
+  if (obj.notes && !Array.isArray(obj.notes)) throw new Error("JSON: notes не массив")
+  if (obj.settings && (typeof obj.settings !== "object" || obj.settings === null)) {
+    throw new Error("JSON: settings не объект")
+  }
 }

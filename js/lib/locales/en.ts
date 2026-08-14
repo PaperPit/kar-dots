@@ -47,6 +47,15 @@ export const en: Record<string, MessageValue> = {
   "shell.sync.failed": "Failed to send: {n}.",
   "shell.sync.doneFail": "Synced: {ok}, errors: {fail}",
   "shell.sync.doneOk": "Synced: {ok}",
+  "shell.theme.aria": "Theme",
+  "shell.theme.toLight": "Light theme",
+  "shell.theme.toDark": "Dark theme",
+  "shell.translateDir.title": "Click to switch direction",
+  "tts.unsupported": "Speech is not supported in this browser",
+  // Voice-preview samples — deliberately NOT translated: this is speech in a
+  // specific language (to audition a specific voice), not interface text.
+  "tts.sample.ru": "Привет",
+  "tts.sample.en": "Hello",
   "shell.sync.retry": "Retry",
   "shell.sync.errorTitle": "Sync error",
   "shell.sync.retryStarted": "Retry sync started",

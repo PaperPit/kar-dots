@@ -9,6 +9,7 @@ import {
   clampSpeechRate,
   speechSynthesisSupported
 } from "../lib/web-speech-tts.js"
+import { t } from "../lib/i18n.js"
 
 export { detectSpeechLang } from "../lib/web-speech-tts.js"
 
@@ -68,7 +69,7 @@ async function speakOne(text: string, lang?: string, settings?: TtsSettings) {
   const trimmed = String(text || "").trim()
   if (!trimmed) return
   if (!speechSynthesisSupported()) {
-    toast("Озвучка недоступна в этом браузере", "error")
+    toast(t("tts.unsupported"), "error")
     return
   }
   stopAllSpeech()
@@ -118,7 +119,7 @@ export async function previewSpeechVoice(lang?: string) {
   const sample = String(lang || "")
     .toLowerCase()
     .startsWith("en")
-    ? "Hello"
-    : "Привет"
+    ? t("tts.sample.en")
+    : t("tts.sample.ru")
   await speakText(sample, lang)
 }

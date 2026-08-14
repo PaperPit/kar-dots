@@ -4,13 +4,13 @@
   /* Плотная плашка без blur — в МОДЕРНИЗМ-80 blur запрещён */
   background: color-mix(in srgb, var(--c-ink) 62%, transparent);
   display: grid; place-items: center;
-  padding: max(18px, env(safe-area-inset-top, 0px)) 16px max(18px, env(safe-area-inset-bottom, 0px));
+  padding: max(18px, env(safe-area-inset-top, 0px)) var(--sp-4) max(18px, env(safe-area-inset-bottom, 0px));
   opacity: 0; transition: opacity var(--t-base) var(--e-out);
   overflow-y: auto;
 }
 .modal-overlay.open { opacity: 1; }
 .modal-box {
-  background: var(--bg); border-radius: var(--r-3); padding: 24px;
+  background: var(--bg); border-radius: var(--r-3); padding: var(--sp-5);
   width: 100%; max-width: 440px; box-shadow: var(--shadow-lg);
   transform: translateY(18px); transition: transform var(--t-base) var(--e-out);
   max-height: calc(100dvh - 48px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
@@ -22,12 +22,12 @@
 html.motion-ui .modal-overlay { transition: none; }
 html.motion-ui .modal-box { transition: none; }
 
-.modal-title { margin: 0 0 8px; font-size: var(--fs-h3); letter-spacing: var(--ls-display); }
-.modal-head { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; }
+.modal-title { margin: 0 0 var(--sp-2); font-size: var(--fs-h3); letter-spacing: var(--ls-display); }
+.modal-head { display: flex; align-items: center; gap: var(--sp-3); margin-bottom: var(--sp-2); }
 .modal-head-toolbar { justify-content: space-between; gap: 10px; }
-.modal-head-left { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.modal-head-left { display: flex; align-items: center; gap: var(--sp-3); min-width: 0; }
 .modal-head .modal-title { margin: 0; }
-.modal-head-toolbar .modal-delete-btn { flex: none; min-width: 0; padding: 8px 14px; font-size: 14px; }
+.modal-head-toolbar .modal-delete-btn { flex: none; min-width: 0; padding: var(--sp-2) 14px; font-size: var(--fs-small); }
 .modal-head-icon { width: 28px; height: 28px; object-fit: contain; flex: none; }
 .modal-illus { text-align: center; margin: 0 0 14px; }
 .modal-illus img:not(.crow-tomb-illus),
@@ -36,7 +36,7 @@ html.motion-ui .modal-box { transition: none; }
   object-fit: contain;
 }
 .modal-illus:has(.crow-tomb-illus) {
-  margin: 0 0 12px;
+  margin: 0 0 var(--sp-3);
   overflow: visible;
 }
 .modal-illus .crow-tomb-illus {
@@ -71,8 +71,8 @@ html.motion-ui .modal-box { transition: none; }
 .modal-actions-center .btn { min-width: 112px; }
 
 @media (max-width: 520px) {
-  .modal-box { padding: 20px 16px; border-radius: var(--r-3); }
+  .modal-box { padding: 20px var(--sp-4); border-radius: var(--r-3); }
   .modal-box.wide { max-width: min(620px, calc(100vw - 32px)); }
-  .modal-head-toolbar { flex-wrap: wrap; gap: 8px; }
+  .modal-head-toolbar { flex-wrap: wrap; gap: var(--sp-2); }
   .modal-head-toolbar .modal-delete-btn { width: 100%; justify-content: center; }
 }

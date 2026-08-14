@@ -152,12 +152,12 @@
   gap: var(--sp-2);
 }
 .grade-dist-label {
-  font-size: 12px;
+  font-size: var(--fs-micro);
   font-weight: 700;
   color: var(--ink-soft);
   min-width: 36px;
   text-transform: uppercase;
-  letter-spacing: .04em;
+  letter-spacing: var(--ls-label);
 }
 .grade-dist-track {
   flex: 1;
@@ -173,7 +173,7 @@
   min-width: 0;
 }
 .grade-dist-count {
-  font-size: 12px;
+  font-size: var(--fs-micro);
   font-weight: 700;
   color: var(--ink-soft);
   min-width: 28px;

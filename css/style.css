@@ -1366,6 +1366,8 @@ html.motion-ui .toast.show { opacity: 1; transform: none; }
 .study-voice-card .study-voice-status { flex: none; margin: var(--sp-2) 0 var(--sp-2); }
 .study-voice-card .study-voice-actions {
   flex: none;
+  flex-direction: column;
+  align-items: stretch;
   margin-top: auto;
   padding-top: clamp(var(--sp-4), 3.5dvh, var(--sp-6));
   opacity: 1;
@@ -1375,6 +1377,20 @@ html.motion-ui .toast.show { opacity: 1; transform: none; }
     opacity var(--t-slow) var(--e-out),
     transform var(--t-slow) var(--e-out),
     visibility var(--t-slow) var(--e-out);
+}
+.study-voice-reveal-translation-btn {
+  width: 100%;
+  margin-top: var(--sp-1);
+  color: var(--c-ink-3);
+  border-color: transparent;
+  background: transparent;
+  font-weight: 500;
+  text-transform: none;
+  letter-spacing: normal;
+}
+.study-voice-reveal-translation-btn:hover:not(:disabled) {
+  color: var(--c-ink-2);
+  background: color-mix(in srgb, var(--c-ink) 4%, transparent);
 }
 .study-voice-actions.is-action-hidden {
   opacity: 0;

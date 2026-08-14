@@ -32,8 +32,7 @@ export const ru = {
   "common.download": "Скачать",
 
   // —— app / boot ——
-  "app.bootFailed":
-    "Не удалось запустить приложение. Откройте консоль браузера (F12) для деталей.",
+  "app.bootFailed": "Не удалось запустить приложение. Откройте консоль браузера (F12) для деталей.",
   "app.bootError": "Ошибка запуска: {message}",
 
   // —— shell ——
@@ -77,8 +76,7 @@ export const ru = {
   "app.routeError": "Ошибка экрана: {message}",
 
   // —— auth ——
-  "auth.sub":
-    "Карточки для запоминания слов, терминов и цитат — с умным интервальным повторением.",
+  "auth.sub": "Карточки для запоминания слов, терминов и цитат — с умным интервальным повторением.",
   "auth.emailPlaceholder": "Почта",
   "auth.emailLabel": "Электронная почта",
   "auth.passwordPlaceholder": "Пароль (мин. 6 символов)",
@@ -98,8 +96,7 @@ export const ru = {
   "auth.loadFailed": "Не удалось загрузить данные: {message}",
   "auth.seed.folderName": "Первая папка",
   "auth.seed.cardFront": "КАР-точки",
-  "auth.seed.cardBack":
-    "Карточки для запоминания.\nНажмите на карточку, чтобы перевернуть.",
+  "auth.seed.cardBack": "Карточки для запоминания.\nНажмите на карточку, чтобы перевернуть.",
 
   // —— home ——
   "home.toast.alreadyInBox": "Папка уже в этой коробке",
@@ -115,8 +112,7 @@ export const ru = {
   "home.section.libraryAside": "коробки и папки",
   "home.hint.drag": "Перетащите папку на коробку, чтобы объединить.",
   "home.empty.title": "Пока пусто",
-  "home.empty.text":
-    "Создайте коробку или папку — например, «Английский» или «Философия».",
+  "home.empty.text": "Создайте коробку или папку — например, «Английский» или «Философия».",
   "home.notes.kicker": "База знаний",
   "home.notes.title": "Заметки",
   "home.notes.count": "заметок: {n}",
@@ -178,8 +174,7 @@ export const ru = {
   "folder.screen.deleteFolder": "Удалить папку",
   "folder.screen.confirm.deletePackTitle": "Удалить лексический пак?",
   "folder.screen.confirm.deleteFolderTitle": "Удалить папку?",
-  "folder.screen.confirm.deletePackBody":
-    "«{name}» и все {n} {cards} будут удалены.",
+  "folder.screen.confirm.deletePackBody": "«{name}» и все {n} {cards} будут удалены.",
   "folder.screen.confirm.deleteFolderBody":
     "«{name}» и все её карточки ({n}) будут удалены навсегда.",
   "folder.screen.confirm.deletePackOk": "Удалить пак",
@@ -236,12 +231,10 @@ export const ru = {
   "folder.yt.getCards": "Получить карточки",
   "folder.yt.whatToExtract": "Что достать из ролика",
   "folder.yt.progress.compose": "Составляю карточки…",
-  "folder.yt.progress.checkSentences":
-    "Проверяю, какие предложения для тебя новые…",
+  "folder.yt.progress.checkSentences": "Проверяю, какие предложения для тебя новые…",
   "folder.yt.progress.checkWords": "Проверяю, какие слова для тебя новые…",
   "folder.yt.progress.fetchVideo": "Получаю данные видео…",
-  "folder.yt.progress.cacheCompose":
-    "Транскрипт из кэша — составляю карточки…",
+  "folder.yt.progress.cacheCompose": "Транскрипт из кэша — составляю карточки…",
   "folder.yt.progress.readFile": "Читаю файл субтитров…",
   "folder.yt.empty.sentences":
     "Все предложения из этого ролика уже есть в твоих папках — новых карточек не нашлось.",
@@ -252,10 +245,8 @@ export const ru = {
   "folder.yt.add": "Добавить",
   "folder.yt.addN": "Добавить ({n})",
   "folder.yt.toast.added": "Добавлено {n} {cards}",
-  "folder.yt.toast.addedWithErrors":
-    "Добавлено {n} {cards}, ошибок {failed}",
-  "folder.yt.toast.addFailed":
-    "Не удалось добавить карточки ({n} {errors})",
+  "folder.yt.toast.addedWithErrors": "Добавлено {n} {cards}, ошибок {failed}",
+  "folder.yt.toast.addFailed": "Не удалось добавить карточки ({n} {errors})",
   "folder.yt.errors": { one: "ошибка", few: "ошибки", many: "ошибок" },
   "folder.yt.dropped.sentences": {
     one: "{n} предложение уже есть в твоих папках — оно скрыты.",
@@ -267,8 +258,7 @@ export const ru = {
     few: "{n} слова уже есть в твоих паках — они скрыты.",
     many: "{n} слов уже есть в твоих паках — они скрыты."
   },
-  "folder.yt.truncated":
-    "Переведены первые {used} из {total} предложений — лимит за один импорт.",
+  "folder.yt.truncated": "Переведены первые {used} из {total} предложений — лимит за один импорт.",
   "folder.yt.group.sentences": "Предложения",
   "folder.yt.group.phrases": "Фразы",
   "folder.yt.group.words": "Слова",
@@ -278,10 +268,8 @@ export const ru = {
   "box.dialog.titleNew": "Новая коробка",
   "box.dialog.namePlaceholder": "Например, Английский",
   "box.dialog.foldersLabel": "Папки в коробке",
-  "box.dialog.foldersHint":
-    "Коробка объединяет папки по теме. Карточки остаются в папках.",
-  "box.dialog.noFolders":
-    "Нет доступных папок — создайте папку на главном экране.",
+  "box.dialog.foldersHint": "Коробка объединяет папки по теме. Карточки остаются в папках.",
+  "box.dialog.noFolders": "Нет доступных папок — создайте папку на главном экране.",
   "box.dialog.iconHint":
     "Если ничего не выбрано — первая буква названия. Повторное нажатие снимает выбор.",
   "box.confirm.deleteTitle": "Удалить коробку?",
@@ -310,7 +298,8 @@ export const ru = {
   "settings.about.github": "GitHub",
   "settings.about.githubHint": "Исходный код приложения на GitHub.",
   "settings.donate.title": "Поддержать проект",
-  "settings.donate.lead": "КАР-точки — полностью бесплатный сервис. Если он вам помог, вы можете поддержать разработку:",
+  "settings.donate.lead":
+    "КАР-точки — полностью бесплатный сервис. Если он вам помог, вы можете поддержать разработку:",
   "settings.donate.boostyHint": "Россия, СБП, карты.",
   "settings.donate.kofiHint": "Международная платформа для донатов.",
   "settings.donate.cryptoHint": "USDT (TRC-20). Адрес в README на GitHub.",
@@ -370,8 +359,7 @@ export const ru = {
   "settings.algo.speechUnavailable": "Speech Synthesis недоступен в этом браузере.",
   "settings.algo.speechVoicesCount":
     "Системных голосов: {n}. «Авто» выбирает лучший для языка текста.",
-  "settings.algo.speechVoicesLoading":
-    "Голоса загружаются… обновите страницу, если список пуст.",
+  "settings.algo.speechVoicesLoading": "Голоса загружаются… обновите страницу, если список пуст.",
   "settings.algo.speechVoicesTitle": "Голоса браузера",
   "settings.algo.speechVoicesHint":
     "Speech Synthesis API — без интернета и лимитов. Язык текста определяется автоматически: кириллица → русский, латиница → английский.",
@@ -379,8 +367,7 @@ export const ru = {
   "settings.algo.voiceEn": "Английский",
   "settings.algo.leitnerBoxShort": "Кор. {n}",
   "settings.algo.leitnerIntervals": "Интервалы коробок (дни)",
-  "settings.algo.leitnerIntervalsHint":
-    "Через сколько дней показывать карточку из каждой коробки.",
+  "settings.algo.leitnerIntervalsHint": "Через сколько дней показывать карточку из каждой коробки.",
   "settings.algo.fsrs.retention": "Желаемое удержание (FSRS)",
   "settings.algo.fsrs.retentionHint":
     "Какую долю карточек вы хотите помнить к моменту повтора. 85–90% оптимально: выше 95% почти удваивает нагрузку, ниже 80% — частое забывание.",
@@ -444,8 +431,7 @@ export const ru = {
 
   "settings.data.title": "Данные",
   "settings.data.export": "Экспорт",
-  "settings.data.exportHint":
-    "Скачать все папки и карточки одним файлом (резервная копия).",
+  "settings.data.exportHint": "Скачать все папки и карточки одним файлом (резервная копия).",
   "settings.data.import": "Импорт",
   "settings.data.importHint":
     "Загрузить файл экспорта — например, перенести карточки из демо-режима в облако.",
@@ -464,8 +450,7 @@ export const ru = {
   "settings.account.title": "Режим работы",
   "settings.account.cloudLabel": "Облако: {email}",
   "settings.account.demoMode": "Демо-режим",
-  "settings.account.cloudOffline":
-    "Сейчас офлайн — данные синхронизируются при появлении сети.",
+  "settings.account.cloudOffline": "Сейчас офлайн — данные синхронизируются при появлении сети.",
   "settings.account.cloudOnline": "Карточки синхронизируются между устройствами.",
   "settings.account.demoHint":
     "Данные хранятся только в этом браузере. Настройте Supabase (см. README) для синхронизации.",
@@ -473,8 +458,7 @@ export const ru = {
   "settings.account.signOutCloudTitle": "Выйти из аккаунта?",
   "settings.account.signOutDemoTitle": "Выйти из демо-режима?",
   "settings.account.signOutCloudText": "Карточки останутся в облаке.",
-  "settings.account.signOutDemoText":
-    "Данные останутся в этом браузере — вы сможете вернуться.",
+  "settings.account.signOutDemoText": "Данные останутся в этом браузере — вы сможете вернуться.",
   "settings.account.sync": "Синхронизация",
   "settings.account.syncHint": "Принудительно отправить отложенные изменения в облако.",
   "settings.account.syncBtn": "Синхронизировать",
@@ -494,15 +478,13 @@ export const ru = {
   "settings.yt.apiKeys": "API-ключи",
   "settings.yt.configure": "Настроить",
   "settings.yt.extension": "Расширение Chrome",
-  "settings.yt.extensionHint":
-    "Кнопка на YouTube → Side Panel с теми же настройками режима",
+  "settings.yt.extensionHint": "Кнопка на YouTube → Side Panel с теми же настройками режима",
   "settings.yt.installGuide": "Как установить",
   "settings.yt.modalTitle": "API-ключи YouTube",
   "settings.yt.modalIntro":
     "Supadata обязателен для транскрипта. Для карточек нужен свой Gemini и/или Groq — без них импорт не работает.",
   "settings.yt.supadata.title": "Supadata API ключ",
-  "settings.yt.supadata.lead":
-    "Обязателен: достаёт субтитры и транскрипт из YouTube.",
+  "settings.yt.supadata.lead": "Обязателен: достаёт субтитры и транскрипт из YouTube.",
   "settings.yt.supadata.step1": "Зарегистрируйся и открой раздел API Keys.",
   "settings.yt.supadata.step2": "Скопируй ключ и вставь сюда.",
   "settings.yt.supadata.step3":
@@ -511,18 +493,14 @@ export const ru = {
   "settings.yt.gemini.lead": "Генерация карточек: слова и переводы из транскрипта.",
   "settings.yt.gemini.step1": "Создай API key в Google AI Studio.",
   "settings.yt.gemini.step2": "Вставь ключ (AIza… или новый формат AQ.…).",
-  "settings.yt.gemini.step3":
-    "Без ключа генерация карточек не работает (нужен Gemini или Groq).",
+  "settings.yt.gemini.step3": "Без ключа генерация карточек не работает (нужен Gemini или Groq).",
   "settings.yt.groq.title": "Groq API ключ",
   "settings.yt.groq.lead": "Резерв, если у Gemini кончилась квота.",
   "settings.yt.groq.step1": "Создай API Key в Groq Console.",
   "settings.yt.groq.step2": "Вставь ключ (начинается с gsk_…).",
-  "settings.yt.groq.step3":
-    "Если модели отключены в проекте — Project → Limits: включи GPT OSS.",
-  "settings.yt.groq.step4":
-    "Без ключа генерация карточек не работает (нужен Gemini или Groq).",
-  "settings.yt.invalidGemini":
-    "Неверный формат — ключ AI Studio: AIza… или AQ.…",
+  "settings.yt.groq.step3": "Если модели отключены в проекте — Project → Limits: включи GPT OSS.",
+  "settings.yt.groq.step4": "Без ключа генерация карточек не работает (нужен Gemini или Groq).",
+  "settings.yt.invalidGemini": "Неверный формат — ключ AI Studio: AIza… или AQ.…",
   "settings.yt.invalidGroq": "Неверный формат — ключ Groq начинается с gsk_…",
   "settings.yt.invalidSupadata": "Неверный формат ключа Supadata",
   "settings.yt.statusMissingRequired": "Не указан — импорт недоступен",
@@ -542,10 +520,8 @@ export const ru = {
   "settings.media.modalIntro":
     "Pixabay — фото и иллюстрации. Giphy — GIF и стикеры. Без ключей работает ограниченный Openverse.",
   "settings.media.pixabay.title": "Pixabay API ключ",
-  "settings.media.pixabay.lead":
-    "5+ млн фото и иллюстраций (бесплатная лицензия Pixabay).",
-  "settings.media.pixabay.step1":
-    "Зарегистрируйся на Pixabay и открой API documentation.",
+  "settings.media.pixabay.lead": "5+ млн фото и иллюстраций (бесплатная лицензия Pixabay).",
+  "settings.media.pixabay.step1": "Зарегистрируйся на Pixabay и открой API documentation.",
   "settings.media.pixabay.step2": "Скопируй API key и вставь сюда.",
   "settings.media.pixabay.step3":
     "Бесплатно: до 100 запросов в минуту — хватит для личных карточек.",
@@ -588,8 +564,7 @@ export const ru = {
   "review.picker.title": "Режим повторения",
   "review.picker.cramTitle": "Закрепление папки",
   "review.picker.sub": "Выберите, как хотите повторять карточки в этой сессии.",
-  "review.picker.cramSub":
-    "Выберите сторону, сколько слов повторить и способ закрепления.",
+  "review.picker.cramSub": "Выберите сторону, сколько слов повторить и способ закрепления.",
   "review.picker.sideLabel": "Что показывать на карточке?",
   "review.picker.modesLabel": "Способ закрепления",
   "review.picker.limitLabel": "Сколько слов за раз? ",
@@ -628,8 +603,7 @@ export const ru = {
   "review.session.skipNoFront": "Нет термина для проверки — пропуск",
   "review.session.noTts": "Нет текста для озвучки",
   "review.session.doneTitle": "Сессия завершена!",
-  "review.session.doneSub":
-    "Ворона довольна. Возвращайтесь завтра — память любит ритм.",
+  "review.session.doneSub": "Ворона довольна. Возвращайтесь завтра — память любит ритм.",
   "review.session.statKnown": "знаю",
   "review.session.statRetry": "повторить ещё",
   "review.session.again": "Ещё раз",
@@ -641,11 +615,9 @@ export const ru = {
   "review.grade.dontKnow": "Не знаю",
   "review.grade.know": "Знаю",
   "review.grade.swipeFsrs": "← снова · → хорошо",
-  "review.grade.keysFsrs":
-    "← снова · → хорошо · 1–4 — оценки · пробел — перевернуть",
+  "review.grade.keysFsrs": "← снова · → хорошо · 1–4 — оценки · пробел — перевернуть",
   "review.grade.swipeBinary": "← не знаю · → знаю",
-  "review.grade.keysBinary":
-    "клавиши: пробел — перевернуть · ← не знаю · → знаю",
+  "review.grade.keysBinary": "клавиши: пробел — перевернуть · ← не знаю · → знаю",
   "review.grade.groupAria": "Оценка ответа",
   "review.grade.saveFailed": "Не сохранилось: {message}",
   "review.grade.saved": "Оценка сохранена",
@@ -681,27 +653,26 @@ export const ru = {
   "review.cloze.wordLabel": "Слово с пропусками",
   "review.cloze.ariaWord": "Пропущенное слово",
   "review.cloze.ariaLetter": "Пропущенная буква",
-  "review.cloze.hintWords":
-    "Допишите пропущенные слова прямо в тексте — только их, не всю фразу",
+  "review.cloze.hintWords": "Допишите пропущенные слова прямо в тексте — только их, не всю фразу",
   "review.cloze.hintLetters":
     "Допишите пропущенные буквы прямо в слове — только их, не слово целиком",
 
   "review.voice.start": "🎤 Сказать ответ",
   "review.voice.check": "✓ Проверить",
+  "review.voice.showTranslation": "Показать перевод",
+  "review.voice.skip": "Пропустить",
+  "review.voice.translationIs": "Перевод: {answer}",
   "review.voice.statusIdle": "Пробел или кнопка — начать запись",
   "review.voice.notRecognized":
     "Речь не распознана — произнесите перевод вслух и нажмите «Проверить»",
   "review.voice.heard": "Услышано: «{transcript}»",
-  "review.voice.heardAndCorrect":
-    "Услышано: «{transcript}». Правильно: {answer}",
+  "review.voice.heardAndCorrect": "Услышано: «{transcript}». Правильно: {answer}",
   "review.voice.correctIs": "Правильно: {answer}",
   "review.voice.retry": "🎤 Попробовать снова",
   "review.voice.checking": "Проверяю…",
-  "review.voice.checkFailed":
-    "Не удалось проверить — нажмите «Сказать ответ» ещё раз",
+  "review.voice.checkFailed": "Не удалось проверить — нажмите «Сказать ответ» ещё раз",
   "review.voice.listening": "Слушаю: «{text}»",
-  "review.voice.unavailable":
-    "Голосовой режим недоступен — используйте ввод текста",
+  "review.voice.unavailable": "Голосовой режим недоступен — используйте ввод текста",
 
   // —— card editor ——
   "cardEditor.title.edit": "Карточка",
@@ -733,8 +704,7 @@ export const ru = {
 
   "cardEditor.bulk.title": "Добавить списком",
   "cardEditor.bulk.hint": "По одной паре на строку.",
-  "cardEditor.bulk.placeholder":
-    "слово — перевод\nhello — привет\n# комментарии игнорируются",
+  "cardEditor.bulk.placeholder": "слово — перевод\nhello — привет\n# комментарии игнорируются",
   "cardEditor.bulk.readyCount": "Готово к добавлению: {ready}",
   "cardEditor.bulk.translateSuffix": " · перевести: {n}",
   "cardEditor.bulk.skippedSuffix": " · пропущено: {n}",
@@ -747,8 +717,7 @@ export const ru = {
   "cardEditor.preview.needFront": "Заполните лицевую сторону для просмотра",
   "cardEditor.preview.needBack": "Заполните оборот для просмотра",
   "cardEditor.preview.title": "Просмотр карточки",
-  "cardEditor.preview.lead":
-    "Как в режиме повторения — нажмите на карточку, чтобы перевернуть.",
+  "cardEditor.preview.lead": "Как в режиме повторения — нажмите на карточку, чтобы перевернуть.",
   "cardEditor.preview.close": "Закрыть",
 
   "cardEditor.image.dropAria":
@@ -822,8 +791,7 @@ export const ru = {
   "notes.search.placeholder": "Поиск по заметкам…",
   "notes.search.aria": "Поиск по заметкам",
   "notes.empty.title": "Пока нет заметок",
-  "notes.empty.text":
-    "Создайте первую — Markdown, [[связи]], #теги, папки и граф структуры.",
+  "notes.empty.text": "Создайте первую — Markdown, [[связи]], #теги, папки и граф структуры.",
   "notes.empty.body": "Пустая заметка",
   "notes.toast.missing": "Заметка не найдена",
   "notes.toast.deleted": "Заметка удалена",
@@ -841,8 +809,7 @@ export const ru = {
   "notes.editor.saved": "Сохранено",
   "notes.editor.unsaved": "Изменения…",
   "notes.confirm.deleteTitle": "Удалить заметку?",
-  "notes.confirm.deleteBody":
-    "Карточки останутся — связь с этой заметкой снимется.",
+  "notes.confirm.deleteBody": "Карточки останутся — связь с этой заметкой снимется.",
   "notes.conflicts.title": "Другие версии",
   "notes.conflicts.isCopy": "Это другая версия с другого устройства.",
   "notes.conflicts.banner": "Другая версия — оригинал доступен по ссылке.",
@@ -877,7 +844,8 @@ export const ru = {
   "notes.cardFromSelection.needSelection": "Выделите текст, чтобы сделать карточку",
   "notes.cardFromSelection.noFolders": "Сначала создайте папку для карточек",
   "notes.cardFromSelection.pickFolder": "Папка карточки",
-  "notes.cardFromSelection.pickFolderHint": "У заметки нет папки — выберите, куда положить карточку.",
+  "notes.cardFromSelection.pickFolderHint":
+    "У заметки нет папки — выберите, куда положить карточку.",
   "notes.cardFromSelection.done": "Карточка создана и связана с заметкой",
   "notes.wiki.created": "Создана заметка «{title}»",
   "notes.unlinked.title": "Упоминания без ссылки",
@@ -889,8 +857,7 @@ export const ru = {
   "notes.unlinked.done": "Упоминание связано",
   "notes.unlinked.failed": "Не удалось найти упоминание",
   "notes.rename.title": "Обновить ссылки?",
-  "notes.rename.body":
-    "Заголовок «{old}» → «{next}». Найдено {n} ссылок в {m} заметках. Обновить?",
+  "notes.rename.body": "Заголовок «{old}» → «{next}». Найдено {n} ссылок в {m} заметках. Обновить?",
   "notes.rename.confirm": "Обновить ссылки",
   "notes.rename.done": "Обновлено ссылок в {n} заметках",
   "notes.localGraph.title": "Локальный граф",
@@ -926,8 +893,7 @@ export const ru = {
   "notes.graph.legendFolder": "■ папка",
   "notes.graph.legendWiki": "— связь [[…]]",
   "notes.graph.emptyTitle": "Граф пуст",
-  "notes.graph.emptyText":
-    "Создайте заметки, положите их в папки и свяжите через [[заголовок]].",
+  "notes.graph.emptyText": "Создайте заметки, положите их в папки и свяжите через [[заголовок]].",
   "notes.memory.title": "Память",
   "notes.memory.all": "Все состояния",
   "notes.memory.filter": "Фильтр по памяти",
@@ -945,10 +911,9 @@ export const ru = {
     "Выделите фрагмент текста и нажмите «Карточка из выделения» — и заметка подключится к интервальному повторению.",
   "review.intro.note": "Заметка · {n} {cards} — «{title}»",
   "review.note.emptyTitle": "В этой заметке всё выучено",
-  "review.note.emptyText":
-    "Связанные с «{title}» карточки не требуют повторения прямо сейчас.",
+  "review.note.emptyText": "Связанные с «{title}» карточки не требуют повторения прямо сейчас.",
   "review.note.back": "К заметке",
-  "review.session.backToNote": "К заметке",
+  "review.session.backToNote": "К заметке"
 } as const satisfies Record<string, MessageValue>
 
 export type MessageKey = keyof typeof ru

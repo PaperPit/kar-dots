@@ -1,383 +1,434 @@
-import type { SrsCard } from "../../../lib/srs.js";
-import type { Settings } from "../../../lib/sounds.js";
-import { el } from '../../../ui/ui.js';
-import { buildFaceScroll } from '../../../ui/card-face.js';
-import { haptic } from '../../../ui/helpers.js';
-import { stopAllSpeech } from '../../../ui/tts.js';
-import { playAnswerFeedback, unlockAnswerAudio, stopAnswerAudio } from '../../../lib/sounds.js';
-import { flashStudyCard, showStudyFeedback } from '../../../ui/answer-feedback.js';
-import { checkCardAnswer, getExpectedAnswer, formatExpectedDisplay, expectedVariants } from '../../../lib/answer-check.js';
-import { listenOnce, speechRecognitionSupported, resolveVoiceSpeechLang, releaseSpeechSession } from '../../../lib/speech-input.js';
-import { isSpaceKey, shouldStartVoiceFromSpace } from '../../../lib/voice-keyboard.js';
-import { t } from '../../../lib/i18n.js';
-
+import type { SrsCard } from "../../../lib/srs.js"
+import type { Settings } from "../../../lib/sounds.js"
+import { el } from "../../../ui/ui.js"
+import { buildFaceScroll } from "../../../ui/card-face.js"
+import { haptic } from "../../../ui/helpers.js"
+import { stopAllSpeech } from "../../../ui/tts.js"
+import { playAnswerFeedback, unlockAnswerAudio, stopAnswerAudio } from "../../../lib/sounds.js"
+import { flashStudyCard, showStudyFeedback } from "../../../ui/answer-feedback.js"
+import {
+  checkCardAnswer,
+  getExpectedAnswer,
+  formatExpectedDisplay,
+  expectedVariants
+} from "../../../lib/answer-check.js"
+import {
+  listenOnce,
+  speechRecognitionSupported,
+  resolveVoiceSpeechLang,
+  releaseSpeechSession
+} from "../../../lib/speech-input.js"
+import { isSpaceKey, shouldStartVoiceFromSpace } from "../../../lib/voice-keyboard.js"
+import { t } from "../../../lib/i18n.js"
 
 interface VoiceCtx {
-  promptSide: 'front' | 'back';
-  onSuccess: (r: { firstTry: boolean }) => void;
-  onFail: (r?: { firstTry?: boolean }) => void;
-  getSettings: () => Settings | null;
+  promptSide: "front" | "back"
+  onSuccess: (r: { firstTry: boolean }) => void
+  onFail: (r?: { firstTry?: boolean }) => void
+  getSettings: () => Settings | null
 }
 
-function labelStart() { return t('review.voice.start'); }
-function labelCheck() { return t('review.voice.check'); }
-function labelSkip() { return t('review.voice.skip'); }
+function labelStart() {
+  return t("review.voice.start")
+}
+function labelCheck() {
+  return t("review.voice.check")
+}
+function labelSkip() {
+  return t("review.voice.skip")
+}
 
-function buildPrompt(card: SrsCard, promptSide: 'front' | 'back') {
-  return el('div', { class: 'study-prompt-card' }, [
-    buildFaceScroll(promptSide, card),
-  ]);
+function buildPrompt(card: SrsCard, promptSide: "front" | "back") {
+  return el("div", { class: "study-prompt-card" }, [buildFaceScroll(promptSide, card)])
 }
 
 function restoreVoiceActionLayout(
   actions: HTMLElement,
   startBtn: HTMLButtonElement,
   checkBtn: HTMLButtonElement,
-  showTranslationBtn: HTMLButtonElement,
+  showTranslationBtn: HTMLButtonElement
 ) {
-  actions.innerHTML = '';
-  actions.append(startBtn, checkBtn, showTranslationBtn);
+  actions.innerHTML = ""
+  actions.append(startBtn, checkBtn, showTranslationBtn)
 }
 
 export function createVoiceModeCard(card: SrsCard, ctx: VoiceCtx) {
-  const { promptSide, onSuccess, onFail, getSettings } = ctx;
-  let answered = false;
-  let listens = 0;
-  let translationRevealed = false;
-  let stopListen: ((o?: { cancel: boolean }) => Promise<void>) | null = null;
-  let listening = false;
-  let stopping = false;
-  let autoCheckTriggered = false;
+  const { promptSide, onSuccess, onFail, getSettings } = ctx
+  let answered = false
+  let listens = 0
+  let translationRevealed = false
+  let stopListen: ((o?: { cancel: boolean }) => Promise<void>) | null = null
+  let listening = false
+  let stopping = false
+  let autoCheckTriggered = false
 
-  const answerOpts = { fuzzy: true, fuzzyThreshold: 0.68 };
-  const expectedAnswer = () => getExpectedAnswer(card, promptSide);
+  const answerOpts = { fuzzy: true, fuzzyThreshold: 0.68 }
+  const expectedAnswer = () => getExpectedAnswer(card, promptSide)
 
   /** iOS шлёт один и тот же partial каждые ~300 ms — debounce сбрасывал таймер бесконечно. */
   function maybeAutoCheck(transcript: string) {
-    if (autoCheckTriggered || !listening || stopping || answered) return;
-    const trimmed = String(transcript || '').trim();
-    if (!trimmed || !checkCardAnswer(trimmed, card, promptSide, answerOpts).ok) return;
-    autoCheckTriggered = true;
-    finishListen();
+    if (autoCheckTriggered || !listening || stopping || answered) return
+    const trimmed = String(transcript || "").trim()
+    if (!trimmed || !checkCardAnswer(trimmed, card, promptSide, answerOpts).ok) return
+    autoCheckTriggered = true
+    finishListen()
   }
 
-  const prompt = buildPrompt(card, promptSide);
-  const status = el('p', { class: 'study-voice-status muted' }, t('review.voice.statusIdle'));
-  const heard = el('div', { class: 'study-feedback', hidden: true }, undefined);
-  const actions = el('div', { class: 'study-actions study-voice-actions' }, undefined);
+  const prompt = buildPrompt(card, promptSide)
+  const status = el("p", { class: "study-voice-status muted" }, t("review.voice.statusIdle"))
+  const heard = el("div", { class: "study-feedback", hidden: true }, undefined)
+  const actions = el("div", { class: "study-actions study-voice-actions" }, undefined)
 
-  const startBtn = el('button', {
-    type: 'button',
-    class: 'btn accent study-mic-btn',
-    disabled: !speechRecognitionSupported(),
-  }, labelStart()) as HTMLButtonElement;
+  const startBtn = el(
+    "button",
+    {
+      type: "button",
+      class: "btn accent study-mic-btn",
+      disabled: !speechRecognitionSupported()
+    },
+    labelStart()
+  ) as HTMLButtonElement
 
-  const checkBtn = el('button', {
-    type: 'button',
-    class: 'btn primary study-check-btn',
-    hidden: true,
-  }, labelCheck()) as HTMLButtonElement;
+  const checkBtn = el(
+    "button",
+    {
+      type: "button",
+      class: "btn primary study-check-btn",
+      hidden: true
+    },
+    labelCheck()
+  ) as HTMLButtonElement
 
-  const showTranslationBtn = el('button', {
-    type: 'button',
-    class: 'btn ghost study-voice-reveal-translation-btn',
-  }, t('review.voice.showTranslation')) as HTMLButtonElement;
+  const showTranslationBtn = el(
+    "button",
+    {
+      type: "button",
+      class: "btn ghost study-voice-reveal-translation-btn"
+    },
+    t("review.voice.showTranslation")
+  ) as HTMLButtonElement
 
   function syncTranslationButton() {
-    showTranslationBtn.hidden = answered || listening || translationRevealed;
+    showTranslationBtn.hidden = answered || listening || translationRevealed
   }
 
   function syncPrimaryButton() {
     if (translationRevealed) {
-      startBtn.textContent = labelSkip();
-      startBtn.classList.remove('study-mic-btn');
-      startBtn.classList.add('study-skip-btn');
+      startBtn.textContent = labelSkip()
+      startBtn.classList.remove("study-mic-btn")
+      startBtn.classList.add("study-skip-btn")
     } else {
-      startBtn.textContent = labelStart();
-      startBtn.classList.add('study-mic-btn');
-      startBtn.classList.remove('study-skip-btn');
+      startBtn.textContent = labelStart()
+      startBtn.classList.add("study-mic-btn")
+      startBtn.classList.remove("study-skip-btn")
     }
-    startBtn.disabled = answered || (!translationRevealed && !speechRecognitionSupported());
+    startBtn.disabled = answered || (!translationRevealed && !speechRecognitionSupported())
   }
 
   function setUiIdle() {
-    listening = false;
-    stopping = false;
-    startBtn.hidden = false;
-    checkBtn.hidden = true;
-    startBtn.style.display = '';
-    checkBtn.style.display = 'none';
-    checkBtn.classList.remove('is-listening');
-    checkBtn.textContent = labelCheck();
-    checkBtn.disabled = false;
-    checkBtn.removeAttribute('disabled');
-    syncPrimaryButton();
-    syncTranslationButton();
-    showVoiceActions();
+    listening = false
+    stopping = false
+    startBtn.hidden = false
+    checkBtn.hidden = true
+    startBtn.style.display = ""
+    checkBtn.style.display = "none"
+    checkBtn.classList.remove("is-listening")
+    checkBtn.textContent = labelCheck()
+    checkBtn.disabled = false
+    checkBtn.removeAttribute("disabled")
+    syncPrimaryButton()
+    syncTranslationButton()
+    showVoiceActions()
   }
 
   function hideVoiceActions() {
-    startBtn.hidden = true;
-    checkBtn.hidden = true;
-    showTranslationBtn.hidden = true;
-    actions.classList.remove('is-action-visible');
-    void actions.offsetWidth;
-    actions.classList.add('is-action-hidden');
+    startBtn.hidden = true
+    checkBtn.hidden = true
+    showTranslationBtn.hidden = true
+    actions.classList.remove("is-action-visible")
+    void actions.offsetWidth
+    actions.classList.add("is-action-hidden")
   }
 
   function showVoiceActions() {
-    actions.classList.remove('is-action-hidden');
-    actions.classList.add('is-action-enter', 'is-action-visible');
+    actions.classList.remove("is-action-hidden")
+    actions.classList.add("is-action-enter", "is-action-visible")
   }
 
   function setUiListening() {
-    listening = true;
-    stopping = false;
-    startBtn.hidden = true;
-    checkBtn.hidden = false;
-    startBtn.style.display = 'none';
-    checkBtn.style.display = '';
-    checkBtn.classList.add('is-listening');
-    checkBtn.textContent = labelCheck();
-    checkBtn.disabled = false;
-    checkBtn.removeAttribute('disabled');
-    syncTranslationButton();
+    listening = true
+    stopping = false
+    startBtn.hidden = true
+    checkBtn.hidden = false
+    startBtn.style.display = "none"
+    checkBtn.style.display = ""
+    checkBtn.classList.add("is-listening")
+    checkBtn.textContent = labelCheck()
+    checkBtn.disabled = false
+    checkBtn.removeAttribute("disabled")
+    syncTranslationButton()
   }
 
   function playFeedback(isCorrect: boolean) {
-    const settings = getSettings?.();
-    if (!settings) return;
-    const run = () => playAnswerFeedback(isCorrect, settings);
-    if (isCorrect) run();
-    else setTimeout(run, 120);
+    const settings = getSettings?.()
+    if (!settings) return
+    const run = () => playAnswerFeedback(isCorrect, settings)
+    if (isCorrect) run()
+    else setTimeout(run, 120)
   }
 
   async function cleanupListen(silent: boolean = true) {
-    const fn = stopListen;
-    stopListen = null;
-    if (fn) await fn({ cancel: silent }).catch(() => { console.warn('[kar] voice cleanupListen failed'); });
-    setUiIdle();
+    const fn = stopListen
+    stopListen = null
+    if (fn)
+      await fn({ cancel: silent }).catch(() => {
+        console.warn("[kar] voice cleanupListen failed")
+      })
+    setUiIdle()
   }
 
   function skipAsWrong() {
-    if (answered) return;
-    answered = true;
-    void cleanupListen();
-    playFeedback(false);
-    haptic(4);
-    flashStudyCard(prompt, false);
-    hideVoiceActions();
-    onFail({ firstTry: false });
+    if (answered) return
+    answered = true
+    void cleanupListen()
+    playFeedback(false)
+    haptic(4)
+    flashStudyCard(prompt, false)
+    hideVoiceActions()
+    onFail({ firstTry: false })
   }
 
   function revealTranslation() {
-    if (answered || translationRevealed) return;
-    translationRevealed = true;
-    const display = formatExpectedDisplay(expectedAnswer());
-    showStudyFeedback(heard, false, t('review.voice.translationIs', { answer: display }));
-    status.textContent = '';
-    if (listening) void finishListen();
-    else setUiIdle();
+    if (answered || translationRevealed) return
+    translationRevealed = true
+    const display = formatExpectedDisplay(expectedAnswer())
+    showStudyFeedback(heard, false, t("review.voice.translationIs", { answer: display }))
+    status.textContent = ""
+    if (listening) void finishListen()
+    else setUiIdle()
   }
 
   function onPrimaryAction() {
-    if (translationRevealed) skipAsWrong();
-    else startListen();
+    if (translationRevealed) skipAsWrong()
+    else startListen()
   }
 
   function evaluateTranscript(transcript: string) {
-    stopListen = null;
-    stopping = false;
-    listening = false;
-    checkBtn.hidden = true;
+    stopListen = null
+    stopping = false
+    listening = false
+    checkBtn.hidden = true
     if (!transcript?.trim()) {
-      setUiIdle();
-      status.textContent = t('review.voice.notRecognized');
-      heard.hidden = true;
-      return;
+      setUiIdle()
+      status.textContent = t("review.voice.notRecognized")
+      heard.hidden = true
+      return
     }
-    listens++;
-    const firstTry = listens === 1;
-    const expected = expectedAnswer();
-    const { ok } = checkCardAnswer(transcript, card, promptSide, answerOpts);
+    listens++
+    const firstTry = listens === 1
+    const expected = expectedAnswer()
+    const { ok } = checkCardAnswer(transcript, card, promptSide, answerOpts)
     if (ok) {
-      answered = true;
-      hideVoiceActions();
-      status.textContent = '';
-      playFeedback(true);
-      haptic(12);
-      flashStudyCard(prompt, true);
-      showStudyFeedback(heard, true, t('review.type.correct'));
-      setTimeout(() => onSuccess({ firstTry }), 580);
+      answered = true
+      hideVoiceActions()
+      status.textContent = ""
+      playFeedback(true)
+      haptic(12)
+      flashStudyCard(prompt, true)
+      showStudyFeedback(heard, true, t("review.type.correct"))
+      setTimeout(() => onSuccess({ firstTry }), 580)
     } else {
-      setUiIdle();
-      status.textContent = '';
-      playFeedback(false);
-      haptic(4);
-      showWrong(transcript, expected);
+      setUiIdle()
+      status.textContent = ""
+      playFeedback(false)
+      haptic(4)
+      showWrong(transcript, expected)
     }
   }
 
   function showWrong(transcript: string, expected: string) {
-    flashStudyCard(prompt, false);
-    showStudyFeedback(heard, false, transcript ? t('review.voice.heard', { transcript }) : t('review.type.wrong'));
-    actions.innerHTML = '';
-    const revealBtn = el('button', {
-      type: 'button',
-      class: 'btn ghost study-reveal-btn',
-    }, t('review.type.showAnswer'));
-    revealBtn.addEventListener('click', () => {
-      const display = formatExpectedDisplay(expected);
-      showStudyFeedback(heard, false, transcript
-        ? t('review.voice.heardAndCorrect', { transcript, answer: display })
-        : t('review.voice.correctIs', { answer: display }));
-      revealBtn.remove();
-    });
+    flashStudyCard(prompt, false)
+    showStudyFeedback(
+      heard,
+      false,
+      transcript ? t("review.voice.heard", { transcript }) : t("review.type.wrong")
+    )
+    actions.innerHTML = ""
+    const revealBtn = el(
+      "button",
+      {
+        type: "button",
+        class: "btn ghost study-reveal-btn"
+      },
+      t("review.type.showAnswer")
+    )
+    revealBtn.addEventListener("click", () => {
+      const display = formatExpectedDisplay(expected)
+      showStudyFeedback(
+        heard,
+        false,
+        transcript
+          ? t("review.voice.heardAndCorrect", { transcript, answer: display })
+          : t("review.voice.correctIs", { answer: display })
+      )
+      revealBtn.remove()
+    })
     actions.append(
-      el('button', {
-        type: 'button',
-        class: 'btn accent study-mic-btn',
-        onclick: () => startListen(),
-      }, t('review.voice.retry')),
-      revealBtn,
-      el('button', {
-        type: 'button',
-        class: 'btn ghost',
-        onclick: () => {
-          cleanupListen();
-          if (!answered) { answered = true; onFail({ firstTry: false }); }
+      el(
+        "button",
+        {
+          type: "button",
+          class: "btn accent study-mic-btn",
+          onclick: () => startListen()
         },
-      }, t('review.type.dontKnow')),
-    );
+        t("review.voice.retry")
+      ),
+      revealBtn,
+      el(
+        "button",
+        {
+          type: "button",
+          class: "btn ghost",
+          onclick: () => {
+            cleanupListen()
+            if (!answered) {
+              answered = true
+              onFail({ firstTry: false })
+            }
+          }
+        },
+        t("review.type.dontKnow")
+      )
+    )
   }
 
   async function finishListen() {
-    if (!listening || answered || stopping) return;
-    stopping = true;
-    checkBtn.textContent = '…';
-    status.textContent = t('review.voice.checking');
-    const fn = stopListen;
-    stopListen = null;
+    if (!listening || answered || stopping) return
+    stopping = true
+    checkBtn.textContent = "…"
+    status.textContent = t("review.voice.checking")
+    const fn = stopListen
+    stopListen = null
     try {
       if (fn) {
         await Promise.race([
           fn({ cancel: false }),
-          new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 8000)),
-        ]);
+          new Promise((_, reject) => setTimeout(() => reject(new Error("timeout")), 8000))
+        ])
       }
     } catch (e) {
-      stopping = false;
-      listening = false;
-      setUiIdle();
-      status.textContent = t('review.voice.checkFailed');
+      stopping = false
+      listening = false
+      setUiIdle()
+      status.textContent = t("review.voice.checkFailed")
     }
   }
 
   function startListen() {
-    if (answered || listening || translationRevealed || !speechRecognitionSupported()) return;
-    autoCheckTriggered = false;
-    const settings = getSettings?.();
+    if (answered || listening || translationRevealed || !speechRecognitionSupported()) return
+    autoCheckTriggered = false
+    const settings = getSettings?.()
 
-    stopAllSpeech();
-    stopAnswerAudio();
+    stopAllSpeech()
+    stopAnswerAudio()
 
-    const prev = stopListen;
-    stopListen = null;
-    if (prev) releaseSpeechSession(prev);
+    const prev = stopListen
+    stopListen = null
+    if (prev) releaseSpeechSession(prev)
 
     if (!actions.contains(startBtn)) {
-      restoreVoiceActionLayout(actions, startBtn, checkBtn, showTranslationBtn);
+      restoreVoiceActionLayout(actions, startBtn, checkBtn, showTranslationBtn)
     }
 
-    const expected = expectedAnswer();
-    const { lang, hint } = resolveVoiceSpeechLang(expected);
-    status.textContent = `${hint}…`;
-    heard.hidden = true;
-    setUiListening();
-    if (settings) unlockAnswerAudio(settings);
+    const expected = expectedAnswer()
+    const { lang, hint } = resolveVoiceSpeechLang(expected)
+    status.textContent = `${hint}…`
+    heard.hidden = true
+    setUiListening()
+    if (settings) unlockAnswerAudio(settings)
 
     stopListen = listenOnce({
       lang,
       manualStop: true,
       contextualStrings: expectedVariants(expected),
       onInterim: (text) => {
-        if (!stopping) status.textContent = t('review.voice.listening', { text });
-        maybeAutoCheck(text);
+        if (!stopping) status.textContent = t("review.voice.listening", { text })
+        maybeAutoCheck(text)
       },
       onResult: evaluateTranscript,
       onError: (err) => {
-        stopListen = null;
-        setUiIdle();
-        status.textContent = err.message;
+        stopListen = null
+        setUiIdle()
+        status.textContent = err.message
       },
       onEnd: () => {
-        stopping = false;
-      },
-    });
+        stopping = false
+      }
+    })
   }
 
-  startBtn.addEventListener('click', (e: MouseEvent) => {
-    e.preventDefault();
-    onPrimaryAction();
-  });
-  checkBtn.addEventListener('click', (e: MouseEvent) => {
-    e.preventDefault();
-    finishListen();
-  });
-  showTranslationBtn.addEventListener('click', (e: MouseEvent) => {
-    e.preventDefault();
-    revealTranslation();
-  });
+  startBtn.addEventListener("click", (e: MouseEvent) => {
+    e.preventDefault()
+    onPrimaryAction()
+  })
+  checkBtn.addEventListener("click", (e: MouseEvent) => {
+    e.preventDefault()
+    finishListen()
+  })
+  showTranslationBtn.addEventListener("click", (e: MouseEvent) => {
+    e.preventDefault()
+    revealTranslation()
+  })
 
   const onVoiceKey = (e: KeyboardEvent) => {
-    if (!isSpaceKey(e)) return;
-    e.preventDefault();
-    if (listening) finishListen();
-    else onPrimaryAction();
-  };
-  startBtn.addEventListener('keydown', onVoiceKey);
-  checkBtn.addEventListener('keydown', onVoiceKey);
+    if (!isSpaceKey(e)) return
+    e.preventDefault()
+    if (listening) finishListen()
+    else onPrimaryAction()
+  }
+  startBtn.addEventListener("keydown", onVoiceKey)
+  checkBtn.addEventListener("keydown", onVoiceKey)
 
-  actions.append(startBtn, checkBtn, showTranslationBtn);
-  actions.classList.add('is-action-hidden');
+  actions.append(startBtn, checkBtn, showTranslationBtn)
+  actions.classList.add("is-action-hidden")
 
-  const box = el('div', { class: 'study-voice-card', tabindex: '-1' }, [
+  const box = el("div", { class: "study-voice-card", tabindex: "-1" }, [
     prompt,
     status,
     heard,
-    actions,
-  ]);
+    actions
+  ])
 
   const onKey = (e: KeyboardEvent) => {
     if (!document.body.contains(box)) {
-      document.removeEventListener('keydown', onKey, true);
-      return;
+      document.removeEventListener("keydown", onKey, true)
+      return
     }
-    if (!shouldStartVoiceFromSpace(e, box)) return;
-    e.preventDefault();
-    if (listening) finishListen();
-    else onPrimaryAction();
-  };
-  document.addEventListener('keydown', onKey, true);
+    if (!shouldStartVoiceFromSpace(e, box)) return
+    e.preventDefault()
+    if (listening) finishListen()
+    else onPrimaryAction()
+  }
+  document.addEventListener("keydown", onKey, true)
 
   requestAnimationFrame(() => {
-    if (!document.body.contains(box)) return;
-    box.focus({ preventScroll: true });
-    requestAnimationFrame(() => showVoiceActions());
-  });
+    if (!document.body.contains(box)) return
+    box.focus({ preventScroll: true })
+    requestAnimationFrame(() => showVoiceActions())
+  })
 
   if (!speechRecognitionSupported()) {
-    status.textContent = t('review.voice.unavailable');
+    status.textContent = t("review.voice.unavailable")
   }
 
   return {
     box,
     getPromptSide: () => promptSide,
     destroy() {
-      document.removeEventListener('keydown', onKey, true);
-      const fn = stopListen;
-      stopListen = null;
-      if (fn) releaseSpeechSession(fn);
-    },
-  };
+      document.removeEventListener("keydown", onKey, true)
+      const fn = stopListen
+      stopListen = null
+      if (fn) releaseSpeechSession(fn)
+    }
+  }
 }

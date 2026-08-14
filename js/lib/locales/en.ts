@@ -23,8 +23,7 @@ export const en: Record<string, MessageValue> = {
   "common.close": "Close",
   "common.download": "Download",
 
-  "app.bootFailed":
-    "Could not start the app. Open the browser console (F12) for details.",
+  "app.bootFailed": "Could not start the app. Open the browser console (F12) for details.",
   "app.bootError": "Startup error: {message}",
 
   "shell.skipToContent": "Skip to content",
@@ -65,8 +64,7 @@ export const en: Record<string, MessageValue> = {
   "app.error.reload": "Reload",
   "app.routeError": "Screen error: {message}",
 
-  "auth.sub":
-    "Flashcards for words, terms, and quotes — with smart spaced repetition.",
+  "auth.sub": "Flashcards for words, terms, and quotes — with smart spaced repetition.",
   "auth.emailPlaceholder": "Email",
   "auth.emailLabel": "Email",
   "auth.passwordPlaceholder": "Password (min. 6 characters)",
@@ -86,8 +84,7 @@ export const en: Record<string, MessageValue> = {
   "auth.loadFailed": "Could not load data: {message}",
   "auth.seed.folderName": "First folder",
   "auth.seed.cardFront": "KAR-dots",
-  "auth.seed.cardBack":
-    "Flashcards for memorizing.\nTap the card to flip it.",
+  "auth.seed.cardBack": "Flashcards for memorizing.\nTap the card to flip it.",
 
   "home.toast.alreadyInBox": "Folder is already in this box",
   "home.toast.moveFailed": "Could not move folder",
@@ -102,8 +99,7 @@ export const en: Record<string, MessageValue> = {
   "home.section.libraryAside": "boxes and folders",
   "home.hint.drag": "Drag a folder onto a box to group them.",
   "home.empty.title": "Nothing here yet",
-  "home.empty.text":
-    "Create a box or folder — for example, “English” or “Philosophy”.",
+  "home.empty.text": "Create a box or folder — for example, “English” or “Philosophy”.",
   "home.notes.kicker": "Knowledge base",
   "home.notes.title": "Notes",
   "home.notes.count": "{n} notes",
@@ -163,8 +159,7 @@ export const en: Record<string, MessageValue> = {
   "folder.screen.deleteFolder": "Delete folder",
   "folder.screen.confirm.deletePackTitle": "Delete vocabulary pack?",
   "folder.screen.confirm.deleteFolderTitle": "Delete folder?",
-  "folder.screen.confirm.deletePackBody":
-    "«{name}» and all {n} {cards} will be deleted.",
+  "folder.screen.confirm.deletePackBody": "«{name}» and all {n} {cards} will be deleted.",
   "folder.screen.confirm.deleteFolderBody":
     "«{name}» and all its cards ({n}) will be deleted permanently.",
   "folder.screen.confirm.deletePackOk": "Delete pack",
@@ -212,20 +207,17 @@ export const en: Record<string, MessageValue> = {
   "folder.yt.mergeCues": "Merge short cues into sentences",
   "folder.yt.needOnline": "An internet connection is required",
   "folder.yt.invalidUrl": "Doesn’t look like a YouTube video link",
-  "folder.yt.needSupadata":
-    "Set a Supadata API key: Settings → “Cards from YouTube” → “Configure”",
+  "folder.yt.needSupadata": "Set a Supadata API key: Settings → “Cards from YouTube” → “Configure”",
   "folder.yt.needGenerate":
     "Set a Gemini or Groq API key: Settings → “Cards from YouTube” → “Configure”",
   "folder.yt.needFile": "Choose an .srt or .vtt file",
   "folder.yt.getCards": "Get cards",
   "folder.yt.whatToExtract": "What to extract from the video",
   "folder.yt.progress.compose": "Building cards…",
-  "folder.yt.progress.checkSentences":
-    "Checking which sentences are new for you…",
+  "folder.yt.progress.checkSentences": "Checking which sentences are new for you…",
   "folder.yt.progress.checkWords": "Checking which words are new for you…",
   "folder.yt.progress.fetchVideo": "Fetching video data…",
-  "folder.yt.progress.cacheCompose":
-    "Transcript from cache — building cards…",
+  "folder.yt.progress.cacheCompose": "Transcript from cache — building cards…",
   "folder.yt.progress.readFile": "Reading subtitle file…",
   "folder.yt.empty.sentences":
     "All sentences from this video are already in your folders — no new cards found.",
@@ -236,10 +228,8 @@ export const en: Record<string, MessageValue> = {
   "folder.yt.add": "Add",
   "folder.yt.addN": "Add ({n})",
   "folder.yt.toast.added": "Added {n} {cards}",
-  "folder.yt.toast.addedWithErrors":
-    "Added {n} {cards}, {failed} errors",
-  "folder.yt.toast.addFailed":
-    "Could not add cards ({n} {errors})",
+  "folder.yt.toast.addedWithErrors": "Added {n} {cards}, {failed} errors",
+  "folder.yt.toast.addFailed": "Could not add cards ({n} {errors})",
   "folder.yt.errors": { one: "error", other: "errors" },
   "folder.yt.dropped.sentences": {
     one: "{n} sentence is already in your folders — it is hidden.",
@@ -249,8 +239,7 @@ export const en: Record<string, MessageValue> = {
     one: "{n} word is already in your packs — they are hidden.",
     other: "{n} words are already in your packs — they are hidden."
   },
-  "folder.yt.truncated":
-    "Translated the first {used} of {total} sentences — limit per import.",
+  "folder.yt.truncated": "Translated the first {used} of {total} sentences — limit per import.",
   "folder.yt.group.sentences": "Sentences",
   "folder.yt.group.phrases": "Phrases",
   "folder.yt.group.words": "Words",
@@ -260,10 +249,8 @@ export const en: Record<string, MessageValue> = {
   "box.dialog.titleNew": "New box",
   "box.dialog.namePlaceholder": "e.g. English",
   "box.dialog.foldersLabel": "Folders in box",
-  "box.dialog.foldersHint":
-    "A box groups folders by topic. Cards stay inside folders.",
-  "box.dialog.noFolders":
-    "No folders available — create a folder on the home screen.",
+  "box.dialog.foldersHint": "A box groups folders by topic. Cards stay inside folders.",
+  "box.dialog.noFolders": "No folders available — create a folder on the home screen.",
   "box.dialog.iconHint":
     "If nothing is selected — the first letter of the name. Tap again to clear.",
   "box.confirm.deleteTitle": "Delete box?",
@@ -291,7 +278,8 @@ export const en: Record<string, MessageValue> = {
   "settings.about.github": "GitHub",
   "settings.about.githubHint": "App source code on GitHub.",
   "settings.donate.title": "Support the project",
-  "settings.donate.lead": "KAR-dots is completely free. If it helped you, you can support development:",
+  "settings.donate.lead":
+    "KAR-dots is completely free. If it helped you, you can support development:",
   "settings.donate.boostyHint": "Russia, SBP, cards.",
   "settings.donate.kofiHint": "International donation platform.",
   "settings.donate.cryptoHint": "USDT (TRC-20). Address in README on GitHub.",
@@ -331,8 +319,7 @@ export const en: Record<string, MessageValue> = {
   "settings.algo.newPerDay": "New cards per day",
   "settings.algo.newPerDayHint": "So you don’t overload yourself at the start.",
   "settings.algo.reviewsPerDay": "Reviews per day",
-  "settings.algo.reviewsPerDayHint":
-    "Maximum grades per calendar day (Know / Don’t know).",
+  "settings.algo.reviewsPerDayHint": "Maximum grades per calendar day (Know / Don’t know).",
   "settings.algo.tts": "Speech on review",
   "settings.algo.ttsHint":
     "A 🔊 button appears on the review screen. Language follows text (Cyrillic / Latin). Voices and speed are set below.",
@@ -351,8 +338,7 @@ export const en: Record<string, MessageValue> = {
   "settings.algo.speechUnavailable": "Speech Synthesis is not available in this browser.",
   "settings.algo.speechVoicesCount":
     "System voices: {n}. “Auto” picks the best for the text language.",
-  "settings.algo.speechVoicesLoading":
-    "Loading voices… refresh the page if the list stays empty.",
+  "settings.algo.speechVoicesLoading": "Loading voices… refresh the page if the list stays empty.",
   "settings.algo.speechVoicesTitle": "Browser voices",
   "settings.algo.speechVoicesHint":
     "Speech Synthesis API — no internet or limits. Text language is detected automatically: Cyrillic → Russian, Latin → English.",
@@ -360,8 +346,7 @@ export const en: Record<string, MessageValue> = {
   "settings.algo.voiceEn": "English",
   "settings.algo.leitnerBoxShort": "Box {n}",
   "settings.algo.leitnerIntervals": "Box intervals (days)",
-  "settings.algo.leitnerIntervalsHint":
-    "How many days before a card from each box is shown.",
+  "settings.algo.leitnerIntervalsHint": "How many days before a card from each box is shown.",
   "settings.algo.fsrs.retention": "Target retention (FSRS)",
   "settings.algo.fsrs.retentionHint":
     "What fraction of cards you want to remember by review time. 85–90% is optimal: above 95% nearly doubles workload; below 80% — frequent forgetting.",
@@ -423,11 +408,9 @@ export const en: Record<string, MessageValue> = {
 
   "settings.data.title": "Data",
   "settings.data.export": "Export",
-  "settings.data.exportHint":
-    "Download all folders and cards in one file (backup).",
+  "settings.data.exportHint": "Download all folders and cards in one file (backup).",
   "settings.data.import": "Import",
-  "settings.data.importHint":
-    "Load an export file — e.g. move cards from demo mode to the cloud.",
+  "settings.data.importHint": "Load an export file — e.g. move cards from demo mode to the cloud.",
   "settings.data.importFile": "Choose file",
   "settings.data.importDone": "Import complete",
   "settings.data.importFailed": "Import failed: {message}",
@@ -443,8 +426,7 @@ export const en: Record<string, MessageValue> = {
   "settings.account.title": "Mode",
   "settings.account.cloudLabel": "Cloud: {email}",
   "settings.account.demoMode": "Demo mode",
-  "settings.account.cloudOffline":
-    "Offline now — data will sync when you’re back online.",
+  "settings.account.cloudOffline": "Offline now — data will sync when you’re back online.",
   "settings.account.cloudOnline": "Cards sync across devices.",
   "settings.account.demoHint":
     "Data stays in this browser only. Set up Supabase (see README) to sync.",
@@ -452,8 +434,7 @@ export const en: Record<string, MessageValue> = {
   "settings.account.signOutCloudTitle": "Sign out of account?",
   "settings.account.signOutDemoTitle": "Leave demo mode?",
   "settings.account.signOutCloudText": "Your cards will stay in the cloud.",
-  "settings.account.signOutDemoText":
-    "Data stays in this browser — you can come back.",
+  "settings.account.signOutDemoText": "Data stays in this browser — you can come back.",
   "settings.account.sync": "Sync",
   "settings.account.syncHint": "Force-send pending changes to the cloud.",
   "settings.account.syncBtn": "Sync now",
@@ -473,19 +454,16 @@ export const en: Record<string, MessageValue> = {
   "settings.yt.apiKeys": "API keys",
   "settings.yt.configure": "Configure",
   "settings.yt.extension": "Chrome extension",
-  "settings.yt.extensionHint":
-    "Button on YouTube → Side Panel with the same mode settings",
+  "settings.yt.extensionHint": "Button on YouTube → Side Panel with the same mode settings",
   "settings.yt.installGuide": "How to install",
   "settings.yt.modalTitle": "YouTube API keys",
   "settings.yt.modalIntro":
     "Supadata is required for transcripts. For cards you need your own Gemini and/or Groq — import won’t work without them.",
   "settings.yt.supadata.title": "Supadata API key",
-  "settings.yt.supadata.lead":
-    "Required: fetches subtitles and transcript from YouTube.",
+  "settings.yt.supadata.lead": "Required: fetches subtitles and transcript from YouTube.",
   "settings.yt.supadata.step1": "Sign up and open API Keys.",
   "settings.yt.supadata.step2": "Copy the key and paste it here.",
-  "settings.yt.supadata.step3":
-    "Free tier covers personal use; one video = one request.",
+  "settings.yt.supadata.step3": "Free tier covers personal use; one video = one request.",
   "settings.yt.gemini.title": "Gemini API key",
   "settings.yt.gemini.lead": "Card generation: words and translations from transcript.",
   "settings.yt.gemini.step1": "Create an API key in Google AI Studio.",
@@ -498,10 +476,8 @@ export const en: Record<string, MessageValue> = {
   "settings.yt.groq.step2": "Paste the key (starts with gsk_…).",
   "settings.yt.groq.step3":
     "If models are disabled in the project — Project → Limits: enable GPT OSS.",
-  "settings.yt.groq.step4":
-    "Without a key, card generation won’t work (Gemini or Groq required).",
-  "settings.yt.invalidGemini":
-    "Invalid format — AI Studio key: AIza… or AQ.…",
+  "settings.yt.groq.step4": "Without a key, card generation won’t work (Gemini or Groq required).",
+  "settings.yt.invalidGemini": "Invalid format — AI Studio key: AIza… or AQ.…",
   "settings.yt.invalidGroq": "Invalid format — Groq key starts with gsk_…",
   "settings.yt.invalidSupadata": "Invalid Supadata key format",
   "settings.yt.statusMissingRequired": "Not set — import unavailable",
@@ -509,8 +485,7 @@ export const en: Record<string, MessageValue> = {
   "settings.yt.statusSaved": "Key saved",
   "settings.yt.helpOpen": "Open",
   "settings.yt.helpHow": "How to get",
-  "settings.yt.keyNote":
-    "Key is saved when you tap “Done”. Sent to the server only on import.",
+  "settings.yt.keyNote": "Key is saved when you tap “Done”. Sent to the server only on import.",
 
   "settings.media.title": "Images for cards",
   "settings.media.providers": "Pixabay + Giphy",
@@ -521,10 +496,8 @@ export const en: Record<string, MessageValue> = {
   "settings.media.modalIntro":
     "Pixabay — photos and illustrations. Giphy — GIFs and stickers. Without keys, limited Openverse search works.",
   "settings.media.pixabay.title": "Pixabay API key",
-  "settings.media.pixabay.lead":
-    "5+ million photos and illustrations (Pixabay free license).",
-  "settings.media.pixabay.step1":
-    "Sign up on Pixabay and open API documentation.",
+  "settings.media.pixabay.lead": "5+ million photos and illustrations (Pixabay free license).",
+  "settings.media.pixabay.step1": "Sign up on Pixabay and open API documentation.",
   "settings.media.pixabay.step2": "Copy the API key and paste it here.",
   "settings.media.pixabay.step3":
     "Free: up to 100 requests per minute — enough for personal cards.",
@@ -566,8 +539,7 @@ export const en: Record<string, MessageValue> = {
   "review.picker.title": "Review mode",
   "review.picker.cramTitle": "Folder cram",
   "review.picker.sub": "Choose how you want to review cards this session.",
-  "review.picker.cramSub":
-    "Choose the side, how many words, and the cram method.",
+  "review.picker.cramSub": "Choose the side, how many words, and the cram method.",
   "review.picker.sideLabel": "What to show on the card?",
   "review.picker.modesLabel": "Cram method",
   "review.picker.limitLabel": "How many words at once? ",
@@ -585,8 +557,7 @@ export const en: Record<string, MessageValue> = {
   "review.empty.toFolders": "To folders",
   "review.empty.toHome": "Home",
   "review.empty.doneTitle": "CAW! You were brilliant today!!!",
-  "review.empty.doneText":
-    "No cards due right now. Come back later — the crow will nudge you.",
+  "review.empty.doneText": "No cards due right now. Come back later — the crow will nudge you.",
   "review.empty.blankTitle": "Nothing here yet",
   "review.empty.blankText": "Add your first words — and we’ll start reviewing.",
   "review.empty.cramFolder": "Cram folder",
@@ -606,8 +577,7 @@ export const en: Record<string, MessageValue> = {
   "review.session.skipNoFront": "No term to check — skipped",
   "review.session.noTts": "No text to speak",
   "review.session.doneTitle": "Session complete!",
-  "review.session.doneSub":
-    "The crow is pleased. Come back tomorrow — memory loves rhythm.",
+  "review.session.doneSub": "The crow is pleased. Come back tomorrow — memory loves rhythm.",
   "review.session.statKnown": "know",
   "review.session.statRetry": "review again",
   "review.session.again": "Again",
@@ -619,11 +589,9 @@ export const en: Record<string, MessageValue> = {
   "review.grade.dontKnow": "Don’t know",
   "review.grade.know": "Know",
   "review.grade.swipeFsrs": "← again · → good",
-  "review.grade.keysFsrs":
-    "← again · → good · 1–4 grades · space — flip",
+  "review.grade.keysFsrs": "← again · → good · 1–4 grades · space — flip",
   "review.grade.swipeBinary": "← don’t know · → know",
-  "review.grade.keysBinary":
-    "keys: space — flip · ← don’t know · → know",
+  "review.grade.keysBinary": "keys: space — flip · ← don’t know · → know",
   "review.grade.groupAria": "Answer grade",
   "review.grade.saveFailed": "Could not save: {message}",
   "review.grade.saved": "Grade saved",
@@ -666,20 +634,19 @@ export const en: Record<string, MessageValue> = {
 
   "review.voice.start": "🎤 Say answer",
   "review.voice.check": "✓ Check",
+  "review.voice.showTranslation": "Show translation",
+  "review.voice.skip": "Skip",
+  "review.voice.translationIs": "Translation: {answer}",
   "review.voice.statusIdle": "Space or the button — start recording",
-  "review.voice.notRecognized":
-    "Speech not recognized — say the translation aloud and tap «Check»",
+  "review.voice.notRecognized": "Speech not recognized — say the translation aloud and tap «Check»",
   "review.voice.heard": "Heard: «{transcript}»",
-  "review.voice.heardAndCorrect":
-    "Heard: «{transcript}». Correct: {answer}",
+  "review.voice.heardAndCorrect": "Heard: «{transcript}». Correct: {answer}",
   "review.voice.correctIs": "Correct: {answer}",
   "review.voice.retry": "🎤 Try again",
   "review.voice.checking": "Checking…",
-  "review.voice.checkFailed":
-    "Could not check — tap «Say answer» again",
+  "review.voice.checkFailed": "Could not check — tap «Say answer» again",
   "review.voice.listening": "Listening: «{text}»",
-  "review.voice.unavailable":
-    "Voice mode unavailable — use typing instead",
+  "review.voice.unavailable": "Voice mode unavailable — use typing instead",
 
   // —— card editor ——
   "cardEditor.title.edit": "Card",
@@ -711,8 +678,7 @@ export const en: Record<string, MessageValue> = {
 
   "cardEditor.bulk.title": "Add as a list",
   "cardEditor.bulk.hint": "One pair per line.",
-  "cardEditor.bulk.placeholder":
-    "word — translation\nhello — hi\n# comments are ignored",
+  "cardEditor.bulk.placeholder": "word — translation\nhello — hi\n# comments are ignored",
   "cardEditor.bulk.readyCount": "Ready to add: {ready}",
   "cardEditor.bulk.translateSuffix": " · to translate: {n}",
   "cardEditor.bulk.skippedSuffix": " · skipped: {n}",
@@ -725,12 +691,10 @@ export const en: Record<string, MessageValue> = {
   "cardEditor.preview.needFront": "Fill in the front side to preview",
   "cardEditor.preview.needBack": "Fill in the back to preview",
   "cardEditor.preview.title": "Card preview",
-  "cardEditor.preview.lead":
-    "Same as review mode — tap the card to flip it.",
+  "cardEditor.preview.lead": "Same as review mode — tap the card to flip it.",
   "cardEditor.preview.close": "Close",
 
-  "cardEditor.image.dropAria":
-    "Add image: click to choose a file, Ctrl+V to paste from clipboard",
+  "cardEditor.image.dropAria": "Add image: click to choose a file, Ctrl+V to paste from clipboard",
   "cardEditor.image.remove": "Remove image",
   "cardEditor.image.findStock": "Find stock",
   "cardEditor.image.add": "+ Image",
@@ -742,8 +706,7 @@ export const en: Record<string, MessageValue> = {
   "cardEditor.stock.tab.gif": "GIF",
   "cardEditor.stock.tab.sticker": "Stickers",
   "cardEditor.stock.searchPlaceholder": "Word in Russian or English…",
-  "cardEditor.stock.hintGiphy":
-    "Without a Giphy key — basic Openverse. Settings → Card images.",
+  "cardEditor.stock.hintGiphy": "Without a Giphy key — basic Openverse. Settings → Card images.",
   "cardEditor.stock.hintPixabay":
     "Without a Pixabay key — basic Openverse. Settings → Card images.",
   "cardEditor.stock.searching": "Searching…",
@@ -755,8 +718,7 @@ export const en: Record<string, MessageValue> = {
   "cardEditor.stock.queryMapped": "«{from}» → «{to}» · {provider}",
   "cardEditor.stock.lead":
     "Photos, illustrations, GIFs, and stickers from open libraries (Pixabay, Giphy, Openverse).",
-  "cardEditor.stock.note":
-    "Add free API keys in settings for access to larger catalogs.",
+  "cardEditor.stock.note": "Add free API keys in settings for access to larger catalogs.",
   "cardEditor.stock.title": "Find image",
 
   // —— stats ——
@@ -800,8 +762,7 @@ export const en: Record<string, MessageValue> = {
   "notes.search.placeholder": "Search notes…",
   "notes.search.aria": "Search notes",
   "notes.empty.title": "No notes yet",
-  "notes.empty.text":
-    "Create one — Markdown, [[links]], #tags, folders, and a structure graph.",
+  "notes.empty.text": "Create one — Markdown, [[links]], #tags, folders, and a structure graph.",
   "notes.empty.body": "Empty note",
   "notes.toast.missing": "Note not found",
   "notes.toast.deleted": "Note deleted",
@@ -819,8 +780,7 @@ export const en: Record<string, MessageValue> = {
   "notes.editor.saved": "Saved",
   "notes.editor.unsaved": "Unsaved…",
   "notes.confirm.deleteTitle": "Delete note?",
-  "notes.confirm.deleteBody":
-    "Cards stay — the link to this note will be removed.",
+  "notes.confirm.deleteBody": "Cards stay — the link to this note will be removed.",
   "notes.conflicts.title": "Other versions",
   "notes.conflicts.isCopy": "This is another version from a different device.",
   "notes.conflicts.banner": "Another version — open the original via the link.",
@@ -855,7 +815,8 @@ export const en: Record<string, MessageValue> = {
   "notes.cardFromSelection.needSelection": "Select text to make a card",
   "notes.cardFromSelection.noFolders": "Create a folder for cards first",
   "notes.cardFromSelection.pickFolder": "Card folder",
-  "notes.cardFromSelection.pickFolderHint": "This note has no folder — choose where to put the card.",
+  "notes.cardFromSelection.pickFolderHint":
+    "This note has no folder — choose where to put the card.",
   "notes.cardFromSelection.done": "Card created and linked to the note",
   "notes.wiki.created": "Created note “{title}”",
   "notes.unlinked.title": "Unlinked mentions",
@@ -867,8 +828,7 @@ export const en: Record<string, MessageValue> = {
   "notes.unlinked.done": "Mention linked",
   "notes.unlinked.failed": "Could not find the mention",
   "notes.rename.title": "Update links?",
-  "notes.rename.body":
-    "Title “{old}” → “{next}”. Found {n} links in {m} notes. Update them?",
+  "notes.rename.body": "Title “{old}” → “{next}”. Found {n} links in {m} notes. Update them?",
   "notes.rename.confirm": "Update links",
   "notes.rename.done": "Updated links in {n} notes",
   "notes.localGraph.title": "Local graph",
@@ -880,8 +840,7 @@ export const en: Record<string, MessageValue> = {
   "notes.backlinks.empty": "Nothing links here yet.",
   "notes.backlinks.hint": "In another note write [[this title]] — it shows up here.",
   "notes.md.help.title": "Markdown cheat sheet",
-  "notes.md.help.intro":
-    "Short guide. In Preview mode the markup becomes formatted text.",
+  "notes.md.help.intro": "Short guide. In Preview mode the markup becomes formatted text.",
   "notes.md.help.h": "Heading",
   "notes.md.help.hEx": "Section",
   "notes.md.help.bold": "Bold",
@@ -904,8 +863,7 @@ export const en: Record<string, MessageValue> = {
   "notes.graph.legendFolder": "■ folder",
   "notes.graph.legendWiki": "— [[…]] link",
   "notes.graph.emptyTitle": "Graph is empty",
-  "notes.graph.emptyText":
-    "Create notes, put them in folders, and link with [[title]].",
+  "notes.graph.emptyText": "Create notes, put them in folders, and link with [[title]].",
   "notes.memory.title": "Memory",
   "notes.memory.all": "All states",
   "notes.memory.filter": "Filter by memory",
@@ -923,8 +881,7 @@ export const en: Record<string, MessageValue> = {
     "Select a fragment and press “Card from selection” — the note joins spaced repetition.",
   "review.intro.note": "Note · {n} {cards} — «{title}»",
   "review.note.emptyTitle": "All learned in this note",
-  "review.note.emptyText":
-    "Cards linked to «{title}» don't need review right now.",
+  "review.note.emptyText": "Cards linked to «{title}» don't need review right now.",
   "review.note.back": "Back to note",
-  "review.session.backToNote": "Back to note",
+  "review.session.backToNote": "Back to note"
 }

@@ -2,6 +2,7 @@ import { el } from "./ui.js"
 
 /**
  * Компактный выбор мелодии: кнопка → выпадающее меню с ▶ и выбором.
+ * Одновременно открыт только один пикер — иначе меню накладываются.
  */
 interface MelodyOpts {
   label: string
@@ -10,6 +11,9 @@ interface MelodyOpts {
   onChange: (id: string) => void
   play: (id: string) => void
 }
+
+/** Закрыть другой открытый melody-picker (один на экран). */
+let closeActivePicker: (() => void) | null = null
 
 export function melodyPickerField(opts: MelodyOpts): HTMLElement & { destroy: () => void } {
   const getLabel = (id: string) =>
@@ -21,10 +25,21 @@ export function melodyPickerField(opts: MelodyOpts): HTMLElement & { destroy: ()
   const wrap = el("div", { class: "melody-picker-wrap" })
 
   function close() {
+    if (!open) return
     open = false
     menu.hidden = true
     trigger.setAttribute("aria-expanded", "false")
     wrap.classList.remove("is-open")
+    if (closeActivePicker === close) closeActivePicker = null
+  }
+
+  function openMenu() {
+    if (closeActivePicker && closeActivePicker !== close) closeActivePicker()
+    open = true
+    menu.hidden = false
+    trigger.setAttribute("aria-expanded", "true")
+    wrap.classList.add("is-open")
+    closeActivePicker = close
   }
 
   function select(id: string) {
@@ -100,12 +115,7 @@ export function melodyPickerField(opts: MelodyOpts): HTMLElement & { destroy: ()
   trigger.addEventListener("click", (e) => {
     e.stopPropagation()
     if (open) close()
-    else {
-      open = true
-      menu.hidden = false
-      trigger.setAttribute("aria-expanded", "true")
-      wrap.classList.add("is-open")
-    }
+    else openMenu()
   })
 
   const onDocClick = (e: Event) => {

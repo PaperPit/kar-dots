@@ -7,12 +7,12 @@ import { clearStaleChunkReloadFlag, reloadOnceForStaleChunk } from "../lib/stale
 import { t } from "../lib/i18n.js"
 
 type HashParts = {
-  name: string;
-  arg: string | null;
-  parts: string[];
+  name: string
+  arg: string | null
+  parts: string[]
   /** Внутренний якорь после второго `#`, напр. `#note/id#heading` → `heading`. */
-  fragment: string | null;
-};
+  fragment: string | null
+}
 
 export function parseHash(hash: string): HashParts {
   const raw = (hash || "#home").slice(1)
@@ -24,7 +24,7 @@ export function parseHash(hash: string): HashParts {
     name: parts[0] || "home",
     arg: parts[1] || null,
     parts,
-    fragment,
+    fragment
   }
 }
 
@@ -71,7 +71,6 @@ function ensureScreenCSS(name: string, arg?: string | null): void {
   if (name === "box") loadScreenCSS("css/screens/folder.css")
 }
 
-
 export async function route(): Promise<void> {
   try {
     const { runRouteDisposer } = await import("./route-lifecycle.js")
@@ -87,26 +86,26 @@ export async function route(): Promise<void> {
     const bootSplash = document.getElementById("bootSplash")
     if (bootSplash) animateBootSplashOut(bootSplash)
 
-await recordVisit()
+    await recordVisit()
 
-     ensureScreenCSS(name, arg)
+    ensureScreenCSS(name, arg)
 
-     if (name === "folder" && arg) {
+    if (name === "folder" && arg) {
       const { renderFolder } = await import("../screens/folder/index.js")
       await renderFolder(arg)
     } else if (name === "box" && arg) {
       const { renderBox } = await import("../screens/box/index.js")
       await renderBox(arg)
     } else if (name === "review") {
-      const opts = reviewOpts;
-      if (!opts) return;
-      const { folderId, noteId, cram, mode, cramLimit } = opts;
+      const opts = reviewOpts
+      if (!opts) return
+      const { folderId, noteId, cram, mode, cramLimit } = opts
       const { renderReview } = await import("../screens/review/index.js")
       await renderReview(folderId, {
-        cram: cram && !!folderId,
+        cram: !!cram,
         mode: isStudyMode(mode) ? mode : "flip",
         cramLimit: cramLimit && cramLimit > 0 ? cramLimit : undefined,
-        noteId: noteId ?? undefined,
+        noteId: noteId ?? undefined
       })
     } else if (name === "stats") {
       const { renderStats } = await import("../screens/stats/index.js")
@@ -138,10 +137,7 @@ await recordVisit()
     console.error("Route error:", e)
     if (reloadOnceForStaleChunk(e)) return
     const { toast } = await import("../ui/ui.js")
-    toast(
-      t("app.routeError", { message: e instanceof Error ? e.message : String(e) }),
-      "error"
-    )
+    toast(t("app.routeError", { message: e instanceof Error ? e.message : String(e) }), "error")
   }
 }
 

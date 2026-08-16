@@ -1,200 +1,283 @@
-import { el, modal } from '../../ui/ui.js';
-import { nav } from '../../ui/navigation.js';
-import { store } from '../../core/state.js';
+import { el, modal } from "../../ui/ui.js"
+import { nav } from "../../ui/navigation.js"
+import { store } from "../../core/state.js"
 import {
-  getStudyModeMeta, getPromptSideMeta, buildReviewHash,
-  getLastStudyMode, setLastStudyMode, setSessionStudyMode,
-  getLastPromptSide, setSessionPromptSide, normalizePromptSide,
-  getLastCramLimit, setSessionCramLimit,
-} from '../../lib/study-modes.js';
-import { speechRecognitionSupported } from '../../lib/speech-input.js';
-import { t } from '../../lib/i18n.js';
-import type { PromptSideMeta, StudyModeMeta } from '../../lib/study-modes.js';
-import type { ModalHandle } from '../../ui/ui.js';
+  getStudyModeMeta,
+  getPromptSideMeta,
+  buildReviewHash,
+  getLastStudyMode,
+  setLastStudyMode,
+  setSessionStudyMode,
+  getLastPromptSide,
+  setSessionPromptSide,
+  normalizePromptSide,
+  getLastCramLimit,
+  setSessionCramLimit
+} from "../../lib/study-modes.js"
+import { speechRecognitionSupported } from "../../lib/speech-input.js"
+import { t } from "../../lib/i18n.js"
+import type { PromptSideMeta, StudyModeMeta } from "../../lib/study-modes.js"
+import type { ModalHandle } from "../../ui/ui.js"
 
-type LimitBlock = HTMLElement & { getLimit: () => number | null };
+type LimitBlock = HTMLElement & { getLimit: () => number | null }
 
-function sidePickerBlock(initialSide: 'front' | 'back', onChange: (side: 'front' | 'back') => void) {
-  let side = normalizePromptSide(initialSide);
-  const hint = el('p', { class: 'mode-pick-side-hint' }, '');
-  const seg = el('div', { class: 'seg mode-pick-side-seg' }, undefined);
-  const btns: HTMLElement[] = [];
-  const sides = getPromptSideMeta();
+function sidePickerBlock(
+  initialSide: "front" | "back",
+  onChange: (side: "front" | "back") => void
+) {
+  let side = normalizePromptSide(initialSide)
+  const hint = el("p", { class: "mode-pick-side-hint" }, "")
+  const seg = el("div", { class: "seg mode-pick-side-seg" }, undefined)
+  const btns: HTMLElement[] = []
+  const sides = getPromptSideMeta()
 
   function refresh() {
-    const meta = sides.find(s => s.id === side) || sides[0]!;
-    hint.textContent = meta.desc;
-    btns.forEach(b => b.classList.toggle('active', b.dataset.side === side));
-    onChange(side);
+    const meta = sides.find((s) => s.id === side) || sides[0]!
+    hint.textContent = meta.desc
+    btns.forEach((b) => b.classList.toggle("active", b.dataset.side === side))
+    onChange(side)
   }
 
   sides.forEach((meta: PromptSideMeta) => {
-    const btn = el('button', {
-      type: 'button',
-      'data-side': meta.id,
-      onclick: () => { side = meta.id; refresh(); },
-    }, meta.label);
-    btns.push(btn);
-    seg.append(btn);
-  });
+    const btn = el(
+      "button",
+      {
+        type: "button",
+        "data-side": meta.id,
+        onclick: () => {
+          side = meta.id
+          refresh()
+        }
+      },
+      meta.label
+    )
+    btns.push(btn)
+    seg.append(btn)
+  })
 
-  refresh();
-  return el('div', { class: 'mode-pick-side-block' }, [
-    el('p', { class: 'modal-text mode-pick-side-label' }, t('review.picker.sideLabel')),
+  refresh()
+  return el("div", { class: "mode-pick-side-block" }, [
+    el("p", { class: "modal-text mode-pick-side-label" }, t("review.picker.sideLabel")),
     seg,
-    hint,
-  ]);
+    hint
+  ])
 }
 
-function limitPickerBlock(totalCards: number, initialLimit: number | null, onChange: (limit: number | null) => void) {
+function limitPickerBlock(
+  totalCards: number,
+  initialLimit: number | null,
+  onChange: (limit: number | null) => void,
+  { scopedToFolder = true }: { scopedToFolder?: boolean } = {}
+) {
   const presets = [
-    { label: t('review.picker.limitAll'), value: 'all' as const },
-    { label: '10', value: 10 },
-    { label: '20', value: 20 },
-    { label: '50', value: 50 },
-  ].filter(p => p.value === 'all' || (typeof p.value === 'number' && p.value <= totalCards));
+    { label: t("review.picker.limitAll"), value: "all" as const },
+    { label: "10", value: 10 },
+    { label: "20", value: 20 },
+    { label: "50", value: 50 }
+  ].filter((p) => p.value === "all" || (typeof p.value === "number" && p.value <= totalCards))
 
-  let choice: 'all' | number | 'custom' = initialLimit == null ? 'all'
-    : presets.some(p => p.value === initialLimit) ? initialLimit
-      : 'custom';
-  let customN = choice === 'custom' && initialLimit ? String(initialLimit) : '';
+  let choice: "all" | number | "custom" =
+    initialLimit == null
+      ? "all"
+      : presets.some((p) => p.value === initialLimit)
+        ? initialLimit
+        : "custom"
+  let customN = choice === "custom" && initialLimit ? String(initialLimit) : ""
 
-  const seg = el('div', { class: 'seg mode-pick-side-seg mode-pick-limit-seg' }, undefined);
-  const customCell = el('div', { class: 'mode-pick-limit-other' }, undefined);
-  const customInput = el('input', {
-    type: 'number',
-    class: 'mode-pick-limit-input',
-    min: '1',
+  const seg = el("div", { class: "seg mode-pick-side-seg mode-pick-limit-seg" }, undefined)
+  const customCell = el("div", { class: "mode-pick-limit-other" }, undefined)
+  const customInput = el("input", {
+    type: "number",
+    class: "mode-pick-limit-input",
+    min: "1",
     max: String(totalCards),
-    placeholder: t('review.picker.limitOther'),
-    inputmode: 'numeric',
-    'aria-label': t('review.picker.limitOtherAria', { n: totalCards }),
-  }) as HTMLInputElement;
+    placeholder: t("review.picker.limitOther"),
+    inputmode: "numeric",
+    "aria-label": t("review.picker.limitOtherAria", { n: totalCards })
+  }) as HTMLInputElement
 
   function resolveLimit(): number | null {
-    if (choice === 'all') return null;
-    if (choice === 'custom') {
-      const n = parseInt(customInput.value || customN, 10);
-      if (!Number.isFinite(n) || n < 1) return null;
-      return Math.min(n, totalCards);
+    if (choice === "all") return null
+    if (choice === "custom") {
+      const n = parseInt(customInput.value || customN, 10)
+      if (!Number.isFinite(n) || n < 1) return null
+      return Math.min(n, totalCards)
     }
-    return typeof choice === 'number' ? choice : null;
+    return typeof choice === "number" ? choice : null
   }
 
   function refresh() {
-    btns.forEach(b => b.classList.toggle('active', b.dataset.limit === String(choice)));
-    customCell.classList.toggle('active', choice === 'custom');
-    customInput.max = String(totalCards);
-    if (choice === 'custom' && customN && !customInput.value) customInput.value = customN;
-    if (choice !== 'custom') customInput.value = '';
-    onChange(resolveLimit());
+    btns.forEach((b) => b.classList.toggle("active", b.dataset.limit === String(choice)))
+    customCell.classList.toggle("active", choice === "custom")
+    customInput.max = String(totalCards)
+    if (choice === "custom" && customN && !customInput.value) customInput.value = customN
+    if (choice !== "custom") customInput.value = ""
+    onChange(resolveLimit())
   }
 
-  const btns: HTMLElement[] = [];
-  presets.forEach(p => {
-    const btn = el('button', {
-      type: 'button',
-      'data-limit': String(p.value),
-      onclick: () => { choice = p.value; customN = ''; refresh(); },
-    }, p.label);
-    btns.push(btn);
-    seg.append(btn);
-  });
+  const btns: HTMLElement[] = []
+  presets.forEach((p) => {
+    const btn = el(
+      "button",
+      {
+        type: "button",
+        "data-limit": String(p.value),
+        onclick: () => {
+          choice = p.value
+          customN = ""
+          refresh()
+        }
+      },
+      p.label
+    )
+    btns.push(btn)
+    seg.append(btn)
+  })
 
-  customInput.addEventListener('focus', () => {
-    choice = 'custom';
-    refresh();
-  });
-  customInput.addEventListener('input', () => {
-    choice = 'custom';
-    customN = customInput.value;
-    btns.forEach(b => b.classList.remove('active'));
-    customCell.classList.add('active');
-    onChange(resolveLimit());
-  });
+  customInput.addEventListener("focus", () => {
+    choice = "custom"
+    refresh()
+  })
+  customInput.addEventListener("input", () => {
+    choice = "custom"
+    customN = customInput.value
+    btns.forEach((b) => b.classList.remove("active"))
+    customCell.classList.add("active")
+    onChange(resolveLimit())
+  })
 
-  customCell.append(customInput);
-  seg.append(customCell);
+  customCell.append(customInput)
+  seg.append(customCell)
 
-  if (choice === 'custom' && customN) customInput.value = customN;
+  if (choice === "custom" && customN) customInput.value = customN
 
-  refresh();
-  const block: LimitBlock = Object.assign(el('div', { class: 'mode-pick-side-block mode-pick-limit-block' }, [
-    el('p', { class: 'modal-text mode-pick-side-label' }, [
-      t('review.picker.limitLabel'),
-      el('span', { class: 'muted' }, t('review.picker.limitInFolder', { n: totalCards })),
+  refresh()
+  const block: LimitBlock = Object.assign(
+    el("div", { class: "mode-pick-side-block mode-pick-limit-block" }, [
+      el("p", { class: "modal-text mode-pick-side-label" }, [
+        t("review.picker.limitLabel"),
+        el(
+          "span",
+          { class: "muted" },
+          scopedToFolder
+            ? t("review.picker.limitInFolder", { n: totalCards })
+            : t("review.picker.limitTotal", { n: totalCards })
+        )
+      ]),
+      seg
     ]),
-    seg,
-  ]), { getLimit: resolveLimit });
-  return block;
+    { getLimit: resolveLimit }
+  )
+  return block
 }
 
-export async function studyModePicker({ folderId = null, cram = false }: { folderId?: string | null; cram?: boolean } = {}) {
-  const last = getLastStudyMode();
-  let chosenSide: 'front' | 'back' = getLastPromptSide();
-  let chosenLimit: number | null = getLastCramLimit();
-  let cardCount: number | null = null;
+export async function studyModePicker({
+  folderId = null,
+  cram = false
+}: { folderId?: string | null; cram?: boolean } = {}) {
+  const last = getLastStudyMode()
+  let chosenSide: "front" | "back" = getLastPromptSide()
+  let chosenLimit: number | null = getLastCramLimit()
+  let cardCount: number | null = null
 
-  if (cram && folderId) {
-    cardCount = await store.countCards(folderId);
+  if (cram) {
+    cardCount = await store.countCards(folderId || null)
   }
 
-  let m: ModalHandle | null = null;
-  const sideBlock = cram ? sidePickerBlock(chosenSide, s => { chosenSide = s; }) : null;
-  const limitBlock = cram && cardCount
-    ? limitPickerBlock(cardCount, chosenLimit, l => { chosenLimit = l; })
-    : null;
+  let m: ModalHandle | null = null
+  const sideBlock = cram
+    ? sidePickerBlock(chosenSide, (s) => {
+        chosenSide = s
+      })
+    : null
+  const limitBlock =
+    cram && cardCount
+      ? limitPickerBlock(
+          cardCount,
+          chosenLimit,
+          (l) => {
+            chosenLimit = l
+          },
+          { scopedToFolder: !!folderId }
+        )
+      : null
 
   const items = getStudyModeMeta().map((meta: StudyModeMeta) => {
-    const needsSpeech = meta.id === 'voice';
-    const disabled = needsSpeech && !speechRecognitionSupported();
-    const btn = el('button', {
-      type: 'button',
-      class: 'mode-pick-item' + (meta.id === last ? ' is-last' : '') + (disabled ? ' is-disabled' : ''),
-      disabled,
-      onclick: () => {
-        if (limitBlock?.getLimit) chosenLimit = limitBlock.getLimit();
-        if (cram && limitBlock && chosenLimit == null
-          && limitBlock.querySelector('.mode-pick-limit-other')?.classList.contains('active')) {
-          const inp = limitBlock.querySelector<HTMLInputElement>('.mode-pick-limit-input');
-          const n = parseInt(inp?.value ?? '', 10);
-          if (!Number.isFinite(n) || n < 1) {
-            inp?.focus();
-            return;
+    const needsSpeech = meta.id === "voice"
+    const disabled = needsSpeech && !speechRecognitionSupported()
+    const btn = el(
+      "button",
+      {
+        type: "button",
+        class:
+          "mode-pick-item" +
+          (meta.id === last ? " is-last" : "") +
+          (disabled ? " is-disabled" : ""),
+        disabled,
+        onclick: () => {
+          if (limitBlock?.getLimit) chosenLimit = limitBlock.getLimit()
+          if (
+            cram &&
+            limitBlock &&
+            chosenLimit == null &&
+            limitBlock.querySelector(".mode-pick-limit-other")?.classList.contains("active")
+          ) {
+            const inp = limitBlock.querySelector<HTMLInputElement>(".mode-pick-limit-input")
+            const n = parseInt(inp?.value ?? "", 10)
+            if (!Number.isFinite(n) || n < 1) {
+              inp?.focus()
+              return
+            }
+            chosenLimit = Math.min(n, cardCount ?? 0)
           }
-          chosenLimit = Math.min(n, cardCount ?? 0);
+          setLastStudyMode(meta.id)
+          setSessionStudyMode(meta.id)
+          if (cram) {
+            setSessionPromptSide(chosenSide)
+            setSessionCramLimit(chosenLimit)
+          }
+          const hash = buildReviewHash(folderId, { cram, mode: meta.id, cramLimit: chosenLimit })
+          m!.close()
+          requestAnimationFrame(() => nav(hash))
         }
-        setLastStudyMode(meta.id);
-        setSessionStudyMode(meta.id);
-        if (cram) {
-          setSessionPromptSide(chosenSide);
-          setSessionCramLimit(chosenLimit);
-        }
-        const hash = buildReviewHash(folderId, { cram, mode: meta.id, cramLimit: chosenLimit });
-        m!.close();
-        requestAnimationFrame(() => nav(hash));
       },
-    }, [
-      el('span', { class: 'mode-pick-title' }, meta.title),
-      el('span', { class: 'mode-pick-desc' }, disabled
-        ? t('review.picker.unavailable')
-        : meta.desc),
-    ]);
-    return btn;
-  });
+      [
+        el("span", { class: "mode-pick-title" }, meta.title),
+        el(
+          "span",
+          { class: "mode-pick-desc" },
+          disabled ? t("review.picker.unavailable") : meta.desc
+        )
+      ]
+    )
+    return btn
+  })
 
-  const titleId = 'study-mode-picker-title';
-  m = modal(el('div', null, [
-    el('h3', { class: 'modal-title', id: titleId }, cram ? t('review.picker.cramTitle') : t('review.picker.title')),
-    el('p', { class: 'modal-text' }, cram
-      ? t('review.picker.cramSub')
-      : t('review.picker.sub')),
-    sideBlock,
-    limitBlock,
-    cram ? el('p', { class: 'modal-text mode-pick-modes-label' }, t('review.picker.modesLabel')) : null,
-    el('div', { class: 'mode-pick-grid' }, items),
-    el('div', { class: 'modal-actions' }, [
-      el('button', { class: 'btn ghost', onclick: () => m!.close() }, t('common.cancel')),
+  const titleId = "study-mode-picker-title"
+  const pickerTitle = cram
+    ? folderId
+      ? t("review.picker.cramTitle")
+      : t("review.picker.continueTitle")
+    : t("review.picker.title")
+  const pickerSub = cram
+    ? folderId
+      ? t("review.picker.cramSub")
+      : t("review.picker.continueSub")
+    : t("review.picker.sub")
+  m = modal(
+    el("div", null, [
+      el("h3", { class: "modal-title", id: titleId }, pickerTitle),
+      el("p", { class: "modal-text" }, pickerSub),
+      sideBlock,
+      limitBlock,
+      cram
+        ? el("p", { class: "modal-text mode-pick-modes-label" }, t("review.picker.modesLabel"))
+        : null,
+      el("div", { class: "mode-pick-grid" }, items),
+      el("div", { class: "modal-actions" }, [
+        el("button", { class: "btn ghost", onclick: () => m!.close() }, t("common.cancel"))
+      ])
     ]),
-  ]), { labelledBy: titleId });
+    { labelledBy: titleId }
+  )
 }

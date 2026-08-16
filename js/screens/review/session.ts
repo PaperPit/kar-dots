@@ -466,7 +466,7 @@ export function runReviewSession(ctx: ReviewSessionContext) {
                   onclick: () =>
                     studyModePicker({
                       folderId: ctx.folderId || undefined,
-                      cram: ctx.cram || undefined
+                      cram: true
                     })
                 },
                 t("review.session.again")

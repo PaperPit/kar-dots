@@ -170,12 +170,12 @@
      прямоугольник вокруг скруглённой карточки. */
   border-radius: var(--r-2);
 }
-/* Фокус был погашен вовсе — с клавиатуры карточка переворачивалась
-   вслепую, было не видно, на чём стоишь. */
-.flip-card:focus { outline: none; }
+/* Фокус оставляем для клавиатуры, без видимого кольца —
+   иначе после смены карточки иногда вспыхивает синяя рамка. */
+.flip-card:focus,
 .flip-card:focus-visible {
   outline: none;
-  box-shadow: var(--sh-focus);
+  box-shadow: none;
 }
 .flip-card.flipped { transform: rotateY(180deg); }
 .flip-swipe-wrap.flip-dip { animation: flipDip .6s cubic-bezier(.3,.08,.16,1); }
@@ -400,6 +400,52 @@
   animation: cardIn .4s var(--ease);
   overflow: hidden;
 }
+.review-done--card {
+  width: min(100%, 380px);
+  margin: 0 auto;
+  padding: 40px 28px 32px;
+  box-sizing: border-box;
+}
+.review-done--card h2 {
+  font-size: clamp(1.15rem, 4.2vw, 1.45rem);
+  line-height: 1.25;
+  max-width: 16em;
+  margin-left: auto;
+  margin-right: auto;
+}
+.review-done--card > p {
+  max-width: 22em;
+  margin-left: auto;
+  margin-right: auto;
+  line-height: 1.45;
+}
+.review-done-slot {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 12px 0 24px;
+}
+.review-wrap--empty {
+  max-width: none;
+  width: 100%;
+  min-height: calc(
+    100dvh - var(--header-h, 66px) - var(--main-pad-y) - 72px
+    - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px)
+  );
+}
+.review-wrap--empty .review-done-slot {
+  flex: 1;
+  min-height: 0;
+}
+.review-wrap--empty .review-done-actions {
+  flex-direction: column;
+  align-items: stretch;
+}
+.review-wrap--empty .review-done-actions .btn {
+  width: 100%;
+  min-width: 0;
+}
 @keyframes cardIn {
   from { opacity: 0; transform: translateY(16px) scale(.97); }
 }
@@ -514,13 +560,23 @@
   width: clamp(38px, 11vw, 46px); height: clamp(38px, 11vw, 46px);
   flex: none; object-fit: contain; opacity: 0;
   animation: starDrop .85s cubic-bezier(.22, 1, .36, 1) both;
+  /* без тени/фильтров — иначе по краю звезды появляется «обводка» */
+  filter: none !important;
+  -webkit-filter: none !important;
+  box-shadow: none !important;
+  border: 0 !important;
+  outline: none !important;
 }
-/* Охра как fill-плашка, не stroke на бумаге (<3:1) */
+/* Охра — только плашка под звездой, не stroke иконки */
 .lesson-star.earned {
   color: var(--c-on-ochre);
   background: var(--c-ochre);
   border-radius: var(--r-1);
-  padding: 0 2px;
+  padding: 4px;
+  outline: none;
+  border: none;
+  box-shadow: none;
+  filter: none;
 }
 .lesson-star.star-1 { animation-delay: .18s; }
 .lesson-star.star-2 { animation-delay: .34s; }

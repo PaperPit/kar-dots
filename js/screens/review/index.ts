@@ -1,5 +1,6 @@
 import { store } from "../../core/state.js"
 import { el, spinner, toast } from "../../ui/ui.js"
+import type { ElChild } from "../../ui/ui.js"
 import { ICONS } from "../../ui/constants.js"
 import {
   crowBox,
@@ -42,10 +43,22 @@ interface ReviewOpts {
   noteId?: string | null
 }
 
+function shellEmptyReview(children: ElChild[]) {
+  shell(
+    "review",
+    el("div", { class: "review-wrap review-wrap--done review-wrap--empty" }, [
+      el("div", { class: "review-done-slot" }, [
+        el("div", { class: "review-done review-done--card" }, children)
+      ])
+    ])
+  )
+}
+
 export async function renderReview(folderId: string | null, opts: ReviewOpts = {}) {
   const session = ++reviewSession
   const noteId = opts.noteId ? String(opts.noteId) : null
-  const cram = !!opts.cram && !!folderId
+  // Глобальный cram (без папки) — «Продолжить заниматься» на пустом экране.
+  const cram = !!opts.cram
   const cramPromptSide = cram ? consumeSessionPromptSide() || getLastPromptSide() : null
 
   shell(
@@ -86,8 +99,8 @@ export async function renderReview(folderId: string | null, opts: ReviewOpts = {
     const limit: number | null = (cramLimit ?? 0) > 0 ? (cramLimit as number) : null
     queue =
       typeof store.getCramCards === "function"
-        ? await store.getCramCards(folderId, limit)
-        : shuffle([...(await store.getFolderCards(folderId))]).slice(0, limit || undefined)
+        ? await store.getCramCards(folderId || null, limit)
+        : shuffle([...(await store.getFolderCards(folderId || ""))]).slice(0, limit || undefined)
   } else {
     const dayLeft = reviewsBudget()
     if (dayLeft <= 0 && !noteId) {
@@ -128,12 +141,11 @@ export async function renderReview(folderId: string | null, opts: ReviewOpts = {
   if (!queue.length) {
     if (noteId) {
       const title = (noteCtx && (noteCtx.title || "").trim()) || t("notes.untitled")
-      shell(
-        "review",
-        el("div", { class: "review-done" }, [
-          trophyBox(),
-          el("h2", null, t("review.note.emptyTitle")),
-          el("p", null, t("review.note.emptyText", { title })),
+      shellEmptyReview([
+        trophyBox(),
+        el("h2", null, t("review.note.emptyTitle")),
+        el("p", null, t("review.note.emptyText", { title })),
+        el("div", { class: "review-done-actions" }, [
           el(
             "button",
             {
@@ -143,30 +155,40 @@ export async function renderReview(folderId: string | null, opts: ReviewOpts = {
             t("review.note.back")
           )
         ])
-      )
+      ])
       return
     }
     if (dayLimitHit) {
       const limit = store.settings.reviewsPerDay || 50
       const done = reviewsTodayCount()
-      shell(
-        "review",
-        el("div", { class: "review-done" }, [
-          trophyBox(),
-          el("h2", null, t("review.empty.limitTitle")),
-          el(
-            "p",
-            null,
-            t("review.empty.limitText", {
-              done,
-              grades: tp("common.grade", done),
-              limit
-            })
-          ),
+      const poolCount = folderId ? await store.countCards(folderId) : await store.countCards(null)
+      shellEmptyReview([
+        trophyBox(),
+        el("h2", null, t("review.empty.limitTitle")),
+        el(
+          "p",
+          null,
+          t("review.empty.limitText", {
+            done,
+            grades: tp("common.grade", done),
+            limit
+          })
+        ),
+        el("div", { class: "review-done-actions" }, [
+          poolCount
+            ? el(
+                "button",
+                {
+                  class: "btn accent big review-done-again",
+                  onclick: () => studyModePicker({ folderId, cram: true })
+                },
+                t("review.empty.continue")
+              )
+            : null,
           el(
             "button",
             {
-              class: "btn primary big",
+              class: "btn big",
               onclick: () => nav("#settings")
             },
             t("review.empty.toSettings")
@@ -174,42 +196,41 @@ export async function renderReview(folderId: string | null, opts: ReviewOpts = {
           el(
             "button",
             {
-              class: "btn big",
+              class: "btn big review-done-home",
               onclick: () => nav(folderId ? "#folder/" + folderId : "#home")
             },
             folderId ? t("review.empty.toFolder") : t("review.empty.toFolders")
           )
         ])
-      )
+      ])
       return
     }
     const poolCount = folderId ? await store.countCards(folderId) : await store.countCards(null)
-    shell(
-      "review",
-      el("div", { class: "review-done" }, [
-        poolCount ? trophyBox() : crowBox("crow"),
-        el("h2", null, poolCount ? t("review.empty.doneTitle") : t("review.empty.blankTitle")),
-        el("p", null, poolCount ? t("review.empty.doneText") : t("review.empty.blankText")),
-        poolCount && folderId && !cram
+    shellEmptyReview([
+      poolCount ? trophyBox() : crowBox("crow"),
+      el("h2", null, poolCount ? t("review.empty.doneTitle") : t("review.empty.blankTitle")),
+      el("p", null, poolCount ? t("review.empty.doneText") : t("review.empty.blankText")),
+      el("div", { class: "review-done-actions" }, [
+        poolCount
           ? el(
               "button",
               {
-                class: "btn accent big",
+                class: "btn accent big review-done-again",
                 onclick: () => studyModePicker({ folderId, cram: true })
               },
-              t("review.empty.cramFolder")
+              t("review.empty.continue")
             )
           : null,
         el(
           "button",
           {
-            class: "btn primary big",
+            class: "btn primary big review-done-home",
             onclick: () => nav(folderId ? "#folder/" + folderId : "#home")
           },
           folderId ? t("review.empty.toFolder") : t("review.empty.toFolders")
         )
       ])
-    )
+    ])
     return
   }
 

@@ -10,7 +10,7 @@ export const ICON_SRC = {
   scarecrow: "icons/Scarecrow.svg",
   feather: "icons/feather.svg",
   cup: "icons/cup.svg",
-  star: "icons/star.svg"
+  star: "icons/star-rounded.png"
 }
 
 export function svgNode(svgText: string): HTMLElement {

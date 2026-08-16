@@ -59,6 +59,23 @@ Limits: ~120 req/hour/subject; anonymous IP ceiling still applies (~300/hour).
 
 ---
 
+## `POST /api/translate`
+
+Proxy for card-editor «Перевести» (MyMemory upstream). Same-origin so CSP does not block the client.
+
+**Body (JSON):**
+
+| Field | Required | Description |
+|-------|----------|-------------|
+| `text` | yes | Word/phrase to translate (max 500 chars) |
+| `dir` | no | `ru-en` (default) or `en-ru` |
+
+**Success:** `{ text: string, dir: string }`
+
+Limits: ~120 req/hour/subject.
+
+---
+
 ## Errors
 
 JSON body typically `{ error: string, code?: string }`. Common statuses: `400`, `401`, `413`, `429`, `502` (upstream).

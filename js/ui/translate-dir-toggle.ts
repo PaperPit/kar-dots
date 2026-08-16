@@ -5,6 +5,7 @@ import {
   translateDirLabel,
   flipTranslateDir
 } from "../lib/translate.js"
+import { t } from "../lib/i18n.js"
 
 const FLIP_MS = 320
 
@@ -17,7 +18,7 @@ export function createTranslateDirToggle(initialDir = getTranslateDir()) {
     {
       type: "button",
       class: "btn translate-dir-toggle",
-      title: "Нажмите, чтобы сменить направление"
+      title: t("shell.translateDir.title")
     },
     label
   )

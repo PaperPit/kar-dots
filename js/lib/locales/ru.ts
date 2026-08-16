@@ -57,6 +57,15 @@ export const ru = {
   "shell.sync.failed": "Не удалось отправить: {n}.",
   "shell.sync.doneFail": "Синхронизировано: {ok}, ошибок: {fail}",
   "shell.sync.doneOk": "Синхронизировано: {ok}",
+  "shell.theme.aria": "Тема оформления",
+  "shell.theme.toLight": "Светлая тема",
+  "shell.theme.toDark": "Тёмная тема",
+  "shell.translateDir.title": "Нажмите, чтобы сменить направление",
+  "tts.unsupported": "Озвучка недоступна в этом браузере",
+  // Образцы для предпрослушивания голоса — намеренно НЕ переводятся: это речь
+  // на конкретном языке (для проверки конкретного голоса), а не текст интерфейса.
+  "tts.sample.ru": "Привет",
+  "tts.sample.en": "Hello",
   "shell.sync.retry": "Повторить",
   "shell.sync.errorTitle": "Ошибка синхронизации",
   "shell.sync.retryStarted": "Повторная синхронизация запущена",

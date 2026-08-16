@@ -1,7 +1,8 @@
 import { describe, it, expect, vi, afterEach } from "vitest"
 import {
   _handlerForTests as handler,
-  _parseDirForTests as parseDir
+  _parseDirForTests as parseDir,
+  _looksLikeTransliterationForTests as looksLikeTransliteration
 } from "../functions/api/translate.js"
 
 describe("api/translate", () => {
@@ -14,13 +15,18 @@ describe("api/translate", () => {
     expect(parseDir("ru-en")).toEqual({ from: "ru", to: "en" })
   })
 
-  it("предпочитает Workers AI, если есть биндинг", async () => {
+  it("детектит транслит onion → Онеон", () => {
+    expect(looksLikeTransliteration("onion", "Онеон", "en-ru")).toBe(true)
+    expect(looksLikeTransliteration("onion", "лук", "en-ru")).toBe(false)
+    expect(looksLikeTransliteration("behind", "позади", "en-ru")).toBe(false)
+  })
+
+  it("Llama даёт смысловой перевод; m2m не вызывается", async () => {
     const env = {
       AI: {
-        run: vi.fn(async (model, input) => {
-          expect(model).toBe("@cf/meta/m2m100-1.2b")
-          expect(input).toEqual({ text: "behind", source_lang: "en", target_lang: "ru" })
-          return { translated_text: "позади" }
+        run: vi.fn(async (model) => {
+          if (model.includes("llama")) return { response: "лук" }
+          throw new Error("m2m should not run")
         })
       }
     }
@@ -30,16 +36,52 @@ describe("api/translate", () => {
     const req = new Request("http://localhost/api/translate", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ text: "behind", dir: "en-ru" })
+      body: JSON.stringify({ text: "onion", dir: "en-ru" })
     })
     const res = await handler(req, env, "test")
     expect(res.status).toBe(200)
     expect(await res.json()).toEqual({
-      text: "позади",
+      text: "лук",
       dir: "en-ru",
-      provider: "workers-ai"
+      provider: "workers-ai-llm"
     })
     expect(fetchSpy).not.toHaveBeenCalled()
+  })
+
+  it("отбрасывает транслит m2m и берёт нормальный ответ MyMemory", async () => {
+    const env = {
+      AI: {
+        run: vi.fn(async (model, input) => {
+          if (model.includes("llama")) return { response: "Онеон" }
+          expect(input.source_lang).toBe("english")
+          expect(input.target_lang).toBe("russian")
+          return { translated_text: "Онеон" }
+        })
+      }
+    }
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => ({
+        ok: true,
+        json: async () => ({
+          responseStatus: 200,
+          responseData: { translatedText: "лук" }
+        })
+      }))
+    )
+
+    const req = new Request("http://localhost/api/translate", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ text: "onion", dir: "en-ru" })
+    })
+    const res = await handler(req, env, "test")
+    expect(res.status).toBe(200)
+    expect(await res.json()).toEqual({
+      text: "лук",
+      dir: "en-ru",
+      provider: "mymemory"
+    })
   })
 
   it("без AI откатывается на MyMemory", async () => {

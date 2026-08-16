@@ -2,15 +2,57 @@
 // POST { text, dir: 'ru-en' | 'en-ru' }
 //
 // Клиент → same-origin /api/translate (CSP).
-// Прод: Workers AI (@cf/meta/m2m100-1.2b) — без исходящих запросов к
-// сторонним API. MyMemory с edge Cloudflare часто недоступен (блокировка
-// IP датацентров / антибот), поэтому только как fallback без биндинга AI
-// (локальный npm run dev).
+//
+// Прод (Workers AI binding):
+//   1) Llama — смысловой перевод для карточек (не транслит)
+//   2) m2m100 с именами языков english/russian (ISO-коды en/ru
+//      у m2m100 на CF часто дают транслит вроде onion → «Онеон»)
+// Fallback без AI / при сбое: MyMemory (локальный npm run dev).
 
 const MYMEMORY = "https://api.mymemory.translated.net/get"
-const AI_MODEL = "@cf/meta/m2m100-1.2b"
+const LLM_MODEL = "@cf/meta/llama-3.1-8b-instruct"
+const MT_MODEL = "@cf/meta/m2m100-1.2b"
 const UPSTREAM_TIMEOUT_MS = 12_000
 const MAX_TEXT = 500
+
+/** Workers AI m2m100 в примерах CF ждёт имена, не ISO. */
+const AI_LANG_NAME = { en: "english", ru: "russian" }
+
+const CYR_TO_LAT = {
+  а: "a",
+  б: "b",
+  в: "v",
+  г: "g",
+  д: "d",
+  е: "e",
+  ё: "e",
+  ж: "zh",
+  з: "z",
+  и: "i",
+  й: "y",
+  к: "k",
+  л: "l",
+  м: "m",
+  н: "n",
+  о: "o",
+  п: "p",
+  р: "r",
+  с: "s",
+  т: "t",
+  у: "u",
+  ф: "f",
+  х: "h",
+  ц: "ts",
+  ч: "ch",
+  ш: "sh",
+  щ: "sch",
+  ъ: "",
+  ы: "y",
+  ь: "",
+  э: "e",
+  ю: "yu",
+  я: "ya"
+}
 
 function json(body, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -24,12 +66,108 @@ function parseDir(dir) {
   return { from: "ru", to: "en" }
 }
 
-async function translateWithWorkersAI(env, text, from, to) {
+function foldLetters(s) {
+  return String(s || "")
+    .toLowerCase()
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+}
+
+function cyrToLatApprox(s) {
+  return [...foldLetters(s)].map((ch) => CYR_TO_LAT[ch] ?? ch).join("")
+}
+
+function editDistance(a, b) {
+  const m = a.length
+  const n = b.length
+  if (!m) return n
+  if (!n) return m
+  const prev = new Array(n + 1)
+  const cur = new Array(n + 1)
+  for (let j = 0; j <= n; j++) prev[j] = j
+  for (let i = 1; i <= m; i++) {
+    cur[0] = i
+    for (let j = 1; j <= n; j++) {
+      const cost = a[i - 1] === b[j - 1] ? 0 : 1
+      cur[j] = Math.min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + cost)
+    }
+    for (let j = 0; j <= n; j++) prev[j] = cur[j]
+  }
+  return prev[n]
+}
+
+/**
+ * Ловит «onion» → «Онеон»: кириллическая запись звучания латиницы,
+ * а не смысловой перевод («лук»).
+ */
+function looksLikeTransliteration(source, target, dir) {
+  const src = foldLetters(source).replace(/[^a-zа-яё]/g, "")
+  const dst = foldLetters(target).replace(/[^a-zа-яё]/g, "")
+  if (!src || !dst || src === dst) return src === dst && src.length > 0
+
+  let left
+  let right
+  if (dir === "en-ru") {
+    left = src.replace(/[^a-z]/g, "")
+    right = cyrToLatApprox(dst).replace(/[^a-z]/g, "")
+  } else {
+    left = cyrToLatApprox(src).replace(/[^a-z]/g, "")
+    right = dst.replace(/[^a-z]/g, "")
+  }
+  if (!left || !right) return false
+  const maxLen = Math.max(left.length, right.length)
+  if (maxLen < 3) return false
+  const dist = editDistance(left, right)
+  return dist <= Math.max(1, Math.floor(maxLen * 0.35))
+}
+
+function cleanLlmTranslation(raw) {
+  let out = String(raw || "").trim()
+  if (!out) return ""
+  // Берём первую непустую строку, без кавычек и префиксов «Translation:».
+  out = out
+    .split(/\r?\n/)
+    .map((l) => l.trim())
+    .find(Boolean)
+  if (!out) return ""
+  out = out.replace(/^(translation|перевод)\s*[:\-–—]\s*/i, "")
+  out = out.replace(/^["'`«]+|["'`»]+$/g, "").trim()
+  return out.slice(0, MAX_TEXT)
+}
+
+async function translateWithLlm(env, text, from, to) {
   if (!env?.AI || typeof env.AI.run !== "function") return null
-  const result = await env.AI.run(AI_MODEL, {
+  const fromName = from === "ru" ? "Russian" : "English"
+  const toName = to === "ru" ? "Russian" : "English"
+  const result = await env.AI.run(LLM_MODEL, {
+    messages: [
+      {
+        role: "system",
+        content:
+          "You are a bilingual dictionary for language-learning flashcards. " +
+          "Reply with ONLY the translation of the word or short phrase. " +
+          "No quotes, no transliteration, no pronunciation, no explanations. " +
+          "Use the most common everyday meaning."
+      },
+      {
+        role: "user",
+        content: `Translate from ${fromName} to ${toName}:\n${text}`
+      }
+    ],
+    max_tokens: 64,
+    temperature: 0
+  })
+  const raw = result?.response ?? result?.result?.response ?? result?.translated_text ?? ""
+  const out = cleanLlmTranslation(raw)
+  return out || null
+}
+
+async function translateWithM2m(env, text, from, to) {
+  if (!env?.AI || typeof env.AI.run !== "function") return null
+  const result = await env.AI.run(MT_MODEL, {
     text,
-    source_lang: from,
-    target_lang: to
+    source_lang: AI_LANG_NAME[from] || from,
+    target_lang: AI_LANG_NAME[to] || to
   })
   const out = String(result?.translated_text || result?.translatedText || "").trim()
   return out || null
@@ -78,14 +216,37 @@ async function handler(req, env = {}, subject = "") {
   const { from, to } = parseDir(dir)
 
   try {
-    const viaAi = await translateWithWorkersAI(env, text, from, to)
-    if (viaAi) return json({ text: viaAi, dir, provider: "workers-ai" })
+    const viaLlm = await translateWithLlm(env, text, from, to)
+    if (viaLlm && !looksLikeTransliteration(text, viaLlm, dir)) {
+      return json({ text: viaLlm, dir, provider: "workers-ai-llm" })
+    }
   } catch (e) {
-    console.error("[translate] workers-ai failed", String(e?.message || e), { subject })
+    console.error("[translate] llm failed", String(e?.message || e), { subject })
+  }
+
+  try {
+    const viaMt = await translateWithM2m(env, text, from, to)
+    if (viaMt && !looksLikeTransliteration(text, viaMt, dir)) {
+      return json({ text: viaMt, dir, provider: "workers-ai-m2m" })
+    }
+    if (viaMt) {
+      console.warn("[translate] m2m transliteration rejected", { text, viaMt, dir, subject })
+    }
+  } catch (e) {
+    console.error("[translate] m2m failed", String(e?.message || e), { subject })
   }
 
   try {
     const viaMm = await translateWithMyMemory(text, from, to)
+    if (looksLikeTransliteration(text, viaMm, dir)) {
+      return json(
+        {
+          error: "bad-translation",
+          message: "Перевод подозрительный (похоже на транслит) — введите вручную"
+        },
+        422
+      )
+    }
     return json({ text: viaMm, dir, provider: "mymemory" })
   } catch (e) {
     console.error("[translate] mymemory failed", String(e?.message || e), { subject })
@@ -102,5 +263,5 @@ export const onRequestPost = (ctx) => handler(ctx.request, ctx.env, ctx?.data?.s
 export {
   handler as _handlerForTests,
   parseDir as _parseDirForTests,
-  translateWithWorkersAI as _translateWithWorkersAIForTests
+  looksLikeTransliteration as _looksLikeTransliterationForTests
 }

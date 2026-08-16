@@ -63,7 +63,10 @@ Limits: ~120 req/hour/subject; anonymous IP ceiling still applies (~300/hour).
 
 Same-origin proxy for card-editor «Перевести» (CSP-safe).
 
-**Upstream (prod):** Cloudflare Workers AI `@cf/meta/m2m100-1.2b` via the `AI` binding — no outbound call to third-party translate APIs. MyMemory often blocks Cloudflare datacenter IPs, so it is only a **fallback** when `AI` is missing (local `npm run dev`).
+**Upstream (prod):** Cloudflare Workers AI —
+1. Llama (`@cf/meta/llama-3.1-8b-instruct`) for meaning (avoids transliteration like onion → «Онеон»)
+2. m2m100 with language **names** `english`/`russian` (ISO `en`/`ru` often transliterates on CF)
+3. MyMemory only as last fallback / local `npm run dev` without `AI` binding
 
 **Body (JSON):**
 
@@ -72,7 +75,7 @@ Same-origin proxy for card-editor «Перевести» (CSP-safe).
 | `text` | yes      | Word/phrase to translate (max 500 chars) |
 | `dir`  | no       | `ru-en` (default) or `en-ru`             |
 
-**Success:** `{ text: string, dir: string, provider?: "workers-ai" \| "mymemory" }`
+**Success:** `{ text: string, dir: string, provider?: "workers-ai-llm" \| "workers-ai-m2m" \| "mymemory" }`
 
 Limits: ~120 req/hour/subject.
 

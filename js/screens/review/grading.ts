@@ -1,16 +1,16 @@
-import { store } from '../../core/state.js';
-import * as SRS from '../../lib/srs.js';
-import type { Algo, SrsCard } from '../../lib/srs.js';
-import { el, toast, toastAction } from '../../ui/ui.js';
-import { spendNewBudget, refundNewBudget } from '../../ui/helpers.js';
-import { recordReview, undoReview, type ReviewSplit } from '../../lib/activity.js';
-import { animateCardExit } from '../../ui/swipe-grades.js';
-import { comboMatchBatchProgress } from '../../lib/review-progress.js';
-import { buildReviewEntry, logReview, removeReview } from '../../lib/review-log.js';
-import { playAnswerFeedback, unlockAnswerAudio } from '../../lib/sounds.js';
-import { t } from '../../lib/i18n.js';
+import { store } from "../../core/state.js"
+import * as SRS from "../../lib/srs.js"
+import type { Algo, SrsCard } from "../../lib/srs.js"
+import { el, toast, toastAction } from "../../ui/ui.js"
+import { spendNewBudget, refundNewBudget } from "../../ui/helpers.js"
+import { recordReview, undoReview, type ReviewSplit } from "../../lib/activity.js"
+import { animateCardExit } from "../../ui/swipe-grades.js"
+import { comboMatchBatchProgress } from "../../lib/review-progress.js"
+import { buildReviewEntry, logReview, removeReview } from "../../lib/review-log.js"
+import { playAnswerFeedback, unlockAnswerAudio } from "../../lib/sounds.js"
+import { t } from "../../lib/i18n.js"
 
-export const UNDO_TOAST_MS = 3000;
+export const UNDO_TOAST_MS = 3000
 
 export interface Grade {
   leitner?: boolean
@@ -60,175 +60,262 @@ export interface GradeContext {
   updateBar: () => void
 }
 
+/**
+ * Учитывает попытку по карточке ровно один раз за сессию.
+ * Проваленная карточка возвращается в очередь через min(3, len) — без этой
+ * защиты её верный ответ на втором показе снова увеличивал бы и attempted, и
+ * firstTryOk, то есть звёзды росли бы именно в тех сессиях, что прошли хуже.
+ * Возвращает true, если попытка засчитана впервые (нужно для отмены).
+ */
+export function recordFirstTry(ctx: GradeContext, cardId: string, ok: boolean): boolean {
+  if (ctx.sessionFirstTry.has(cardId)) return false
+  ctx.sessionFirstTry.add(cardId)
+  ctx.stats.attempted++
+  if (ok) ctx.stats.firstTryOk++
+  return true
+}
+
 export function dismissUndoToast(ctx: GradeContext, { clearPending = true } = {}) {
   if (ctx.undoToastDismiss) {
-    ctx.undoToastDismiss();
-    ctx.undoToastDismiss = null;
+    ctx.undoToastDismiss()
+    ctx.undoToastDismiss = null
   }
-  if (clearPending) ctx.pendingUndo = null;
-  ctx.undoHoldUntilFlip = false;
+  if (clearPending) ctx.pendingUndo = null
+  ctx.undoHoldUntilFlip = false
 }
 
 export function gradePayload(algo: Algo, knowOrRating: boolean | number): Grade {
-  if (algo === 'leitner') return { leitner: knowOrRating as boolean };
-  if (algo === 'fsrs') {
-    if (typeof knowOrRating === 'number') return { fsrs: knowOrRating };
-    return { fsrs: knowOrRating ? SRS.FsrsRating.Good : SRS.FsrsRating.Again };
+  if (algo === "leitner") return { leitner: knowOrRating as boolean }
+  if (algo === "fsrs") {
+    if (typeof knowOrRating === "number") return { fsrs: knowOrRating }
+    return { fsrs: knowOrRating ? SRS.FsrsRating.Good : SRS.FsrsRating.Again }
   }
-  return { q: knowOrRating ? 4 : 0 };
+  return { q: knowOrRating ? 4 : 0 }
+}
+
+/**
+ * Оценка для режимов с проверяемым ответом (ввод / пропуски / голос).
+ *
+ * Верный ответ со ВТОРОЙ попытки — промах, а не успех: пользователь не смог
+ * воспроизвести ответ, а лишь узнал его после подсказки «Неверно». Раньше сюда
+ * уходил безусловный успех, из-за чего интервалы завышались ровно на тех
+ * карточках, которые человек путает, fsrs_lapses не рос, а журнал повторений
+ * (он же обучающая выборка оптимизатора FSRS) записывал known: true.
+ *
+ * Карточка вернётся в этой же сессии и будет доведена до одного верного
+ * воспроизведения — это и есть переучивание, а не двойное наказание.
+ */
+export function checkedAnswerPayload(algo: Algo, firstTry: boolean): Grade {
+  return gradePayload(algo, firstTry)
 }
 
 function gradeKnows(algo: Algo, g: Grade): boolean {
-  if (algo === 'leitner') return !!g.leitner;
-  if (algo === 'fsrs') return (g.fsrs ?? 0) >= SRS.FsrsRating.Good;
-  return (g.q ?? 0) >= 3;
+  if (algo === "leitner") return !!g.leitner
+  if (algo === "fsrs") return (g.fsrs ?? 0) >= SRS.FsrsRating.Good
+  return (g.q ?? 0) >= 3
 }
 
 function gradeFailed(algo: Algo, g: Grade): boolean {
-  if (algo === 'leitner') return !g.leitner;
-  if (algo === 'fsrs') return g.fsrs === SRS.FsrsRating.Again;
-  return (g.q ?? 0) < 3;
+  if (algo === "leitner") return !g.leitner
+  if (algo === "fsrs") return g.fsrs === SRS.FsrsRating.Again
+  return (g.q ?? 0) < 3
 }
 
 function buildLogEntry(ctx: GradeContext, card: SrsCard, g: Grade, failed: boolean, now: number) {
-  const algo = ctx.algo;
-  const known = !failed;
-  let rating: number;
-  if (algo === 'fsrs') rating = g.fsrs ?? SRS.FsrsRating.Again;
-  else rating = known ? 3 : 1;
+  const algo = ctx.algo
+  const known = !failed
+  let rating: number
+  if (algo === "fsrs") rating = g.fsrs ?? SRS.FsrsRating.Again
+  else rating = known ? 3 : 1
 
-  let elapsedDays = 0;
-  let stateBefore = 0;
-  let stabilityBefore: number | null = null;
-  if (algo === 'fsrs') {
-    const fresh = SRS.fsrsIsUntouched(card);
-    stateBefore = fresh ? 0 : ((card.fsrs_state as number | null) ?? 0);
-    stabilityBefore = card.fsrs_stability ?? null;
-    if (!fresh && card.fsrs_last_review) elapsedDays = (now - card.fsrs_last_review) / SRS.DAY;
-  } else if (algo === 'leitner') {
-    const box = card.box || 0;
-    stateBefore = box ? 2 : 0;
+  let elapsedDays = 0
+  let stateBefore = 0
+  let stabilityBefore: number | null = null
+  if (algo === "fsrs") {
+    const fresh = SRS.fsrsIsUntouched(card)
+    stateBefore = fresh ? 0 : ((card.fsrs_state as number | null) ?? 0)
+    stabilityBefore = card.fsrs_stability ?? null
+    if (!fresh && card.fsrs_last_review) elapsedDays = (now - card.fsrs_last_review) / SRS.DAY
+  } else if (algo === "leitner") {
+    const box = card.box || 0
+    stateBefore = box ? 2 : 0
     if (box) {
-      const ivs = store.settings.leitnerIntervals && store.settings.leitnerIntervals.length === 5
-        ? store.settings.leitnerIntervals : [1, 2, 4, 8, 16];
-      elapsedDays = ivs[box - 1] ?? 0;
+      const ivs =
+        store.settings.leitnerIntervals && store.settings.leitnerIntervals.length === 5
+          ? store.settings.leitnerIntervals
+          : [1, 2, 4, 8, 16]
+      elapsedDays = ivs[box - 1] ?? 0
     }
   } else {
-    const reviewed = !!(card.sm2_reps || card.sm2_due);
-    stateBefore = reviewed ? 2 : 0;
-    if (reviewed) elapsedDays = card.sm2_ivl ?? 0;
+    const reviewed = !!(card.sm2_reps || card.sm2_due)
+    stateBefore = reviewed ? 2 : 0
+    if (reviewed) elapsedDays = card.sm2_ivl ?? 0
   }
   return buildReviewEntry({
-    card_id: card.id ?? '',
-    folder_id: card.folder_id ?? (card as { folderId?: string }).folderId ?? '',
+    card_id: card.id ?? "",
+    folder_id: card.folder_id ?? (card as { folderId?: string }).folderId ?? "",
     algo,
     rating,
     known,
     elapsed_days: elapsedDays,
     state_before: stateBefore,
     stability_before: stabilityBefore,
-    ts: now,
-  });
+    ts: now
+  })
 }
 
 function applyAlgoGrade(card: SrsCard, algo: Algo, g: Grade, now: number) {
-  if (algo === 'leitner') return SRS.leitnerNext(card, g.leitner ?? false, store.settings.leitnerIntervals, now);
-  if (algo === 'fsrs') return SRS.fsrsNext(card, g.fsrs ?? SRS.FsrsRating.Again, now);
-  return SRS.sm2Next(card, g.q ?? 0, now);
+  if (algo === "leitner")
+    return SRS.leitnerNext(card, g.leitner ?? false, store.settings.leitnerIntervals, now)
+  if (algo === "fsrs") return SRS.fsrsNext(card, g.fsrs ?? SRS.FsrsRating.Again, now)
+  return SRS.sm2Next(card, g.q ?? 0, now)
 }
 
 export function submitGrade(
   ctx: GradeContext,
   card: SrsCard,
   g: Grade,
-  dir: 'left' | 'right' | null,
+  dir: "left" | "right" | null,
   { flipGrade = false, quiet = false } = {}
 ) {
-  if (ctx.grading) return;
-  ctx.grading = true;
+  if (ctx.grading) return
+  ctx.grading = true
   if (ctx.currentBox) {
-    ctx.currentBox.dataset.grading = '1';
-    ctx.currentBox.classList.add('is-grading');
+    ctx.currentBox.dataset.grading = "1"
+    ctx.currentBox.classList.add("is-grading")
   }
-  const know = gradeKnows(ctx.algo, g);
+  const know = gradeKnows(ctx.algo, g)
   if (flipGrade && !quiet) {
-    unlockAnswerAudio(store.settings);
+    unlockAnswerAudio(store.settings)
     // Hard (FSRS) — не fail: успех; Again / «Не знаю» — fail.
-    playAnswerFeedback(!gradeFailed(ctx.algo, g), store.settings);
+    playAnswerFeedback(!gradeFailed(ctx.algo, g), store.settings)
   }
-  const firstTryRecorded = flipGrade ? ctx.trackFlipFirstTry(card, know) : false;
+  const firstTryRecorded = flipGrade ? ctx.trackFlipFirstTry(card, know) : false
   const run = () => {
     applyGrade(ctx, card, g, {
       animated: !!dir,
       flipGrade,
       firstTryRecorded,
       firstTryOk: firstTryRecorded && know,
-      quiet,
-    }).catch(e => {
+      quiet
+    }).catch((e) => {
       // Иначе ошибка внутри applyGrade осталась бы необработанным rejection,
       // а сессия — молча зависшей на текущей карточке.
-      console.error('applyGrade failed:', e);
-      toast(t('review.grade.saveFailed', { message: e instanceof Error ? e.message : String(e) }), 'error');
-    }).finally(() => { ctx.grading = false; });
-  };
+      console.error("applyGrade failed:", e)
+      toast(
+        t("review.grade.saveFailed", { message: e instanceof Error ? e.message : String(e) }),
+        "error"
+      )
+      // Снимаем блокировку только на ошибке: в обычном потоке её снимает
+      // showNext(), когда следующая карточка уже смонтирована.
+      ctx.grading = false
+    })
+    // ВАЖНО: не сбрасывать ctx.grading здесь (.finally). Запись в IndexedDB
+    // завершается за единицы мс, а следующая карточка монтируется только через
+    // 240 мс — в этом окне старая карточка ещё в DOM вместе со своим
+    // обработчиком клавиш. CSS гасит повторный клик мышью, но не синтетический
+    // click() из onGradeKey и не стрелки, идущие в submitGrade напрямую:
+    // второй грейд проходил и ctx.queue.shift() выбрасывал следующую,
+    // ни разу не показанную карточку.
+  }
   if (dir && ctx.currentSwipeWrap && ctx.currentBox) {
-    animateCardExit(ctx.currentSwipeWrap, dir, run, ctx.currentBox);
-  } else run();
+    animateCardExit(ctx.currentSwipeWrap, dir, run, ctx.currentBox)
+  } else run()
 }
 
 export function renderGrades(ctx: GradeContext, card: SrsCard, grades: HTMLElement) {
-  grades.innerHTML = '';
+  grades.innerHTML = ""
   const mk = (
     label: string,
     sub: string,
     cls: string,
-    dir: 'left' | 'right' | null,
+    dir: "left" | "right" | null,
     g: Grade
   ): HTMLButtonElement => {
-    const btn = el('button', {
-      class: 'grade-btn ' + cls,
-      onclick: () => submitGrade(ctx, card, g, dir, { flipGrade: true }),
-    }, [label, el('small', null, sub)]) as HTMLButtonElement;
-    btn.addEventListener('touchstart', e => e.stopPropagation(), { passive: true });
-    btn.addEventListener('touchend', e => e.stopPropagation(), { passive: true });
-    return btn;
-  };
+    const btn = el(
+      "button",
+      {
+        class: "grade-btn " + cls,
+        onclick: () => submitGrade(ctx, card, g, dir, { flipGrade: true })
+      },
+      [label, el("small", null, sub)]
+    ) as HTMLButtonElement
+    btn.addEventListener("touchstart", (e) => e.stopPropagation(), { passive: true })
+    btn.addEventListener("touchend", (e) => e.stopPropagation(), { passive: true })
+    return btn
+  }
 
-  const now = Date.now();
-  if (ctx.algo === 'fsrs') {
-    const R = SRS.FsrsRating;
+  const now = Date.now()
+  if (ctx.algo === "fsrs") {
+    const R = SRS.FsrsRating
     grades.append(
-      mk(t('review.grade.again'), SRS.fsrsPreview(card, R.Again, now), 'again', 'left', gradePayload('fsrs', R.Again)),
-      mk(t('review.grade.hard'), SRS.fsrsPreview(card, R.Hard, now), 'hard', null, gradePayload('fsrs', R.Hard)),
-      mk(t('review.grade.good'), SRS.fsrsPreview(card, R.Good, now), 'good', 'right', gradePayload('fsrs', R.Good)),
-      mk(t('review.grade.easy'), SRS.fsrsPreview(card, R.Easy, now), 'easy', null, gradePayload('fsrs', R.Easy)),
-    );
-    const parent = grades.parentElement;
-    if (parent && !parent.querySelector('.swipe-hint')) {
+      mk(
+        t("review.grade.again"),
+        SRS.fsrsPreview(card, R.Again, now),
+        "again",
+        "left",
+        gradePayload("fsrs", R.Again)
+      ),
+      mk(
+        t("review.grade.hard"),
+        SRS.fsrsPreview(card, R.Hard, now),
+        "hard",
+        null,
+        gradePayload("fsrs", R.Hard)
+      ),
+      mk(
+        t("review.grade.good"),
+        SRS.fsrsPreview(card, R.Good, now),
+        "good",
+        "right",
+        gradePayload("fsrs", R.Good)
+      ),
+      mk(
+        t("review.grade.easy"),
+        SRS.fsrsPreview(card, R.Easy, now),
+        "easy",
+        null,
+        gradePayload("fsrs", R.Easy)
+      )
+    )
+    const parent = grades.parentElement
+    if (parent && !parent.querySelector(".swipe-hint")) {
       parent.append(
-        el('div', { class: 'swipe-hint' }, t('review.grade.swipeFsrs')),
-        el('div', { class: 'keyboard-hint' }, t('review.grade.keysFsrs')),
-      );
-      requestAnimationFrame(() => parent.querySelector('.swipe-hint')?.classList.add('visible'));
+        el("div", { class: "swipe-hint" }, t("review.grade.swipeFsrs")),
+        el("div", { class: "keyboard-hint" }, t("review.grade.keysFsrs"))
+      )
+      requestAnimationFrame(() => parent.querySelector(".swipe-hint")?.classList.add("visible"))
     }
-    return;
+    return
   }
 
   const preview = (ok: boolean | number): string =>
-    ctx.algo === 'leitner'
+    ctx.algo === "leitner"
       ? SRS.leitnerPreview(card, ok as boolean, store.settings.leitnerIntervals)
-      : SRS.sm2Preview(card, ok as number, now);
+      : SRS.sm2Preview(card, ok as number, now)
   grades.append(
-    mk(t('review.grade.dontKnow'), preview(ctx.algo === 'leitner' ? false : 0), 'again', 'left', gradePayload(ctx.algo, false)),
-    mk(t('review.grade.know'), preview(ctx.algo === 'leitner' ? true : 4), 'good', 'right', gradePayload(ctx.algo, true)),
-  );
+    mk(
+      t("review.grade.dontKnow"),
+      preview(ctx.algo === "leitner" ? false : 0),
+      "again",
+      "left",
+      gradePayload(ctx.algo, false)
+    ),
+    mk(
+      t("review.grade.know"),
+      preview(ctx.algo === "leitner" ? true : 4),
+      "good",
+      "right",
+      gradePayload(ctx.algo, true)
+    )
+  )
 
-  const parent = grades.parentElement;
-  if (parent && !parent.querySelector('.swipe-hint')) {
-    const swipeHint = el('div', { class: 'swipe-hint' }, t('review.grade.swipeBinary'));
-    const keyboardHint = el('div', { class: 'keyboard-hint' }, t('review.grade.keysBinary'));
-    parent.append(swipeHint, keyboardHint);
-    requestAnimationFrame(() => swipeHint.classList.add('visible'));
+  const parent = grades.parentElement
+  if (parent && !parent.querySelector(".swipe-hint")) {
+    const swipeHint = el("div", { class: "swipe-hint" }, t("review.grade.swipeBinary"))
+    const keyboardHint = el("div", { class: "keyboard-hint" }, t("review.grade.keysBinary"))
+    parent.append(swipeHint, keyboardHint)
+    requestAnimationFrame(() => swipeHint.classList.add("visible"))
   }
 }
 
@@ -242,56 +329,78 @@ export interface ApplyGradeOpts {
   skipAdvance?: boolean
 }
 
-export async function applyGrade(ctx: GradeContext, card: SrsCard, g: Grade, opts: ApplyGradeOpts = {}) {
-  dismissUndoToast(ctx);
+export async function applyGrade(
+  ctx: GradeContext,
+  card: SrsCard,
+  g: Grade,
+  opts: ApplyGradeOpts = {}
+) {
+  dismissUndoToast(ctx)
 
-  const prevSnap = SRS.srsSnapshot(card, ctx.algo);
-  const spentNewBudget = ctx.currentIsNew && !ctx.cram;
-  const now = Date.now();
-  const patch = applyAlgoGrade(card, ctx.algo, g, now);
-  const failed = gradeFailed(ctx.algo, g);
-  const reinsertAt = failed ? Math.min(3, ctx.queue.length) : null;
-  if (spentNewBudget) spendNewBudget();
-  ctx.queue.shift();
+  const prevSnap = SRS.srsSnapshot(card, ctx.algo)
+  const spentNewBudget = ctx.currentIsNew && !ctx.cram
+  const now = Date.now()
+  const patch = applyAlgoGrade(card, ctx.algo, g, now)
+  const failed = gradeFailed(ctx.algo, g)
+  const reinsertAt = failed ? Math.min(3, ctx.queue.length) : null
+  if (spentNewBudget) spendNewBudget()
+  ctx.queue.shift()
   if (failed) {
-    ctx.queue.splice(reinsertAt ?? 0, 0, Object.assign({}, card, patch));
+    ctx.queue.splice(reinsertAt ?? 0, 0, Object.assign({}, card, patch))
   } else if (!opts.skipProgress) {
-    ctx.done++;
+    ctx.done++
   }
+  // Итоги «Знаю / Повторить» считаются по КАРТОЧКАМ и не зависят от того, как
+  // ведётся полоса прогресса. Раньше они стояли внутри !skipProgress, а раунд
+  // пар в «Миксе» идёт с skipProgress: true — из-за этого финиш такой сессии
+  // показывал «Знаю 0 / Повторить 0».
+  if (failed) ctx.stats.failed++
+  else ctx.stats.known++
   if (!opts.skipProgress) {
-    ctx.answered++;
-    if (failed) ctx.stats.failed++;
-    else ctx.stats.known++;
-    ctx.updateBar();
+    ctx.answered++
+    ctx.updateBar()
   }
-  const cur = ctx.stage.firstChild as HTMLElement | null;
-  if (cur && !opts.animated && !opts.skipAdvance) cur.classList.add('card-swap-out');
+  const cur = ctx.stage.firstChild as HTMLElement | null
+  if (cur && !opts.animated && !opts.skipAdvance) cur.classList.add("card-swap-out")
 
   if (!opts.skipAdvance) {
-    if (ctx.showNextTimer) clearTimeout(ctx.showNextTimer);
-    const delay = opts.animated ? 0 : 240;
+    if (ctx.showNextTimer) clearTimeout(ctx.showNextTimer)
+    const delay = opts.animated ? 0 : 240
     ctx.showNextTimer = setTimeout(() => {
-      ctx.showNextTimer = null;
-      ctx.showNext(false);
-    }, delay);
+      ctx.showNextTimer = null
+      ctx.showNext(false)
+    }, delay)
   }
 
-const reviewSplit = failed ? { failed: 1 } : { known: 1 };
-   try {
-     await Promise.all([
-       store.updateCard(card.id ?? '', patch),
-       recordReview(1, reviewSplit),
-     ])
-   } catch (e) {
-     if (e instanceof Error && e.message.includes('saveFailed')) {
-       toast(t('review.grade.saveFailed', { message: e.message }), 'error')
-     } else {
-       console.error('grade save failed:', e)
-     }
-   }
-   let reviewLogId: string | null = null
-   try { reviewLogId = await logReview(buildLogEntry(ctx, card, g, failed, now)) }
-   catch (e) { /* журнал не критичен для оценки */ }
+  const reviewSplit = failed ? { failed: 1 } : { known: 1 }
+  try {
+    await Promise.all([
+      // Закрепление НЕ трогает расписание. getCramCards отдаёт все карточки
+      // папки независимо от срока, а sm2Next не смотрит на прошедшее время:
+      // «успех» на не наступившей карточке умножал бы интервал от сегодня, а
+      // промах — сбрасывал бы зрелую карточку в ноль. Это режим практики,
+      // как фильтрованная колода Anki без «Reschedule cards based on answers».
+      ctx.cram ? Promise.resolve(true) : store.updateCard(card.id ?? "", patch),
+      recordReview(1, reviewSplit, { cram: ctx.cram })
+    ])
+  } catch (e) {
+    if (e instanceof Error && e.message.includes("saveFailed")) {
+      toast(t("review.grade.saveFailed", { message: e.message }), "error")
+    } else {
+      console.error("grade save failed:", e)
+    }
+  }
+  let reviewLogId: string | null = null
+  // В журнал идут только плановые повторения: он же — обучающая выборка для
+  // оптимизатора FSRS, а у закрепления нет ни настоящего elapsed_days, ни
+  // последствий для расписания.
+  if (!ctx.cram) {
+    try {
+      reviewLogId = await logReview(buildLogEntry(ctx, card, g, failed, now))
+    } catch (e) {
+      /* журнал не критичен для оценки */
+    }
+  }
 
   ctx.pendingUndo = {
     card: Object.assign({}, card),
@@ -303,57 +412,85 @@ const reviewSplit = failed ? { failed: 1 } : { known: 1 };
     firstTryRecorded: !!opts.firstTryRecorded,
     firstTryOk: !!opts.firstTryOk,
     reviewSplit,
-    reviewLogId,
-  };
-  const showUndoToast = opts.flipGrade && !opts.quiet;
+    reviewLogId
+  }
+  const showUndoToast = opts.flipGrade && !opts.quiet
   if (!showUndoToast) {
-    ctx.pendingUndo = null;
-    ctx.undoToastDismiss = null;
+    ctx.pendingUndo = null
+    ctx.undoToastDismiss = null
   } else {
-    const undoToast = toastAction(t('review.grade.saved'), t('common.undo'), () => undoLastGrade(ctx), UNDO_TOAST_MS, () => {
-      ctx.pendingUndo = null;
-      ctx.undoHoldUntilFlip = false;
-    });
+    const undoToast = toastAction(
+      t("review.grade.saved"),
+      t("common.undo"),
+      () => undoLastGrade(ctx),
+      UNDO_TOAST_MS,
+      () => {
+        ctx.pendingUndo = null
+        ctx.undoHoldUntilFlip = false
+      }
+    )
     ctx.undoToastDismiss = () => {
-      undoToast.dismiss();
-      ctx.pendingUndo = null;
-    };
-    ctx.undoHoldUntilFlip = true;
+      undoToast.dismiss()
+      ctx.pendingUndo = null
+    }
+    ctx.undoHoldUntilFlip = true
   }
 }
 
 export async function undoLastGrade(ctx: GradeContext) {
-  const u = ctx.pendingUndo;
-  if (!u) return;
-  ctx.pendingUndo = null;
-  ctx.undoToastDismiss = null;
+  const u = ctx.pendingUndo
+  if (!u) return
+  ctx.pendingUndo = null
+  ctx.undoToastDismiss = null
 
   if (u.failed) {
-    const idx = ctx.queue.findIndex(c => c.id === u.card.id);
-    if (idx !== -1) ctx.queue.splice(idx, 1);
+    const idx = ctx.queue.findIndex((c) => c.id === u.card.id)
+    if (idx !== -1) ctx.queue.splice(idx, 1)
   }
-  ctx.queue.unshift(u.card);
+  ctx.queue.unshift(u.card)
 
-  if (u.countedSuccess) ctx.done--;
-  if (u.spentNewBudget) refundNewBudget();
+  if (u.countedSuccess) ctx.done--
+  if (u.spentNewBudget) refundNewBudget()
   if (u.firstTryRecorded) {
-    ctx.sessionFirstTry.delete(u.card.id ?? '');
-    ctx.stats.attempted--;
-    if (u.firstTryOk) ctx.stats.firstTryOk--;
+    ctx.sessionFirstTry.delete(u.card.id ?? "")
+    ctx.stats.attempted--
+    if (u.firstTryOk) ctx.stats.firstTryOk--
   }
-  if (ctx.answered > 0) ctx.answered--;
-  if (u.failed) ctx.stats.failed = Math.max(0, ctx.stats.failed - 1);
-  else ctx.stats.known = Math.max(0, ctx.stats.known - 1);
+  if (ctx.answered > 0) ctx.answered--
+  if (u.failed) ctx.stats.failed = Math.max(0, ctx.stats.failed - 1)
+  else ctx.stats.known = Math.max(0, ctx.stats.known - 1)
 
-  try { await store.updateCard(u.card.id ?? '', u.prevSnap); }
-  catch (e) { toast(t('review.grade.undoFailed', { message: e instanceof Error ? e.message : String(e) }), 'error'); return; }
-  try { await undoReview(1, u.reviewSplit); }
-  catch (e) { console.error('undoReview failed:', e); }
-  if (u.reviewLogId) { try { await removeReview(u.reviewLogId); } catch (e) { /* ignore */ } }
-  ctx.updateBar();
-  if (ctx.showNextTimer) { clearTimeout(ctx.showNextTimer); ctx.showNextTimer = null; }
-  ctx.showNext(true);
-  toast(t('review.grade.undone'), 'ok');
+  // В закреплении расписание не менялось — откатывать нечего.
+  if (!ctx.cram) {
+    try {
+      await store.updateCard(u.card.id ?? "", u.prevSnap)
+    } catch (e) {
+      toast(
+        t("review.grade.undoFailed", { message: e instanceof Error ? e.message : String(e) }),
+        "error"
+      )
+      return
+    }
+  }
+  try {
+    await undoReview(1, u.reviewSplit, { cram: ctx.cram })
+  } catch (e) {
+    console.error("undoReview failed:", e)
+  }
+  if (u.reviewLogId) {
+    try {
+      await removeReview(u.reviewLogId)
+    } catch (e) {
+      /* ignore */
+    }
+  }
+  ctx.updateBar()
+  if (ctx.showNextTimer) {
+    clearTimeout(ctx.showNextTimer)
+    ctx.showNextTimer = null
+  }
+  ctx.showNext(true)
+  toast(t("review.grade.undone"), "ok")
 }
 
 export interface MatchResult {
@@ -366,46 +503,47 @@ export async function gradeMatchResults(
   results: MatchResult[],
   { countAsOne = false } = {}
 ) {
-  if (ctx.grading) return;
-  ctx.grading = true;
-  if (countAsOne) {
-    ctx.stats.attempted++;
-    if (results.every(r => r.know)) ctx.stats.firstTryOk++;
-  }
+  if (ctx.grading) return
+  ctx.grading = true
   // Без try/finally сбой в applyGrade оставил бы ctx.grading = true — сессия
   // перестала бы принимать оценки и не показала бы следующую карточку.
   try {
     for (let i = 0; i < results.length; i++) {
-      const r = results[i];
-      if (!r) continue;
-      const { card, know } = r;
-      if (!countAsOne) {
-        ctx.stats.attempted++;
-        if (know) ctx.stats.firstTryOk++;
-      }
-      const idx = ctx.queue.findIndex(c => c.id === card.id);
-      if (idx === -1) continue;
-      const [item] = ctx.queue.splice(idx, 1);
-      if (!item) continue;
-      ctx.queue.unshift(item);
-      ctx.currentIsNew = SRS.isNew(item, ctx.algo);
+      const r = results[i]
+      if (!r) continue
+      const { card, know } = r
+      // Считаем по карточкам всегда: countAsOne описывает полосу прогресса
+      // («раунд пар = один шаг»), а не статистику. Раньше при countAsOne
+      // firstTryOk рос максимум на 1 за раунд из 5 карточек, тогда как
+      // computeLessonStars делит на число карточек сессии — безупречный «Микс»
+      // структурно не мог получить больше одной звезды.
+      recordFirstTry(ctx, card.id ?? "", know)
+      const idx = ctx.queue.findIndex((c) => c.id === card.id)
+      if (idx === -1) continue
+      const [item] = ctx.queue.splice(idx, 1)
+      if (!item) continue
+      ctx.queue.unshift(item)
+      ctx.currentIsNew = SRS.isNew(item, ctx.algo)
       await applyGrade(ctx, item, gradePayload(ctx.algo, know), {
         skipAdvance: true,
         quiet: true,
-        skipProgress: countAsOne,
-      });
+        skipProgress: countAsOne
+      })
     }
     if (countAsOne) {
-      const { answeredAdd, doneAdd } = comboMatchBatchProgress(results);
-      ctx.done += doneAdd;
-      ctx.answered += answeredAdd;
-      ctx.updateBar();
+      const { answeredAdd, doneAdd } = comboMatchBatchProgress(results)
+      ctx.done += doneAdd
+      ctx.answered += answeredAdd
+      ctx.updateBar()
     }
   } catch (e) {
-    console.error('gradeMatchResults failed:', e);
-    toast(t('review.grade.saveFailed', { message: e instanceof Error ? e.message : String(e) }), 'error');
+    console.error("gradeMatchResults failed:", e)
+    toast(
+      t("review.grade.saveFailed", { message: e instanceof Error ? e.message : String(e) }),
+      "error"
+    )
   } finally {
-    ctx.grading = false;
+    ctx.grading = false
   }
-  ctx.showNext(false);
+  ctx.showNext(false)
 }

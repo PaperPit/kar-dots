@@ -32,7 +32,7 @@ jobs:
       # По событию workflow_run checkout по умолчанию берёт ветку по умолчанию —
       # явно указываем коммит, который прошёл CI. При workflow_dispatch
       # head_sha пуст, и берётся выбранная в UI ветка (github.ref).
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           ref: ${{ github.event.workflow_run.head_sha || github.ref }}
 

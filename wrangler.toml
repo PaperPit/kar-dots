@@ -16,6 +16,11 @@ pages_build_output_dir = "dist"
 binding = "YT_JOBS"
 id = "5e57b0e230ad4fc5bf23fde74ac6d625"
 
+# Workers AI — перевод в /api/translate (@cf/meta/m2m100-1.2b).
+# Без биндинга функция откатывается на MyMemory (локальный npm run dev).
+[ai]
+binding = "AI"
+
 # Прод: без KV лимиты обязательны. Локально не задавайте / ставьте "0".
 [vars]
 REQUIRE_RATE_LIMIT = "1"

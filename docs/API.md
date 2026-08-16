@@ -18,10 +18,10 @@ Fetch YouTube metadata + transcript via **Supadata** (client BYOK).
 
 **Body (JSON):**
 
-| Field | Required | Description |
-|-------|----------|-------------|
-| `url` | yes | YouTube watch/shorts URL |
-| `supadataApiKey` | yes | User’s Supadata key from Settings |
+| Field            | Required | Description                       |
+| ---------------- | -------- | --------------------------------- |
+| `url`            | yes      | YouTube watch/shorts URL          |
+| `supadataApiKey` | yes      | User’s Supadata key from Settings |
 
 **Success:** `{ video, transcript }` or `{ pending, jobId, video }` for long jobs.
 
@@ -61,16 +61,18 @@ Limits: ~120 req/hour/subject; anonymous IP ceiling still applies (~300/hour).
 
 ## `POST /api/translate`
 
-Proxy for card-editor «Перевести» (MyMemory upstream). Same-origin so CSP does not block the client.
+Same-origin proxy for card-editor «Перевести» (CSP-safe).
+
+**Upstream (prod):** Cloudflare Workers AI `@cf/meta/m2m100-1.2b` via the `AI` binding — no outbound call to third-party translate APIs. MyMemory often blocks Cloudflare datacenter IPs, so it is only a **fallback** when `AI` is missing (local `npm run dev`).
 
 **Body (JSON):**
 
-| Field | Required | Description |
-|-------|----------|-------------|
-| `text` | yes | Word/phrase to translate (max 500 chars) |
-| `dir` | no | `ru-en` (default) or `en-ru` |
+| Field  | Required | Description                              |
+| ------ | -------- | ---------------------------------------- |
+| `text` | yes      | Word/phrase to translate (max 500 chars) |
+| `dir`  | no       | `ru-en` (default) or `en-ru`             |
 
-**Success:** `{ text: string, dir: string }`
+**Success:** `{ text: string, dir: string, provider?: "workers-ai" \| "mymemory" }`
 
 Limits: ~120 req/hour/subject.
 

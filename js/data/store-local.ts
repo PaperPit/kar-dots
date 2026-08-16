@@ -1,707 +1,772 @@
 // LocalStore — IndexedDB, карточки подгружаются по папкам
-import { indexGetAll } from './sync-queue.js';
-import { DEFAULT_SETTINGS } from './store-common.js';
-import { normalizeFolderRecord, normalizeBoxRecord } from '../lib/folder-icons.js';
-import { resizeImage, blobToDataURL } from '../lib/image-utils.js';
+import { indexGetAll } from "./sync-queue.js"
+import { DEFAULT_SETTINGS } from "./store-common.js"
+import { normalizeFolderRecord, normalizeBoxRecord } from "../lib/folder-icons.js"
+import { resizeImage, blobToDataURL } from "../lib/image-utils.js"
 import {
-  buildFolderRecord, buildCardRecord, buildBoxRecord, buildNoteRecord, exportJSONPayload,
-  validateImportJSON,
-} from './store-contract.js';
+  buildFolderRecord,
+  buildCardRecord,
+  buildBoxRecord,
+  buildNoteRecord,
+  exportJSONPayload,
+  validateImportJSON
+} from "./store-contract.js"
 import {
-  buildReviewQueue, filterByFolder,
-  countDueForFolder, countDueBetweenForFolder, countNewForFolder,
-} from './srs-query.js';
-import { buildHomeStats } from './home-stats.js';
-import { invalidateDerivedCaches } from './cache-invalidate.js';
-import { getCardsByIds, hydrateReviewQueue } from './card-hydrate.js';
+  buildReviewQueue,
+  filterByFolder,
+  countDueForFolder,
+  countDueBetweenForFolder,
+  countNewForFolder
+} from "./srs-query.js"
+import { buildHomeStats } from "./home-stats.js"
+import { invalidateDerivedCaches } from "./cache-invalidate.js"
+import { getCardsByIds, hydrateReviewQueue } from "./card-hydrate.js"
 import {
-  toSrsMeta, upsertSrsMeta, removeSrsMeta, removeSrsMetaForFolder,
-  type SrsMeta,
-} from './srs-meta.js';
-import { isYoutubeCard } from '../lib/youtube-import.js';
+  toSrsMeta,
+  upsertSrsMeta,
+  removeSrsMeta,
+  removeSrsMetaForFolder,
+  type SrsMeta
+} from "./srs-meta.js"
+import { isYoutubeCard } from "../lib/youtube-import.js"
 
-import { shuffle } from '../lib/shuffle.js';
+import { shuffle } from "../lib/shuffle.js"
 import {
-  findFolderByPackId, importVocabPack as doImportVocabPack,
+  findFolderByPackId,
+  importVocabPack as doImportVocabPack,
   deleteVocabPack as doDeleteVocabPack,
-  type VocabImportStore,
-} from './store-vocab.js';
-import { StoreCache } from './store-cache.js';
-import { buildNoteTermRows, tokenizeNotesText, rankNoteSearch } from '../lib/notes-fts.js';
-import { extractHashtags } from '../lib/note-links.js';
-import type { ListNotesOpts } from './store-notes.js';
-import { noteTitleFromBody } from '../lib/markdown.js';
-import type { Card, Folder, Box, Settings, Note } from './types.js';
-import type { Algo, SrsRow } from '../lib/srs.js';
-import type { ProgressInfo } from './store-vocab.js';
+  type VocabImportStore
+} from "./store-vocab.js"
+import { StoreCache } from "./store-cache.js"
+import { buildNoteTermRows, tokenizeNotesText, rankNoteSearch } from "../lib/notes-fts.js"
+import { extractHashtags } from "../lib/note-links.js"
+import type { ListNotesOpts } from "./store-notes.js"
+import { noteTitleFromBody } from "../lib/markdown.js"
+import type { Card, Folder, Box, Settings, Note } from "./types.js"
+import type { Algo, SrsRow } from "../lib/srs.js"
+import type { ProgressInfo } from "./store-vocab.js"
 
 interface CardRecord extends Card {
-  sm2_ef?: number | null;
-  sm2_reps?: number | null;
-  sm2_ivl?: number | null;
-  sm2_due?: number | null;
-  box?: number | null;
-  box_due?: number | null;
-  fsrs_state?: unknown;
-  fsrs_stability?: number | null;
-  fsrs_difficulty?: number | null;
-  fsrs_due?: number | null;
-  fsrs_scheduled_days?: number | null;
-  fsrs_elapsed_days?: number | null;
-  fsrs_reps?: number | null;
-  fsrs_lapses?: number | null;
-  fsrs_learning_steps?: unknown;
-  fsrs_last_review?: number | null;
-  created_at?: number | null;
+  sm2_ef?: number | null
+  sm2_reps?: number | null
+  sm2_ivl?: number | null
+  sm2_due?: number | null
+  box?: number | null
+  box_due?: number | null
+  fsrs_state?: unknown
+  fsrs_stability?: number | null
+  fsrs_difficulty?: number | null
+  fsrs_due?: number | null
+  fsrs_scheduled_days?: number | null
+  fsrs_elapsed_days?: number | null
+  fsrs_reps?: number | null
+  fsrs_lapses?: number | null
+  fsrs_learning_steps?: unknown
+  fsrs_last_review?: number | null
+  created_at?: number | null
 }
 
 interface FolderRecord extends Folder {
-  created_at?: number | null;
+  created_at?: number | null
 }
 
 interface BoxRecord extends Box {
-  created_at?: number | null;
-  icon?: string | null;
+  created_at?: number | null
+  icon?: string | null
 }
 
-export { DEFAULT_SETTINGS, uuid } from './store-common.js';
+export { DEFAULT_SETTINGS, uuid } from "./store-common.js"
 
-const IDB_NAME = 'kartochki';
+const IDB_NAME = "kartochki"
 /** 4: notes + note_conflicts + note_terms + cards.note_id index. */
-const IDB_VERSION = 4;
+const IDB_VERSION = 4
 
 function openDB(): Promise<IDBDatabase> {
-   return new Promise((resolve, reject) => {
-     const req = indexedDB.open(IDB_NAME, IDB_VERSION);
-     req.onupgradeneeded = (e: IDBVersionChangeEvent) => {
-       const db = req.result;
-       if (!db!.objectStoreNames.contains('folders')) db.createObjectStore('folders', { keyPath: 'id' });
-       if (!db!.objectStoreNames.contains('cards')) {
-         const cards = db.createObjectStore('cards', { keyPath: 'id' });
-         cards.createIndex('folder_id', 'folder_id', { unique: false });
-         cards.createIndex('note_id', 'note_id', { unique: false });
-       } else {
-         const cards = req.transaction!.objectStore('cards');
-         if (e.oldVersion < 2 && !cards.indexNames.contains('folder_id')) {
-           cards.createIndex('folder_id', 'folder_id', { unique: false });
-         }
-         if (e.oldVersion < 4 && !cards.indexNames.contains('note_id')) {
-           cards.createIndex('note_id', 'note_id', { unique: false });
-         }
-       }
-       if (!db!.objectStoreNames.contains('boxes')) db.createObjectStore('boxes', { keyPath: 'id' });
-       if (!db!.objectStoreNames.contains('notes')) {
-         const notes = db.createObjectStore('notes', { keyPath: 'id' });
-         notes.createIndex('updated_at', 'updated_at', { unique: false });
-         notes.createIndex('conflict_of', 'conflict_of', { unique: false });
-       }
-       if (!db!.objectStoreNames.contains('note_conflicts')) {
-         const conflicts = db.createObjectStore('note_conflicts', { keyPath: 'id' });
-         conflicts.createIndex('conflict_of', 'conflict_of', { unique: false });
-       }
-       if (!db!.objectStoreNames.contains('note_terms')) {
-         const terms = db.createObjectStore('note_terms', { keyPath: 'id' });
-         terms.createIndex('term', 'term', { unique: false });
-         terms.createIndex('note_id', 'note_id', { unique: false });
-       }
-       if (!db!.objectStoreNames.contains('kv')) db.createObjectStore('kv');
-     };
-     req.onsuccess = () => resolve(req.result);
-     req.onerror = () => reject(req.error);
-     req.onblocked = () => reject(new Error('IDB blocked — close other tabs and retry'));
-   });
- }
-
-function tx(db: IDBDatabase | null, store: string, mode: IDBTransactionMode, fn: (s: IDBObjectStore) => unknown): Promise<unknown> {
   return new Promise((resolve, reject) => {
-    const t = db!.transaction(store, mode);
-    const s = t.objectStore(store);
-    const out = fn(s) as IDBRequest | undefined;
-    t.oncomplete = () => resolve(out && out.result !== undefined ? out.result : undefined);
-    t.onerror = () => reject(t.error);
-  });
+    const req = indexedDB.open(IDB_NAME, IDB_VERSION)
+    req.onupgradeneeded = (e: IDBVersionChangeEvent) => {
+      const db = req.result
+      if (!db!.objectStoreNames.contains("folders"))
+        db.createObjectStore("folders", { keyPath: "id" })
+      if (!db!.objectStoreNames.contains("cards")) {
+        const cards = db.createObjectStore("cards", { keyPath: "id" })
+        cards.createIndex("folder_id", "folder_id", { unique: false })
+        cards.createIndex("note_id", "note_id", { unique: false })
+      } else {
+        const cards = req.transaction!.objectStore("cards")
+        if (e.oldVersion < 2 && !cards.indexNames.contains("folder_id")) {
+          cards.createIndex("folder_id", "folder_id", { unique: false })
+        }
+        if (e.oldVersion < 4 && !cards.indexNames.contains("note_id")) {
+          cards.createIndex("note_id", "note_id", { unique: false })
+        }
+      }
+      if (!db!.objectStoreNames.contains("boxes")) db.createObjectStore("boxes", { keyPath: "id" })
+      if (!db!.objectStoreNames.contains("notes")) {
+        const notes = db.createObjectStore("notes", { keyPath: "id" })
+        notes.createIndex("updated_at", "updated_at", { unique: false })
+        notes.createIndex("conflict_of", "conflict_of", { unique: false })
+      }
+      if (!db!.objectStoreNames.contains("note_conflicts")) {
+        const conflicts = db.createObjectStore("note_conflicts", { keyPath: "id" })
+        conflicts.createIndex("conflict_of", "conflict_of", { unique: false })
+      }
+      if (!db!.objectStoreNames.contains("note_terms")) {
+        const terms = db.createObjectStore("note_terms", { keyPath: "id" })
+        terms.createIndex("term", "term", { unique: false })
+        terms.createIndex("note_id", "note_id", { unique: false })
+      }
+      if (!db!.objectStoreNames.contains("kv")) db.createObjectStore("kv")
+    }
+    req.onsuccess = () => resolve(req.result)
+    req.onerror = () => reject(req.error)
+    req.onblocked = () => reject(new Error("IDB blocked — close other tabs and retry"))
+  })
+}
+
+function tx(
+  db: IDBDatabase | null,
+  store: string,
+  mode: IDBTransactionMode,
+  fn: (s: IDBObjectStore) => unknown
+): Promise<unknown> {
+  return new Promise((resolve, reject) => {
+    const t = db!.transaction(store, mode)
+    const s = t.objectStore(store)
+    const out = fn(s) as IDBRequest | undefined
+    t.oncomplete = () => resolve(out && out.result !== undefined ? out.result : undefined)
+    t.onerror = () => reject(t.error)
+  })
 }
 
 function idbGetAll<T = any>(db: IDBDatabase | null, store: string): Promise<T[]> {
   return new Promise((resolve, reject) => {
-    const req = db!.transaction(store).objectStore(store).getAll();
-    req.onsuccess = () => resolve(req.result as T[]);
-    req.onerror = () => reject(req.error);
-  });
+    const req = db!.transaction(store).objectStore(store).getAll()
+    req.onsuccess = () => resolve(req.result as T[])
+    req.onerror = () => reject(req.error)
+  })
 }
 
-function indexGetAllByTermPrefix<T = unknown>(db: IDBDatabase | null, prefix: string): Promise<T[]> {
+function indexGetAllByTermPrefix<T = unknown>(
+  db: IDBDatabase | null,
+  prefix: string
+): Promise<T[]> {
   return new Promise((resolve, reject) => {
-    const rows: T[] = [];
-    const range = IDBKeyRange.bound(prefix, prefix + '\uffff');
-    const req = db!.transaction('note_terms').objectStore('note_terms').index('term').openCursor(range);
+    const rows: T[] = []
+    const range = IDBKeyRange.bound(prefix, prefix + "\uffff")
+    const req = db!
+      .transaction("note_terms")
+      .objectStore("note_terms")
+      .index("term")
+      .openCursor(range)
     req.onsuccess = () => {
-      const cursor = req.result;
+      const cursor = req.result
       if (!cursor) {
-        resolve(rows);
-        return;
+        resolve(rows)
+        return
       }
-      rows.push(cursor.value as T);
-      cursor.continue();
-    };
-    req.onerror = () => reject(req.error);
-  });
+      rows.push(cursor.value as T)
+      cursor.continue()
+    }
+    req.onerror = () => reject(req.error)
+  })
 }
 
-function forEachCard(db: IDBDatabase | null, folderId: string | null, fn: (c: CardRecord) => void): Promise<void> {
+function forEachCard(
+  db: IDBDatabase | null,
+  folderId: string | null,
+  fn: (c: CardRecord) => void
+): Promise<void> {
   return new Promise((resolve, reject) => {
-    const txObj = db!.transaction('cards', 'readonly');
-    const store = txObj.objectStore('cards');
+    const txObj = db!.transaction("cards", "readonly")
+    const store = txObj.objectStore("cards")
     const source = folderId
-      ? store.index('folder_id').openCursor(IDBKeyRange.only(folderId))
-      : store.openCursor();
+      ? store.index("folder_id").openCursor(IDBKeyRange.only(folderId))
+      : store.openCursor()
     source.onsuccess = (e: Event) => {
-      const cursor = (e.target as IDBRequest).result as IDBCursorWithValue | null;
-      if (cursor) { fn(cursor.value as CardRecord); cursor.continue(); }
-      else resolve();
-    };
-    source.onerror = () => reject(source.error);
-  });
+      const cursor = (e.target as IDBRequest).result as IDBCursorWithValue | null
+      if (cursor) {
+        fn(cursor.value as CardRecord)
+        cursor.continue()
+      } else resolve()
+    }
+    source.onerror = () => reject(source.error)
+  })
 }
 
 function cardCount(db: IDBDatabase | null, folderId: string | null): Promise<number> {
   return new Promise((resolve, reject) => {
-    const txObj = db!.transaction('cards', 'readonly');
-    const store = txObj.objectStore('cards');
+    const txObj = db!.transaction("cards", "readonly")
+    const store = txObj.objectStore("cards")
     const source = folderId
-      ? store.index('folder_id').openCursor(IDBKeyRange.only(folderId))
-      : store.openCursor();
-    let n = 0;
+      ? store.index("folder_id").openCursor(IDBKeyRange.only(folderId))
+      : store.openCursor()
+    let n = 0
     source.onsuccess = (e: Event) => {
-      const cursor = (e.target as IDBRequest).result as IDBCursorWithValue | null;
-      if (cursor) { n++; cursor.continue(); }
-      else resolve(n);
-    };
-    source.onerror = () => reject(source.error);
-  });
+      const cursor = (e.target as IDBRequest).result as IDBCursorWithValue | null
+      if (cursor) {
+        n++
+        cursor.continue()
+      } else resolve(n)
+    }
+    source.onerror = () => reject(source.error)
+  })
 }
 
 function kvGet(db: IDBDatabase | null, key: string): Promise<unknown> {
   return new Promise((resolve, reject) => {
-    const req = db!.transaction('kv').objectStore('kv').get(key);
-    req.onsuccess = () => resolve(req.result);
-    req.onerror = () => reject(req.error);
-  });
+    const req = db!.transaction("kv").objectStore("kv").get(key)
+    req.onsuccess = () => resolve(req.result)
+    req.onerror = () => reject(req.error)
+  })
 }
 
 function kvSet(db: IDBDatabase | null, key: string, value: unknown): Promise<void> {
   return new Promise((resolve, reject) => {
-    const t = db!.transaction('kv', 'readwrite');
-    t.objectStore('kv').put(value, key);
-    t.oncomplete = () => resolve();
-    t.onerror = () => reject(t.error);
-  });
+    const t = db!.transaction("kv", "readwrite")
+    t.objectStore("kv").put(value, key)
+    t.oncomplete = () => resolve()
+    t.onerror = () => reject(t.error)
+  })
 }
 
-const SRS_META_KEY = 'srs_meta';
-const SRS_META_PERSIST_MS = 200;
+const SRS_META_KEY = "srs_meta"
+const SRS_META_PERSIST_MS = 200
 
 export class LocalStore {
-   kind: string = 'local';
-   folders: FolderRecord[] = [];
-   boxes: BoxRecord[] = [];
-   settings: Settings = Object.assign({}, DEFAULT_SETTINGS);
-   db: IDBDatabase | null = null;
-   private _cache: StoreCache = new StoreCache();
-   private _srsMeta: SrsMeta[] = [];
-   private _homeStatsCache: ReturnType<typeof buildHomeStats> | null = null;
-   private _homeStatsCacheAlgo: Algo | null = null;
-   private _srsMetaPersistTimer: ReturnType<typeof setTimeout> | null = null;
+  kind: string = "local"
+  folders: FolderRecord[] = []
+  boxes: BoxRecord[] = []
+  settings: Settings = Object.assign({}, DEFAULT_SETTINGS)
+  db: IDBDatabase | null = null
+  private _cache: StoreCache = new StoreCache()
+  private _srsMeta: SrsMeta[] = []
+  private _homeStatsCache: ReturnType<typeof buildHomeStats> | null = null
+  private _homeStatsCacheAlgo: Algo | null = null
+  private _srsMetaPersistTimer: ReturnType<typeof setTimeout> | null = null
 
-   constructor() {
-     this.kind = 'local';
-     this.folders = [];
-     this.boxes = [];
-     this.settings = Object.assign({}, DEFAULT_SETTINGS);
-     this._cache = new StoreCache();
-     this._srsMeta = [];
-     this._homeStatsCache = null;
-     this._homeStatsCacheAlgo = null;
-     this._srsMetaPersistTimer = null;
-   }
+  constructor() {
+    this.kind = "local"
+    this.folders = []
+    this.boxes = []
+    this.settings = Object.assign({}, DEFAULT_SETTINGS)
+    this._cache = new StoreCache()
+    this._srsMeta = []
+    this._homeStatsCache = null
+    this._homeStatsCacheAlgo = null
+    this._srsMetaPersistTimer = null
+  }
 
-   /** Delete the corrupted DB and return a fresh LocalStore. */
-   static async recover(): Promise<LocalStore> {
-     return new Promise((resolve, reject) => {
-       const req = indexedDB.deleteDatabase(IDB_NAME);
-       req.onsuccess = () => {
-         const fresh = new LocalStore();
-         resolve(fresh);
-       };
-       req.onerror = () => reject(req.error);
-       req.onblocked = () => reject(new Error('IDB delete blocked — close other tabs and retry'));
-     });
-   }
+  /** Delete the corrupted DB and return a fresh LocalStore. */
+  static async recover(): Promise<LocalStore> {
+    return new Promise((resolve, reject) => {
+      const req = indexedDB.deleteDatabase(IDB_NAME)
+      req.onsuccess = () => {
+        const fresh = new LocalStore()
+        resolve(fresh)
+      }
+      req.onerror = () => reject(req.error)
+      req.onblocked = () => reject(new Error("IDB delete blocked — close other tabs and retry"))
+    })
+  }
 
   _patchSrsMeta(card: CardRecord) {
-    upsertSrsMeta(this._srsMeta, card);
-    this._schedulePersistSrsMeta();
+    upsertSrsMeta(this._srsMeta, card)
+    this._schedulePersistSrsMeta()
   }
 
   _patchSrsMetaRemoval(id: string) {
-    this._srsMeta = removeSrsMeta(this._srsMeta, id);
-    this._schedulePersistSrsMeta();
+    this._srsMeta = removeSrsMeta(this._srsMeta, id)
+    this._schedulePersistSrsMeta()
   }
 
   _schedulePersistSrsMeta() {
-    if (this._srsMetaPersistTimer) clearTimeout(this._srsMetaPersistTimer);
+    if (this._srsMetaPersistTimer) clearTimeout(this._srsMetaPersistTimer)
     this._srsMetaPersistTimer = setTimeout(() => {
-      this._srsMetaPersistTimer = null;
-      this._persistSrsMeta();
-    }, SRS_META_PERSIST_MS);
+      this._srsMetaPersistTimer = null
+      this._persistSrsMeta()
+    }, SRS_META_PERSIST_MS)
   }
 
   async _persistSrsMeta() {
-    if (!this.db) return;
-    await kvSet(this.db, SRS_META_KEY, this._srsMeta);
+    if (!this.db) return
+    await kvSet(this.db, SRS_META_KEY, this._srsMeta)
   }
 
   async _rebuildSrsMetaFromCards() {
-    this._srsMeta = [];
-    await forEachCard(this.db, null, c => {
-      this._srsMeta.push(toSrsMeta(c));
-    });
-    this._cache.rebuildCountsFromSrsMeta(this.folders, this._srsMeta);
-    await this._persistSrsMeta();
+    this._srsMeta = []
+    await forEachCard(this.db, null, (c) => {
+      this._srsMeta.push(toSrsMeta(c))
+    })
+    this._cache.rebuildCountsFromSrsMeta(this.folders, this._srsMeta)
+    await this._persistSrsMeta()
   }
 
   _invalidateHomeStats() {
-    this._homeStatsCache = null;
-    this._homeStatsCacheAlgo = null;
+    this._homeStatsCache = null
+    this._homeStatsCacheAlgo = null
   }
 
   async getHomeStats() {
-    const algo = this.settings.algo;
+    const algo = this.settings.algo
     if (this._homeStatsCache && this._homeStatsCacheAlgo === algo) {
-      return this._homeStatsCache;
+      return this._homeStatsCache
     }
-    this._homeStatsCache = buildHomeStats(this._srsMeta, algo as Algo);
-    this._homeStatsCacheAlgo = algo as Algo;
-    return this._homeStatsCache;
+    this._homeStatsCache = buildHomeStats(this._srsMeta, algo as Algo)
+    this._homeStatsCacheAlgo = algo as Algo
+    return this._homeStatsCache
   }
 
   /** Все slim-SRS строки карточек — для прогноза нагрузки на экране статистики. */
   getAllSrsRows(): SrsRow[] {
-    return this._srsMeta as unknown as SrsRow[];
+    return this._srsMeta as unknown as SrsRow[]
   }
 
-async init() {
-     try {
-       this.db = await openDB();
-     } catch (e) {
-       console.warn('[kar] store-local: IDB open failed, attempting recovery:', e);
-       try {
-         await LocalStore.recover();
-         this.db = await openDB();
-         console.warn('[kar] store-local: IDB recovered successfully');
-       } catch (recoveryErr) {
-         console.error('[kar] store-local: IDB recovery failed:', recoveryErr);
-         throw new Error(
-           'IDB recovery failed — close other tabs and try again: ' +
-             (recoveryErr instanceof Error ? recoveryErr.message : String(recoveryErr)),
-           { cause: recoveryErr },
-         );
-       }
-     }
-     this.folders = (await idbGetAll(this.db, 'folders')).map(normalizeFolderRecord).filter((f): f is FolderRecord => !!f);
-     this.folders.sort((a, b) => (a.created_at || 0) - (b.created_at || 0));
-     this.boxes = (await idbGetAll(this.db, 'boxes')).map(normalizeBoxRecord).filter((b): b is BoxRecord => !!b);
-     this.boxes.sort((a, b) => (a.created_at || 0) - (b.created_at || 0));
-     const raw = localStorage.getItem('kar_settings_local');
-     if (raw) try { this.settings = Object.assign({}, DEFAULT_SETTINGS, JSON.parse(raw)); } catch (e) { console.warn('[kar] store-local parse settings failed:', e); }
-     await this._loadSrsMeta();
-     if (this.settings.algo === 'fsrs') {
-       const { preloadFsrs } = await import('../lib/srs.js');
-       preloadFsrs();
-     }
-   }
+  async init() {
+    try {
+      this.db = await openDB()
+    } catch (e) {
+      console.warn("[kar] store-local: IDB open failed, attempting recovery:", e)
+      try {
+        await LocalStore.recover()
+        this.db = await openDB()
+        console.warn("[kar] store-local: IDB recovered successfully")
+      } catch (recoveryErr) {
+        console.error("[kar] store-local: IDB recovery failed:", recoveryErr)
+        throw new Error(
+          "IDB recovery failed — close other tabs and try again: " +
+            (recoveryErr instanceof Error ? recoveryErr.message : String(recoveryErr)),
+          { cause: recoveryErr }
+        )
+      }
+    }
+    this.folders = (await idbGetAll(this.db, "folders"))
+      .map(normalizeFolderRecord)
+      .filter((f): f is FolderRecord => !!f)
+    this.folders.sort((a, b) => (a.created_at || 0) - (b.created_at || 0))
+    this.boxes = (await idbGetAll(this.db, "boxes"))
+      .map(normalizeBoxRecord)
+      .filter((b): b is BoxRecord => !!b)
+    this.boxes.sort((a, b) => (a.created_at || 0) - (b.created_at || 0))
+    const raw = localStorage.getItem("kar_settings_local")
+    if (raw)
+      try {
+        this.settings = Object.assign({}, DEFAULT_SETTINGS, JSON.parse(raw))
+      } catch (e) {
+        console.warn("[kar] store-local parse settings failed:", e)
+      }
+    await this._loadSrsMeta()
+    if (this.settings.algo === "fsrs") {
+      const { preloadFsrs } = await import("../lib/srs.js")
+      preloadFsrs()
+    }
+  }
 
   async _loadSrsMeta() {
-    const cached = await kvGet(this.db, SRS_META_KEY);
+    const cached = await kvGet(this.db, SRS_META_KEY)
     if (Array.isArray(cached)) {
-      this._srsMeta = cached;
-      this._cache.rebuildCountsFromSrsMeta(this.folders, this._srsMeta);
-      const n = await cardCount(this.db, null);
-      if (n === this._srsMeta.length) return;
+      this._srsMeta = cached
+      this._cache.rebuildCountsFromSrsMeta(this.folders, this._srsMeta)
+      const n = await cardCount(this.db, null)
+      if (n === this._srsMeta.length) return
     }
-    await this._rebuildSrsMetaFromCards();
+    await this._rebuildSrsMetaFromCards()
   }
 
   async getFolderCards(folderId: string) {
-    if (this._cache.folderCache.has(folderId)) return this._cache.folderCache.get(folderId);
-    const cards = (await indexGetAll(this.db, 'cards', 'folder_id', folderId)) as CardRecord[];
-    cards.sort((a, b) => (b.created_at || 0) - (a.created_at || 0));
-    cards.forEach(c => { if (c.description == null) c.description = ''; });
-    this._cache.folderCache.set(folderId, cards as Card[]);
-    return cards;
+    if (this._cache.folderCache.has(folderId)) return this._cache.folderCache.get(folderId)
+    const cards = (await indexGetAll(this.db, "cards", "folder_id", folderId)) as CardRecord[]
+    cards.sort((a, b) => (b.created_at || 0) - (a.created_at || 0))
+    cards.forEach((c) => {
+      if (c.description == null) c.description = ""
+    })
+    this._cache.folderCache.set(folderId, cards as Card[])
+    return cards
   }
 
   async countCards(folderId?: string | null) {
     if (folderId) {
-      if (this._cache.hasCount(folderId)) return this._cache.getCount(folderId) ?? 0;
-      return cardCount(this.db, folderId);
+      if (this._cache.hasCount(folderId)) return this._cache.getCount(folderId) ?? 0
+      return cardCount(this.db, folderId)
     }
-    return this._cache.countCards(undefined);
+    return this._cache.countCards(undefined)
   }
 
   async countDue(folderId: string | null, algo: Algo) {
-    algo = algo || this.settings.algo;
-    return countDueForFolder(this._srsMeta, folderId, algo, Date.now());
+    algo = algo || this.settings.algo
+    return countDueForFolder(this._srsMeta, folderId, algo, Date.now())
   }
 
   async countDueBetween(folderId: string | null, algo: Algo, from: number, to: number) {
-    algo = algo || this.settings.algo;
-    return countDueBetweenForFolder(this._srsMeta, folderId, algo, from, to);
+    algo = algo || this.settings.algo
+    return countDueBetweenForFolder(this._srsMeta, folderId, algo, from, to)
   }
 
   async countNew(folderId: string | null, algo: Algo) {
-    algo = algo || this.settings.algo;
-    return countNewForFolder(this._srsMeta, folderId, algo);
+    algo = algo || this.settings.algo
+    return countNewForFolder(this._srsMeta, folderId, algo)
   }
 
   async getReviewCards(folderId: string | null, algo: Algo, newLimit: number, now: number) {
-    algo = algo || this.settings.algo;
-    now = now || Date.now();
-    const source = filterByFolder(this._srsMeta, folderId);
-    const { due, fresh } = buildReviewQueue(source, algo, newLimit, now);
-    const ids = [...due.map(c => c.id), ...fresh.map(c => c.id)];
-    const byId = await getCardsByIds(this.db, this._cache, ids);
+    algo = algo || this.settings.algo
+    now = now || Date.now()
+    const source = filterByFolder(this._srsMeta, folderId)
+    const { due, fresh } = buildReviewQueue(source, algo, newLimit, now)
+    const ids = [...due.map((c) => c.id), ...fresh.map((c) => c.id)]
+    const byId = await getCardsByIds(this.db, this._cache, ids)
     return {
       due: hydrateReviewQueue(due, byId),
-      fresh: hydrateReviewQueue(fresh, byId),
-    };
+      fresh: hydrateReviewQueue(fresh, byId)
+    }
   }
 
   /** Cram: shuffle ids из slim meta, hydrate только выбранных (с limit). */
   async getCramCards(folderId: string | null, limit: number | null) {
-    const source = filterByFolder(this._srsMeta, folderId);
-    const picked = shuffle(source);
-    const slice = (limit ?? 0) > 0 ? picked.slice(0, limit as number) : picked;
-    const byId = await getCardsByIds(this.db, this._cache, slice.map(c => c.id));
-    return hydrateReviewQueue(slice, byId);
+    const source = filterByFolder(this._srsMeta, folderId)
+    const picked = shuffle(source)
+    const slice = (limit ?? 0) > 0 ? picked.slice(0, limit as number) : picked
+    const byId = await getCardsByIds(
+      this.db,
+      this._cache,
+      slice.map((c) => c.id)
+    )
+    return hydrateReviewQueue(slice, byId)
   }
 
   async _getCardById(id: string): Promise<CardRecord | null> {
     for (const list of this._cache.folderCache.values()) {
-      const c = list.find(x => x.id === id);
-      if (c) return c;
+      const c = list.find((x) => x.id === id)
+      if (c) return c
     }
     return new Promise((resolve, reject) => {
-      const req = this.db!.transaction('cards').objectStore('cards').get(id);
-      req.onsuccess = () => resolve(req.result || null);
-      req.onerror = () => reject(req.error);
-    });
+      const req = this.db!.transaction("cards").objectStore("cards").get(id)
+      req.onsuccess = () => resolve(req.result || null)
+      req.onerror = () => reject(req.error)
+    })
   }
 
-  async scanFolderFronts(folderId: string | null, { youtubeOnly = false }: { youtubeOnly?: boolean } = {}) {
-    const mini: { front: string }[] = [];
-    await forEachCard(this.db, folderId, c => {
-      if (youtubeOnly && !isYoutubeCard(c)) return;
-      if (c.front) mini.push({ front: c.front });
-    });
-    return mini;
+  async scanFolderFronts(
+    folderId: string | null,
+    { youtubeOnly = false }: { youtubeOnly?: boolean } = {}
+  ) {
+    const mini: { front: string }[] = []
+    await forEachCard(this.db, folderId, (c) => {
+      if (youtubeOnly && !isYoutubeCard(c)) return
+      if (c.front) mini.push({ front: c.front })
+    })
+    return mini
   }
 
   async createFolder(data: Partial<FolderRecord>) {
-    const f = buildFolderRecord(data);
-    await tx(this.db, 'folders', 'readwrite', s => s.put(f));
-    this.folders.push(f);
-    this.folders.sort((a, b) => (a.created_at || 0) - (b.created_at || 0));
-    this._cache.setCount(f.id, 0);
-    return f;
+    const f = buildFolderRecord(data)
+    await tx(this.db, "folders", "readwrite", (s) => s.put(f))
+    this.folders.push(f)
+    this.folders.sort((a, b) => (a.created_at || 0) - (b.created_at || 0))
+    this._cache.setCount(f.id, 0)
+    return f
   }
 
   async updateFolder(id: string, patch: Partial<FolderRecord>) {
-    const f = this.folders.find(x => x.id === id);
-    if (!f) return null;
-    Object.assign(f, patch);
-    await tx(this.db, 'folders', 'readwrite', s => s.put(f));
-    return f;
+    const f = this.folders.find((x) => x.id === id)
+    if (!f) return null
+    Object.assign(f, patch)
+    await tx(this.db, "folders", "readwrite", (s) => s.put(f))
+    return f
   }
 
   async deleteFolder(id: string) {
-    const dead = (await indexGetAll(this.db, 'cards', 'folder_id', id)) as CardRecord[];
-    await tx(this.db, 'cards', 'readwrite', s => { dead.forEach(c => s.delete(c.id!)); });
-    await tx(this.db, 'folders', 'readwrite', s => s.delete(id));
-    this.folders = this.folders.filter(f => f.id !== id);
-    this._cache.deleteFolder(id);
-    this._srsMeta = removeSrsMetaForFolder(this._srsMeta, id);
-    await this._persistSrsMeta();
-    invalidateDerivedCaches(this, { folderId: id });
+    const dead = (await indexGetAll(this.db, "cards", "folder_id", id)) as CardRecord[]
+    await tx(this.db, "cards", "readwrite", (s) => {
+      dead.forEach((c) => s.delete(c.id!))
+    })
+    await tx(this.db, "folders", "readwrite", (s) => s.delete(id))
+    this.folders = this.folders.filter((f) => f.id !== id)
+    this._cache.deleteFolder(id)
+    this._srsMeta = removeSrsMetaForFolder(this._srsMeta, id)
+    await this._persistSrsMeta()
+    invalidateDerivedCaches(this, { folderId: id })
   }
 
   async createBox(data: Partial<BoxRecord>) {
-    const b = buildBoxRecord(data);
-    await tx(this.db, 'boxes', 'readwrite', s => s.put(b));
-    this.boxes.push(b);
-    this.boxes.sort((a, b) => (a.created_at || 0) - (b.created_at || 0));
-    return b;
+    const b = buildBoxRecord(data)
+    await tx(this.db, "boxes", "readwrite", (s) => s.put(b))
+    this.boxes.push(b)
+    this.boxes.sort((a, b) => (a.created_at || 0) - (b.created_at || 0))
+    return b
   }
 
   async updateBox(id: string, patch: Partial<BoxRecord>) {
-    const b = this.boxes.find(x => x.id === id);
-    if (!b) return null;
-    Object.assign(b, patch);
-    await tx(this.db, 'boxes', 'readwrite', s => s.put(b));
-    return b;
+    const b = this.boxes.find((x) => x.id === id)
+    if (!b) return null
+    Object.assign(b, patch)
+    await tx(this.db, "boxes", "readwrite", (s) => s.put(b))
+    return b
   }
 
   async deleteBox(id: string) {
-    const folders = this.folders.filter(f => f.box_id === id);
+    const folders = this.folders.filter((f) => f.box_id === id)
     for (const f of folders) {
-      f.box_id = undefined;
-      await tx(this.db, 'folders', 'readwrite', s => s.put(f));
+      f.box_id = undefined
+      await tx(this.db, "folders", "readwrite", (s) => s.put(f))
     }
-    await tx(this.db, 'boxes', 'readwrite', s => s.delete(id));
-    this.boxes = this.boxes.filter(b => b.id !== id);
+    await tx(this.db, "boxes", "readwrite", (s) => s.delete(id))
+    this.boxes = this.boxes.filter((b) => b.id !== id)
   }
 
   async assignFolderToBox(folderId: string, boxId?: string | null) {
-    const f = this.folders.find(x => x.id === folderId);
-    if (!f) return null;
-    if (boxId && !this.boxes.find(b => b.id === boxId)) return null;
-    f.box_id = boxId || undefined;
-    await tx(this.db, 'folders', 'readwrite', s => s.put(f));
-    return f;
+    const f = this.folders.find((x) => x.id === folderId)
+    if (!f) return null
+    if (boxId && !this.boxes.find((b) => b.id === boxId)) return null
+    f.box_id = boxId || undefined
+    await tx(this.db, "folders", "readwrite", (s) => s.put(f))
+    return f
   }
 
   async setBoxFolders(boxId: string, folderIds: string[]) {
-    const idSet = new Set(folderIds);
+    const idSet = new Set(folderIds)
     for (const f of this.folders) {
       if (f.box_id === boxId && !idSet.has(f.id)) {
-        f.box_id = undefined;
-        await tx(this.db, 'folders', 'readwrite', s => s.put(f));
+        f.box_id = undefined
+        await tx(this.db, "folders", "readwrite", (s) => s.put(f))
       }
     }
     for (const fid of folderIds) {
-      const f = this.folders.find(x => x.id === fid);
-      if (!f || (f.box_id && f.box_id !== boxId)) continue;
-      f.box_id = boxId;
-      await tx(this.db, 'folders', 'readwrite', s => s.put(f));
+      const f = this.folders.find((x) => x.id === fid)
+      if (!f || (f.box_id && f.box_id !== boxId)) continue
+      f.box_id = boxId
+      await tx(this.db, "folders", "readwrite", (s) => s.put(f))
     }
   }
 
   findFolderByPackId(packId: string) {
-    return findFolderByPackId(this.folders, packId);
+    return findFolderByPackId(this.folders, packId)
   }
 
   async importVocabPack(pack: any, onProgress?: (n: number) => void) {
-    return doImportVocabPack(this as unknown as VocabImportStore, pack, onProgress as ((info: ProgressInfo) => void) | undefined);
+    return doImportVocabPack(
+      this as unknown as VocabImportStore,
+      pack,
+      onProgress as ((info: ProgressInfo) => void) | undefined
+    )
   }
 
   async deleteVocabPack(packId: string) {
-    return doDeleteVocabPack(this as unknown as VocabImportStore, packId);
+    return doDeleteVocabPack(this as unknown as VocabImportStore, packId)
   }
 
   async createCard(data: Partial<CardRecord>) {
-    const c = buildCardRecord(data);
-    await tx(this.db, 'cards', 'readwrite', s => s.put(c));
-    this._cache.prependCard(c.folder_id ?? "", c);
-    this._cache.bumpCount(c.folder_id ?? "", 1);
-    this._patchSrsMeta(c);
-    invalidateDerivedCaches(this, { folderId: c.folder_id });
-    return c;
+    const c = buildCardRecord(data)
+    await tx(this.db, "cards", "readwrite", (s) => s.put(c))
+    this._cache.prependCard(c.folder_id ?? "", c)
+    this._cache.bumpCount(c.folder_id ?? "", 1)
+    this._patchSrsMeta(c)
+    invalidateDerivedCaches(this, { folderId: c.folder_id })
+    return c
   }
 
   async updateCard(id: string, patch: Partial<CardRecord>) {
-    const c = await this._getCardById(id);
-    if (!c) return null;
-    Object.assign(c, patch);
-    await tx(this.db, 'cards', 'readwrite', s => s.put(c));
-    this._cache.patchCardInLists(id, patch as Partial<Card>);
-    this._patchSrsMeta(c);
-    invalidateDerivedCaches(this, { folderId: c.folder_id });
-    return c;
+    const c = await this._getCardById(id)
+    if (!c) return null
+    Object.assign(c, patch)
+    await tx(this.db, "cards", "readwrite", (s) => s.put(c))
+    this._cache.patchCardInLists(id, patch as Partial<Card>)
+    this._patchSrsMeta(c)
+    invalidateDerivedCaches(this, { folderId: c.folder_id })
+    return c
   }
 
   async deleteCard(id: string) {
-    let folderId = null;
+    let folderId = null
     for (const [fid, list] of this._cache.folderCache) {
-      const idx = list.findIndex(x => x.id === id);
-      if (idx >= 0) { folderId = fid; list.splice(idx, 1); break; }
+      const idx = list.findIndex((x) => x.id === id)
+      if (idx >= 0) {
+        folderId = fid
+        list.splice(idx, 1)
+        break
+      }
     }
     if (!folderId) {
-      folderId = this._srsMeta.find(m => m.id === id)?.folder_id || undefined;
+      folderId = this._srsMeta.find((m) => m.id === id)?.folder_id || undefined
     }
-    await tx(this.db, 'cards', 'readwrite', s => s.delete(id));
-    if (folderId) this._cache.bumpCount(folderId, -1);
-    this._patchSrsMetaRemoval(id);
-    invalidateDerivedCaches(this, { folderId });
+    await tx(this.db, "cards", "readwrite", (s) => s.delete(id))
+    if (folderId) this._cache.bumpCount(folderId, -1)
+    this._patchSrsMetaRemoval(id)
+    invalidateDerivedCaches(this, { folderId })
   }
 
   /** Второй аргумент есть только ради общей сигнатуры с CloudStore — локально не нужен. */
   async uploadImage(file: Blob, _opts: { side?: string; cardId?: string } = {}) {
-    const blob = await resizeImage(file);
-    return blobToDataURL(blob);
+    const blob = await resizeImage(file)
+    return blobToDataURL(blob)
   }
 
   async deleteImage() {}
 
   async saveSettings(s: Settings) {
-    this.settings = s;
-    localStorage.setItem('kar_settings_local', JSON.stringify(s));
-    if (s.algo === 'fsrs') {
-      const { preloadFsrs } = await import('../lib/srs.js');
-      await preloadFsrs();
+    this.settings = s
+    localStorage.setItem("kar_settings_local", JSON.stringify(s))
+    if (s.algo === "fsrs") {
+      const { preloadFsrs } = await import("../lib/srs.js")
+      await preloadFsrs()
     }
   }
 
   async exportJSONFull() {
-    const cards = (await idbGetAll(this.db, 'cards')) as CardRecord[];
-    const notes = await this.listNotes({ includeConflicts: true });
-    return exportJSONPayload(this.folders, cards, this.settings, this.boxes, notes);
+    const cards = (await idbGetAll(this.db, "cards")) as CardRecord[]
+    const notes = await this.listNotes({ includeConflicts: true })
+    return exportJSONPayload(this.folders, cards, this.settings, this.boxes, notes)
   }
 
   async importJSON(text: string) {
-    const data = JSON.parse(text);
-    validateImportJSON(data);
-    if (!data.folders || !data.cards) throw new Error('Неверный формат файла');
-    for (const b of (data.boxes || [])) {
-      if (!this.boxes.find(x => x.id === b.id)) {
-        const row = normalizeBoxRecord(b);
+    const data = JSON.parse(text)
+    validateImportJSON(data)
+    if (!data.folders || !data.cards) throw new Error("Неверный формат файла")
+    for (const b of data.boxes || []) {
+      if (!this.boxes.find((x) => x.id === b.id)) {
+        const row = normalizeBoxRecord(b)
         if (row) {
-          await tx(this.db, 'boxes', 'readwrite', s => s.put(row));
-          this.boxes.push(row);
+          await tx(this.db, "boxes", "readwrite", (s) => s.put(row))
+          this.boxes.push(row)
         }
       }
     }
     for (const f of data.folders) {
-      if (!this.folders.find(x => x.id === f.id)) {
-        const row = normalizeFolderRecord(f);
+      if (!this.folders.find((x) => x.id === f.id)) {
+        const row = normalizeFolderRecord(f)
         if (row) {
-          await tx(this.db, 'folders', 'readwrite', s => s.put(row));
-          this.folders.push(row);
+          await tx(this.db, "folders", "readwrite", (s) => s.put(row))
+          this.folders.push(row)
         }
       }
     }
     for (const c of data.cards) {
-      if (c.description == null) c.description = '';
-      await tx(this.db, 'cards', 'readwrite', s => s.put(c));
+      if (c.description == null) c.description = ""
+      await tx(this.db, "cards", "readwrite", (s) => s.put(c))
     }
-    for (const n of (data.notes || [])) {
-      const existing = await this.getNote(n.id);
-      if (existing) continue;
-      const row = buildNoteRecord(n);
-      await this._putNoteRecord(row);
+    for (const n of data.notes || []) {
+      const existing = await this.getNote(n.id)
+      if (existing) continue
+      const row = buildNoteRecord(n)
+      await this._putNoteRecord(row)
     }
     if (data.settings) {
-      this.settings = Object.assign({}, DEFAULT_SETTINGS, data.settings);
-      localStorage.setItem('kar_settings_local', JSON.stringify(this.settings));
+      this.settings = Object.assign({}, DEFAULT_SETTINGS, data.settings)
+      localStorage.setItem("kar_settings_local", JSON.stringify(this.settings))
     }
-    this.folders.sort((a, b) => (a.created_at || 0) - (b.created_at || 0));
-    this.boxes.sort((a, b) => (a.created_at || 0) - (b.created_at || 0));
-    this._cache.clearFolderLists();
-    await this._rebuildSrsMetaFromCards();
-    invalidateDerivedCaches(this, { allFolders: true });
+    this.folders.sort((a, b) => (a.created_at || 0) - (b.created_at || 0))
+    this.boxes.sort((a, b) => (a.created_at || 0) - (b.created_at || 0))
+    this._cache.clearFolderLists()
+    await this._rebuildSrsMetaFromCards()
+    invalidateDerivedCaches(this, { allFolders: true })
   }
 
   // —— Notes ——
 
   async _putNoteRecord(row: Note) {
-    const isConflict = !!row.conflict_of;
-    await tx(this.db, 'notes', 'readwrite', s => s.put(row));
+    const isConflict = !!row.conflict_of
+    await tx(this.db, "notes", "readwrite", (s) => s.put(row))
     if (isConflict) {
-      await tx(this.db, 'note_conflicts', 'readwrite', s => s.put(row));
+      await tx(this.db, "note_conflicts", "readwrite", (s) => s.put(row))
     } else {
-      await tx(this.db, 'note_conflicts', 'readwrite', s => s.delete(row.id));
+      await tx(this.db, "note_conflicts", "readwrite", (s) => s.delete(row.id))
     }
-    await this._reindexNoteTerms(row);
+    await this._reindexNoteTerms(row)
   }
 
   async _reindexNoteTerms(note: Note) {
-    const old = await indexGetAll<{ id: string }>(this.db, 'note_terms', 'note_id', note.id);
-    await tx(this.db, 'note_terms', 'readwrite', s => {
-      for (const row of old) s.delete(row.id);
-      for (const row of buildNoteTermRows(note.id, note.title || '', note.body || '', note.tags || [])) {
-        s.put(row);
+    const old = await indexGetAll<{ id: string }>(this.db, "note_terms", "note_id", note.id)
+    await tx(this.db, "note_terms", "readwrite", (s) => {
+      for (const row of old) s.delete(row.id)
+      for (const row of buildNoteTermRows(
+        note.id,
+        note.title || "",
+        note.body || "",
+        note.tags || []
+      )) {
+        s.put(row)
       }
-    });
+    })
   }
 
   async _clearNoteTerms(noteId: string) {
-    const old = await indexGetAll<{ id: string }>(this.db, 'note_terms', 'note_id', noteId);
-    if (!old.length) return;
-    await tx(this.db, 'note_terms', 'readwrite', s => {
-      for (const row of old) s.delete(row.id);
-    });
+    const old = await indexGetAll<{ id: string }>(this.db, "note_terms", "note_id", noteId)
+    if (!old.length) return
+    await tx(this.db, "note_terms", "readwrite", (s) => {
+      for (const row of old) s.delete(row.id)
+    })
   }
 
-async listNotes(opts: ListNotesOpts = {}): Promise<Note[]> {
-     const allNotes = (await idbGetAll(this.db, 'notes')) as Note[]
-     const query = opts.query && opts.query.trim() ? opts.query.trim() : ''
-     const tag = opts.tag ? opts.tag.toLowerCase() : ''
-     const allow = query ? new Set(await this.searchNoteIds(query)) : null
-     const out: Note[] = []
-     for (const n of allNotes) {
-       if (!opts.includeConflicts && n.conflict_of) continue
-       if (opts.folderId && n.folder_id !== opts.folderId) continue
-       if (tag && !(n.tags || []).includes(tag)) continue
-       if (allow && !allow.has(n.id)) continue
-       out.push(n)
-     }
-     if (query) {
-       const ids = [...allow!]
-       out.sort((a, b) => ids.indexOf(a.id) - ids.indexOf(b.id))
-     } else {
-       out.sort((a, b) => (b.updated_at || 0) - (a.updated_at || 0))
-     }
-     return out
-   }
+  async listNotes(opts: ListNotesOpts = {}): Promise<Note[]> {
+    const allNotes = (await idbGetAll(this.db, "notes")) as Note[]
+    const query = opts.query && opts.query.trim() ? opts.query.trim() : ""
+    const tag = opts.tag ? opts.tag.toLowerCase() : ""
+    const allow = query ? new Set(await this.searchNoteIds(query)) : null
+    const out: Note[] = []
+    for (const n of allNotes) {
+      if (!opts.includeConflicts && n.conflict_of) continue
+      if (opts.folderId && n.folder_id !== opts.folderId) continue
+      if (tag && !(n.tags || []).includes(tag)) continue
+      if (allow && !allow.has(n.id)) continue
+      out.push(n)
+    }
+    if (query) {
+      const ids = [...allow!]
+      out.sort((a, b) => ids.indexOf(a.id) - ids.indexOf(b.id))
+    } else {
+      out.sort((a, b) => (b.updated_at || 0) - (a.updated_at || 0))
+    }
+    return out
+  }
 
   async searchNoteIds(query: string): Promise<string[]> {
-    const terms = tokenizeNotesText(query);
-    if (!terms.length) return [];
-    const byTerm = new Map<string, string[]>();
+    const terms = tokenizeNotesText(query)
+    if (!terms.length) return []
+    const byTerm = new Map<string, string[]>()
     for (const term of terms) {
-      const exact = await indexGetAll<{ note_id: string }>(this.db, 'note_terms', 'term', term);
-      const prefix = await indexGetAllByTermPrefix<{ note_id: string }>(this.db, term);
-      const ids = new Set<string>();
-      for (const row of exact.concat(prefix)) ids.add(row.note_id);
-      byTerm.set(term, [...ids]);
+      const exact = await indexGetAll<{ note_id: string }>(this.db, "note_terms", "term", term)
+      const prefix = await indexGetAllByTermPrefix<{ note_id: string }>(this.db, term)
+      const ids = new Set<string>()
+      for (const row of exact.concat(prefix)) ids.add(row.note_id)
+      byTerm.set(term, [...ids])
     }
-    return rankNoteSearch(terms, byTerm).map(r => r.noteId);
+    return rankNoteSearch(terms, byTerm).map((r) => r.noteId)
   }
 
   async getNote(id: string): Promise<Note | null> {
-    const row = await tx(this.db, 'notes', 'readonly', s => s.get(id)) as Note | undefined;
-    return row || null;
+    const row = (await tx(this.db, "notes", "readonly", (s) => s.get(id))) as Note | undefined
+    return row || null
   }
 
   async getNoteConflicts(noteId: string): Promise<Note[]> {
-    const rows = await indexGetAll<Note>(this.db, 'note_conflicts', 'conflict_of', noteId);
-    rows.sort((a, b) => (b.updated_at || 0) - (a.updated_at || 0));
-    return rows;
+    const rows = await indexGetAll<Note>(this.db, "note_conflicts", "conflict_of", noteId)
+    rows.sort((a, b) => (b.updated_at || 0) - (a.updated_at || 0))
+    return rows
   }
 
   async createNote(data: Partial<Note> = {}): Promise<Note> {
     const row = buildNoteRecord({
       ...data,
-      tags: data.tags ?? extractHashtags(data.body || ''),
-    });
-    await this._putNoteRecord(row);
-    return row;
+      tags: data.tags ?? extractHashtags(data.body || "")
+    })
+    await this._putNoteRecord(row)
+    return row
   }
 
   async updateNote(id: string, patch: Partial<Note>): Promise<Note | null> {
-    const cur = await this.getNote(id);
-    if (!cur) return null;
-    const next = Object.assign({}, cur, patch, { updated_at: Date.now() }) as Note;
-    if (patch.body != null && (patch.title == null || patch.title === '')) {
-      next.title = noteTitleFromBody(next.body, cur.title || '');
+    const cur = await this.getNote(id)
+    if (!cur) return null
+    const next = Object.assign({}, cur, patch, { updated_at: Date.now() }) as Note
+    if (patch.body != null && (patch.title == null || patch.title === "")) {
+      next.title = noteTitleFromBody(next.body, cur.title || "")
     }
     if (patch.body != null && patch.tags == null) {
-      next.tags = extractHashtags(next.body);
+      next.tags = extractHashtags(next.body)
     } else if (Array.isArray(patch.tags)) {
-      next.tags = patch.tags.map(x => String(x).toLowerCase()).filter(Boolean);
+      next.tags = patch.tags.map((x) => String(x).toLowerCase()).filter(Boolean)
     }
-    if (!Array.isArray(next.tags)) next.tags = extractHashtags(next.body || '');
-    await this._putNoteRecord(next);
-    return next;
+    if (!Array.isArray(next.tags)) next.tags = extractHashtags(next.body || "")
+    await this._putNoteRecord(next)
+    return next
   }
 
   /**
@@ -713,71 +778,97 @@ async listNotes(opts: ListNotesOpts = {}): Promise<Note[]> {
       body: loser.body,
       conflict_of: winnerId,
       created_at: loser.created_at,
-      updated_at: loser.updated_at || Date.now(),
-    });
-    await this._putNoteRecord(copy);
-    return copy;
+      updated_at: loser.updated_at || Date.now()
+    })
+    await this._putNoteRecord(copy)
+    return copy
   }
 
   async deleteNote(id: string): Promise<void> {
     // Отвязать карточки, не удаляя их.
-    const linked = await indexGetAll<CardRecord>(this.db, 'cards', 'note_id', id);
+    const linked = await indexGetAll<CardRecord>(this.db, "cards", "note_id", id)
     for (const c of linked) {
-      if (!c.id) continue;
-      c.note_id = null;
-      c.note_anchor = null;
-      await tx(this.db, 'cards', 'readwrite', s => s.put(c));
-      this._cache.patchCardInLists(c.id, { note_id: null, note_anchor: null });
+      if (!c.id) continue
+      c.note_id = null
+      c.note_anchor = null
+      await tx(this.db, "cards", "readwrite", (s) => s.put(c))
+      this._cache.patchCardInLists(c.id, { note_id: null, note_anchor: null })
     }
     // Conflict-копии этой заметки тоже убрать.
-    const conflicts = await this.getNoteConflicts(id);
+    const conflicts = await this.getNoteConflicts(id)
     for (const c of conflicts) {
-      await tx(this.db, 'notes', 'readwrite', s => s.delete(c.id));
-      await tx(this.db, 'note_conflicts', 'readwrite', s => s.delete(c.id));
-      await this._clearNoteTerms(c.id);
+      await tx(this.db, "notes", "readwrite", (s) => s.delete(c.id))
+      await tx(this.db, "note_conflicts", "readwrite", (s) => s.delete(c.id))
+      await this._clearNoteTerms(c.id)
     }
-    await tx(this.db, 'notes', 'readwrite', s => s.delete(id));
-    await tx(this.db, 'note_conflicts', 'readwrite', s => s.delete(id));
-    await this._clearNoteTerms(id);
+    await tx(this.db, "notes", "readwrite", (s) => s.delete(id))
+    await tx(this.db, "note_conflicts", "readwrite", (s) => s.delete(id))
+    await this._clearNoteTerms(id)
   }
 
   async getNoteCards(noteId: string): Promise<CardRecord[]> {
-    const cards = await indexGetAll<CardRecord>(this.db, 'cards', 'note_id', noteId);
-    cards.sort((a, b) => (b.updated_at || 0) - (a.updated_at || 0));
-    return cards;
+    const cards = await indexGetAll<CardRecord>(this.db, "cards", "note_id", noteId)
+    cards.sort((a, b) => (b.updated_at || 0) - (a.updated_at || 0))
+    return cards
   }
 
-  async linkCardToNote(cardId: string, noteId: string, anchor: string | null = null): Promise<CardRecord | null> {
-    const c = await this._getCardById(cardId);
-    if (!c) return null;
-    c.note_id = noteId;
-    c.note_anchor = anchor;
-    c.updated_at = Date.now();
-    await tx(this.db, 'cards', 'readwrite', s => s.put(c));
-    this._cache.patchCardInLists(cardId, { note_id: noteId, note_anchor: anchor, updated_at: c.updated_at });
-    this._patchSrsMeta(c);
-    invalidateDerivedCaches(this, { folderId: c.folder_id });
-    return c;
+  async linkCardToNote(
+    cardId: string,
+    noteId: string,
+    anchor: string | null = null
+  ): Promise<CardRecord | null> {
+    const c = await this._getCardById(cardId)
+    if (!c) return null
+    c.note_id = noteId
+    c.note_anchor = anchor
+    c.updated_at = Date.now()
+    await tx(this.db, "cards", "readwrite", (s) => s.put(c))
+    this._cache.patchCardInLists(cardId, {
+      note_id: noteId,
+      note_anchor: anchor,
+      updated_at: c.updated_at
+    })
+    this._patchSrsMeta(c)
+    invalidateDerivedCaches(this, { folderId: c.folder_id })
+    return c
   }
 
   async unlinkCardFromNote(cardId: string): Promise<CardRecord | null> {
-    const c = await this._getCardById(cardId);
-    if (!c) return null;
-    c.note_id = null;
-    c.note_anchor = null;
-    c.updated_at = Date.now();
-    await tx(this.db, 'cards', 'readwrite', s => s.put(c));
-    this._cache.patchCardInLists(cardId, { note_id: null, note_anchor: null, updated_at: c.updated_at });
-    this._patchSrsMeta(c);
-    invalidateDerivedCaches(this, { folderId: c.folder_id });
-    return c;
+    const c = await this._getCardById(cardId)
+    if (!c) return null
+    c.note_id = null
+    c.note_anchor = null
+    c.updated_at = Date.now()
+    await tx(this.db, "cards", "readwrite", (s) => s.put(c))
+    this._cache.patchCardInLists(cardId, {
+      note_id: null,
+      note_anchor: null,
+      updated_at: c.updated_at
+    })
+    this._patchSrsMeta(c)
+    invalidateDerivedCaches(this, { folderId: c.folder_id })
+    return c
   }
 
-  get offline() { return false; }
-  async pendingSync() { return 0; }
-  async deadLetterCount() { return 0; }
-  async deadLetters() { return []; }
-  async retryDeadLetter() { return false; }
-  async discardDeadLetter() { return false; }
-  async flushSync() { return { ok: 0, fail: 0 }; }
+  get offline() {
+    return false
+  }
+  async pendingSync() {
+    return 0
+  }
+  async deadLetterCount() {
+    return 0
+  }
+  async deadLetters() {
+    return []
+  }
+  async retryDeadLetter() {
+    return false
+  }
+  async discardDeadLetter() {
+    return false
+  }
+  async flushSync() {
+    return { ok: 0, fail: 0 }
+  }
 }

@@ -575,8 +575,7 @@ export const ru = {
   "review.picker.limitOtherAria": "Другое количество, от 1 до {n}",
   "review.picker.unavailable": "Недоступно в этом браузере",
   "review.picker.continueTitle": "Продолжить заниматься",
-  "review.picker.continueSub":
-    "Повторите любые карточки — даже если план на сегодня уже выполнен.",
+  "review.picker.continueSub": "Повторите любые карточки — даже если план на сегодня уже выполнен.",
 
   "review.empty.limitTitle": "На сегодня лимит",
   "review.empty.limitText":

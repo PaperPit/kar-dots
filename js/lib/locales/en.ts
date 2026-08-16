@@ -550,8 +550,7 @@ export const en: Record<string, MessageValue> = {
   "review.picker.limitOtherAria": "Other amount, from 1 to {n}",
   "review.picker.unavailable": "Unavailable in this browser",
   "review.picker.continueTitle": "Keep practicing",
-  "review.picker.continueSub":
-    "Review any cards — even if today’s plan is already done.",
+  "review.picker.continueSub": "Review any cards — even if today’s plan is already done.",
 
   "review.empty.limitTitle": "Daily limit reached",
   "review.empty.limitText":
@@ -561,8 +560,7 @@ export const en: Record<string, MessageValue> = {
   "review.empty.toFolders": "To folders",
   "review.empty.toHome": "Home",
   "review.empty.doneTitle": "CAW! You were brilliant today!!!",
-  "review.empty.doneText":
-    "No cards due right now. Keep practicing — or come back later.",
+  "review.empty.doneText": "No cards due right now. Keep practicing — or come back later.",
   "review.empty.blankTitle": "Nothing here yet",
   "review.empty.blankText": "Add your first words — and we’ll start reviewing.",
   "review.empty.cramFolder": "Cram folder",

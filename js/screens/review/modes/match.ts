@@ -1,159 +1,178 @@
-import type { SrsCard } from "../../../lib/srs.js";
-import { el, stripHtml } from '../../../ui/ui.js';
-import { shuffle, haptic } from '../../../ui/helpers.js';
-import { playAnswerFeedbackFromStore } from '../../../lib/sounds.js';
-import { flashMatchPair, flashMatchHint } from '../../../ui/answer-feedback.js';
-import { t } from '../../../lib/i18n.js';
-
+import type { SrsCard } from "../../../lib/srs.js"
+import { el, stripHtml } from "../../../ui/ui.js"
+import { shuffle, haptic } from "../../../ui/helpers.js"
+import { playAnswerFeedbackFromStore } from "../../../lib/sounds.js"
+import { flashMatchPair, flashMatchHint } from "../../../ui/answer-feedback.js"
+import { t } from "../../../lib/i18n.js"
 
 interface MatchCtx {
-  promptSide: 'front' | 'back';
-  onRoundComplete: (results: { card: SrsCard; know: boolean }[]) => void;
+  promptSide: "front" | "back"
+  onRoundComplete: (results: { card: SrsCard; know: boolean }[]) => void
 }
 
-const BATCH_SIZE = 4;
-const MIN_BATCH = 2;
+const BATCH_SIZE = 4
+const MIN_BATCH = 2
 /** Размер раунда «пары» в режиме «Микс» (считается за 1 шаг прогресса). */
-const COMBO_MATCH_BATCH = 5;
+const COMBO_MATCH_BATCH = 5
 
-function cardSideText(card: SrsCard, side: 'front' | 'back') {
-  return stripHtml(side === 'front' ? card.front : card.back).trim();
+function cardSideText(card: SrsCard, side: "front" | "back") {
+  return stripHtml(side === "front" ? card.front : card.back).trim()
 }
 
 /**
  * Раунд «пары»: слева — показываемая сторона, справа — ответ.
  */
 export function createMatchRound(cards: SrsCard[], ctx: MatchCtx) {
-  const promptSide = ctx.promptSide === 'back' ? 'back' : 'front';
-  const answerSide = promptSide === 'front' ? 'back' : 'front';
-  const mistakes = new Set<string>();
-  let selectedTerm: string | null = null;
-  let selectedDef: string | null = null;
-  const paired = new Map<string, string>();
+  const promptSide = ctx.promptSide === "back" ? "back" : "front"
+  const answerSide = promptSide === "front" ? "back" : "front"
+  const mistakes = new Set<string>()
+  let selectedTerm: string | null = null
+  let selectedDef: string | null = null
+  const paired = new Map<string, string>()
 
-  const promptColClass = promptSide === 'front' ? 'match-col-terms' : 'match-col-defs';
-  const answerColClass = promptSide === 'front' ? 'match-col-defs' : 'match-col-terms';
-  const termsCol = el('div', { class: `match-col ${promptColClass}` }, undefined);
-  const defsCol = el('div', { class: `match-col ${answerColClass}` }, undefined);
-  const hint = el('p', {
-    class: 'study-hint match-hint',
-  }, t('review.match.hintEither'));
+  const promptColClass = promptSide === "front" ? "match-col-terms" : "match-col-defs"
+  const answerColClass = promptSide === "front" ? "match-col-defs" : "match-col-terms"
+  const termsCol = el("div", { class: `match-col ${promptColClass}` }, undefined)
+  const defsCol = el("div", { class: `match-col ${answerColClass}` }, undefined)
+  const hint = el(
+    "p",
+    {
+      class: "study-hint match-hint"
+    },
+    t("review.match.hintEither")
+  )
 
-  const answers: { cardId: string; text: string }[] = shuffle(cards.map(c => ({
-    cardId: c.id ?? "",
-    text: cardSideText(c, answerSide) || t('review.match.empty'),
-  })));
+  const answers: { cardId: string; text: string }[] = shuffle(
+    cards.map((c) => ({
+      cardId: c.id ?? "",
+      text: cardSideText(c, answerSide) || t("review.match.empty")
+    }))
+  )
 
   function promptBtn(card: SrsCard) {
-    const isPaired = paired.has(card.id ?? "");
-    return el('button', {
-      type: 'button',
-      'data-id': card.id,
-      class: 'match-item match-term'
-        + (selectedTerm === card.id ? ' is-selected' : '')
-        + (isPaired ? ' is-paired' : ''),
-      disabled: isPaired,
-      onclick: () => selectTerm(card.id ?? ""),
-    }, cardSideText(card, promptSide) || t('review.match.empty'));
+    const isPaired = paired.has(card.id ?? "")
+    return el(
+      "button",
+      {
+        type: "button",
+        "data-id": card.id,
+        class:
+          "match-item match-term" +
+          (selectedTerm === card.id ? " is-selected" : "") +
+          (isPaired ? " is-paired" : ""),
+        disabled: isPaired,
+        onclick: () => selectTerm(card.id ?? "")
+      },
+      cardSideText(card, promptSide) || t("review.match.empty")
+    )
   }
 
   function answerBtn(item: { cardId: string; text: string }) {
-    const isPaired = [...paired.values()].includes(item.cardId);
-    return el('button', {
-      type: 'button',
-      'data-id': item.cardId,
-      class: 'match-item match-def'
-        + (selectedDef === item.cardId ? ' is-selected' : '')
-        + (isPaired ? ' is-paired' : ''),
-      disabled: isPaired,
-      onclick: () => selectDef(item.cardId),
-    }, item.text);
+    const isPaired = [...paired.values()].includes(item.cardId)
+    return el(
+      "button",
+      {
+        type: "button",
+        "data-id": item.cardId,
+        class:
+          "match-item match-def" +
+          (selectedDef === item.cardId ? " is-selected" : "") +
+          (isPaired ? " is-paired" : ""),
+        disabled: isPaired,
+        onclick: () => selectDef(item.cardId)
+      },
+      item.text
+    )
   }
 
   function renderBoard() {
-    termsCol.innerHTML = '';
-    defsCol.innerHTML = '';
-    cards.forEach(c => termsCol.append(promptBtn(c)));
-    answers.forEach(d => defsCol.append(answerBtn(d)));
+    termsCol.innerHTML = ""
+    defsCol.innerHTML = ""
+    cards.forEach((c) => termsCol.append(promptBtn(c)))
+    answers.forEach((d) => defsCol.append(answerBtn(d)))
   }
 
   function tryPair() {
-    if (!selectedTerm || !selectedDef) return;
-    const termEl = termsCol.querySelector(`[data-id="${selectedTerm}"]`) as HTMLElement;
-    const defEl = defsCol.querySelector(`[data-id="${selectedDef}"]`) as HTMLElement;
+    if (!selectedTerm || !selectedDef) return
+    const termEl = termsCol.querySelector(`[data-id="${selectedTerm}"]`) as HTMLElement
+    const defEl = defsCol.querySelector(`[data-id="${selectedDef}"]`) as HTMLElement
     if (selectedTerm === selectedDef) {
-      playAnswerFeedbackFromStore(true);
-      haptic(8);
+      playAnswerFeedbackFromStore(true)
+      haptic(8)
       flashMatchPair(termEl, defEl, true, () => {
-        paired.set(selectedTerm ?? "", selectedDef ?? "");
-        selectedTerm = null;
-        selectedDef = null;
-        hint.textContent = paired.size === cards.length
-          ? t('review.match.allDone')
-          : t('review.match.keepGoing');
-        flashMatchHint(hint, true);
-        renderBoard();
+        paired.set(selectedTerm ?? "", selectedDef ?? "")
+        selectedTerm = null
+        selectedDef = null
+        hint.textContent =
+          paired.size === cards.length ? t("review.match.allDone") : t("review.match.keepGoing")
+        flashMatchHint(hint, true)
+        renderBoard()
         if (paired.size === cards.length) {
           setTimeout(() => {
-            const results = cards.map(c => ({
+            const results = cards.map((c) => ({
               card: c,
-              know: !mistakes.has(c.id ?? ""),
-            }));
-            ctx.onRoundComplete(results);
-          }, 480);
+              know: !mistakes.has(c.id ?? "")
+            }))
+            ctx.onRoundComplete(results)
+          }, 480)
         }
-      });
-      return;
+      })
+      return
     }
-    mistakes.add(selectedTerm);
-    playAnswerFeedbackFromStore(false);
-    haptic(4);
+    mistakes.add(selectedTerm)
+    playAnswerFeedbackFromStore(false)
+    haptic(4)
     flashMatchPair(termEl, defEl, false, () => {
-      selectedTerm = null;
-      selectedDef = null;
-      hint.textContent = t('review.match.wrongPair');
-      flashMatchHint(hint, false);
-      renderBoard();
-    });
+      selectedTerm = null
+      selectedDef = null
+      hint.textContent = t("review.match.wrongPair")
+      flashMatchHint(hint, false)
+      renderBoard()
+    })
   }
 
   function selectTerm(id: string) {
-    if (paired.has(id)) return;
-    selectedTerm = selectedTerm === id ? null : id;
-    if (selectedTerm && selectedDef) tryPair();
-    else renderBoard();
+    if (paired.has(id)) return
+    selectedTerm = selectedTerm === id ? null : id
+    if (selectedTerm && selectedDef) tryPair()
+    else renderBoard()
   }
 
   function selectDef(id: string) {
-    if ([...paired.values()].includes(id)) return;
-    selectedDef = selectedDef === id ? null : id;
-    if (selectedTerm && selectedDef) tryPair();
-    else renderBoard();
+    if ([...paired.values()].includes(id)) return
+    selectedDef = selectedDef === id ? null : id
+    if (selectedTerm && selectedDef) tryPair()
+    else renderBoard()
   }
 
-  renderBoard();
+  renderBoard()
 
-  const box = el('div', { class: 'study-match-card' }, [
-    el('p', { class: 'match-round-label' }, t('review.match.roundLabel', { n: cards.length })),
+  const box = el("div", { class: "study-match-card" }, [
+    el("p", { class: "match-round-label" }, t("review.match.roundLabel", { n: cards.length })),
     hint,
-    el('div', { class: 'match-board' }, [termsCol, defsCol]),
-  ]);
+    el("div", { class: "match-board" }, [termsCol, defsCol])
+  ])
 
-  return { box, destroy() {} };
+  return { box, destroy() {} }
 }
 
-export function pickMatchBatch(queue: SrsCard[], minSize: number = MIN_BATCH, batchSize: number = BATCH_SIZE, promptSide: 'front' | 'back' = 'front') {
-  const answerSide = promptSide === 'back' ? 'front' : 'back';
-  const batch: SrsCard[] = [];
-  const skipped = [];
+export function pickMatchBatch(
+  queue: SrsCard[],
+  minSize: number = MIN_BATCH,
+  batchSize: number = BATCH_SIZE,
+  promptSide: "front" | "back" = "front"
+) {
+  const answerSide = promptSide === "back" ? "front" : "back"
+  const batch: SrsCard[] = []
+  const skipped = []
   for (let i = 0; i < queue.length && batch.length < batchSize; i++) {
-    const c = queue[i]!;
-    if (cardSideText(c, answerSide)) batch.push(c);
-    else skipped.push(c);
+    const c = queue[i]!
+    if (cardSideText(c, answerSide)) batch.push(c)
+    else skipped.push(c)
   }
-  if (batch.length >= minSize) return { batch, skipped };
-  if (batch.length === 1) return { batch, skipped, single: true };
-  return { batch: [], skipped, single: false };
+  if (batch.length >= minSize) return { batch, skipped }
+  if (batch.length === 1) return { batch, skipped, single: true }
+  return { batch: [], skipped, single: false }
 }
 
-export { BATCH_SIZE, MIN_BATCH, COMBO_MATCH_BATCH };
+export { BATCH_SIZE, MIN_BATCH, COMBO_MATCH_BATCH }

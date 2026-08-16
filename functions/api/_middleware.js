@@ -23,28 +23,28 @@ import {
   clientIp,
   ipBucket,
   sha256Hex,
-  userSubject,
-} from './lib/_subject.js';
-import { HOUR_SEC, hitRateLimit } from './lib/_ratelimit.js';
-import { isTimeoutError } from './lib/_errors.js';
+  userSubject
+} from "./lib/_subject.js"
+import { HOUR_SEC, hitRateLimit } from "./lib/_ratelimit.js"
+import { isTimeoutError } from "./lib/_errors.js"
 
 /** Тела больше этого не бывает даже у самого длинного транскрипта. */
-const MAX_BODY_BYTES = 256 * 1024;
+const MAX_BODY_BYTES = 256 * 1024
 
 /** Кэш проверки токена в KV, секунды. */
-const AUTH_CACHE_TTL = 300;
+const AUTH_CACHE_TTL = 300
 
-const AUTH_TIMEOUT_MS = 5000;
+const AUTH_TIMEOUT_MS = 5000
 
 /** Часовой бюджет на субъект по эндпоинтам. */
 const ENDPOINT_LIMITS = {
-  'yt-video': 20,
-  'yt-generate': 20,
+  "yt-video": 20,
+  "yt-generate": 20,
   tts: 40,
-  'stock-search': 120,
-  translate: 120,
-};
-const DEFAULT_ENDPOINT_LIMIT = 60;
+  "stock-search": 120,
+  translate: 120
+}
+const DEFAULT_ENDPOINT_LIMIT = 60
 
 // Общий потолок на IP: без него достаточно менять X-Client-Id, чтобы получать
 // новый анонимный субъект и новый бюджет. Считаем его ТОЛЬКО для анонимов —
@@ -52,30 +52,32 @@ const DEFAULT_ENDPOINT_LIMIT = 60;
 // офис, мобильный NAT) не должен превращаться в общий лимит на всех.
 // Значение — с запасом над самым щедрым эндпоинтом (stock-search, 120),
 // иначе потолок по IP срабатывал бы раньше, чем бюджет самого эндпоинта.
-const IP_HOURLY_LIMIT = 300;
+const IP_HOURLY_LIMIT = 300
 
 function json(body, status, headers = {}) {
   return new Response(JSON.stringify(body), {
     status,
-    headers: { 'content-type': 'application/json; charset=utf-8', ...headers },
-  });
+    headers: { "content-type": "application/json; charset=utf-8", ...headers }
+  })
 }
 
 /** '/api/yt-video' → 'yt-video'; '/api/' → 'api'. */
 export function endpointScope(pathname) {
-  const parts = String(pathname || '').split('/').filter(Boolean);
-  const last = parts[parts.length - 1] || 'api';
-  return /^[A-Za-z0-9_-]{1,40}$/.test(last) ? last : 'other';
+  const parts = String(pathname || "")
+    .split("/")
+    .filter(Boolean)
+  const last = parts[parts.length - 1] || "api"
+  return /^[A-Za-z0-9_-]{1,40}$/.test(last) ? last : "other"
 }
 
 export function endpointLimit(scope) {
-  return ENDPOINT_LIMITS[scope] ?? DEFAULT_ENDPOINT_LIMIT;
+  return ENDPOINT_LIMITS[scope] ?? DEFAULT_ENDPOINT_LIMIT
 }
 
 /** Content-Length больше лимита? (нет заголовка → false). */
 export function bodyTooLarge(contentLength, max = MAX_BODY_BYTES) {
-  const n = Number(contentLength);
-  return Number.isFinite(n) && n > max;
+  const n = Number(contentLength)
+  return Number.isFinite(n) && n > max
 }
 
 /**
@@ -83,115 +85,135 @@ export function bodyTooLarge(contentLength, max = MAX_BODY_BYTES) {
  * @returns {Promise<{ ok: true, userId: string } | { ok: false, status: number, code: string, message: string }>}
  */
 async function verifyToken(env, kv, token) {
-  const base = String(env?.SUPABASE_URL || '').replace(/\/+$/, '');
-  const anonKey = String(env?.SUPABASE_ANON_KEY || '');
+  const base = String(env?.SUPABASE_URL || "").replace(/\/+$/, "")
+  const anonKey = String(env?.SUPABASE_ANON_KEY || "")
   if (!base || !anonKey) {
     // Осознанно падаем закрыто: молча считать проверенным токен нельзя.
-    console.error('[api] нет SUPABASE_URL / SUPABASE_ANON_KEY — токен проверить нечем');
+    console.error("[api] нет SUPABASE_URL / SUPABASE_ANON_KEY — токен проверить нечем")
     return {
       ok: false,
       status: 503,
-      code: 'auth-unconfigured',
-      message: 'Сервер не настроен для проверки входа — попробуй позже',
-    };
-  }
-
-  const cacheKey = 'auth:' + (await sha256Hex(token));
-  if (kv) {
-    try {
-      const cached = await kv.get(cacheKey);
-      if (cached) return { ok: true, userId: cached };
-    } catch (e) {
-      console.warn('[api] кэш проверки токена недоступен', e?.message || e);
+      code: "auth-unconfigured",
+      message: "Сервер не настроен для проверки входа — попробуй позже"
     }
   }
 
-  let res;
+  const cacheKey = "auth:" + (await sha256Hex(token))
+  if (kv) {
+    try {
+      const cached = await kv.get(cacheKey)
+      if (cached) return { ok: true, userId: cached }
+    } catch (e) {
+      console.warn("[api] кэш проверки токена недоступен", e?.message || e)
+    }
+  }
+
+  let res
   try {
     res = await fetch(`${base}/auth/v1/user`, {
       headers: { apikey: anonKey, authorization: `Bearer ${token}` },
-      signal: AbortSignal.timeout(AUTH_TIMEOUT_MS),
-    });
+      signal: AbortSignal.timeout(AUTH_TIMEOUT_MS)
+    })
   } catch (e) {
-    console.error('[api] проверка токена не удалась:', e?.message || e);
+    console.error("[api] проверка токена не удалась:", e?.message || e)
     return isTimeoutError(e)
-      ? { ok: false, status: 504, code: 'auth-timeout', message: 'Проверка входа заняла слишком много времени — попробуй ещё раз' }
-      : { ok: false, status: 503, code: 'auth-unavailable', message: 'Не удалось проверить вход — попробуй позже' };
+      ? {
+          ok: false,
+          status: 504,
+          code: "auth-timeout",
+          message: "Проверка входа заняла слишком много времени — попробуй ещё раз"
+        }
+      : {
+          ok: false,
+          status: 503,
+          code: "auth-unavailable",
+          message: "Не удалось проверить вход — попробуй позже"
+        }
   }
 
   if (res.status !== 200) {
-    console.error('[api] Supabase отклонил токен, статус', res.status);
-    return { ok: false, status: 401, code: 'unauthorized', message: 'Сессия истекла — войди заново' };
+    console.error("[api] Supabase отклонил токен, статус", res.status)
+    return {
+      ok: false,
+      status: 401,
+      code: "unauthorized",
+      message: "Сессия истекла — войди заново"
+    }
   }
 
-  let user = null;
+  let user = null
   try {
-    user = await res.json();
+    user = await res.json()
   } catch (e) {
-    console.error('[api] Supabase вернул не JSON при проверке токена');
+    console.error("[api] Supabase вернул не JSON при проверке токена")
   }
-  const subject = userSubject(user?.id);
+  const subject = userSubject(user?.id)
   if (!subject) {
-    console.error('[api] Supabase вернул неожиданный id пользователя');
-    return { ok: false, status: 401, code: 'unauthorized', message: 'Сессия истекла — войди заново' };
+    console.error("[api] Supabase вернул неожиданный id пользователя")
+    return {
+      ok: false,
+      status: 401,
+      code: "unauthorized",
+      message: "Сессия истекла — войди заново"
+    }
   }
 
   if (kv) {
     try {
-      await kv.put(cacheKey, String(user.id), { expirationTtl: AUTH_CACHE_TTL });
+      await kv.put(cacheKey, String(user.id), { expirationTtl: AUTH_CACHE_TTL })
     } catch (e) {
-      console.warn('[api] не удалось закэшировать проверку токена', e?.message || e);
+      console.warn("[api] не удалось закэшировать проверку токена", e?.message || e)
     }
   }
-  return { ok: true, userId: String(user.id) };
+  return { ok: true, userId: String(user.id) }
 }
 
 export async function onRequest(context) {
-  const { request, env } = context;
+  const { request, env } = context
 
   // 1. Preflight — мимо всей логики, иначе ломается CORS.
-  if (request.method === 'OPTIONS') return context.next();
+  if (request.method === "OPTIONS") return context.next()
 
   // 2. Размер тела — до чтения самого тела.
-  if (bodyTooLarge(request.headers.get('content-length'))) {
-    return json({ error: 'too-large', message: 'Слишком большой запрос — уменьши транскрипт' }, 413);
+  if (bodyTooLarge(request.headers.get("content-length"))) {
+    return json({ error: "too-large", message: "Слишком большой запрос — уменьши транскрипт" }, 413)
   }
 
-  const kv = env?.YT_JOBS || null;
+  const kv = env?.YT_JOBS || null
 
   // 3–4. Субъект: проверенный пользователь либо аноним от IP + X-Client-Id.
-  const token = bearerToken(request.headers);
-  let subject = '';
-  let userId = null;
+  const token = bearerToken(request.headers)
+  let subject = ""
+  let userId = null
   if (token) {
-    const verified = await verifyToken(env, kv, token);
+    const verified = await verifyToken(env, kv, token)
     if (!verified.ok) {
-      return json({ error: verified.code, message: verified.message }, verified.status);
+      return json({ error: verified.code, message: verified.message }, verified.status)
     }
-    userId = verified.userId;
-    subject = userSubject(userId);
+    userId = verified.userId
+    subject = userSubject(userId)
   } else {
-    subject = await anonSubject(clientIp(request.headers), clientId(request.headers));
+    subject = await anonSubject(clientIp(request.headers), clientId(request.headers))
   }
 
   // 5. Лимиты. В проде REQUIRE_RATE_LIMIT=1 → без KV API не работает (fail closed).
   // Локально (pages:dev без --kv) — fail open, чтобы не ломать разработку.
-  const scope = endpointScope(new URL(request.url).pathname);
-  const now = Date.now();
-  const failClosed = String(env?.REQUIRE_RATE_LIMIT || '') === '1';
+  const scope = endpointScope(new URL(request.url).pathname)
+  const now = Date.now()
+  const failClosed = String(env?.REQUIRE_RATE_LIMIT || "") === "1"
 
   if (!userId) {
     const byIp = await hitRateLimit(kv, {
-      scope: 'ip',
+      scope: "ip",
       subject: await ipBucket(clientIp(request.headers)),
       limit: IP_HOURLY_LIMIT,
       windowSec: HOUR_SEC,
       now,
-      failClosed,
-    });
+      failClosed
+    })
     if (!byIp.ok) {
-      if (byIp.missingKv) return rateLimitUnconfigured();
-      return tooMany(byIp.retryAfter);
+      if (byIp.missingKv) return rateLimitUnconfigured()
+      return tooMany(byIp.retryAfter)
     }
   }
 
@@ -201,39 +223,39 @@ export async function onRequest(context) {
     limit: endpointLimit(scope),
     windowSec: HOUR_SEC,
     now,
-    failClosed,
-  });
+    failClosed
+  })
   if (!bySubject.ok) {
-    if (bySubject.missingKv) return rateLimitUnconfigured();
-    return tooMany(bySubject.retryAfter);
+    if (bySubject.missingKv) return rateLimitUnconfigured()
+    return tooMany(bySubject.retryAfter)
   }
 
   // 6. Хендлеры берут личность отсюда и только отсюда.
-  context.data.subject = subject;
-  context.data.userId = userId;
+  context.data.subject = subject
+  context.data.userId = userId
 
-  return context.next();
+  return context.next()
 }
 
 function tooMany(retryAfter) {
-  const min = Math.max(1, Math.ceil((retryAfter || HOUR_SEC) / 60));
+  const min = Math.max(1, Math.ceil((retryAfter || HOUR_SEC) / 60))
   return json(
     {
-      error: 'rate-limited',
-      message: `Слишком много запросов — попробуй снова примерно через ${min} мин`,
+      error: "rate-limited",
+      message: `Слишком много запросов — попробуй снова примерно через ${min} мин`
     },
     429,
-    { 'retry-after': String(Math.max(1, retryAfter || HOUR_SEC)) },
-  );
+    { "retry-after": String(Math.max(1, retryAfter || HOUR_SEC)) }
+  )
 }
 
 function rateLimitUnconfigured() {
-  console.error('[api] REQUIRE_RATE_LIMIT=1, но биндинг YT_JOBS отсутствует или KV недоступен');
+  console.error("[api] REQUIRE_RATE_LIMIT=1, но биндинг YT_JOBS отсутствует или KV недоступен")
   return json(
     {
-      error: 'rate-limit-unconfigured',
-      message: 'Сервер не настроен для лимитов запросов — попробуй позже',
+      error: "rate-limit-unconfigured",
+      message: "Сервер не настроен для лимитов запросов — попробуй позже"
     },
-    503,
-  );
+    503
+  )
 }

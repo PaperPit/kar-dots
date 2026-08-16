@@ -22,14 +22,19 @@ export function getTranslateDir(): "ru-en" | "en-ru" {
 export function setTranslateDir(dir: string): void {
   try {
     localStorage.setItem("kar_translate_dir", dir)
-  } catch (e) { console.warn('[kar] setTranslateDir failed:', e); }
+  } catch (e) {
+    console.warn("[kar] setTranslateDir failed:", e)
+  }
 }
 
 function normalizeDir(dir: string): "ru-en" | "en-ru" {
   return dir === "en-ru" ? "en-ru" : "ru-en"
 }
 
-export async function translateText(text: string, dir: string = getTranslateDir()): Promise<string> {
+export async function translateText(
+  text: string,
+  dir: string = getTranslateDir()
+): Promise<string> {
   const q = String(text || "").trim()
   if (!q) throw new Error("Нечего переводить")
 
@@ -38,7 +43,7 @@ export async function translateText(text: string, dir: string = getTranslateDir(
     res = await fetch("/api/translate", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ text: q, dir: normalizeDir(dir) }),
+      body: JSON.stringify({ text: q, dir: normalizeDir(dir) })
     })
   } catch {
     throw new Error("Нет соединения с сервером перевода")

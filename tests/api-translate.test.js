@@ -1,46 +1,52 @@
-import { describe, it, expect, vi, afterEach } from 'vitest';
-import { _handlerForTests as handler, _parseDirForTests as parseDir } from '../functions/api/translate.js';
+import { describe, it, expect, vi, afterEach } from "vitest"
+import {
+  _handlerForTests as handler,
+  _parseDirForTests as parseDir
+} from "../functions/api/translate.js"
 
-describe('api/translate', () => {
+describe("api/translate", () => {
   afterEach(() => {
-    vi.unstubAllGlobals();
-  });
+    vi.unstubAllGlobals()
+  })
 
-  it('parseDir', () => {
-    expect(parseDir('en-ru')).toEqual({ from: 'en', to: 'ru' });
-    expect(parseDir('ru-en')).toEqual({ from: 'ru', to: 'en' });
-  });
+  it("parseDir", () => {
+    expect(parseDir("en-ru")).toEqual({ from: "en", to: "ru" })
+    expect(parseDir("ru-en")).toEqual({ from: "ru", to: "en" })
+  })
 
-  it('переводит через MyMemory', async () => {
-    vi.stubGlobal('fetch', vi.fn(async (url) => {
-      expect(String(url)).toContain('langpair=ru|en');
-      expect(String(url)).toContain(encodeURIComponent('икра'));
-      return {
-        ok: true,
-        json: async () => ({
-          responseStatus: 200,
-          responseData: { translatedText: 'caviar' },
-        }),
-      };
-    }));
+  it("переводит через MyMemory", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url) => {
+        expect(String(url)).toContain("langpair=ru|en")
+        expect(String(url)).toContain(encodeURIComponent("икра"))
+        return {
+          ok: true,
+          json: async () => ({
+            responseStatus: 200,
+            responseData: { translatedText: "caviar" }
+          })
+        }
+      })
+    )
 
-    const req = new Request('http://localhost/api/translate', {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ text: 'икра', dir: 'ru-en' }),
-    });
-    const res = await handler(req, {}, 'test');
-    expect(res.status).toBe(200);
-    expect(await res.json()).toEqual({ text: 'caviar', dir: 'ru-en' });
-  });
+    const req = new Request("http://localhost/api/translate", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ text: "икра", dir: "ru-en" })
+    })
+    const res = await handler(req, {}, "test")
+    expect(res.status).toBe(200)
+    expect(await res.json()).toEqual({ text: "caviar", dir: "ru-en" })
+  })
 
-  it('отклоняет пустой текст', async () => {
-    const req = new Request('http://localhost/api/translate', {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ text: '  ' }),
-    });
-    const res = await handler(req, {}, 'test');
-    expect(res.status).toBe(400);
-  });
-});
+  it("отклоняет пустой текст", async () => {
+    const req = new Request("http://localhost/api/translate", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ text: "  " })
+    })
+    const res = await handler(req, {}, "test")
+    expect(res.status).toBe(400)
+  })
+})

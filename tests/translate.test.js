@@ -1,67 +1,93 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { translateText, getTranslateDir, setTranslateDir, translateDirLabel, flipTranslateDir } from '../js/lib/translate.ts';
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest"
+import {
+  translateText,
+  getTranslateDir,
+  setTranslateDir,
+  translateDirLabel,
+  flipTranslateDir
+} from "../js/lib/translate.ts"
 
-const ls = {};
+const ls = {}
 beforeEach(() => {
-  Object.keys(ls).forEach(k => delete ls[k]);
-  vi.stubGlobal('localStorage', {
-    getItem: k => (k in ls ? ls[k] : null),
-    setItem: (k, v) => { ls[k] = v; },
-    removeItem: k => { delete ls[k]; },
-  });
-});
+  Object.keys(ls).forEach((k) => delete ls[k])
+  vi.stubGlobal("localStorage", {
+    getItem: (k) => (k in ls ? ls[k] : null),
+    setItem: (k, v) => {
+      ls[k] = v
+    },
+    removeItem: (k) => {
+      delete ls[k]
+    }
+  })
+})
 
-describe('translateText', () => {
+describe("translateText", () => {
   beforeEach(() => {
-    vi.stubGlobal('fetch', vi.fn(async () => ({
-      ok: true,
-      json: async () => ({ text: 'hello' }),
-    })));
-  });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => ({
+        ok: true,
+        json: async () => ({ text: "hello" })
+      }))
+    )
+  })
 
   afterEach(() => {
-    vi.unstubAllGlobals();
-  });
+    vi.unstubAllGlobals()
+  })
 
-  it('ходит на /api/translate с направлением ru-en', async () => {
-    const out = await translateText('привет', 'ru-en');
-    expect(out).toBe('hello');
-    expect(fetch).toHaveBeenCalledWith('/api/translate', expect.objectContaining({
-      method: 'POST',
-      body: JSON.stringify({ text: 'привет', dir: 'ru-en' }),
-    }));
-  });
+  it("ходит на /api/translate с направлением ru-en", async () => {
+    const out = await translateText("привет", "ru-en")
+    expect(out).toBe("hello")
+    expect(fetch).toHaveBeenCalledWith(
+      "/api/translate",
+      expect.objectContaining({
+        method: "POST",
+        body: JSON.stringify({ text: "привет", dir: "ru-en" })
+      })
+    )
+  })
 
-  it('бросает ошибку на пустой текст', async () => {
-    await expect(translateText('  ')).rejects.toThrow('Нечего переводить');
-  });
+  it("бросает ошибку на пустой текст", async () => {
+    await expect(translateText("  ")).rejects.toThrow("Нечего переводить")
+  })
 
-  it('показывает сообщение сервера при ошибке', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => ({
-      ok: false,
-      json: async () => ({ message: 'Лимит перевода исчерпан, попробуйте позже' }),
-    })));
-    await expect(translateText('икра', 'ru-en')).rejects.toThrow(/Лимит перевода/);
-  });
+  it("показывает сообщение сервера при ошибке", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => ({
+        ok: false,
+        json: async () => ({ message: "Лимит перевода исчерпан, попробуйте позже" })
+      }))
+    )
+    await expect(translateText("икра", "ru-en")).rejects.toThrow(/Лимит перевода/)
+  })
 
-  it('при обрыве сети даёт понятную ошибку', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => { throw new TypeError('Failed to fetch'); }));
-    await expect(translateText('икра', 'ru-en')).rejects.toThrow('Нет соединения с сервером перевода');
-  });
-});
+  it("при обрыве сети даёт понятную ошибку", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => {
+        throw new TypeError("Failed to fetch")
+      })
+    )
+    await expect(translateText("икра", "ru-en")).rejects.toThrow(
+      "Нет соединения с сервером перевода"
+    )
+  })
+})
 
-describe('translate dir storage', () => {
-  it('сохраняет направление в localStorage', () => {
-    setTranslateDir('en-ru');
-    expect(getTranslateDir()).toBe('en-ru');
-    setTranslateDir('ru-en');
-    expect(getTranslateDir()).toBe('ru-en');
-  });
+describe("translate dir storage", () => {
+  it("сохраняет направление в localStorage", () => {
+    setTranslateDir("en-ru")
+    expect(getTranslateDir()).toBe("en-ru")
+    setTranslateDir("ru-en")
+    expect(getTranslateDir()).toBe("ru-en")
+  })
 
-  it('переключает направление и показывает подпись', () => {
-    expect(translateDirLabel('ru-en')).toBe('RU → EN');
-    expect(translateDirLabel('en-ru')).toBe('EN → RU');
-    expect(flipTranslateDir('ru-en')).toBe('en-ru');
-    expect(flipTranslateDir('en-ru')).toBe('ru-en');
-  });
-});
+  it("переключает направление и показывает подпись", () => {
+    expect(translateDirLabel("ru-en")).toBe("RU → EN")
+    expect(translateDirLabel("en-ru")).toBe("EN → RU")
+    expect(flipTranslateDir("ru-en")).toBe("en-ru")
+    expect(flipTranslateDir("en-ru")).toBe("ru-en")
+  })
+})

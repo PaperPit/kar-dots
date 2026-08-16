@@ -37,7 +37,7 @@
   },
   "dependencies": {
     "@capacitor/keyboard": "^8.0.5",
-    "motion": "^12.42.2"
+    "motion": "^12.43.0"
   },
   "devDependencies": {
     "@capacitor/cli": "^8.5.0",

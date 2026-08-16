@@ -1,3 +1,5 @@
+import { cleanGeminiApiKey } from "./llm-api-keys.js"
+
 const PAUSE_MS = 320
 
 const DIR_LABELS: Record<string, string> = { "ru-en": "RU → EN", "en-ru": "EN → RU" }
@@ -31,19 +33,40 @@ function normalizeDir(dir: string): "ru-en" | "en-ru" {
   return dir === "en-ru" ? "en-ru" : "ru-en"
 }
 
+export interface TranslateOpts {
+  /** Личный ключ Gemini из настроек — самый стабильный путь на проде. */
+  geminiApiKey?: string
+}
+
+async function resolveGeminiKey(opts?: TranslateOpts): Promise<string> {
+  const fromOpts = cleanGeminiApiKey(opts?.geminiApiKey)
+  if (fromOpts) return fromOpts
+  try {
+    const { store } = await import("../core/state.js")
+    return cleanGeminiApiKey(store?.settings?.geminiApiKey)
+  } catch {
+    return ""
+  }
+}
+
 export async function translateText(
   text: string,
-  dir: string = getTranslateDir()
+  dir: string = getTranslateDir(),
+  opts: TranslateOpts = {}
 ): Promise<string> {
   const q = String(text || "").trim()
   if (!q) throw new Error("Нечего переводить")
+
+  const geminiApiKey = await resolveGeminiKey(opts)
+  const body: Record<string, string> = { text: q, dir: normalizeDir(dir) }
+  if (geminiApiKey) body.geminiApiKey = geminiApiKey
 
   let res: Response
   try {
     res = await fetch("/api/translate", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ text: q, dir: normalizeDir(dir) })
+      body: JSON.stringify(body)
     })
   } catch {
     throw new Error("Нет соединения с сервером перевода")
@@ -78,13 +101,14 @@ export interface TranslateResult {
 export async function translateBatch(
   words: string[],
   dir: string,
-  onProgress?: (done: number, total: number) => void
+  onProgress?: (done: number, total: number) => void,
+  opts: TranslateOpts = {}
 ): Promise<TranslateResult[]> {
   const out: TranslateResult[] = []
   for (let i = 0; i < words.length; i++) {
     const w = words[i]!
     try {
-      const t = await translateText(w, dir)
+      const t = await translateText(w, dir, opts)
       out.push({ front: w, back: t })
     } catch (e) {
       const message = e instanceof Error ? e.message : String(e)

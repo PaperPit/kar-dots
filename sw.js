@@ -1,4 +1,4 @@
-const VERSION = 'kar-v16.5';
+const VERSION = 'kar-v16.7';
 
 /** AUTO-GENERATED CORE_FILES — node scripts/generate-sw-files.js */
 const CORE_FILES = [

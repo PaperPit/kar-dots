@@ -21,12 +21,44 @@ describe("api/translate", () => {
     expect(looksLikeTransliteration("behind", "позади", "en-ru")).toBe(false)
   })
 
-  it("Llama даёт смысловой перевод; m2m не вызывается", async () => {
+  it("Gemini BYOK имеет приоритет", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url) => {
+        expect(String(url)).toContain("generativelanguage.googleapis.com")
+        return {
+          ok: true,
+          json: async () => ({
+            candidates: [{ content: { parts: [{ text: "лук" }] } }]
+          })
+        }
+      })
+    )
+
+    const req = new Request("http://localhost/api/translate", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        text: "onion",
+        dir: "en-ru",
+        geminiApiKey: "AIzaSyDummyKeyForTests0123456789"
+      })
+    })
+    const res = await handler(req, {}, "test")
+    expect(res.status).toBe(200)
+    expect(await res.json()).toEqual({
+      text: "лук",
+      dir: "en-ru",
+      provider: "gemini"
+    })
+  })
+
+  it("Llama даёт смысловой перевод после плохого m2m", async () => {
     const env = {
       AI: {
         run: vi.fn(async (model) => {
-          if (model.includes("llama")) return { response: "лук" }
-          throw new Error("m2m should not run")
+          if (String(model).includes("m2m100")) return { translated_text: "Онеон" }
+          return { response: "лук" }
         })
       }
     }
@@ -48,52 +80,75 @@ describe("api/translate", () => {
     expect(fetchSpy).not.toHaveBeenCalled()
   })
 
-  it("отбрасывает транслит m2m и берёт gtx", async () => {
-    const env = {
-      AI: {
-        run: vi.fn(async (model, input) => {
-          if (model.includes("llama")) return { response: "Онеон" }
-          expect(input.source_lang).toBe("english")
-          expect(input.target_lang).toBe("russian")
-          return { translated_text: "Онеон" }
-        })
+  it("с ключом Azure — берёт его раньше Lingva/gtx/MyMemory", async () => {
+    const fetchSpy = vi.fn(async (url, opts) => {
+      expect(String(url)).toContain("api.cognitive.microsofttranslator.com")
+      expect(String(url)).toContain("from=en")
+      expect(String(url)).toContain("to=ru")
+      expect(opts.headers["Ocp-Apim-Subscription-Key"]).toBe("azure-test-key")
+      expect(opts.headers["Ocp-Apim-Subscription-Region"]).toBe("westeurope")
+      return {
+        ok: true,
+        json: async () => [{ translations: [{ text: "лук", to: "ru" }] }]
       }
-    }
-    vi.stubGlobal(
-      "fetch",
-      vi.fn(async (url) => {
-        expect(String(url)).toContain("translate.googleapis.com")
-        return {
-          ok: true,
-          json: async () => [[["лук", "onion", null, null, 10]]]
-        }
-      })
-    )
+    })
+    vi.stubGlobal("fetch", fetchSpy)
 
     const req = new Request("http://localhost/api/translate", {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ text: "onion", dir: "en-ru" })
     })
+    const env = { AZURE_TRANSLATOR_KEY: "azure-test-key", AZURE_TRANSLATOR_REGION: "westeurope" }
     const res = await handler(req, env, "test")
     expect(res.status).toBe(200)
-    expect(await res.json()).toEqual({
-      text: "лук",
-      dir: "en-ru",
-      provider: "gtx"
-    })
+    expect(await res.json()).toEqual({ text: "лук", dir: "en-ru", provider: "azure" })
+    expect(fetchSpy).toHaveBeenCalledTimes(1)
   })
 
-  it("без AI берёт Google gtx", async () => {
+  it("лимит Azure (429/403) не роняет запрос молча — возвращается понятная ошибка", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => ({ ok: false, status: 429 }))
+    )
+
+    const req = new Request("http://localhost/api/translate", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ text: "onion", dir: "en-ru" })
+    })
+    const env = { AZURE_TRANSLATOR_KEY: "azure-test-key" }
+    const res = await handler(req, env, "test")
+    expect(res.status).toBe(429)
+    expect((await res.json()).error).toBe("quota")
+  })
+
+  it("без AZURE_TRANSLATOR_KEY — Azure тихо пропускается, идём в Lingva", async () => {
+    const fetchSpy = vi.fn(async (url) => {
+      expect(String(url)).not.toContain("cognitive.microsofttranslator.com")
+      expect(String(url)).toContain("lingva.ml")
+      return { ok: true, json: async () => ({ translation: "лук" }) }
+    })
+    vi.stubGlobal("fetch", fetchSpy)
+
+    const req = new Request("http://localhost/api/translate", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ text: "onion", dir: "en-ru" })
+    })
+    const res = await handler(req, {}, "test")
+    expect(res.status).toBe(200)
+    expect(await res.json()).toEqual({ text: "лук", dir: "en-ru", provider: "lingva" })
+  })
+
+  it("без AI берёт Lingva", async () => {
     vi.stubGlobal(
       "fetch",
       vi.fn(async (url) => {
-        expect(String(url)).toContain("translate.googleapis.com")
-        expect(String(url)).toContain("sl=en")
-        expect(String(url)).toContain("tl=ru")
+        expect(String(url)).toContain("lingva.ml")
         return {
           ok: true,
-          json: async () => [[["лук", "onion", null, null, 10]]]
+          json: async () => ({ translation: "лук" })
         }
       })
     )
@@ -108,40 +163,7 @@ describe("api/translate", () => {
     expect(await res.json()).toEqual({
       text: "лук",
       dir: "en-ru",
-      provider: "gtx"
-    })
-  })
-
-  it("без AI откатывается на MyMemory если gtx упал", async () => {
-    vi.stubGlobal(
-      "fetch",
-      vi.fn(async (url) => {
-        if (String(url).includes("translate.googleapis.com")) {
-          return { ok: false, status: 503, json: async () => ({}) }
-        }
-        expect(String(url)).toContain("langpair=ru|en")
-        expect(String(url)).toContain(encodeURIComponent("икра"))
-        return {
-          ok: true,
-          json: async () => ({
-            responseStatus: 200,
-            responseData: { translatedText: "caviar" }
-          })
-        }
-      })
-    )
-
-    const req = new Request("http://localhost/api/translate", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ text: "икра", dir: "ru-en" })
-    })
-    const res = await handler(req, {}, "test")
-    expect(res.status).toBe(200)
-    expect(await res.json()).toEqual({
-      text: "caviar",
-      dir: "ru-en",
-      provider: "mymemory"
+      provider: "lingva"
     })
   })
 

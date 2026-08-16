@@ -1,5 +1,5 @@
 import { store } from "../core/state.js"
-import { loadActivity, dayKey } from "../lib/activity.js"
+import { loadActivity, dayKey, scheduledReviews } from "../lib/activity.js"
 import type { Settings } from "../data/types.js"
 
 export function newBudget() {
@@ -45,9 +45,14 @@ export function reviewsPerDaySetting(settings?: Settings | null): number {
   return Math.max(1, Number.isFinite(n) && n > 0 ? Math.floor(n) : 50)
 }
 
-/** Сколько оценок уже сделано сегодня (из activity). */
+/**
+ * Сколько плановых оценок уже сделано сегодня (из activity).
+ * Закрепление (cram) исключено: это практика сверх плана, и она не должна
+ * выбирать дневной лимит — иначе после закрепления папки обычное повторение
+ * упирается в лимит и не запускается.
+ */
 export function reviewsTodayCount(): number {
-  return loadActivity().days[dayKey()]?.reviews || 0
+  return scheduledReviews(loadActivity().days[dayKey()])
 }
 
 /** Сколько оценок ещё можно сделать сегодня. */

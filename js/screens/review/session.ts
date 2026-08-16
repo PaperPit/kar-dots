@@ -20,6 +20,7 @@ import { createMatchRound, pickMatchBatch, MIN_BATCH, BATCH_SIZE, COMBO_MATCH_BA
 import { finishProgressAnswered } from '../../lib/review-progress.js';
 import {
   gradePayload, renderGrades, gradeMatchResults, submitGrade, dismissUndoToast,
+  recordFirstTry, checkedAnswerPayload,
 } from './grading.js';
 import { studyModePicker } from './mode-picker.js';
 import { t } from '../../lib/i18n.js';
@@ -101,19 +102,28 @@ export function runReviewSession(ctx: ReviewSessionContext) {
   }
 
   function trackFlipFirstTry(card: SrsCard, know: boolean) {
-    if (ctx.sessionFirstTry.has(card.id ?? "")) return false;
-    ctx.sessionFirstTry.add(card.id ?? "");
-    ctx.stats.attempted++;
-    if (know) ctx.stats.firstTryOk++;
-    return true;
+    return recordFirstTry(ctx, card.id ?? "", know);
   }
 
-  function pickSide(): "front" | "back" {
+  /**
+   * Бросок стороны показа. Вызывать ТОЛЬКО из showNext — при direction:'mixed'
+   * каждый бросок случаен, а за одну карточку сторона нужна в нескольких
+   * местах (проверка пригодности, показ, отбор батча пар и его отрисовка).
+   * Раньше это были независимые вызовы: карточку проверяли на одну сторону,
+   * а показывали другой — в «парах» доска становилась нерешаемой.
+   */
+  function rollSide(): "front" | "back" {
     if (ctx.cramPromptSide) return ctx.cramPromptSide;
     const dir = store.settings.direction;
     if (dir === 'btf') return 'back';
     if (dir === 'mixed') return Math.random() < 0.5 ? 'front' : 'back';
     return 'front';
+  }
+
+  /** Сторона, зафиксированная для текущей карточки / раунда. */
+  let currentSide: "front" | "back" = rollSide();
+  function pickSide(): "front" | "back" {
+    return currentSide;
   }
 
   function clearStage() {
@@ -164,9 +174,8 @@ export function runReviewSession(ctx: ReviewSessionContext) {
     return 'type';
   }
 
-  function recordFirstTryResult({ success, firstTry }: { success: boolean; firstTry: boolean }) {
-    ctx.stats.attempted++;
-    if (success && firstTry) ctx.stats.firstTryOk++;
+  function recordFirstTryResult(card: SrsCard, { success, firstTry }: { success: boolean; firstTry: boolean }) {
+    recordFirstTry(ctx, card.id ?? "", success && firstTry);
   }
 
   function showNext(first: boolean) {
@@ -174,6 +183,9 @@ export function runReviewSession(ctx: ReviewSessionContext) {
     if (!ctx.undoHoldUntilFlip) dismissUndoToast(ctx);
     updateBar();
     if (!ctx.queue.length) { finish(); return; }
+
+    // Сторона фиксируется один раз на карточку/раунд — см. rollSide().
+    currentSide = rollSide();
 
     if (ctx.mode === 'match') {
       showMatchRound(first);
@@ -219,11 +231,13 @@ export function runReviewSession(ctx: ReviewSessionContext) {
     const promptSide = pickSide();
     const gradeOpts = { quiet: true };
     const onSuccess = ({ firstTry }: { firstTry?: boolean } = {}) => {
-      recordFirstTryResult({ success: true, firstTry: !!firstTry });
-      submitGrade(ctx, card, gradePayload(ctx.algo, true), null, gradeOpts);
+      const ok = !!firstTry;
+      recordFirstTryResult(card, { success: true, firstTry: ok });
+      // Правило «верно только с первой попытки» — см. checkedAnswerPayload.
+      submitGrade(ctx, card, checkedAnswerPayload(ctx.algo, ok), null, gradeOpts);
     };
     const onFail = () => {
-      recordFirstTryResult({ success: false, firstTry: false });
+      recordFirstTryResult(card, { success: false, firstTry: false });
       submitGrade(ctx, card, gradePayload(ctx.algo, false), null, gradeOpts);
     };
 

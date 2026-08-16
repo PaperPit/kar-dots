@@ -91,7 +91,15 @@ export async function renderReview(folderId: string | null, opts: ReviewOpts = {
       queue = shuffle(dueCards.concat(newCards));
     } else {
       const { due: dueCards, fresh: newCards } = await store.getReviewCards(folderId || null, algo, budget, now);
-      queue = shuffle(dueCards.concat(newCards)).slice(0, dayLeft);
+      // Просроченное имеет приоритет над новым. Раньше здесь был общий
+      // shuffle(due + new).slice(dayLeft): при 40 просроченных, 20 новых и
+      // лимите 50 около семи ПРОСРОЧЕННЫХ карточек выбрасывалось случайно в
+      // пользу новых — то есть лимит съедали как раз те карточки, которые
+      // можно было бы и отложить. Сначала берём due, новыми добиваем остаток;
+      // финальный shuffle нужен, чтобы новые не шли одним блоком в конце.
+      const dueSlice = shuffle(dueCards).slice(0, dayLeft);
+      const newSlice = shuffle(newCards).slice(0, Math.max(0, dayLeft - dueSlice.length));
+      queue = shuffle(dueSlice.concat(newSlice));
     }
   }
 

@@ -60,6 +60,21 @@ export interface GradeContext {
   updateBar: () => void
 }
 
+/**
+ * Учитывает попытку по карточке ровно один раз за сессию.
+ * Проваленная карточка возвращается в очередь через min(3, len) — без этой
+ * защиты её верный ответ на втором показе снова увеличивал бы и attempted, и
+ * firstTryOk, то есть звёзды росли бы именно в тех сессиях, что прошли хуже.
+ * Возвращает true, если попытка засчитана впервые (нужно для отмены).
+ */
+export function recordFirstTry(ctx: GradeContext, cardId: string, ok: boolean): boolean {
+  if (ctx.sessionFirstTry.has(cardId)) return false;
+  ctx.sessionFirstTry.add(cardId);
+  ctx.stats.attempted++;
+  if (ok) ctx.stats.firstTryOk++;
+  return true;
+}
+
 export function dismissUndoToast(ctx: GradeContext, { clearPending = true } = {}) {
   if (ctx.undoToastDismiss) {
     ctx.undoToastDismiss();
@@ -76,6 +91,22 @@ export function gradePayload(algo: Algo, knowOrRating: boolean | number): Grade 
     return { fsrs: knowOrRating ? SRS.FsrsRating.Good : SRS.FsrsRating.Again };
   }
   return { q: knowOrRating ? 4 : 0 };
+}
+
+/**
+ * Оценка для режимов с проверяемым ответом (ввод / пропуски / голос).
+ *
+ * Верный ответ со ВТОРОЙ попытки — промах, а не успех: пользователь не смог
+ * воспроизвести ответ, а лишь узнал его после подсказки «Неверно». Раньше сюда
+ * уходил безусловный успех, из-за чего интервалы завышались ровно на тех
+ * карточках, которые человек путает, fsrs_lapses не рос, а журнал повторений
+ * (он же обучающая выборка оптимизатора FSRS) записывал known: true.
+ *
+ * Карточка вернётся в этой же сессии и будет доведена до одного верного
+ * воспроизведения — это и есть переучивание, а не двойное наказание.
+ */
+export function checkedAnswerPayload(algo: Algo, firstTry: boolean): Grade {
+  return gradePayload(algo, firstTry);
 }
 
 function gradeKnows(algo: Algo, g: Grade): boolean {
@@ -169,7 +200,17 @@ export function submitGrade(
       // а сессия — молча зависшей на текущей карточке.
       console.error('applyGrade failed:', e);
       toast(t('review.grade.saveFailed', { message: e instanceof Error ? e.message : String(e) }), 'error');
-    }).finally(() => { ctx.grading = false; });
+      // Снимаем блокировку только на ошибке: в обычном потоке её снимает
+      // showNext(), когда следующая карточка уже смонтирована.
+      ctx.grading = false;
+    });
+    // ВАЖНО: не сбрасывать ctx.grading здесь (.finally). Запись в IndexedDB
+    // завершается за единицы мс, а следующая карточка монтируется только через
+    // 240 мс — в этом окне старая карточка ещё в DOM вместе со своим
+    // обработчиком клавиш. CSS гасит повторный клик мышью, но не синтетический
+    // click() из onGradeKey и не стрелки, идущие в submitGrade напрямую:
+    // второй грейд проходил и ctx.queue.shift() выбрасывал следующую,
+    // ни разу не показанную карточку.
   };
   if (dir && ctx.currentSwipeWrap && ctx.currentBox) {
     animateCardExit(ctx.currentSwipeWrap, dir, run, ctx.currentBox);
@@ -258,10 +299,14 @@ export async function applyGrade(ctx: GradeContext, card: SrsCard, g: Grade, opt
   } else if (!opts.skipProgress) {
     ctx.done++;
   }
+  // Итоги «Знаю / Повторить» считаются по КАРТОЧКАМ и не зависят от того, как
+  // ведётся полоса прогресса. Раньше они стояли внутри !skipProgress, а раунд
+  // пар в «Миксе» идёт с skipProgress: true — из-за этого финиш такой сессии
+  // показывал «Знаю 0 / Повторить 0».
+  if (failed) ctx.stats.failed++;
+  else ctx.stats.known++;
   if (!opts.skipProgress) {
     ctx.answered++;
-    if (failed) ctx.stats.failed++;
-    else ctx.stats.known++;
     ctx.updateBar();
   }
   const cur = ctx.stage.firstChild as HTMLElement | null;
@@ -276,22 +321,32 @@ export async function applyGrade(ctx: GradeContext, card: SrsCard, g: Grade, opt
     }, delay);
   }
 
-const reviewSplit = failed ? { failed: 1 } : { known: 1 };
-   try {
-     await Promise.all([
-       store.updateCard(card.id ?? '', patch),
-       recordReview(1, reviewSplit),
-     ])
-   } catch (e) {
-     if (e instanceof Error && e.message.includes('saveFailed')) {
-       toast(t('review.grade.saveFailed', { message: e.message }), 'error')
-     } else {
-       console.error('grade save failed:', e)
-     }
-   }
-   let reviewLogId: string | null = null
-   try { reviewLogId = await logReview(buildLogEntry(ctx, card, g, failed, now)) }
-   catch (e) { /* журнал не критичен для оценки */ }
+  const reviewSplit = failed ? { failed: 1 } : { known: 1 };
+  try {
+    await Promise.all([
+      // Закрепление НЕ трогает расписание. getCramCards отдаёт все карточки
+      // папки независимо от срока, а sm2Next не смотрит на прошедшее время:
+      // «успех» на не наступившей карточке умножал бы интервал от сегодня, а
+      // промах — сбрасывал бы зрелую карточку в ноль. Это режим практики,
+      // как фильтрованная колода Anki без «Reschedule cards based on answers».
+      ctx.cram ? Promise.resolve(true) : store.updateCard(card.id ?? '', patch),
+      recordReview(1, reviewSplit, { cram: ctx.cram }),
+    ])
+  } catch (e) {
+    if (e instanceof Error && e.message.includes('saveFailed')) {
+      toast(t('review.grade.saveFailed', { message: e.message }), 'error')
+    } else {
+      console.error('grade save failed:', e)
+    }
+  }
+  let reviewLogId: string | null = null
+  // В журнал идут только плановые повторения: он же — обучающая выборка для
+  // оптимизатора FSRS, а у закрепления нет ни настоящего elapsed_days, ни
+  // последствий для расписания.
+  if (!ctx.cram) {
+    try { reviewLogId = await logReview(buildLogEntry(ctx, card, g, failed, now)) }
+    catch (e) { /* журнал не критичен для оценки */ }
+  }
 
   ctx.pendingUndo = {
     card: Object.assign({}, card),
@@ -345,9 +400,12 @@ export async function undoLastGrade(ctx: GradeContext) {
   if (u.failed) ctx.stats.failed = Math.max(0, ctx.stats.failed - 1);
   else ctx.stats.known = Math.max(0, ctx.stats.known - 1);
 
-  try { await store.updateCard(u.card.id ?? '', u.prevSnap); }
-  catch (e) { toast(t('review.grade.undoFailed', { message: e instanceof Error ? e.message : String(e) }), 'error'); return; }
-  try { await undoReview(1, u.reviewSplit); }
+  // В закреплении расписание не менялось — откатывать нечего.
+  if (!ctx.cram) {
+    try { await store.updateCard(u.card.id ?? '', u.prevSnap); }
+    catch (e) { toast(t('review.grade.undoFailed', { message: e instanceof Error ? e.message : String(e) }), 'error'); return; }
+  }
+  try { await undoReview(1, u.reviewSplit, { cram: ctx.cram }); }
   catch (e) { console.error('undoReview failed:', e); }
   if (u.reviewLogId) { try { await removeReview(u.reviewLogId); } catch (e) { /* ignore */ } }
   ctx.updateBar();
@@ -368,10 +426,6 @@ export async function gradeMatchResults(
 ) {
   if (ctx.grading) return;
   ctx.grading = true;
-  if (countAsOne) {
-    ctx.stats.attempted++;
-    if (results.every(r => r.know)) ctx.stats.firstTryOk++;
-  }
   // Без try/finally сбой в applyGrade оставил бы ctx.grading = true — сессия
   // перестала бы принимать оценки и не показала бы следующую карточку.
   try {
@@ -379,10 +433,12 @@ export async function gradeMatchResults(
       const r = results[i];
       if (!r) continue;
       const { card, know } = r;
-      if (!countAsOne) {
-        ctx.stats.attempted++;
-        if (know) ctx.stats.firstTryOk++;
-      }
+      // Считаем по карточкам всегда: countAsOne описывает полосу прогресса
+      // («раунд пар = один шаг»), а не статистику. Раньше при countAsOne
+      // firstTryOk рос максимум на 1 за раунд из 5 карточек, тогда как
+      // computeLessonStars делит на число карточек сессии — безупречный «Микс»
+      // структурно не мог получить больше одной звезды.
+      recordFirstTry(ctx, card.id ?? '', know);
       const idx = ctx.queue.findIndex(c => c.id === card.id);
       if (idx === -1) continue;
       const [item] = ctx.queue.splice(idx, 1);

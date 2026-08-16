@@ -5,6 +5,14 @@ export interface DayRecord {
   reviews?: number
   known?: number
   failed?: number
+  /**
+   * Подмножество `reviews`, сделанное в режиме закрепления (cram).
+   * Закрепление — практика сверх плана: оно попадает в календарь и в
+   * серию наравне с обычным повторением, но НЕ должно съедать дневной
+   * лимит повторений (иначе после закрепления папки обычная сессия
+   * упирается в лимит и отказывается запускаться).
+   */
+  cram?: number
 }
 
 export interface ActivityData {
@@ -46,8 +54,10 @@ function mergeDay(a: DayRecord | undefined, b: DayRecord | undefined): DayRecord
   }
   const known = Math.max(a?.known || 0, b?.known || 0)
   const failed = Math.max(a?.failed || 0, b?.failed || 0)
+  const cram = Math.max(a?.cram || 0, b?.cram || 0)
   if (known) out.known = known
   if (failed) out.failed = failed
+  if (cram) out.cram = cram
   return out
 }
 
@@ -197,12 +207,22 @@ export async function recordVisit(): Promise<ActivityData> {
   return data;
 }
 
-export async function recordReview(count: number = 1, split?: ReviewSplit): Promise<ActivityData> {
+export interface ReviewRecordOpts {
+  /** Оценка сделана в режиме закрепления — в дневной лимит не идёт. */
+  cram?: boolean
+}
+
+export async function recordReview(
+  count: number = 1,
+  split?: ReviewSplit,
+  opts: ReviewRecordOpts = {},
+): Promise<ActivityData> {
   const data = loadActivity();
   const k = dayKey();
   touchDay(data, k);
   const dayRecord = data.days[k]!;
   dayRecord.reviews = (dayRecord.reviews || 0) + count;
+  if (opts.cram) dayRecord.cram = (dayRecord.cram || 0) + count;
   const knownAdd = split?.known ?? 0;
   const failedAdd = split?.failed ?? 0;
   if (knownAdd) dayRecord.known = (dayRecord.known || 0) + knownAdd;
@@ -211,11 +231,18 @@ export async function recordReview(count: number = 1, split?: ReviewSplit): Prom
   return data;
 }
 
-export async function undoReview(count: number = 1, split?: ReviewSplit): Promise<ActivityData> {
+export async function undoReview(
+  count: number = 1,
+  split?: ReviewSplit,
+  opts: ReviewRecordOpts = {},
+): Promise<ActivityData> {
   const data = loadActivity();
   const k = dayKey();
   if (data.days[k]) {
     data.days[k].reviews = Math.max(0, (data.days[k].reviews || 0) - count);
+    if (opts.cram) {
+      data.days[k].cram = Math.max(0, (data.days[k].cram || 0) - count);
+    }
     if (split?.known) {
       data.days[k].known = Math.max(0, (data.days[k].known || 0) - split.known);
     }
@@ -225,6 +252,16 @@ export async function undoReview(count: number = 1, split?: ReviewSplit): Promis
   }
   await saveActivity(data);
   return data;
+}
+
+/**
+ * Повторения за день, идущие в дневной лимит: всё, кроме закрепления.
+ * Календарь и «жар» по-прежнему считают по `reviews` — практика в закреплении
+ * остаётся видимой, просто не блокирует плановые повторения.
+ */
+export function scheduledReviews(day: DayRecord | undefined): number {
+  if (!day) return 0;
+  return Math.max(0, (day.reviews || 0) - (day.cram || 0));
 }
 
 /** Известные / проваленные за день. Legacy без split: все reviews → known. */

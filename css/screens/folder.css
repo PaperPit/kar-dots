@@ -141,6 +141,14 @@
 }
 .card-row .srs-chip.due { background: var(--chip-due-bg); color: var(--terra-deep); }
 .card-row .srs-chip.new { background: var(--chip-new-bg); color: var(--ok-text); }
+/* «Шаткая» — карточка, которая чаще проваливается и отвечается медленнее
+   собственной нормы (js/lib/shaky.ts). Охра как предупреждение, а не
+   ошибка: карточка не сломана, ей просто нужно внимание. Заливка с
+   тёмной подписью — охра запрещена как цвет текста на бумаге. */
+.card-row .srs-chip.shaky {
+  background: var(--c-ochre);
+  color: var(--c-on-ochre);
+}
 .card-row.removing { opacity: 0; transform: translateX(30px); }
 
 /* --- пустая папка: клетка на фоне --------------------------- */

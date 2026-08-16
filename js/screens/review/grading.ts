@@ -52,6 +52,10 @@ export interface GradeContext {
   sessionFirstTry: Set<string>
   showNext: (advance: boolean) => void
   showNextTimer: ReturnType<typeof setTimeout> | null
+  /** Момент показа текущей карточки — для замера времени ответа. */
+  shownAt?: number | null
+  /** Формат, которым сейчас спрашивают: flip / type / cloze / voice / match. */
+  currentFormat?: string | null
   stage: HTMLElement
   stats: ReviewStats
   trackFlipFirstTry: (card: SrsCard, know: boolean) => boolean
@@ -151,6 +155,12 @@ function buildLogEntry(ctx: GradeContext, card: SrsCard, g: Grade, failed: boole
     stateBefore = reviewed ? 2 : 0
     if (reviewed) elapsedDays = card.sm2_ivl ?? 0
   }
+  // Время ответа: от показа карточки до оценки. В раунде «пар» показаны
+  // сразу пять карточек, и разложить общее время по ним нечестно — там
+  // длительность не пишется вовсе.
+  const durationMs =
+    ctx.currentFormat === "match" || !ctx.shownAt ? null : Math.max(0, now - ctx.shownAt)
+
   return buildReviewEntry({
     card_id: card.id ?? "",
     folder_id: card.folder_id ?? (card as { folderId?: string }).folderId ?? "",
@@ -160,7 +170,9 @@ function buildLogEntry(ctx: GradeContext, card: SrsCard, g: Grade, failed: boole
     elapsed_days: elapsedDays,
     state_before: stateBefore,
     stability_before: stabilityBefore,
-    ts: now
+    ts: now,
+    duration_ms: durationMs,
+    format: ctx.currentFormat ?? null
   })
 }
 

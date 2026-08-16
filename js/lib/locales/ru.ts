@@ -195,6 +195,9 @@ export const ru = {
     "Лексический пак — удаляется целиком через 🗑 или в Настройки → Каталог паков.",
   "folder.screen.chipNew": "новая",
   "folder.screen.chipDue": "пора",
+  "folder.screen.chipShaky": "шаткая",
+  "folder.screen.chipShakyHint":
+    "Чаще других проваливается и отвечается медленнее обычного. Такие карточки показываются в начале сессии — а формулировку, возможно, стоит упростить.",
   "folder.screen.chipIn": "через {when}",
   "folder.screen.imageOnly": "(картинка)",
   "folder.screen.deleteCardAria": "Удалить карточку: {front}",
@@ -577,6 +580,13 @@ export const ru = {
   "review.picker.continueTitle": "Продолжить заниматься",
   "review.picker.continueSub": "Повторите любые карточки — даже если план на сегодня уже выполнен.",
 
+  "review.goal.title": "Норма дня выполнена",
+  "review.goal.sub":
+    "Лучше вернуться завтра, чем выгореть сегодня — интервальное повторение работает именно так.",
+  "review.goal.statDone": "повторено",
+  "review.goal.statLimit": "норма",
+  "review.goal.extra": "Позаниматься сверх нормы",
+  "review.goal.changeLimit": "Изменить дневную норму",
   "review.empty.limitTitle": "На сегодня лимит",
   "review.empty.limitText":
     "Сегодня уже {done} {grades} из {limit}. Можно увеличить лимит в настройках или продолжить заниматься сверх плана.",

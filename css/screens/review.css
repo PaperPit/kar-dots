@@ -479,6 +479,18 @@
 }
 .review-done-stat.is-ok { background: var(--ok-soft); }
 .review-done-stat.is-fail { background: var(--danger-soft); }
+.review-done-stat.is-streak { background: var(--accent-soft); }
+.review-done-stat.is-streak .review-done-stat-val,
+.review-done-stat.is-streak .review-done-stat-lab { color: var(--accent-text); }
+/* Норма дня — достижение, поэтому смена лимита уведена в неприметную
+   ссылку под кнопками: предлагать «поднять планку» сразу после
+   выполненной нормы — ровно то переедание, что предсказывает уход. */
+.review-goal-settings {
+  display: block;
+  margin: var(--sp-4) auto 0;
+  font-size: var(--fs-small);
+  color: var(--ink-faint);
+}
 .review-done-stat-val {
   font-family: var(--font-display);
   font-weight: 800;

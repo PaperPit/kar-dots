@@ -48,7 +48,7 @@ describe("api/translate", () => {
     expect(fetchSpy).not.toHaveBeenCalled()
   })
 
-  it("отбрасывает транслит m2m и берёт нормальный ответ MyMemory", async () => {
+  it("отбрасывает транслит m2m и берёт gtx", async () => {
     const env = {
       AI: {
         run: vi.fn(async (model, input) => {
@@ -61,13 +61,13 @@ describe("api/translate", () => {
     }
     vi.stubGlobal(
       "fetch",
-      vi.fn(async () => ({
-        ok: true,
-        json: async () => ({
-          responseStatus: 200,
-          responseData: { translatedText: "лук" }
-        })
-      }))
+      vi.fn(async (url) => {
+        expect(String(url)).toContain("translate.googleapis.com")
+        return {
+          ok: true,
+          json: async () => [[["лук", "onion", null, null, 10]]]
+        }
+      })
     )
 
     const req = new Request("http://localhost/api/translate", {
@@ -80,14 +80,45 @@ describe("api/translate", () => {
     expect(await res.json()).toEqual({
       text: "лук",
       dir: "en-ru",
-      provider: "mymemory"
+      provider: "gtx"
     })
   })
 
-  it("без AI откатывается на MyMemory", async () => {
+  it("без AI берёт Google gtx", async () => {
     vi.stubGlobal(
       "fetch",
       vi.fn(async (url) => {
+        expect(String(url)).toContain("translate.googleapis.com")
+        expect(String(url)).toContain("sl=en")
+        expect(String(url)).toContain("tl=ru")
+        return {
+          ok: true,
+          json: async () => [[["лук", "onion", null, null, 10]]]
+        }
+      })
+    )
+
+    const req = new Request("http://localhost/api/translate", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ text: "onion", dir: "en-ru" })
+    })
+    const res = await handler(req, {}, "test")
+    expect(res.status).toBe(200)
+    expect(await res.json()).toEqual({
+      text: "лук",
+      dir: "en-ru",
+      provider: "gtx"
+    })
+  })
+
+  it("без AI откатывается на MyMemory если gtx упал", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url) => {
+        if (String(url).includes("translate.googleapis.com")) {
+          return { ok: false, status: 503, json: async () => ({}) }
+        }
         expect(String(url)).toContain("langpair=ru|en")
         expect(String(url)).toContain(encodeURIComponent("икра"))
         return {

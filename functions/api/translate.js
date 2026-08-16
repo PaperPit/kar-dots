@@ -3,13 +3,15 @@
 //
 // Клиент → same-origin /api/translate (CSP).
 //
-// Прод (Workers AI binding):
-//   1) Llama — смысловой перевод для карточек (не транслит)
-//   2) m2m100 с именами языков english/russian (ISO-коды en/ru
-//      у m2m100 на CF часто дают транслит вроде onion → «Онеон»)
-// Fallback без AI / при сбое: MyMemory (локальный npm run dev).
+// Порядок провайдеров:
+//   1) Workers AI Llama — смысловой перевод (нужен биндинг AI)
+//   2) Workers AI m2m100 с именами english/russian
+//   3) Google Translate gtx — работает с edge CF без ключа/биндинга
+//      (MyMemory с IP Cloudflare часто 502)
+//   4) MyMemory — последний шанс / локальный dev
 
 const MYMEMORY = "https://api.mymemory.translated.net/get"
+const GTX = "https://translate.googleapis.com/translate_a/single"
 const LLM_MODEL = "@cf/meta/llama-3.1-8b-instruct"
 const MT_MODEL = "@cf/meta/m2m100-1.2b"
 const UPSTREAM_TIMEOUT_MS = 12_000
@@ -197,6 +199,41 @@ async function translateWithMyMemory(text, from, to) {
   return out
 }
 
+/** Неофициальный Google Translate endpoint — обычно доступен с Workers. */
+async function translateWithGtx(text, from, to) {
+  const url = new URL(GTX)
+  url.searchParams.set("client", "gtx")
+  url.searchParams.set("sl", from)
+  url.searchParams.set("tl", to)
+  url.searchParams.set("dt", "t")
+  url.searchParams.set("q", text)
+  const res = await fetch(url.toString(), {
+    signal: AbortSignal.timeout(UPSTREAM_TIMEOUT_MS),
+    headers: { accept: "application/json" }
+  })
+  if (!res.ok) {
+    const err = new Error(`gtx status ${res.status}`)
+    err.code = "upstream"
+    throw err
+  }
+  const data = await res.json()
+  const chunks = Array.isArray(data?.[0]) ? data[0] : []
+  const out = chunks
+    .map((part) => (Array.isArray(part) ? String(part[0] || "") : ""))
+    .join("")
+    .trim()
+  if (!out) {
+    const err = new Error("empty")
+    err.code = "upstream"
+    throw err
+  }
+  return out
+}
+
+function acceptTranslation(source, out, dir) {
+  return !!out && !looksLikeTransliteration(source, out, dir)
+}
+
 async function handler(req, env = {}, subject = "") {
   if (req.method !== "POST") return json({ error: "bad-request", message: "Ожидается POST" }, 405)
 
@@ -214,31 +251,47 @@ async function handler(req, env = {}, subject = "") {
 
   const dir = payload?.dir === "en-ru" ? "en-ru" : "ru-en"
   const { from, to } = parseDir(dir)
+  const hasAi = !!(env?.AI && typeof env.AI.run === "function")
+  if (!hasAi) {
+    console.warn("[translate] AI binding missing — using HTTP fallbacks", { subject })
+  }
 
-  try {
-    const viaLlm = await translateWithLlm(env, text, from, to)
-    if (viaLlm && !looksLikeTransliteration(text, viaLlm, dir)) {
-      return json({ text: viaLlm, dir, provider: "workers-ai-llm" })
+  if (hasAi) {
+    try {
+      const viaLlm = await translateWithLlm(env, text, from, to)
+      if (acceptTranslation(text, viaLlm, dir)) {
+        return json({ text: viaLlm, dir, provider: "workers-ai-llm" })
+      }
+    } catch (e) {
+      console.error("[translate] llm failed", String(e?.message || e), { subject })
     }
-  } catch (e) {
-    console.error("[translate] llm failed", String(e?.message || e), { subject })
+
+    try {
+      const viaMt = await translateWithM2m(env, text, from, to)
+      if (acceptTranslation(text, viaMt, dir)) {
+        return json({ text: viaMt, dir, provider: "workers-ai-m2m" })
+      }
+      if (viaMt) {
+        console.warn("[translate] m2m transliteration rejected", { text, viaMt, dir, subject })
+      }
+    } catch (e) {
+      console.error("[translate] m2m failed", String(e?.message || e), { subject })
+    }
   }
 
   try {
-    const viaMt = await translateWithM2m(env, text, from, to)
-    if (viaMt && !looksLikeTransliteration(text, viaMt, dir)) {
-      return json({ text: viaMt, dir, provider: "workers-ai-m2m" })
+    const viaGtx = await translateWithGtx(text, from, to)
+    if (acceptTranslation(text, viaGtx, dir)) {
+      return json({ text: viaGtx, dir, provider: "gtx" })
     }
-    if (viaMt) {
-      console.warn("[translate] m2m transliteration rejected", { text, viaMt, dir, subject })
-    }
+    console.warn("[translate] gtx transliteration rejected", { text, viaGtx, dir, subject })
   } catch (e) {
-    console.error("[translate] m2m failed", String(e?.message || e), { subject })
+    console.error("[translate] gtx failed", String(e?.message || e), { subject })
   }
 
   try {
     const viaMm = await translateWithMyMemory(text, from, to)
-    if (looksLikeTransliteration(text, viaMm, dir)) {
+    if (!acceptTranslation(text, viaMm, dir)) {
       return json(
         {
           error: "bad-translation",
@@ -253,7 +306,14 @@ async function handler(req, env = {}, subject = "") {
     if (e?.code === "quota") {
       return json({ error: "quota", message: "Лимит перевода исчерпан, попробуйте позже" }, 429)
     }
-    return json({ error: "upstream", message: "Сервис перевода недоступен — попробуй позже" }, 502)
+    return json(
+      {
+        error: "upstream",
+        message: "Сервис перевода недоступен — попробуй позже",
+        detail: hasAi ? "ai+gtx+mymemory-failed" : "no-ai+gtx+mymemory-failed"
+      },
+      502
+    )
   }
 }
 

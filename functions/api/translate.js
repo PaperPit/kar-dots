@@ -7,11 +7,14 @@
 //   1) Gemini BYOK (ключ из настроек YouTube) — надёжный смысловой перевод
 //   2) Workers AI Llama (несколько моделей / messages+prompt)
 //   3) Workers AI m2m100 (english/russian); транслит отбрасываем
-//   4) Lingva / Google gtx / MyMemory — HTTP fallbacks
+//   4) Azure Translator — если задан секрет AZURE_TRANSLATOR_KEY в Pages
+//      (квота по ключу проекта, а не по IP — не падает вместе с gtx/MyMemory)
+//   5) Lingva / Google gtx / MyMemory — HTTP fallbacks без ключа
 
 const MYMEMORY = "https://api.mymemory.translated.net/get"
 const GTX = "https://translate.googleapis.com/translate_a/single"
 const LINGVA = "https://lingva.ml/api/v1"
+const AZURE_ENDPOINT = "https://api.cognitive.microsofttranslator.com/translate"
 const GEMINI_MODEL = "gemini-flash-latest"
 const LLM_MODELS = [
   "@cf/meta/llama-3.1-8b-instruct",
@@ -312,6 +315,44 @@ async function translateWithGtx(text, from, to) {
   return out
 }
 
+/**
+ * Azure Translator (F0 free tier — 2 млн симв/мес, без карты на регистрации).
+ * Квота держится за ключом проекта, а не за исходящим IP Cloudflare, поэтому
+ * не «падает вместе с» gtx/MyMemory, которых Google/MyMemory банят по IP edge.
+ * Без AZURE_TRANSLATOR_KEY в окружении Pages — тихо пропускается (null).
+ */
+async function translateWithAzure(env, text, from, to) {
+  const key = String(env?.AZURE_TRANSLATOR_KEY || "").trim()
+  if (!key) return null
+  const region = String(env?.AZURE_TRANSLATOR_REGION || "").trim()
+  const url = `${AZURE_ENDPOINT}?api-version=3.0&from=${from}&to=${to}`
+  const headers = {
+    "content-type": "application/json",
+    "Ocp-Apim-Subscription-Key": key
+  }
+  if (region) headers["Ocp-Apim-Subscription-Region"] = region
+
+  const res = await fetch(url, {
+    method: "POST",
+    headers,
+    body: JSON.stringify([{ Text: text }]),
+    signal: AbortSignal.timeout(UPSTREAM_TIMEOUT_MS)
+  })
+  if (!res.ok) {
+    const err = new Error(`azure status ${res.status}`)
+    err.code = res.status === 429 || res.status === 403 ? "quota" : "upstream"
+    throw err
+  }
+  const data = await res.json()
+  const out = String(data?.[0]?.translations?.[0]?.text || "").trim()
+  if (!out) {
+    const err = new Error("empty")
+    err.code = "upstream"
+    throw err
+  }
+  return out
+}
+
 async function translateWithLingva(text, from, to) {
   const url = `${LINGVA}/${from}/${to}/${encodeURIComponent(text)}`
   const res = await fetch(url, {
@@ -404,6 +445,20 @@ async function handler(req, env = {}, subject = "") {
     } catch (e) {
       failures.push(`llm:${e?.message || e}`)
       console.error("[translate] llm failed", String(e?.message || e), { subject })
+    }
+  }
+
+  try {
+    const viaAzure = await translateWithAzure(env, text, from, to)
+    if (acceptTranslation(text, viaAzure, dir)) {
+      return json({ text: viaAzure, dir, provider: "azure" })
+    }
+    if (viaAzure) failures.push("azure-translit")
+  } catch (e) {
+    failures.push(`azure:${e?.message || e}`)
+    console.error("[translate] azure failed", String(e?.message || e), { subject })
+    if (e?.code === "quota") {
+      return json({ error: "quota", message: "Лимит Azure исчерпан, попробуйте позже" }, 429)
     }
   }
 

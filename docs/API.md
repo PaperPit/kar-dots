@@ -67,13 +67,17 @@ Same-origin proxy for card-editor «Перевести» (CSP-safe).
 
 1. **Gemini BYOK** — если в теле есть `geminiApiKey` (Настройки → YouTube)
 2. Workers AI m2m100, затем Llama (транслит onion→«Онеон» отбрасывается)
-3. Lingva → Google gtx → MyMemory
+3. **Azure Translator** — если в окружении Pages задан секрет `AZURE_TRANSLATOR_KEY`
+   (опционально `AZURE_TRANSLATOR_REGION`); квота держится за ключом проекта,
+   а не за IP edge-узла Cloudflare, поэтому не гаснет вместе с gtx/MyMemory
+4. Lingva → Google gtx → MyMemory — без ключа, последний шанс
 
 **Body (JSON):** `text` (required), `dir` (`ru-en`|`en-ru`), optional `geminiApiKey`
 
-**Success:** `{ text, dir, provider?: "gemini" \| "workers-ai-llm" \| "workers-ai-m2m" \| "lingva" \| "gtx" \| "mymemory" }`
+**Success:** `{ text, dir, provider?: "gemini" \| "workers-ai-llm" \| "workers-ai-m2m" \| "azure" \| "lingva" \| "gtx" \| "mymemory" }`
 
-Если перевод нестабилен — добавь ключ Gemini в настройках (тот же, что для YouTube).
+Если перевод нестабилен — добавь ключ Gemini в настройках (тот же, что для YouTube)
+или заведи `AZURE_TRANSLATOR_KEY` в Cloudflare Pages → Settings → Environment variables (Secret).
 
 Limits: ~120 req/hour/subject.
 

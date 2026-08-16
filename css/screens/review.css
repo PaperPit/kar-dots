@@ -579,12 +579,10 @@
   border: 0 !important;
   outline: none !important;
 }
-/* Охра — только плашка под звездой, не stroke иконки */
+/* PNG уже с заливкой и скруглением — без цветной плашки под иконкой */
 .lesson-star.earned {
-  color: var(--c-on-ochre);
-  background: var(--c-ochre);
-  border-radius: var(--r-1);
-  padding: 4px;
+  background: transparent;
+  padding: 0;
   outline: none;
   border: none;
   box-shadow: none;

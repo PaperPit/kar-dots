@@ -25,6 +25,18 @@ export interface ReviewLogEntry {
   state_before: number
   /** Стабильность FSRS до оценки (если алгоритм FSRS), иначе null. */
   stability_before: number | null
+  /**
+   * Время от показа карточки до оценки, мс. Не влияет на планирование —
+   * только на порядок показа внутри сессии и пометку «шатких» (js/lib/shaky.ts).
+   * Локальное поле: в облако не уходит, потому что зависит от устройства.
+   */
+  duration_ms?: number | null
+  /**
+   * Формат извлечения: flip / type / cloze / voice / match.
+   * Без него оценки несопоставимы между собой — «верно» в парах и «верно»
+   * при полном воспроизведении означают разное. Локальное поле.
+   */
+  format?: string | null
 }
 
 export interface ReviewLogCloudSync {
@@ -90,6 +102,8 @@ export function buildReviewEntry(input: {
   state_before: number
   stability_before?: number | null
   ts?: number
+  duration_ms?: number | null
+  format?: string | null
 }): ReviewLogEntry {
   return {
     id: rid(),
@@ -101,8 +115,37 @@ export function buildReviewEntry(input: {
     known: input.known ? 1 : 0,
     elapsed_days: Math.max(0, Math.round(input.elapsed_days * 100) / 100),
     state_before: input.state_before,
-    stability_before: input.stability_before ?? null
+    stability_before: input.stability_before ?? null,
+    duration_ms:
+      input.duration_ms != null && input.duration_ms > 0 ? Math.round(input.duration_ms) : null,
+    format: input.format ?? null
   }
+}
+
+/**
+ * Колонки, которые существуют в облачной таблице review_log (миграция 0008).
+ * Локальные поля (duration_ms, format) намеренно не отправляются: их нет в
+ * схеме, а PostgREST на неизвестную колонку отвечает 42703 — код принимает
+ * это за «таблицы нет» и выключает синхронизацию журнала целиком.
+ */
+const CLOUD_COLUMNS = [
+  "id",
+  "ts",
+  "card_id",
+  "folder_id",
+  "algo",
+  "rating",
+  "known",
+  "elapsed_days",
+  "state_before",
+  "stability_before"
+] as const
+
+/** Запись без локальных полей — ровно то, что принимает облако. */
+export function toCloudEntry(entry: ReviewLogEntry): Record<string, unknown> {
+  const out: Record<string, unknown> = {}
+  for (const k of CLOUD_COLUMNS) out[k] = entry[k]
+  return out
 }
 
 /** Записать событие. Возвращает id (для отмены). Не бросает — журнал не должен ломать оценку. */
@@ -121,7 +164,11 @@ export async function logReview(entry: ReviewLogEntry): Promise<string> {
     console.warn("review-log put", e)
   }
   if (cloudSync) {
-    try { cloudSync.push(entry) } catch (e) { console.warn("review-log cloud push", e) }
+    try {
+      cloudSync.push(entry)
+    } catch (e) {
+      console.warn("review-log cloud push", e)
+    }
   }
   return entry.id
 }
@@ -142,7 +189,11 @@ export async function removeReview(id: string): Promise<void> {
     console.warn("review-log delete", e)
   }
   if (cloudSync) {
-    try { cloudSync.remove(id) } catch (e) { console.warn("review-log cloud remove", e) }
+    try {
+      cloudSync.remove(id)
+    } catch (e) {
+      console.warn("review-log cloud remove", e)
+    }
   }
 }
 
@@ -182,7 +233,9 @@ export async function lastReviewTs(): Promise<number> {
 }
 
 /** Слить события из облака (put тех, которых ещё нет). Возвращает число добавленных. */
-export async function applyRemoteReviews(rows: ReviewLogEntry[] | null | undefined): Promise<number> {
+export async function applyRemoteReviews(
+  rows: ReviewLogEntry[] | null | undefined
+): Promise<number> {
   if (!rows?.length) return 0
   const db = await openLogDB()
   if (!db) return 0

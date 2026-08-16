@@ -180,6 +180,9 @@ export const en: Record<string, MessageValue> = {
     "Vocabulary pack — delete entirely via 🗑 or in Settings → Pack catalog.",
   "folder.screen.chipNew": "new",
   "folder.screen.chipDue": "due",
+  "folder.screen.chipShaky": "shaky",
+  "folder.screen.chipShakyHint":
+    "Fails more often and takes longer than usual to answer. These come first in a session — and the wording may be worth simplifying.",
   "folder.screen.chipIn": "in {when}",
   "folder.screen.imageOnly": "(image)",
   "folder.screen.deleteCardAria": "Delete card: {front}",
@@ -552,6 +555,13 @@ export const en: Record<string, MessageValue> = {
   "review.picker.continueTitle": "Keep practicing",
   "review.picker.continueSub": "Review any cards — even if today’s plan is already done.",
 
+  "review.goal.title": "Daily goal complete",
+  "review.goal.sub":
+    "Better to come back tomorrow than to burn out today — that is exactly how spaced repetition works.",
+  "review.goal.statDone": "reviewed",
+  "review.goal.statLimit": "goal",
+  "review.goal.extra": "Practice beyond the goal",
+  "review.goal.changeLimit": "Change the daily goal",
   "review.empty.limitTitle": "Daily limit reached",
   "review.empty.limitText":
     "Today you’ve done {done} {grades} of {limit}. Raise the limit in settings — or keep practicing beyond the plan.",

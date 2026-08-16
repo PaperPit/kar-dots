@@ -24,6 +24,7 @@ import {
   COMBO_MATCH_BATCH
 } from "./modes/match.js"
 import { finishProgressAnswered } from "../../lib/review-progress.js"
+import { pickLadderFormat, rungFor, type LadderRung } from "../../lib/format-ladder.js"
 import {
   gradePayload,
   renderGrades,
@@ -52,6 +53,8 @@ export interface ReviewSessionContext extends GradeContext {
   mode: ReviewMode
   cramPromptSide?: "front" | "back"
   gradesVisible: boolean
+  /** Ступень лестницы форматов у текущей карточки (только режим «Микс»). */
+  currentRung?: LadderRung
   editBtn: HTMLElement
   speakBtn: HTMLElement
   folderId?: string
@@ -163,6 +166,8 @@ export function runReviewSession(ctx: ReviewSessionContext) {
     if (!first) box.classList.add("card-swap-in")
     ctx.stage.innerHTML = ""
     ctx.stage.append(box)
+    // Отсчёт времени ответа начинается в момент появления карточки на экране.
+    ctx.shownAt = Date.now()
   }
 
   function cardWorksInMode(card: SrsCard, side: "front" | "back") {
@@ -189,21 +194,49 @@ export function runReviewSession(ctx: ReviewSessionContext) {
     }
   }
 
+  const ladderOpts = { leitnerIntervals: store.settings.leitnerIntervals }
+
+  /**
+   * Карточки нижней ступени — только они годятся в раунд «пар».
+   * Пары дают узнавание, а не воспроизведение: набирать их с головы очереди
+   * без разбора означало бы спрашивать зрелую карточку самым лёгким из
+   * форматов, ровно то, что лестница и должна прекратить.
+   */
+  function introQueue(): Card[] {
+    return ctx.queue.filter((c) => rungFor(c, ctx.algo, ladderOpts) === "intro") as Card[]
+  }
+
   function canComboMatchRound() {
-    const side = pickSide()
-    const { batch } = pickMatchBatch(
-      ctx.queue as Card[],
-      COMBO_MATCH_BATCH,
-      COMBO_MATCH_BATCH,
-      side
-    )
+    const { batch } = pickMatchBatch(introQueue(), COMBO_MATCH_BATCH, COMBO_MATCH_BATCH, pickSide())
     return batch.length >= COMBO_MATCH_BATCH
   }
 
+  /**
+   * Формат для текущей карточки в режиме «Микс» — по силе следа памяти,
+   * а не жребием (см. js/lib/format-ladder.ts). Пары достаются только
+   * впервые встреченным карточкам, полное воспроизведение — зрелым.
+   *
+   * Раньше здесь было три подряд Math.random(): карточка, увиденная
+   * впервые, и карточка со стабильностью в полгода с равной вероятностью
+   * попадали в «пары» — самый лёгкий формат из всех.
+   */
   function pickComboSubMode(): ReviewMode {
-    if (canComboMatchRound() && Math.random() < 0.33) return "match"
-    if (speechRecognitionSupported()) return Math.random() < 0.5 ? "type" : "voice"
-    return "type"
+    const card = ctx.queue[0]
+    if (!card) return "type"
+    const answer = getExpectedAnswer(card, pickSide())
+    const promptText = getExpectedAnswer(card, pickSide() === "front" ? "back" : "front")
+    const { format, rung } = pickLadderFormat(
+      card,
+      ctx.algo,
+      {
+        canMatch: canComboMatchRound(),
+        canCloze: canBuildCloze(answer, { promptText }),
+        canVoice: speechRecognitionSupported()
+      },
+      { leitnerIntervals: store.settings.leitnerIntervals }
+    )
+    ctx.currentRung = rung
+    return format as ReviewMode
   }
 
   function recordFirstTryResult(
@@ -268,6 +301,7 @@ export function runReviewSession(ctx: ReviewSessionContext) {
     ctx.editBtn.style.visibility = ""
     ctx.editBtn.onclick = () => cardDialog(card.folder_id ?? "", card, reviewCardDialogOpts(card))
     ctx.currentIsNew = SRS.isNew(card, ctx.algo)
+    ctx.currentFormat = activeMode
 
     const promptSide = pickSide()
     const gradeOpts = { quiet: true }
@@ -378,25 +412,30 @@ export function runReviewSession(ctx: ReviewSessionContext) {
     }
 
     const minBatch = countAsOne ? batchSize : MIN_BATCH
-    const { batch, single } = pickMatchBatch(ctx.queue as Card[], minBatch, batchSize, pickSide())
+    // В «Миксе» пары — нижняя ступень лестницы, поэтому раунд собирается
+    // только из впервые встреченных карточек. В отдельном режиме «Пары»
+    // пользователь выбрал формат сам — там годится вся очередь.
+    const pool = ctx.mode === "combo" ? introQueue() : (ctx.queue as Card[])
+    const { batch, single } = pickMatchBatch(pool, minBatch, batchSize, pickSide())
     if (single && batch.length === 1) {
-      showStudyCard(first, "type")
+      // Одна карточка — пары не из чего строить. В «Миксе» спрашиваем её
+      // по ступени: новую карточку нельзя сразу отправлять в полный ввод.
+      showStudyCard(first, ctx.mode === "combo" ? pickComboSubMode() : "type")
       return
     }
     if (batch.length < minBatch) {
       if (ctx.queue.length) {
-        if (ctx.mode === "combo") {
-          showStudyCard(
-            first,
-            speechRecognitionSupported() && Math.random() < 0.5 ? "voice" : "type"
-          )
-        } else showStudyCard(first, "type")
+        // Раунд не набрался — спрашиваем той же ступенью лестницы, что и
+        // выбрал бы «Микс», а не жребием между вводом и голосом.
+        if (ctx.mode === "combo") showStudyCard(first, pickComboSubMode())
+        else showStudyCard(first, "type")
       } else finish()
       return
     }
 
     ctx.editBtn.style.visibility = "hidden"
     ctx.speakBtn.style.display = "none"
+    ctx.currentFormat = "match"
 
     const widget = createMatchRound(batch, {
       promptSide: pickSide(),

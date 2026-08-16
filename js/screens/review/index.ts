@@ -27,9 +27,27 @@ import { t, tp } from "../../lib/i18n.js"
 import * as SRS from "../../lib/srs.js"
 import { studyModePicker } from "./mode-picker.js"
 import { runReviewSession, type ReviewSessionContext, type ReviewMode } from "./session.js"
+import { computeShakiness, orderByShakiness } from "../../lib/shaky.js"
+import { getAllReviews } from "../../lib/review-log.js"
+import { calcVisitStreak, loadActivity } from "../../lib/activity.js"
 import type { Folder } from "../../data/types.js"
 
 let reviewSession = 0
+
+/**
+ * Поднять «шаткие» карточки в начало очереди. Журнал — не критичный
+ * источник: если он пуст или недоступен, порядок остаётся прежним.
+ */
+async function orderQueueByShakiness<T extends { id?: string }>(queue: T[]): Promise<T[]> {
+  try {
+    const entries = await getAllReviews()
+    if (!entries.length) return queue
+    return orderByShakiness(queue, computeShakiness(entries))
+  } catch (e) {
+    console.warn("[kar] shaky ordering skipped:", e)
+    return queue
+  }
+}
 
 interface ReviewOpts {
   cram?: boolean
@@ -133,6 +151,11 @@ export async function renderReview(folderId: string | null, opts: ReviewOpts = {
       const dueSlice = shuffle(dueCards).slice(0, dayLeft)
       const newSlice = shuffle(newCards).slice(0, Math.max(0, dayLeft - dueSlice.length))
       queue = shuffle(dueSlice.concat(newSlice))
+      // «Шаткие» — те, что чаще проваливались и отвечались медленнее своей
+      // же нормы, — идут первыми: они ближе всех к забыванию, внимание в
+      // начале сессии свежее, а если сессию бросят на середине, сделанной
+      // окажется самая ценная часть. Расписание при этом не меняется.
+      queue = await orderQueueByShakiness(queue)
     }
   }
 
@@ -159,49 +182,63 @@ export async function renderReview(folderId: string | null, opts: ReviewOpts = {
       return
     }
     if (dayLimitHit) {
+      // Норма дня — достижение, а не отказ. Переедание уроков у Duolingo
+      // оказалось предиктором ухода, а разрешённая остановка, наоборот,
+      // повышает возврат. Поэтому здесь празднуем выполненную норму, а
+      // «позаниматься сверх» предлагаем закреплением: оно не трогает ни
+      // расписание, ни дневной счётчик.
       const limit = store.settings.reviewsPerDay || 50
       const done = reviewsTodayCount()
+      const streak = calcVisitStreak(loadActivity())
       const poolCount = folderId ? await store.countCards(folderId) : await store.countCards(null)
       shellEmptyReview([
         trophyBox(),
-        el("h2", null, t("review.empty.limitTitle")),
-        el(
-          "p",
-          null,
-          t("review.empty.limitText", {
-            done,
-            grades: tp("common.grade", done),
-            limit
-          })
-        ),
+        el("h2", null, t("review.goal.title")),
+        el("p", { class: "review-done-sub" }, t("review.goal.sub")),
+        el("div", { class: "review-done-stats" }, [
+          el("div", { class: "review-done-stat is-ok" }, [
+            el("div", { class: "review-done-stat-val" }, String(done)),
+            el("div", { class: "review-done-stat-lab" }, t("review.goal.statDone"))
+          ]),
+          el("div", { class: "review-done-stat" }, [
+            el("div", { class: "review-done-stat-val" }, String(limit)),
+            el("div", { class: "review-done-stat-lab" }, t("review.goal.statLimit"))
+          ]),
+          streak > 0
+            ? el("div", { class: "review-done-stat is-streak" }, [
+                el("div", { class: "review-done-stat-val" }, String(streak)),
+                el("div", { class: "review-done-stat-lab" }, tp("common.day", streak))
+              ])
+            : null
+        ]),
         el("div", { class: "review-done-actions" }, [
+          el(
+            "button",
+            {
+              class: "btn accent big",
+              onclick: () => nav(folderId ? "#folder/" + folderId : "#home")
+            },
+            folderId ? t("review.empty.toFolder") : t("review.empty.toFolders")
+          ),
           poolCount
             ? el(
                 "button",
                 {
-                  class: "btn accent big review-done-again",
+                  class: "btn big",
                   onclick: () => studyModePicker({ folderId, cram: true })
                 },
-                t("review.empty.continue")
+                t("review.goal.extra")
               )
-            : null,
-          el(
-            "button",
-            {
-              class: "btn big",
-              onclick: () => nav("#settings")
-            },
-            t("review.empty.toSettings")
-          ),
-          el(
-            "button",
-            {
-              class: "btn big review-done-home",
-              onclick: () => nav(folderId ? "#folder/" + folderId : "#home")
-            },
-            folderId ? t("review.empty.toFolder") : t("review.empty.toFolders")
-          )
-        ])
+            : null
+        ]),
+        el(
+          "button",
+          {
+            class: "link-btn review-goal-settings",
+            onclick: () => nav("#settings")
+          },
+          t("review.goal.changeLimit")
+        )
       ])
       return
     }

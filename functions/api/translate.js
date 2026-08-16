@@ -1,18 +1,23 @@
 // Cloudflare Pages Function: перевод текста.
-// POST { text, dir: 'ru-en' | 'en-ru' }
+// POST { text, dir: 'ru-en' | 'en-ru', geminiApiKey?: string }
 //
 // Клиент → same-origin /api/translate (CSP).
 //
-// Порядок провайдеров:
-//   1) Workers AI Llama — смысловой перевод (нужен биндинг AI)
-//   2) Workers AI m2m100 с именами english/russian
-//   3) Google Translate gtx — работает с edge CF без ключа/биндинга
-//      (MyMemory с IP Cloudflare часто 502)
-//   4) MyMemory — последний шанс / локальный dev
+// Порядок:
+//   1) Gemini BYOK (ключ из настроек YouTube) — надёжный смысловой перевод
+//   2) Workers AI Llama (несколько моделей / messages+prompt)
+//   3) Workers AI m2m100 (english/russian); транслит отбрасываем
+//   4) Lingva / Google gtx / MyMemory — HTTP fallbacks
 
 const MYMEMORY = "https://api.mymemory.translated.net/get"
 const GTX = "https://translate.googleapis.com/translate_a/single"
-const LLM_MODEL = "@cf/meta/llama-3.1-8b-instruct"
+const LINGVA = "https://lingva.ml/api/v1"
+const GEMINI_MODEL = "gemini-flash-latest"
+const LLM_MODELS = [
+  "@cf/meta/llama-3.1-8b-instruct",
+  "@cf/meta/llama-3.2-3b-instruct",
+  "@cf/meta/llama-3.2-1b-instruct"
+]
 const MT_MODEL = "@cf/meta/m2m100-1.2b"
 const UPSTREAM_TIMEOUT_MS = 12_000
 const MAX_TEXT = 500
@@ -126,7 +131,6 @@ function looksLikeTransliteration(source, target, dir) {
 function cleanLlmTranslation(raw) {
   let out = String(raw || "").trim()
   if (!out) return ""
-  // Берём первую непустую строку, без кавычек и префиксов «Translation:».
   out = out
     .split(/\r?\n/)
     .map((l) => l.trim())
@@ -137,31 +141,107 @@ function cleanLlmTranslation(raw) {
   return out.slice(0, MAX_TEXT)
 }
 
-async function translateWithLlm(env, text, from, to) {
-  if (!env?.AI || typeof env.AI.run !== "function") return null
-  const fromName = from === "ru" ? "Russian" : "English"
-  const toName = to === "ru" ? "Russian" : "English"
-  const result = await env.AI.run(LLM_MODEL, {
-    messages: [
-      {
-        role: "system",
-        content:
-          "You are a bilingual dictionary for language-learning flashcards. " +
-          "Reply with ONLY the translation of the word or short phrase. " +
-          "No quotes, no transliteration, no pronunciation, no explanations. " +
-          "Use the most common everyday meaning."
-      },
-      {
-        role: "user",
-        content: `Translate from ${fromName} to ${toName}:\n${text}`
-      }
-    ],
+function cleanGeminiApiKey(raw) {
+  const s = String(raw || "")
+    .replace(/[\u200B-\u200D\uFEFF]/g, "")
+    .trim()
+    .replace(/\s+/g, "")
+  if (!s) return ""
+  if (/^(?:AIza[A-Za-z0-9_-]{10,}|AQ\.[A-Za-z0-9._-]{20,})$/.test(s)) return s.slice(0, 512)
+  if (/^AQ\./.test(s) && s.length >= 24 && s.length <= 512) return s
+  if (/^AIza/.test(s) && s.length >= 20 && s.length <= 512) return s
+  return ""
+}
+
+function langLabel(code) {
+  return code === "ru" ? "Russian" : "English"
+}
+
+async function translateWithGemini(apiKey, text, from, to, env) {
+  const key = cleanGeminiApiKey(apiKey)
+  if (!key) return null
+  const model = String(env?.GEMINI_MODEL || GEMINI_MODEL)
+  const fromName = langLabel(from)
+  const toName = langLabel(to)
+  const prompt =
+    `You are a bilingual dictionary for language-learning flashcards.\n` +
+    `Translate from ${fromName} to ${toName}.\n` +
+    `Reply with ONLY the translation. No quotes, no transliteration, no pronunciation, no explanations.\n` +
+    `Use the most common everyday meaning.\n\n` +
+    text
+  const res = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,
+    {
+      method: "POST",
+      headers: { "content-type": "application/json", "x-goog-api-key": key },
+      body: JSON.stringify({
+        contents: [{ role: "user", parts: [{ text: prompt }] }],
+        generationConfig: { temperature: 0, maxOutputTokens: 64 }
+      }),
+      signal: AbortSignal.timeout(UPSTREAM_TIMEOUT_MS)
+    }
+  )
+  if (!res.ok) {
+    const err = new Error(`gemini status ${res.status}`)
+    err.code = res.status === 429 ? "quota" : "upstream"
+    throw err
+  }
+  const body = await res.json()
+  const raw = body?.candidates?.[0]?.content?.parts?.map((p) => p.text || "").join("") || ""
+  const out = cleanLlmTranslation(raw)
+  return out || null
+}
+
+async function runLlmOnce(env, model, text, from, to, hintBad) {
+  const fromName = langLabel(from)
+  const toName = langLabel(to)
+  const system =
+    "You are a bilingual dictionary for language-learning flashcards. " +
+    "Reply with ONLY the translation of the word or short phrase. " +
+    "No quotes, no transliteration, no pronunciation, no explanations. " +
+    "Use the most common everyday meaning."
+  let user = `Translate from ${fromName} to ${toName}:\n${text}`
+  if (hintBad) {
+    user += `\n\nWrong transliteration to avoid: «${hintBad}». Give the real meaning.`
+  }
+
+  try {
+    const result = await env.AI.run(model, {
+      messages: [
+        { role: "system", content: system },
+        { role: "user", content: user }
+      ],
+      max_tokens: 64,
+      temperature: 0
+    })
+    const raw = result?.response ?? result?.result?.response ?? ""
+    const out = cleanLlmTranslation(raw)
+    if (out) return out
+  } catch {
+    /* try prompt format */
+  }
+
+  const prompt = `${system}\n\n${user}\n\nTranslation:`
+  const result = await env.AI.run(model, {
+    prompt,
     max_tokens: 64,
     temperature: 0
   })
-  const raw = result?.response ?? result?.result?.response ?? result?.translated_text ?? ""
-  const out = cleanLlmTranslation(raw)
-  return out || null
+  const raw = result?.response ?? result?.result?.response ?? ""
+  return cleanLlmTranslation(raw) || null
+}
+
+async function translateWithLlm(env, text, from, to, hintBad = "") {
+  if (!env?.AI || typeof env.AI.run !== "function") return null
+  for (const model of LLM_MODELS) {
+    try {
+      const out = await runLlmOnce(env, model, text, from, to, hintBad)
+      if (out) return out
+    } catch (e) {
+      console.error("[translate] llm model failed", model, String(e?.message || e))
+    }
+  }
+  return null
 }
 
 async function translateWithM2m(env, text, from, to) {
@@ -199,7 +279,6 @@ async function translateWithMyMemory(text, from, to) {
   return out
 }
 
-/** Неофициальный Google Translate endpoint — обычно доступен с Workers. */
 async function translateWithGtx(text, from, to) {
   const url = new URL(GTX)
   url.searchParams.set("client", "gtx")
@@ -209,7 +288,10 @@ async function translateWithGtx(text, from, to) {
   url.searchParams.set("q", text)
   const res = await fetch(url.toString(), {
     signal: AbortSignal.timeout(UPSTREAM_TIMEOUT_MS),
-    headers: { accept: "application/json" }
+    headers: {
+      accept: "application/json",
+      "user-agent": "Mozilla/5.0 (compatible; KAR-tochki/1.0)"
+    }
   })
   if (!res.ok) {
     const err = new Error(`gtx status ${res.status}`)
@@ -222,6 +304,27 @@ async function translateWithGtx(text, from, to) {
     .map((part) => (Array.isArray(part) ? String(part[0] || "") : ""))
     .join("")
     .trim()
+  if (!out) {
+    const err = new Error("empty")
+    err.code = "upstream"
+    throw err
+  }
+  return out
+}
+
+async function translateWithLingva(text, from, to) {
+  const url = `${LINGVA}/${from}/${to}/${encodeURIComponent(text)}`
+  const res = await fetch(url, {
+    signal: AbortSignal.timeout(UPSTREAM_TIMEOUT_MS),
+    headers: { accept: "application/json" }
+  })
+  if (!res.ok) {
+    const err = new Error(`lingva status ${res.status}`)
+    err.code = "upstream"
+    throw err
+  }
+  const data = await res.json()
+  const out = String(data?.translation || "").trim()
   if (!out) {
     const err = new Error("empty")
     err.code = "upstream"
@@ -252,69 +355,90 @@ async function handler(req, env = {}, subject = "") {
   const dir = payload?.dir === "en-ru" ? "en-ru" : "ru-en"
   const { from, to } = parseDir(dir)
   const hasAi = !!(env?.AI && typeof env.AI.run === "function")
+  const failures = []
+
+  const geminiKey = cleanGeminiApiKey(payload?.geminiApiKey)
+  if (geminiKey) {
+    try {
+      const viaGemini = await translateWithGemini(geminiKey, text, from, to, env)
+      if (acceptTranslation(text, viaGemini, dir)) {
+        return json({ text: viaGemini, dir, provider: "gemini" })
+      }
+      if (viaGemini) failures.push("gemini-translit")
+    } catch (e) {
+      failures.push(`gemini:${e?.message || e}`)
+      console.error("[translate] gemini failed", String(e?.message || e), { subject })
+      if (e?.code === "quota") {
+        return json({ error: "quota", message: "Лимит Gemini исчерпан — попробуйте позже" }, 429)
+      }
+    }
+  }
+
   if (!hasAi) {
     console.warn("[translate] AI binding missing — using HTTP fallbacks", { subject })
   }
 
+  let badMt = ""
   if (hasAi) {
-    try {
-      const viaLlm = await translateWithLlm(env, text, from, to)
-      if (acceptTranslation(text, viaLlm, dir)) {
-        return json({ text: viaLlm, dir, provider: "workers-ai-llm" })
-      }
-    } catch (e) {
-      console.error("[translate] llm failed", String(e?.message || e), { subject })
-    }
-
     try {
       const viaMt = await translateWithM2m(env, text, from, to)
       if (acceptTranslation(text, viaMt, dir)) {
         return json({ text: viaMt, dir, provider: "workers-ai-m2m" })
       }
       if (viaMt) {
+        badMt = viaMt
+        failures.push("m2m-translit")
         console.warn("[translate] m2m transliteration rejected", { text, viaMt, dir, subject })
       }
     } catch (e) {
+      failures.push(`m2m:${e?.message || e}`)
       console.error("[translate] m2m failed", String(e?.message || e), { subject })
     }
+
+    try {
+      const viaLlm = await translateWithLlm(env, text, from, to, badMt)
+      if (acceptTranslation(text, viaLlm, dir)) {
+        return json({ text: viaLlm, dir, provider: "workers-ai-llm" })
+      }
+      if (viaLlm) failures.push("llm-translit")
+    } catch (e) {
+      failures.push(`llm:${e?.message || e}`)
+      console.error("[translate] llm failed", String(e?.message || e), { subject })
+    }
   }
 
-  try {
-    const viaGtx = await translateWithGtx(text, from, to)
-    if (acceptTranslation(text, viaGtx, dir)) {
-      return json({ text: viaGtx, dir, provider: "gtx" })
+  for (const [name, fn] of [
+    ["lingva", translateWithLingva],
+    ["gtx", translateWithGtx],
+    ["mymemory", translateWithMyMemory]
+  ]) {
+    try {
+      const via = await fn(text, from, to)
+      if (acceptTranslation(text, via, dir)) {
+        return json({ text: via, dir, provider: name })
+      }
+      failures.push(`${name}-translit`)
+      console.warn(`[translate] ${name} transliteration rejected`, { text, via, dir, subject })
+    } catch (e) {
+      failures.push(`${name}:${e?.message || e}`)
+      console.error(`[translate] ${name} failed`, String(e?.message || e), { subject })
+      if (e?.code === "quota") {
+        return json({ error: "quota", message: "Лимит перевода исчерпан, попробуйте позже" }, 429)
+      }
     }
-    console.warn("[translate] gtx transliteration rejected", { text, viaGtx, dir, subject })
-  } catch (e) {
-    console.error("[translate] gtx failed", String(e?.message || e), { subject })
   }
 
-  try {
-    const viaMm = await translateWithMyMemory(text, from, to)
-    if (!acceptTranslation(text, viaMm, dir)) {
-      return json(
-        {
-          error: "bad-translation",
-          message: "Перевод подозрительный (похоже на транслит) — введите вручную"
-        },
-        422
-      )
-    }
-    return json({ text: viaMm, dir, provider: "mymemory" })
-  } catch (e) {
-    console.error("[translate] mymemory failed", String(e?.message || e), { subject })
-    if (e?.code === "quota") {
-      return json({ error: "quota", message: "Лимит перевода исчерпан, попробуйте позже" }, 429)
-    }
-    return json(
-      {
-        error: "upstream",
-        message: "Сервис перевода недоступен — попробуй позже",
-        detail: hasAi ? "ai+gtx+mymemory-failed" : "no-ai+gtx+mymemory-failed"
-      },
-      502
-    )
-  }
+  const hint = geminiKey
+    ? "Все провайдеры недоступны — попробуй позже"
+    : "Сервис перевода недоступен. Добавь ключ Gemini в Настройки → YouTube — перевод станет стабильнее"
+  return json(
+    {
+      error: "upstream",
+      message: hint,
+      detail: failures.slice(0, 8).join("|") || (hasAi ? "ai-failed" : "no-ai")
+    },
+    502
+  )
 }
 
 export const onRequestPost = (ctx) => handler(ctx.request, ctx.env, ctx?.data?.subject || "")

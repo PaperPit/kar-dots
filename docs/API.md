@@ -65,14 +65,15 @@ Same-origin proxy for card-editor «Перевести» (CSP-safe).
 
 **Upstream (prod):**
 
-1. Workers AI Llama (if `AI` binding is set in Pages)
-2. Workers AI m2m100 with language names `english`/`russian`
-3. **Google Translate gtx** — reliable from Cloudflare edge without a key (MyMemory often returns 502 from CF IPs)
-4. MyMemory last
+1. **Gemini BYOK** — если в теле есть `geminiApiKey` (Настройки → YouTube)
+2. Workers AI m2m100, затем Llama (транслит onion→«Онеон» отбрасывается)
+3. Lingva → Google gtx → MyMemory
 
-**Success:** `{ text, dir, provider?: "workers-ai-llm" \| "workers-ai-m2m" \| "gtx" \| "mymemory" }`
+**Body (JSON):** `text` (required), `dir` (`ru-en`|`en-ru`), optional `geminiApiKey`
 
-If translate keeps returning 502 after deploy, add Pages → Settings → Bindings → Workers AI (`AI`), then redeploy.
+**Success:** `{ text, dir, provider?: "gemini" \| "workers-ai-llm" \| "workers-ai-m2m" \| "lingva" \| "gtx" \| "mymemory" }`
+
+Если перевод нестабилен — добавь ключ Gemini в настройках (тот же, что для YouTube).
 
 Limits: ~120 req/hour/subject.
 

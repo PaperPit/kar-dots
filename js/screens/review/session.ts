@@ -360,7 +360,7 @@ export function runReviewSession(ctx: ReviewSessionContext) {
           class: 'btn accent review-done-again',
           onclick: () => studyModePicker({
             folderId: ctx.folderId || undefined,
-            cram: ctx.cram || undefined,
+            cram: true,
           }),
         }, t('review.session.again')),
         el('button', {

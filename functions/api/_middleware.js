@@ -42,6 +42,7 @@ const ENDPOINT_LIMITS = {
   'yt-generate': 20,
   tts: 40,
   'stock-search': 120,
+  translate: 120,
 };
 const DEFAULT_ENDPOINT_LIMIT = 60;
 

@@ -1,14 +1,4 @@
-const API = "https://api.mymemory.translated.net/get"
 const PAUSE_MS = 320
-
-function langPair(from: string, to: string): string {
-  return `${from}|${to}`
-}
-
-function parseDir(dir: string): { from: string; to: string } {
-  if (dir === "en-ru") return { from: "en", to: "ru" }
-  return { from: "ru", to: "en" }
-}
 
 const DIR_LABELS: Record<string, string> = { "ru-en": "RU → EN", "en-ru": "EN → RU" }
 
@@ -35,19 +25,37 @@ export function setTranslateDir(dir: string): void {
   } catch (e) { console.warn('[kar] setTranslateDir failed:', e); }
 }
 
+function normalizeDir(dir: string): "ru-en" | "en-ru" {
+  return dir === "en-ru" ? "en-ru" : "ru-en"
+}
+
 export async function translateText(text: string, dir: string = getTranslateDir()): Promise<string> {
   const q = String(text || "").trim()
   if (!q) throw new Error("Нечего переводить")
-  const { from, to } = parseDir(dir)
-  const url = `${API}?q=${encodeURIComponent(q)}&langpair=${langPair(from, to)}`
-  const res = await fetch(url)
-  if (!res.ok) throw new Error("Сервис перевода недоступен")
-  const data = await res.json()
-  const out = data?.responseData?.translatedText?.trim()
-  if (!out) throw new Error("Перевод не получен")
-  if (data.responseStatus && data.responseStatus !== 200) {
-    throw new Error(data.responseDetails || "Лимит перевода исчерпан, попробуйте позже")
+
+  let res: Response
+  try {
+    res = await fetch("/api/translate", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ text: q, dir: normalizeDir(dir) }),
+    })
+  } catch {
+    throw new Error("Нет соединения с сервером перевода")
   }
+
+  let data: { text?: string; message?: string; error?: string } = {}
+  try {
+    data = await res.json()
+  } catch {
+    /* ignore */
+  }
+
+  if (!res.ok) {
+    throw new Error(data.message || "Сервис перевода недоступен")
+  }
+  const out = String(data.text || "").trim()
+  if (!out) throw new Error("Перевод не получен")
   return out
 }
 

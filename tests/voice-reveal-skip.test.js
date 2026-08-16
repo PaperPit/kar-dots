@@ -35,7 +35,7 @@ describe('voice mode reveal translation + skip', () => {
 
     const startBtn = widget.box.querySelector('.study-mic-btn');
     const revealBtn = widget.box.querySelector('.study-voice-reveal-translation-btn');
-    expect(startBtn?.textContent).toMatch(/Сказать ответ|Say answer/i);
+    expect(startBtn?.textContent).toMatch(/Сказать перевод|Say translation/i);
     expect(revealBtn).toBeTruthy();
 
     revealBtn.click();

@@ -77,11 +77,13 @@ function asPagesHandler(exportName, mod) {
 const ytVideoMod = await import('../functions/api/yt-video.js');
 const ttsMod = await import('../functions/api/tts.js');
 const stockSearchMod = await import('../functions/api/stock-search.js');
+const translateMod = await import('../functions/api/translate.js');
 
 const API_STATIC = {
   '/api/yt-video': () => asPagesHandler('onRequest', ytVideoMod),
   '/api/tts': () => asPagesHandler('onRequestPost', ttsMod),
   '/api/stock-search': () => asPagesHandler('onRequestPost', stockSearchMod),
+  '/api/translate': () => asPagesHandler('onRequestPost', translateMod),
 };
 
 /** yt-generate часто меняется — в dev перечитываем модуль на каждый запрос. */
@@ -225,4 +227,4 @@ function printPortHelp(port) {
 
 const boundPort = await startServer();
 console.log(`КАР-точки dev → http://localhost:${boundPort}`);
-console.log('  API: /api/yt-video, /api/yt-generate, /api/tts, /api/stock-search');
+console.log('  API: /api/yt-video, /api/yt-generate, /api/tts, /api/stock-search, /api/translate');

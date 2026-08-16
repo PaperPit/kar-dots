@@ -103,7 +103,7 @@ await recordVisit()
       const { folderId, noteId, cram, mode, cramLimit } = opts;
       const { renderReview } = await import("../screens/review/index.js")
       await renderReview(folderId, {
-        cram: cram && !!folderId,
+        cram: !!cram,
         mode: isStudyMode(mode) ? mode : "flip",
         cramLimit: cramLimit && cramLimit > 0 ? cramLimit : undefined,
         noteId: noteId ?? undefined,

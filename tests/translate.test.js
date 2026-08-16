@@ -15,10 +15,7 @@ describe('translateText', () => {
   beforeEach(() => {
     vi.stubGlobal('fetch', vi.fn(async () => ({
       ok: true,
-      json: async () => ({
-        responseStatus: 200,
-        responseData: { translatedText: 'hello' },
-      }),
+      json: async () => ({ text: 'hello' }),
     })));
   });
 
@@ -26,14 +23,30 @@ describe('translateText', () => {
     vi.unstubAllGlobals();
   });
 
-  it('запрашивает MyMemory с ru|en', async () => {
+  it('ходит на /api/translate с направлением ru-en', async () => {
     const out = await translateText('привет', 'ru-en');
     expect(out).toBe('hello');
-    expect(fetch).toHaveBeenCalledWith(expect.stringContaining('langpair=ru|en'));
+    expect(fetch).toHaveBeenCalledWith('/api/translate', expect.objectContaining({
+      method: 'POST',
+      body: JSON.stringify({ text: 'привет', dir: 'ru-en' }),
+    }));
   });
 
   it('бросает ошибку на пустой текст', async () => {
     await expect(translateText('  ')).rejects.toThrow('Нечего переводить');
+  });
+
+  it('показывает сообщение сервера при ошибке', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => ({
+      ok: false,
+      json: async () => ({ message: 'Лимит перевода исчерпан, попробуйте позже' }),
+    })));
+    await expect(translateText('икра', 'ru-en')).rejects.toThrow(/Лимит перевода/);
+  });
+
+  it('при обрыве сети даёт понятную ошибку', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => { throw new TypeError('Failed to fetch'); }));
+    await expect(translateText('икра', 'ru-en')).rejects.toThrow('Нет соединения с сервером перевода');
   });
 });
 

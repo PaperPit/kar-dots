@@ -46,7 +46,12 @@ function sidePickerBlock(initialSide: 'front' | 'back', onChange: (side: 'front'
   ]);
 }
 
-function limitPickerBlock(totalCards: number, initialLimit: number | null, onChange: (limit: number | null) => void) {
+function limitPickerBlock(
+  totalCards: number,
+  initialLimit: number | null,
+  onChange: (limit: number | null) => void,
+  { scopedToFolder = true }: { scopedToFolder?: boolean } = {},
+) {
   const presets = [
     { label: t('review.picker.limitAll'), value: 'all' as const },
     { label: '10', value: 10 },
@@ -122,7 +127,9 @@ function limitPickerBlock(totalCards: number, initialLimit: number | null, onCha
   const block: LimitBlock = Object.assign(el('div', { class: 'mode-pick-side-block mode-pick-limit-block' }, [
     el('p', { class: 'modal-text mode-pick-side-label' }, [
       t('review.picker.limitLabel'),
-      el('span', { class: 'muted' }, t('review.picker.limitInFolder', { n: totalCards })),
+      el('span', { class: 'muted' }, scopedToFolder
+        ? t('review.picker.limitInFolder', { n: totalCards })
+        : t('review.picker.limitTotal', { n: totalCards })),
     ]),
     seg,
   ]), { getLimit: resolveLimit });
@@ -135,14 +142,14 @@ export async function studyModePicker({ folderId = null, cram = false }: { folde
   let chosenLimit: number | null = getLastCramLimit();
   let cardCount: number | null = null;
 
-  if (cram && folderId) {
-    cardCount = await store.countCards(folderId);
+  if (cram) {
+    cardCount = await store.countCards(folderId || null);
   }
 
   let m: ModalHandle | null = null;
   const sideBlock = cram ? sidePickerBlock(chosenSide, s => { chosenSide = s; }) : null;
   const limitBlock = cram && cardCount
-    ? limitPickerBlock(cardCount, chosenLimit, l => { chosenLimit = l; })
+    ? limitPickerBlock(cardCount, chosenLimit, l => { chosenLimit = l; }, { scopedToFolder: !!folderId })
     : null;
 
   const items = getStudyModeMeta().map((meta: StudyModeMeta) => {
@@ -184,11 +191,15 @@ export async function studyModePicker({ folderId = null, cram = false }: { folde
   });
 
   const titleId = 'study-mode-picker-title';
+  const pickerTitle = cram
+    ? (folderId ? t('review.picker.cramTitle') : t('review.picker.continueTitle'))
+    : t('review.picker.title');
+  const pickerSub = cram
+    ? (folderId ? t('review.picker.cramSub') : t('review.picker.continueSub'))
+    : t('review.picker.sub');
   m = modal(el('div', null, [
-    el('h3', { class: 'modal-title', id: titleId }, cram ? t('review.picker.cramTitle') : t('review.picker.title')),
-    el('p', { class: 'modal-text' }, cram
-      ? t('review.picker.cramSub')
-      : t('review.picker.sub')),
+    el('h3', { class: 'modal-title', id: titleId }, pickerTitle),
+    el('p', { class: 'modal-text' }, pickerSub),
     sideBlock,
     limitBlock,
     cram ? el('p', { class: 'modal-text mode-pick-modes-label' }, t('review.picker.modesLabel')) : null,

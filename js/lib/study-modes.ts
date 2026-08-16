@@ -74,6 +74,18 @@ export function parseReviewRoute(parts: string[]): ReviewRoute {
   if (MODES.has(first as Mode)) {
     return { folderId: null, noteId: null, cram: false, mode: first as Mode, cramLimit: null };
   }
+  if (first === "cram") {
+    cram = true;
+    i = 1;
+    const limitRaw = rest[i];
+    if (limitRaw && /^\d+$/.test(limitRaw)) {
+      cramLimit = parseInt(limitRaw, 10);
+      i += 1;
+    }
+    const modeRaw = rest[i];
+    if (modeRaw && MODES.has(modeRaw as Mode)) mode = modeRaw as Mode;
+    return { folderId: null, noteId: null, cram, mode, cramLimit };
+  }
   if (first === "note" && rest[1]) {
     noteId = decodeURIComponent(rest[1] ?? "");
     i = 2;

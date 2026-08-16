@@ -38,6 +38,13 @@ describe('parseReviewRoute', () => {
     });
   });
 
+  it('global cram without folder', () => {
+    expect(parseReviewRoute(['review', 'cram', '20', 'type'])).toEqual({
+      folderId: null, noteId: null, cram: true, mode: 'type', cramLimit: 20,
+    });
+    expect(buildReviewHash(null, { cram: true, cramLimit: 15, mode: 'voice' })).toBe('#review/cram/15/voice');
+  });
+
   it('cram with limit and mode', () => {
     expect(parseReviewRoute(['review', 'abc', 'cram', '20', 'combo'])).toEqual({
       folderId: 'abc', noteId: null, cram: true, mode: 'combo', cramLimit: 20,

@@ -37,9 +37,7 @@ export function createMatchRound(cards: SrsCard[], ctx: MatchCtx) {
   const defsCol = el('div', { class: `match-col ${answerColClass}` }, undefined);
   const hint = el('p', {
     class: 'study-hint match-hint',
-  }, promptSide === 'front'
-    ? t('review.match.hintTermFirst')
-    : t('review.match.hintDefFirst'));
+  }, t('review.match.hintEither'));
 
   const answers: { cardId: string; text: string }[] = shuffle(cards.map(c => ({
     cardId: c.id ?? "",
@@ -122,14 +120,14 @@ export function createMatchRound(cards: SrsCard[], ctx: MatchCtx) {
   function selectTerm(id: string) {
     if (paired.has(id)) return;
     selectedTerm = selectedTerm === id ? null : id;
-    selectedDef = null;
-    renderBoard();
+    if (selectedTerm && selectedDef) tryPair();
+    else renderBoard();
   }
 
   function selectDef(id: string) {
     if ([...paired.values()].includes(id)) return;
     selectedDef = selectedDef === id ? null : id;
-    if (selectedTerm) tryPair();
+    if (selectedTerm && selectedDef) tryPair();
     else renderBoard();
   }
 

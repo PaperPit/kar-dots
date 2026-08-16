@@ -65,7 +65,7 @@ export async function renderSettings() {
 
   const installBtn = !isAppInstalled()
     ? el('button', {
-        class: 'btn accent big',
+        class: 'btn accent',
         type: 'button',
         onclick: async () => {
           const ok = await promptInstall();
@@ -80,9 +80,13 @@ export async function renderSettings() {
     languageGroup, calendarGroup, algoGroup, soundGroup, packsGroup, integrationsGroup, stockMediaGroup, dataGroup, syncGroup, accGroup,
     donateGroup,
     installBtn ? el('div', { class: 'settings-group' }, [
-      el('h4', null, t('settings.install.title')),
-      el('p', { class: 'muted' }, t('settings.install.lead')),
-      installBtn,
+      el('div', { class: 'setting-row' }, [
+        el('div', { class: 'lab' }, [
+          el('b', null, t('settings.install.title')),
+          el('span', null, t('settings.install.lead')),
+        ]),
+        installBtn,
+      ]),
     ]) : null,
     aboutGroup,
     el('p', { class: 'muted settings-footer' }, t('settings.footer', { version: APP_VERSION_SHORT })),

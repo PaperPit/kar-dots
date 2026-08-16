@@ -301,10 +301,10 @@ export const ru = {
   "settings.donate.lead":
     "КАР-точки — полностью бесплатный сервис. Если он вам помог, вы можете поддержать разработку:",
   "settings.donate.boostyHint": "Россия, СБП, карты.",
-  "settings.donate.kofiHint": "Международная платформа для донатов.",
-  "settings.donate.cryptoHint": "USDT (TRC-20). Адрес в README на GitHub.",
+  "settings.donate.cryptoHint": "Только USDT в сети Ethereum (ERC-20).",
   "settings.donate.copyAddress": "Скопировать адрес",
-  "settings.donate.cryptoAddressCopied": "Адрес USDT указан в README на GitHub",
+  "settings.donate.cryptoAddressCopied": "Адрес USDT скопирован",
+  "settings.donate.cryptoAddressCopyFailed": "Не удалось скопировать адрес",
   "settings.install.title": "Установить приложение",
   "settings.install.lead": "Установите КАР-точки на устройство для быстрого доступа без браузера.",
   "settings.install.button": "Установить",
@@ -569,24 +569,29 @@ export const ru = {
   "review.picker.modesLabel": "Способ закрепления",
   "review.picker.limitLabel": "Сколько слов за раз? ",
   "review.picker.limitInFolder": "(в папке {n})",
+  "review.picker.limitTotal": "(всего {n})",
   "review.picker.limitAll": "Все",
   "review.picker.limitOther": "Другое",
   "review.picker.limitOtherAria": "Другое количество, от 1 до {n}",
   "review.picker.unavailable": "Недоступно в этом браузере",
+  "review.picker.continueTitle": "Продолжить заниматься",
+  "review.picker.continueSub":
+    "Повторите любые карточки — даже если план на сегодня уже выполнен.",
 
   "review.empty.limitTitle": "На сегодня лимит",
   "review.empty.limitText":
-    "Сегодня уже {done} {grades} из {limit}. Лимит можно увеличить в настройках — или продолжить завтра.",
+    "Сегодня уже {done} {grades} из {limit}. Можно увеличить лимит в настройках или продолжить заниматься сверх плана.",
   "review.empty.toSettings": "К настройкам",
   "review.empty.toFolder": "К папке",
   "review.empty.toFolders": "К папкам",
   "review.empty.toHome": "На главную",
   "review.empty.doneTitle": "КАР-р-р! Сегодня ты был великолепен!!!",
   "review.empty.doneText":
-    "Сейчас нет карточек к повторению. Загляните позже — ворона напомнит точками.",
+    "Сейчас нет карточек к повторению. Можно продолжить заниматься — или заглянуть позже.",
   "review.empty.blankTitle": "Здесь пока пусто",
   "review.empty.blankText": "Добавьте первые слова — и мы начнём повторять.",
   "review.empty.cramFolder": "Закрепить папку",
+  "review.empty.continue": "Продолжить заниматься",
 
   "review.intro.cram": "Закрепление · {side} · {mode} — {n} {cards}",
   "review.intro.cramFrom": " из «{name}»",
@@ -638,11 +643,13 @@ export const ru = {
   "review.type.showAnswer": "Показать ответ",
   "review.type.correctIs": "Правильно: {answer}",
   "review.type.dontKnow": "Не знаю",
+  "review.type.next": "Далее",
   "review.type.correct": "Верно!",
   "review.type.hint": "Введите ответ и нажмите «Проверить»",
 
   "review.match.hintTermFirst": "Нажмите термин, затем перевод",
   "review.match.hintDefFirst": "Нажмите перевод, затем термин",
+  "review.match.hintEither": "Нажмите термин или перевод, затем пару",
   "review.match.empty": "(пусто)",
   "review.match.allDone": "Все пары собраны!",
   "review.match.keepGoing": "Отлично! Продолжайте",
@@ -657,7 +664,7 @@ export const ru = {
   "review.cloze.hintLetters":
     "Допишите пропущенные буквы прямо в слове — только их, не слово целиком",
 
-  "review.voice.start": "🎤 Сказать ответ",
+  "review.voice.start": "🎤 Сказать перевод",
   "review.voice.check": "✓ Проверить",
   "review.voice.showTranslation": "Показать перевод",
   "review.voice.skip": "Пропустить",
@@ -670,7 +677,7 @@ export const ru = {
   "review.voice.correctIs": "Правильно: {answer}",
   "review.voice.retry": "🎤 Попробовать снова",
   "review.voice.checking": "Проверяю…",
-  "review.voice.checkFailed": "Не удалось проверить — нажмите «Сказать ответ» ещё раз",
+  "review.voice.checkFailed": "Не удалось проверить — нажмите «Сказать перевод» ещё раз",
   "review.voice.listening": "Слушаю: «{text}»",
   "review.voice.unavailable": "Голосовой режим недоступен — используйте ввод текста",
 

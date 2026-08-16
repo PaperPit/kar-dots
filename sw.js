@@ -1,4 +1,4 @@
-const VERSION = 'kar-v16.2';
+const VERSION = 'kar-v16.4';
 
 /** AUTO-GENERATED CORE_FILES — node scripts/generate-sw-files.js */
 const CORE_FILES = [
@@ -55,6 +55,7 @@ const CORE_FILES = [
   'js/data/types.js',
   'js/data/yt-transcript-cache.js',
   'js/lib/activity.js',
+  'js/lib/anki-apkg.js',
   'js/lib/answer-check.js',
   'js/lib/api-client.js',
   'js/lib/card-import.js',
@@ -133,7 +134,9 @@ const CORE_FILES = [
   'js/ui/types.js',
   'js/ui/ui.js',
   'js/ui/vocab-packs-dialog.js',
+  'js/vendor/fflate.mjs',
   'js/vendor/motion.mjs',
+  'js/vendor/sql-asm.mjs',
   'icons/Bird cage.svg',
   'icons/Scarecrow.svg',
   'icons/The crow with the tombstone.svg',
@@ -148,6 +151,8 @@ const CORE_FILES = [
   'icons/icon.svg',
   'icons/logo.svg',
   'icons/raven.svg',
+  'icons/star-rounded.png',
+  'icons/star-solid.svg',
   'icons/star.png',
   'icons/star.svg',
 ];

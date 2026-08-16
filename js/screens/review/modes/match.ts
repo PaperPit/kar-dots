@@ -96,7 +96,14 @@ export function createMatchRound(cards: SrsCard[], ctx: MatchCtx) {
     if (!selectedTerm || !selectedDef) return
     const termEl = termsCol.querySelector(`[data-id="${selectedTerm}"]`) as HTMLElement
     const defEl = defsCol.querySelector(`[data-id="${selectedDef}"]`) as HTMLElement
-    if (selectedTerm === selectedDef) {
+    // Сверяем по id, но принимаем и совпадение по тексту: если в раунд всё же
+    // попали две карточки с одинаковым ответом, кнопки визуально неразличимы и
+    // «не тот» выбор не должен считаться промахом.
+    const termCard = cards.find((c) => c.id === selectedTerm)
+    const pickedText = answers.find((a) => a.cardId === selectedDef)?.text
+    const sameText =
+      !!termCard && (cardSideText(termCard, answerSide) || t("review.match.empty")) === pickedText
+    if (selectedTerm === selectedDef || sameText) {
       playAnswerFeedbackFromStore(true)
       haptic(8)
       flashMatchPair(termEl, defEl, true, () => {
@@ -165,10 +172,24 @@ export function pickMatchBatch(
   const answerSide = promptSide === "back" ? "front" : "back"
   const batch: SrsCard[] = []
   const skipped = []
+  // Тексты в раунде обязаны быть различимы. Две карточки с одинаковым ответом
+  // («кот → cat» и «кошка → cat») дают две неотличимые кнопки: выбор «не той»
+  // засчитывался промахом и уходил в SRS настоящим Again с ростом lapses.
+  // Совпадения по вопросу так же неразрешимы для пользователя.
+  const seenPrompts = new Set<string>()
+  const seenAnswers = new Set<string>()
+  const norm = (s: string) => s.toLowerCase()
   for (let i = 0; i < queue.length && batch.length < batchSize; i++) {
     const c = queue[i]!
-    if (cardSideText(c, answerSide)) batch.push(c)
-    else skipped.push(c)
+    const answerText = cardSideText(c, answerSide)
+    const promptText = cardSideText(c, promptSide)
+    if (!answerText || seenAnswers.has(norm(answerText)) || seenPrompts.has(norm(promptText))) {
+      skipped.push(c)
+      continue
+    }
+    seenAnswers.add(norm(answerText))
+    seenPrompts.add(norm(promptText))
+    batch.push(c)
   }
   if (batch.length >= minSize) return { batch, skipped }
   if (batch.length === 1) return { batch, skipped, single: true }

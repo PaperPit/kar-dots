@@ -57,6 +57,7 @@ function shellEmptyReview(children: ElChild[]) {
 export async function renderReview(folderId: string | null, opts: ReviewOpts = {}) {
   const session = ++reviewSession
   const noteId = opts.noteId ? String(opts.noteId) : null
+  // Глобальный cram (без папки) — «Продолжить заниматься» на пустом экране.
   const cram = !!opts.cram
   const cramPromptSide = cram ? consumeSessionPromptSide() || getLastPromptSide() : null
 
@@ -96,7 +97,10 @@ export async function renderReview(folderId: string | null, opts: ReviewOpts = {
   let dayLimitHit = false
   if (cram) {
     const limit: number | null = (cramLimit ?? 0) > 0 ? (cramLimit as number) : null
-    queue = await store.getCramCards(folderId || null, limit)
+    queue =
+      typeof store.getCramCards === "function"
+        ? await store.getCramCards(folderId || null, limit)
+        : shuffle([...(await store.getFolderCards(folderId || ""))]).slice(0, limit || undefined)
   } else {
     const dayLeft = reviewsBudget()
     if (dayLeft <= 0 && !noteId) {
@@ -120,7 +124,15 @@ export async function renderReview(folderId: string | null, opts: ReviewOpts = {
         budget,
         now
       )
-      queue = shuffle(dueCards.concat(newCards)).slice(0, dayLeft)
+      // Просроченное имеет приоритет над новым. Раньше здесь был общий
+      // shuffle(due + new).slice(dayLeft): при 40 просроченных, 20 новых и
+      // лимите 50 около семи ПРОСРОЧЕННЫХ карточек выбрасывалось случайно в
+      // пользу новых — то есть лимит съедали как раз те карточки, которые
+      // можно было бы и отложить. Сначала берём due, новыми добиваем остаток;
+      // финальный shuffle нужен, чтобы новые не шли одним блоком в конце.
+      const dueSlice = shuffle(dueCards).slice(0, dayLeft)
+      const newSlice = shuffle(newCards).slice(0, Math.max(0, dayLeft - dueSlice.length))
+      queue = shuffle(dueSlice.concat(newSlice))
     }
   }
 

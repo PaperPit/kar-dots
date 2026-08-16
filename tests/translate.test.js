@@ -48,6 +48,20 @@ describe("translateText", () => {
     )
   })
 
+  it("передаёт geminiApiKey если задан в opts", async () => {
+    await translateText("onion", "en-ru", { geminiApiKey: "AIzaSyDummyKeyForTests0123456789" })
+    expect(fetch).toHaveBeenCalledWith(
+      "/api/translate",
+      expect.objectContaining({
+        body: JSON.stringify({
+          text: "onion",
+          dir: "en-ru",
+          geminiApiKey: "AIzaSyDummyKeyForTests0123456789"
+        })
+      })
+    )
+  })
+
   it("бросает ошибку на пустой текст", async () => {
     await expect(translateText("  ")).rejects.toThrow("Нечего переводить")
   })

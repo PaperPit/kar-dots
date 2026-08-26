@@ -56,9 +56,9 @@ export class MiniSupabase {
     try {
       const raw = localStorage.getItem(LS_KEY)
       if (raw) this.session = JSON.parse(raw)
-} catch (e) {
-       console.warn('[kar] session parse failed:', e);
-     }
+    } catch (e) {
+      console.warn("[kar] session parse failed:", e)
+    }
   }
 
   _saveSession(s: AuthSession | null) {
@@ -89,7 +89,10 @@ export class MiniSupabase {
     }
   }
 
-  async signUp(email: string, password: string): Promise<{ session: AuthSession | null; needConfirm: boolean }> {
+  async signUp(
+    email: string,
+    password: string
+  ): Promise<{ session: AuthSession | null; needConfirm: boolean }> {
     const r = await this._fetch(this.url + "/auth/v1/signup", {
       method: "POST",
       headers: Object.assign({ "Content-Type": "application/json" }, { apikey: this.key }),
@@ -123,7 +126,7 @@ export class MiniSupabase {
         headers: this._authHeaders()
       })
     } catch (e) {
-      console.error('[kar] signOut network error:', e);
+      console.error("[kar] signOut network error:", e)
     }
     this._saveSession(null)
   }
@@ -265,7 +268,12 @@ export class MiniSupabase {
     return true
   }
 
-  async uploadFile(bucket: string, path: string, blob: BodyInit, contentType?: string): Promise<string> {
+  async uploadFile(
+    bucket: string,
+    path: string,
+    blob: BodyInit,
+    contentType?: string
+  ): Promise<string> {
     await this.ensureFresh()
     const r = await this._fetch(this.url + "/storage/v1/object/" + bucket + "/" + path, {
       method: "POST",
@@ -300,7 +308,9 @@ export class MiniSupabase {
     })
     if (!r.ok) {
       const data = await r.json().catch(() => ({}))
-      throw new Error(data.message || data.error || "Не удалось подписать ссылку (" + r.status + ")")
+      throw new Error(
+        data.message || data.error || "Не удалось подписать ссылку (" + r.status + ")"
+      )
     }
     const data = (await r.json().catch(() => ({}))) as { signedURL?: string; signedUrl?: string }
     const signed = data.signedURL || data.signedUrl || ""
@@ -318,9 +328,9 @@ export class MiniSupabase {
         method: "DELETE",
         headers: this._authHeaders()
       })
-} catch (e) {
-       console.warn('[kar] deleteFile failed:', e);
-     }
+    } catch (e) {
+      console.warn("[kar] deleteFile failed:", e)
+    }
   }
 }
 
@@ -344,7 +354,8 @@ function withExpiry(data: AuthResponse): AuthSession {
 }
 
 function authError(data: AuthErrorBody): Error {
-  let msg = data.msg || data.error_description || data.message || data.error || "Ошибка авторизации"
+  const msg =
+    data.msg || data.error_description || data.message || data.error || "Ошибка авторизации"
   const map: Record<string, string> = {
     "Invalid login credentials": "Неверная почта или пароль",
     "User already registered": "Такой пользователь уже зарегистрирован",
@@ -360,7 +371,8 @@ export function isNetworkError(err: unknown): boolean {
   if (typeof navigator !== "undefined" && !navigator.onLine) return true
   if (err instanceof TimeoutError) return true
   if (err instanceof Error) {
-    if (err.name === "TypeError" || err.name === "AbortError" || err.name === "TimeoutError") return true
+    if (err.name === "TypeError" || err.name === "AbortError" || err.name === "TimeoutError")
+      return true
     return /failed to fetch|network|load failed/i.test(err.message)
   }
   return false

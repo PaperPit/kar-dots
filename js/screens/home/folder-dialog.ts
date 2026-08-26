@@ -1,75 +1,102 @@
-import { store } from '../../core/state.js';
-import { el, toast, modal } from '../../ui/ui.js';
-import { FOLDER_COLORS } from '../../ui/constants.js';
-import { featherIcon } from '../../ui/helpers.js';
-import { createIconPicker } from '../../ui/icon-picker.js';
-import { route } from '../../core/router.js';
-import { folderSaveErrorMessage } from '../../lib/folder-errors.js';
-import { normalizeFolderIcon } from '../../lib/folder-icons.js';
-import { t } from '../../lib/i18n.js';
-import type { Folder } from '../../data/types.js';
+import { store } from "../../core/state.js"
+import { el, toast, modal } from "../../ui/ui.js"
+import { FOLDER_COLORS } from "../../ui/constants.js"
+import { featherIcon } from "../../ui/helpers.js"
+import { createIconPicker } from "../../ui/icon-picker.js"
+import { route } from "../../core/router.js"
+import { folderSaveErrorMessage } from "../../lib/folder-errors.js"
+import { normalizeFolderIcon } from "../../lib/folder-icons.js"
+import { t } from "../../lib/i18n.js"
+import type { Folder } from "../../data/types.js"
 
 export function folderDialog(folder: Folder | null, opts: { box_id?: string | null } = {}) {
-  let color = folder ? folder.color : FOLDER_COLORS[Math.floor(Math.random() * FOLDER_COLORS.length)];
-  const name = el('input', { class: 'input', value: folder ? folder.name : '', placeholder: t('folder.dialog.namePlaceholder') }, []) as HTMLInputElement;
-
-  const dots = el('div', { class: 'color-row', role: 'group', 'aria-label': t('common.color') }, FOLDER_COLORS.map(c =>
-    el('button', {
-      type: 'button',
-      class: 'color-dot' + (c === color ? ' sel' : ''),
-      style: { background: c },
-      'aria-label': t('folder.dialog.colorSwatch', { color: c }),
-      'aria-pressed': c === color ? 'true' : 'false',
-      onclick: (e: Event) => {
-        color = c;
-        dots.querySelectorAll('.color-dot').forEach((d) => {
-          d.classList.remove('sel');
-          d.setAttribute('aria-pressed', 'false');
-        });
-        const btn = e.currentTarget as HTMLElement;
-        btn.classList.add('sel');
-        btn.setAttribute('aria-pressed', 'true');
-      },
-    })
-  ));
-
-  const iconPicker = createIconPicker(folder?.icon ?? undefined);
-
-  let m: ReturnType<typeof modal>;
-  const save = el('button', {
-    class: 'btn primary',
-    onclick: async () => {
-      const nm = name.value.trim();
-      if (!nm) { toast(t('folder.dialog.nameRequired'), 'error'); return; }
-      save.disabled = true;
-      try {
-        const patch = { name: nm, color, icon: normalizeFolderIcon(iconPicker.getIcon()) };
-        if (folder) await store.updateFolder(folder.id, patch);
-        else await store.createFolder(Object.assign({ box_id: opts.box_id || null }, patch));
-        m.close(); await route();
-      } catch (e) { toast(folderSaveErrorMessage(e), 'error'); save.disabled = false; }
+  let color = folder
+    ? folder.color
+    : FOLDER_COLORS[Math.floor(Math.random() * FOLDER_COLORS.length)]
+  const name = el(
+    "input",
+    {
+      class: "input",
+      value: folder ? folder.name : "",
+      placeholder: t("folder.dialog.namePlaceholder")
     },
-  }, folder ? t('common.save') : t('common.create')) as HTMLButtonElement;
+    []
+  ) as HTMLInputElement
 
-  const titleId = 'folder-dialog-title';
-  m = modal(el('div', null, [
-    folder
-      ? el('div', { class: 'modal-head' }, [
-        featherIcon('modal-head-icon'),
-        el('h3', { class: 'modal-title', id: titleId }, t('folder.dialog.titleEdit')),
+  const dots = el(
+    "div",
+    { class: "color-row", role: "group", "aria-label": t("common.color") },
+    FOLDER_COLORS.map((c) =>
+      el("button", {
+        type: "button",
+        class: "color-dot" + (c === color ? " sel" : ""),
+        style: { background: c },
+        "aria-label": t("folder.dialog.colorSwatch", { color: c }),
+        "aria-pressed": c === color ? "true" : "false",
+        onclick: (e: Event) => {
+          color = c
+          dots.querySelectorAll(".color-dot").forEach((d) => {
+            d.classList.remove("sel")
+            d.setAttribute("aria-pressed", "false")
+          })
+          const btn = e.currentTarget as HTMLElement
+          btn.classList.add("sel")
+          btn.setAttribute("aria-pressed", "true")
+        }
+      })
+    )
+  )
+
+  const iconPicker = createIconPicker(folder?.icon ?? undefined)
+
+  const save = el(
+    "button",
+    {
+      class: "btn primary",
+      onclick: async () => {
+        const nm = name.value.trim()
+        if (!nm) {
+          toast(t("folder.dialog.nameRequired"), "error")
+          return
+        }
+        save.disabled = true
+        try {
+          const patch = { name: nm, color, icon: normalizeFolderIcon(iconPicker.getIcon()) }
+          if (folder) await store.updateFolder(folder.id, patch)
+          else await store.createFolder(Object.assign({ box_id: opts.box_id || null }, patch))
+          m.close()
+          await route()
+        } catch (e) {
+          toast(folderSaveErrorMessage(e), "error")
+          save.disabled = false
+        }
+      }
+    },
+    folder ? t("common.save") : t("common.create")
+  ) as HTMLButtonElement
+
+  const titleId = "folder-dialog-title"
+  const m: ReturnType<typeof modal> = modal(
+    el("div", null, [
+      folder
+        ? el("div", { class: "modal-head" }, [
+            featherIcon("modal-head-icon"),
+            el("h3", { class: "modal-title", id: titleId }, t("folder.dialog.titleEdit"))
+          ])
+        : el("h3", { class: "modal-title", id: titleId }, t("folder.dialog.titleNew")),
+      el("div", { class: "field" }, [el("label", null, t("common.name")), name]),
+      el("div", { class: "field" }, [el("label", null, t("common.color")), dots]),
+      el("div", { class: "field" }, [
+        el("label", null, t("common.icon")),
+        el("p", { class: "field-hint" }, t("folder.dialog.iconHint")),
+        iconPicker.node
+      ]),
+      el("div", { class: "modal-actions" }, [
+        el("button", { class: "btn ghost", onclick: () => m.close() }, t("common.cancel")),
+        save
       ])
-      : el('h3', { class: 'modal-title', id: titleId }, t('folder.dialog.titleNew')),
-    el('div', { class: 'field' }, [el('label', null, t('common.name')), name]),
-    el('div', { class: 'field' }, [el('label', null, t('common.color')), dots]),
-    el('div', { class: 'field' }, [
-      el('label', null, t('common.icon')),
-      el('p', { class: 'field-hint' }, t('folder.dialog.iconHint')),
-      iconPicker.node,
     ]),
-    el('div', { class: 'modal-actions' }, [
-      el('button', { class: 'btn ghost', onclick: () => m.close() }, t('common.cancel')),
-      save,
-    ]),
-  ]), { labelledBy: titleId });
-  setTimeout(() => name.focus(), 260);
+    { labelledBy: titleId }
+  )
+  setTimeout(() => name.focus(), 260)
 }

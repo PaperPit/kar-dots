@@ -84,7 +84,7 @@ interface SoundAudio extends HTMLAudioElement {
   __soundFile?: string
 }
 
-let mp3Audio: Record<string, SoundAudio | null> = {
+const mp3Audio: Record<string, SoundAudio | null> = {
   success: null,
   fail: null,
   cup: null,
@@ -113,8 +113,10 @@ function playMp3(file: string, slot: string, opts?: PlayOpts, volume = 0.85): vo
     audio.pause()
     audio.currentTime = 0
     audio.volume = volume
-    audio.play().catch((e) => console.warn('[kar] play sound failed:', e))
-  } catch (e) { console.warn('[kar] play sound failed:', e); }
+    audio.play().catch((e) => console.warn("[kar] play sound failed:", e))
+  } catch (e) {
+    console.warn("[kar] play sound failed:", e)
+  }
 }
 
 function primeMp3(file: string, slot: string): void {
@@ -140,7 +142,9 @@ function primeMp3(file: string, slot: string): void {
       .catch(() => {
         if (audio) audio.muted = false
       })
-  } catch (e) { console.warn('[kar] primeMp3 failed:', e); }
+  } catch (e) {
+    console.warn("[kar] primeMp3 failed:", e)
+  }
 }
 
 export function failSoundLabel(id: string): string {
@@ -200,9 +204,9 @@ export function playLessonCompleteFromStore(_stars: number): void {
     .then((m) => {
       const mode = normalizeAnswerSoundMode(m.store?.settings?.answerSoundMode ?? "both")
       if (mode === "none") return
-playCupMelody(normalizeCupMelodyId(m.store?.settings?.cupMelody ?? "show-alert"))
-     })
-     .catch((e) => console.warn('[kar] lesson complete sound failed:', e))
+      playCupMelody(normalizeCupMelodyId(m.store?.settings?.cupMelody ?? "show-alert"))
+    })
+    .catch((e) => console.warn("[kar] lesson complete sound failed:", e))
 }
 
 export function playSuccessSound(melodyId: string = "confirm-tap", opts?: PlayOpts): void {
@@ -224,7 +228,9 @@ export function stopAnswerAudio(): void {
     try {
       audio.pause()
       audio.currentTime = 0
-    } catch (e) { console.warn('[kar] stopAnswerAudio failed:', e); }
+    } catch (e) {
+      console.warn("[kar] stopAnswerAudio failed:", e)
+    }
   })
 }
 
@@ -248,9 +254,9 @@ export function unlockAnswerAudioFromStore(): void {
   if (typeof document === "undefined") return
   import("../core/state.js")
     .then((m) => {
-unlockAnswerAudio(m.store?.settings ?? null)
-     })
-     .catch((e) => console.warn('[kar] unlock answer audio failed:', e))
+      unlockAnswerAudio(m.store?.settings ?? null)
+    })
+    .catch((e) => console.warn("[kar] unlock answer audio failed:", e))
 }
 
 export function playAnswerFeedback(isCorrect: boolean, settings: Settings | null): void {
@@ -267,7 +273,9 @@ export function playAnswerFeedbackFromStore(isCorrect: boolean): void {
     .then((m) => {
       playAnswerFeedback(isCorrect, m.store?.settings ?? null)
     })
-    .catch(() => { console.warn('[kar] playAnswerFeedbackFromStore failed'); })
+    .catch(() => {
+      console.warn("[kar] playAnswerFeedbackFromStore failed")
+    })
 }
 
 export interface SoundsAPI {

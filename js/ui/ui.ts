@@ -2,12 +2,7 @@
 // КАР-точки — маленькие помощники интерфейса
 // ============================================================
 
-import {
-  animateModalIn,
-  animateModalOut,
-  animateToastIn,
-  animateToastOut
-} from "./motion-lazy.js"
+import { animateModalIn, animateModalOut, animateToastIn, animateToastOut } from "./motion-lazy.js"
 import { t } from "../lib/i18n.js"
 
 export type ElChild = Node | string | number | null | undefined | false
@@ -33,8 +28,7 @@ export function el<K extends string = "div">(
     for (const k in attrs) {
       const v = attrs[k]
       if (v === null || v === undefined || v === false) continue
-      if (k.startsWith("on") && typeof v === "function")
-        node.addEventListener(k.slice(2), v)
+      if (k.startsWith("on") && typeof v === "function") node.addEventListener(k.slice(2), v)
       else if (k === "html") node.innerHTML = String(v)
       else if (k === "style" && typeof v === "object" && v !== null) {
         for (const sk in v) {
@@ -49,13 +43,13 @@ export function el<K extends string = "div">(
     ;(Array.isArray(children) ? children : [children]).forEach((ch) => {
       if (ch === null || ch === undefined || ch === false) return
       node.appendChild(
-        typeof ch === "string" || typeof ch === "number"
-          ? document.createTextNode(String(ch))
-          : ch
+        typeof ch === "string" || typeof ch === "number" ? document.createTextNode(String(ch)) : ch
       )
     })
   }
-  return node as any
+  return node as unknown as K extends keyof HTMLElementTagNameMap
+    ? HTMLElementTagNameMap[K]
+    : HTMLElement
 }
 
 export function toast(msg: string, type?: string): void {
@@ -94,7 +88,7 @@ export function toastAction(
   if (activeActionToast) activeActionToast.dismiss()
 
   const root = document.getElementById("toasts") as HTMLElement
-  let hideTimer: ReturnType<typeof setTimeout> | undefined
+  let hideTimer: ReturnType<typeof setTimeout> | undefined = undefined
   const t = el("div", { class: "toast toast-actionable", role: "status", "aria-atomic": "true" }, [
     el("span", { class: "toast-msg" }, msg),
     el(
@@ -176,7 +170,9 @@ export function modal(content: Node, opts?: ModalOpts): ModalHandle {
       if (prevFocus instanceof HTMLElement) {
         try {
           prevFocus.focus({ preventScroll: true })
-        } catch (e) { console.warn('[kar] modal focus restore failed:', e); }
+        } catch (e) {
+          console.warn("[kar] modal focus restore failed:", e)
+        }
       }
     })
   }
@@ -237,7 +233,6 @@ export function confirmDialog(
   icon?: Node | null
 ): Promise<boolean> {
   return new Promise((resolve) => {
-    let m: ModalHandle
     let settled = false
     const settle = (value: boolean) => {
       if (settled) return
@@ -274,7 +269,7 @@ export function confirmDialog(
         )
       ])
     ])
-    m = modal(content, {
+    const m: ModalHandle = modal(content, {
       labelledBy: titleId,
       onClose: () => settle(false)
     })
@@ -327,10 +322,7 @@ function pickRichHlClass(className?: string): string {
 }
 
 export function sanitizeRich(html: string): string {
-  const doc = new DOMParser().parseFromString(
-    "<div>" + String(html || "") + "</div>",
-    "text/html"
-  )
+  const doc = new DOMParser().parseFromString("<div>" + String(html || "") + "</div>", "text/html")
   function clean(node: Node): string {
     const out: string[] = []
     node.childNodes.forEach((ch) => {

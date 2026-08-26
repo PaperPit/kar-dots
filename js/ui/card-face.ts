@@ -13,7 +13,7 @@ import { t } from "../lib/i18n.js"
  */
 function faceImage(src: string): HTMLElement {
   const img = el("img", { src: resolveImageUrlSync(src), alt: "", decoding: "async" })
-  void resolveImageUrl(src).then(url => {
+  void resolveImageUrl(src).then((url) => {
     if (url && img.getAttribute("src") !== url) img.setAttribute("src", url)
   })
   return el("div", { class: "card-img-box" }, [img])
@@ -33,17 +33,26 @@ export function buildFrontContent(card: Card): HTMLElement[] {
   return parts
 }
 
-/** Оборот: определение (жирное, по центру) + описание (мельче, по ширине). */
+/** Оборот: определение (жирное, по центру) + пример + описание (мельче, по ширине).
+ * Пример хранится в back второй строкой: «перевод\nEN sentence — RU перевод». */
 export function buildBackContent(card: Card): HTMLElement[] {
   const parts = []
   if (card.back_img) parts.push(faceImage(card.back_img))
 
   const defPlain = stripHtml(card.back)
   if (defPlain) {
-    const longCls = defPlain.length > 120 ? " long" : ""
-    const defNode = el("div", { class: "card-definition" + longCls })
-    defNode.textContent = defPlain
-    parts.push(defNode)
+    const nl = defPlain.indexOf("\n")
+    const defText = (nl === -1 ? defPlain : defPlain.slice(0, nl)).trim()
+    const exampleText = nl === -1 ? "" : defPlain.slice(nl + 1).trim()
+    if (defText) {
+      const longCls = defText.length > 120 ? " long" : ""
+      const defNode = el("div", { class: "card-definition" + longCls })
+      defNode.textContent = defText
+      parts.push(defNode)
+    }
+    if (exampleText) {
+      parts.push(el("div", { class: "card-example" }, exampleText))
+    }
   }
 
   const desc = (card.description || "").trim()
@@ -64,7 +73,11 @@ export function buildFaceScroll(side: "front" | "back", card: Card): HTMLElement
   return el("div", { class: "flip-face-scroll" }, content)
 }
 
-export function buildFlipFace(side: "front" | "back", card: Card, isBackFace: boolean): HTMLElement {
+export function buildFlipFace(
+  side: "front" | "back",
+  card: Card,
+  isBackFace: boolean
+): HTMLElement {
   const chip = el(
     "div",
     { class: "flip-side-chip" + (isBackFace ? " is-back" : " is-front"), "aria-hidden": "true" },

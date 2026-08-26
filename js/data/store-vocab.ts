@@ -1,12 +1,12 @@
 import type { Folder, Card } from "./types.js"
 
-interface VocabPackCard {
+export interface VocabPackCard {
   front?: string
   back?: string
   description?: string
 }
 
-interface VocabPack {
+export interface VocabPack {
   id?: string
   title?: string
   color?: string
@@ -17,7 +17,9 @@ interface VocabPack {
 export interface VocabImportStore {
   folders: Folder[]
   createFolder(folder: Partial<Folder>): Promise<Folder>
-  createCard(card: Partial<Card> & { folder_id: string; front: string; back: string }): Promise<unknown>
+  createCard(
+    card: Partial<Card> & { folder_id: string; front: string; back: string }
+  ): Promise<unknown>
   deleteFolder(folderId: string): Promise<unknown>
 }
 
@@ -27,11 +29,18 @@ export interface ProgressInfo {
   total: number
 }
 
-export function findFolderByPackId(folders: Folder[], packId: string | null | undefined): Folder | null {
+export function findFolderByPackId(
+  folders: Folder[],
+  packId: string | null | undefined
+): Folder | null {
   return folders.find((f) => f.pack_id === packId) || null
 }
 
-export async function importVocabPack(store: VocabImportStore, pack: VocabPack | null | undefined, onProgress?: (info: ProgressInfo) => void): Promise<Folder> {
+export async function importVocabPack(
+  store: VocabImportStore,
+  pack: VocabPack | null | undefined,
+  onProgress?: (info: ProgressInfo) => void
+): Promise<Folder> {
   if (!pack?.id || !Array.isArray(pack.cards)) throw new Error("Неверный формат пака")
   if (findFolderByPackId(store.folders, pack.id)) throw new Error("Этот пак уже установлен")
   const cards = (pack.cards || []).filter((c) => c.front?.trim())
@@ -55,7 +64,10 @@ export async function importVocabPack(store: VocabImportStore, pack: VocabPack |
   return folder
 }
 
-export async function deleteVocabPack(store: VocabImportStore, packId: string | null | undefined): Promise<void> {
+export async function deleteVocabPack(
+  store: VocabImportStore,
+  packId: string | null | undefined
+): Promise<void> {
   const folder = findFolderByPackId(store.folders, packId)
   if (!folder) throw new Error("Пак не установлен")
   await store.deleteFolder(folder.id)

@@ -26,8 +26,6 @@ export function cardDialog(folderId: string, card?: Card | null, opts: CardDialo
     back_img: card ? card.back_img : null,
   };
 
-  let m: ModalHandle;
-  let saveBtn: HTMLButtonElement;
   let saveMoreBtn: HTMLButtonElement | null = null;
   const { btn: dirToggleBtn, getDir: getTranslateDirLocal } = createTranslateDirToggle(getTranslateDir());
 
@@ -71,7 +69,7 @@ export function cardDialog(folderId: string, card?: Card | null, opts: CardDialo
     });
   }
 
-  saveBtn = el('button', {
+  const saveBtn = el('button', {
     type: 'button',
     class: 'btn primary',
     onclick: () => submit(false),
@@ -124,7 +122,7 @@ export function cardDialog(folderId: string, card?: Card | null, opts: CardDialo
     ].filter(Boolean))
     : el('h3', { class: 'modal-title', id: titleId }, t('cardEditor.title.new'));
 
-  m = modal(el('div', null, [
+  const m: ModalHandle = modal(el('div', null, [
     header,
     body,
     actionsRow,

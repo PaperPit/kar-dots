@@ -35,7 +35,6 @@ export function folderDialog(folder: Folder | null, opts: { box_id?: string | nu
 
   const iconPicker = createIconPicker(folder?.icon ?? undefined);
 
-  let m: ReturnType<typeof modal>;
   const save = el('button', {
     class: 'btn primary',
     onclick: async () => {
@@ -52,7 +51,7 @@ export function folderDialog(folder: Folder | null, opts: { box_id?: string | nu
   }, folder ? t('common.save') : t('common.create')) as HTMLButtonElement;
 
   const titleId = 'folder-dialog-title';
-  m = modal(el('div', null, [
+  const m: ReturnType<typeof modal> = modal(el('div', null, [
     folder
       ? el('div', { class: 'modal-head' }, [
         featherIcon('modal-head-icon'),

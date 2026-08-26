@@ -8,10 +8,6 @@ import { route } from '../../core/router.js';
 import { t } from '../../lib/i18n.js';
 
 export function bulkCardDialog(folderId: string) {
-  let m: ModalHandle;
-  let addBtn: HTMLButtonElement;
-  let previewEl: HTMLElement;
-
   const textarea = el('textarea', {
     class: 'input bulk-textarea',
     rows: 12,
@@ -37,7 +33,7 @@ export function bulkCardDialog(folderId: string) {
 
   async function submit() {
     const { rows } = parseBulkLines(textarea.value);
-    let toCreate = rows.filter(r => r.front && r.back);
+    const toCreate = rows.filter(r => r.front && r.back);
 
     addBtn.disabled = true;
     addBtn.innerHTML = '';
@@ -85,11 +81,11 @@ export function bulkCardDialog(folderId: string) {
     }
   }
 
-  previewEl = el('p', { class: 'bulk-preview muted' }, t('cardEditor.bulk.readyCount', { ready: 0 }));
-  addBtn = el('button', { class: 'btn primary', onclick: submit, disabled: true }, t('cardEditor.add'));
+  const previewEl = el('p', { class: 'bulk-preview muted' }, t('cardEditor.bulk.readyCount', { ready: 0 }));
+  const addBtn = el('button', { class: 'btn primary', onclick: submit, disabled: true }, t('cardEditor.add'));
 
   const titleId = 'bulk-card-dialog-title';
-  m = modal(el('div', null, [
+  const m: ModalHandle = modal(el('div', null, [
     el('h3', { class: 'modal-title', id: titleId }, t('cardEditor.bulk.title')),
     el('p', { class: 'modal-text' }, t('cardEditor.bulk.hint')),
     textarea,

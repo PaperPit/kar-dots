@@ -44,7 +44,8 @@ import {
   findFolderByPackId,
   importVocabPack as doImportVocabPack,
   deleteVocabPack as doDeleteVocabPack,
-  type VocabImportStore
+  type VocabImportStore,
+  type VocabPack
 } from "./store-vocab.js"
 import { shuffle } from "../lib/shuffle.js"
 import {
@@ -971,6 +972,9 @@ export class CloudStore {
     }
   }
 
+  // Форма payload зависит от op; дискриминированная union потребовала бы
+  // типизации SyncQueue в data/, поэтому здесь осознанный any.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   async _executeSyncItem({ op, payload }: { op: string; payload: any }) {
     switch (op) {
       case "createFolder":
@@ -1050,7 +1054,7 @@ export class CloudStore {
    * нужен returning: 'representation' — при return=minimal ответ пустой всегда.
    */
   async _cloudPatchCardLww(id: string, patch: Record<string, unknown>) {
-    let payload = Object.assign({}, patch)
+    const payload = Object.assign({}, patch)
     if (this._noteLinkCloudUnsupported) {
       delete payload.note_id
       delete payload.note_anchor
@@ -1612,7 +1616,7 @@ export class CloudStore {
     return findFolderByPackId(this.folders, packId)
   }
 
-  async importVocabPack(pack: any, onProgress?: (n: number) => void) {
+  async importVocabPack(pack: VocabPack | null | undefined, onProgress?: (n: number) => void) {
     return doImportVocabPack(
       this as unknown as VocabImportStore,
       pack,
@@ -1637,7 +1641,7 @@ export class CloudStore {
   }
 
   async updateCard(id: string, patch: Partial<Card>) {
-    let c = await this._getCardById(id)
+    const c = await this._getCardById(id)
     if (!c) return null
     const stamped = stampUpdatedAt(patch)
     Object.assign(c, stamped as Partial<Card>)

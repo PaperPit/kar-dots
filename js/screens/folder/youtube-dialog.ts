@@ -73,13 +73,12 @@ function sourceHint(src: string): string {
 }
 
 export function youtubeImportDialog(folderId: string) {
-  let m: ModalHandle;
   let closed = false;
   let source = 'url';
   const body = el('div', { class: 'yt-dialog' }, []);
 
   const titleId = 'yt-import-dialog-title';
-  m = modal(el('div', null, [
+  const m: ModalHandle = modal(el('div', null, [
     el('h3', { class: 'modal-title', id: titleId }, t('settings.yt.title')),
     body,
   ]), { wide: true, sticky: true, labelledBy: titleId });
@@ -388,7 +387,6 @@ export function youtubeImportDialog(folderId: string) {
       return;
     }
 
-    let addBtn: HTMLButtonElement;
     const countChecked = () => items.filter((it: YTItem) => it.checkbox.checked).length;
     const refreshAddBtn = () => {
       const n = countChecked();
@@ -435,7 +433,7 @@ export function youtubeImportDialog(folderId: string) {
       ]);
     }
 
-    addBtn = el('button', {
+    const addBtn = el('button', {
       class: 'btn primary',
       onclick: async () => {
         const selected = items.filter((it: YTItem) => it.checkbox.checked).map(it => ({

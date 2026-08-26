@@ -80,11 +80,16 @@ boot().catch(e => {
   if (note) note.textContent = t('app.bootFailed');
 });
 
-let deferredPrompt: Event | null = null;
+interface BeforeInstallPromptEvent extends Event {
+  prompt(): Promise<void>;
+  userChoice: Promise<{ outcome: string }>;
+}
+
+let deferredPrompt: BeforeInstallPromptEvent | null = null;
 
 window.addEventListener('beforeinstallprompt', (e) => {
   e.preventDefault();
-  deferredPrompt = e;
+  deferredPrompt = e as BeforeInstallPromptEvent;
 });
 
 window.addEventListener('appinstalled', () => {
@@ -92,14 +97,15 @@ window.addEventListener('appinstalled', () => {
 });
 
 export function isAppInstalled(): boolean {
+  const nav = window.navigator as Navigator & { standalone?: boolean };
   return window.matchMedia('(display-mode: standalone)').matches
-    || (window.navigator as any).standalone === true;
+    || nav.standalone === true;
 }
 
 export function promptInstall(): Promise<boolean> {
   if (deferredPrompt) {
-    (deferredPrompt as any).prompt();
-    return (deferredPrompt as any).userChoice.then((choice: { outcome: string }) => choice.outcome === 'accepted');
+    void deferredPrompt.prompt();
+    return deferredPrompt.userChoice.then((choice) => choice.outcome === 'accepted');
   }
   return Promise.resolve(false);
 }

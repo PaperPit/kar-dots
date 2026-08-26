@@ -119,6 +119,7 @@ function inlineMarkdown(text: string, opts: MarkdownRenderOpts = {}): string {
   )
 
   // Плейсхолдеры wiki/картинок — уже безопасный HTML
+  // eslint-disable-next-line no-control-regex -- \u0000 — внутренний сентинель-плейсхолдер
   s = s.replace(/\u0000MD(\d+)\u0000/g, (_m, n) => slots[Number(n)] || "")
   return s
 }
@@ -347,7 +348,10 @@ export function noteTitleFromBody(body: string, fallback = ""): string {
     if (h) return h[1]!.trim().slice(0, 120)
     if (line.trim()) break
   }
-  const plain = String(body ?? "").replace(/[#*_`>\-\[\]()]/g, " ").replace(/\s+/g, " ").trim()
+  const plain = String(body ?? "")
+    .replace(/[#*_`>\-\[\]()]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
   if (plain) return plain.slice(0, 60) + (plain.length > 60 ? "…" : "")
   return fallback
 }

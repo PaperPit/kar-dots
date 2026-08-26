@@ -84,7 +84,7 @@ interface SoundAudio extends HTMLAudioElement {
   __soundFile?: string
 }
 
-let mp3Audio: Record<string, SoundAudio | null> = {
+const mp3Audio: Record<string, SoundAudio | null> = {
   success: null,
   fail: null,
   cup: null,

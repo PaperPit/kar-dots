@@ -158,10 +158,9 @@ function buildSpeechVoiceRow(s: SettingsLike, save: () => void, ttsEnabled: bool
 }
 
 export function buildAlgoGroup(s: SettingsLike, save: () => void) {
-  let ttsAutoInput;
   const ttsEnabled = s.tts !== false;
 
-  ttsAutoInput = el('input', { type: 'checkbox', class: 'chk' }, []) as HTMLInputElement;
+  const ttsAutoInput = el('input', { type: 'checkbox', class: 'chk' }, []) as HTMLInputElement;
   ttsAutoInput.checked = ttsEnabled && !!s.ttsAuto;
   ttsAutoInput.disabled = !ttsEnabled;
   ttsAutoInput.addEventListener('change', () => {

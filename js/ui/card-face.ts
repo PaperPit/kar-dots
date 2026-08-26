@@ -33,17 +33,26 @@ export function buildFrontContent(card: Card): HTMLElement[] {
   return parts
 }
 
-/** Оборот: определение (жирное, по центру) + описание (мельче, по ширине). */
+/** Оборот: определение (жирное, по центру) + пример + описание (мельче, по ширине).
+ * Пример хранится в back второй строкой: «перевод\nEN sentence — RU перевод». */
 export function buildBackContent(card: Card): HTMLElement[] {
   const parts = []
   if (card.back_img) parts.push(faceImage(card.back_img))
 
   const defPlain = stripHtml(card.back)
   if (defPlain) {
-    const longCls = defPlain.length > 120 ? " long" : ""
-    const defNode = el("div", { class: "card-definition" + longCls })
-    defNode.textContent = defPlain
-    parts.push(defNode)
+    const nl = defPlain.indexOf("\n")
+    const defText = (nl === -1 ? defPlain : defPlain.slice(0, nl)).trim()
+    const exampleText = nl === -1 ? "" : defPlain.slice(nl + 1).trim()
+    if (defText) {
+      const longCls = defText.length > 120 ? " long" : ""
+      const defNode = el("div", { class: "card-definition" + longCls })
+      defNode.textContent = defText
+      parts.push(defNode)
+    }
+    if (exampleText) {
+      parts.push(el("div", { class: "card-example" }, exampleText))
+    }
   }
 
   const desc = (card.description || "").trim()

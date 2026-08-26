@@ -55,7 +55,9 @@ export function el<K extends string = "div">(
       )
     })
   }
-  return node as any
+  return node as unknown as K extends keyof HTMLElementTagNameMap
+    ? HTMLElementTagNameMap[K]
+    : HTMLElement
 }
 
 export function toast(msg: string, type?: string): void {
@@ -94,7 +96,7 @@ export function toastAction(
   if (activeActionToast) activeActionToast.dismiss()
 
   const root = document.getElementById("toasts") as HTMLElement
-  let hideTimer: ReturnType<typeof setTimeout> | undefined
+  let hideTimer: ReturnType<typeof setTimeout> | undefined = undefined
   const t = el("div", { class: "toast toast-actionable", role: "status", "aria-atomic": "true" }, [
     el("span", { class: "toast-msg" }, msg),
     el(
@@ -237,7 +239,6 @@ export function confirmDialog(
   icon?: Node | null
 ): Promise<boolean> {
   return new Promise((resolve) => {
-    let m: ModalHandle
     let settled = false
     const settle = (value: boolean) => {
       if (settled) return
@@ -274,7 +275,7 @@ export function confirmDialog(
         )
       ])
     ])
-    m = modal(content, {
+    const m: ModalHandle = modal(content, {
       labelledBy: titleId,
       onClose: () => settle(false)
     })

@@ -63,9 +63,8 @@ export function openCardPreview(ctx: PreviewCtx) {
 
   const wrap = el('div', { class: 'card-preview-wrap' }, [box]);
 
-  let pm: ModalHandle;
   const titleId = 'card-preview-dialog-title';
-  pm = modal(el('div', null, [
+  const pm: ModalHandle = modal(el('div', null, [
     el('h3', { class: 'modal-title', id: titleId }, t('cardEditor.preview.title')),
     el('p', { class: 'modal-text muted card-preview-lead' },
       t('cardEditor.preview.lead')),

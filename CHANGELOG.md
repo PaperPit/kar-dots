@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [16.8] - 2026-08-26
+
+### Changed
+- LLM-polish RU translations in built-in EN packs (A0/A1/A2/phrases); pack versions bumped
+- Card back: optional example line after first newline (`.card-example`)
+
+### Fixed
+- Pack edge cases (may/to/will/on/of/black/aux); markdown title hyphen strip
+
+
 ### Changed
 
 - (nothing yet)

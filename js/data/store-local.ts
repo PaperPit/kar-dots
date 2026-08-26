@@ -35,7 +35,8 @@ import {
   findFolderByPackId,
   importVocabPack as doImportVocabPack,
   deleteVocabPack as doDeleteVocabPack,
-  type VocabImportStore
+  type VocabImportStore,
+  type VocabPack
 } from "./store-vocab.js"
 import { StoreCache } from "./store-cache.js"
 import { buildNoteTermRows, tokenizeNotesText, rankNoteSearch } from "../lib/notes-fts.js"
@@ -139,7 +140,7 @@ function tx(
   })
 }
 
-function idbGetAll<T = any>(db: IDBDatabase | null, store: string): Promise<T[]> {
+function idbGetAll<T = unknown>(db: IDBDatabase | null, store: string): Promise<T[]> {
   return new Promise((resolve, reject) => {
     const req = db!.transaction(store).objectStore(store).getAll()
     req.onsuccess = () => resolve(req.result as T[])
@@ -340,11 +341,11 @@ export class LocalStore {
         )
       }
     }
-    this.folders = (await idbGetAll(this.db, "folders"))
+    this.folders = (await idbGetAll<Folder>(this.db, "folders"))
       .map(normalizeFolderRecord)
       .filter((f): f is FolderRecord => !!f)
     this.folders.sort((a, b) => (a.created_at || 0) - (b.created_at || 0))
-    this.boxes = (await idbGetAll(this.db, "boxes"))
+    this.boxes = (await idbGetAll<Box>(this.db, "boxes"))
       .map(normalizeBoxRecord)
       .filter((b): b is BoxRecord => !!b)
     this.boxes.sort((a, b) => (a.created_at || 0) - (b.created_at || 0))
@@ -542,7 +543,7 @@ export class LocalStore {
     return findFolderByPackId(this.folders, packId)
   }
 
-  async importVocabPack(pack: any, onProgress?: (n: number) => void) {
+  async importVocabPack(pack: VocabPack | null | undefined, onProgress?: (n: number) => void) {
     return doImportVocabPack(
       this as unknown as VocabImportStore,
       pack,

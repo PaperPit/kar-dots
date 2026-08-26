@@ -344,7 +344,7 @@ function withExpiry(data: AuthResponse): AuthSession {
 }
 
 function authError(data: AuthErrorBody): Error {
-  let msg = data.msg || data.error_description || data.message || data.error || "Ошибка авторизации"
+  const msg = data.msg || data.error_description || data.message || data.error || "Ошибка авторизации"
   const map: Record<string, string> = {
     "Invalid login credentials": "Неверная почта или пароль",
     "User already registered": "Такой пользователь уже зарегистрирован",

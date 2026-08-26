@@ -20,7 +20,7 @@ const SKIP_INPUT = new Set([
   "file"
 ])
 
-let stateMod: StateModule = state
+const stateMod: StateModule = state
 
 function shouldPlayForTarget(node: EventTarget | null): boolean {
   if (!node) return false

@@ -1,12 +1,12 @@
 import type { Folder, Card } from "./types.js"
 
-interface VocabPackCard {
+export interface VocabPackCard {
   front?: string
   back?: string
   description?: string
 }
 
-interface VocabPack {
+export interface VocabPack {
   id?: string
   title?: string
   color?: string

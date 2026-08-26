@@ -63,7 +63,6 @@ export function boxDialog(box: Box | null) {
   }
   paintFolderPick();
 
-  let m: ReturnType<typeof modal>;
   const titleId = 'box-dialog-title';
   const save = el('button', {
     type: 'button',
@@ -90,7 +89,7 @@ export function boxDialog(box: Box | null) {
     },
   }, box ? t('common.save') : t('common.create')) as HTMLButtonElement;
 
-  m = modal(el('div', null, [
+  const m: ReturnType<typeof modal> = modal(el('div', null, [
     el('h3', { class: 'modal-title', id: titleId }, box ? t('box.dialog.titleEdit') : t('box.dialog.titleNew')),
     el('div', { class: 'field' }, [el('label', null, t('common.name')), name]),
     el('div', { class: 'field' }, [el('label', null, t('common.color')), dots]),

@@ -2,12 +2,7 @@
 // КАР-точки — маленькие помощники интерфейса
 // ============================================================
 
-import {
-  animateModalIn,
-  animateModalOut,
-  animateToastIn,
-  animateToastOut
-} from "./motion-lazy.js"
+import { animateModalIn, animateModalOut, animateToastIn, animateToastOut } from "./motion-lazy.js"
 import { t } from "../lib/i18n.js"
 
 export type ElChild = Node | string | number | null | undefined | false
@@ -33,8 +28,7 @@ export function el<K extends string = "div">(
     for (const k in attrs) {
       const v = attrs[k]
       if (v === null || v === undefined || v === false) continue
-      if (k.startsWith("on") && typeof v === "function")
-        node.addEventListener(k.slice(2), v)
+      if (k.startsWith("on") && typeof v === "function") node.addEventListener(k.slice(2), v)
       else if (k === "html") node.innerHTML = String(v)
       else if (k === "style" && typeof v === "object" && v !== null) {
         for (const sk in v) {
@@ -49,9 +43,7 @@ export function el<K extends string = "div">(
     ;(Array.isArray(children) ? children : [children]).forEach((ch) => {
       if (ch === null || ch === undefined || ch === false) return
       node.appendChild(
-        typeof ch === "string" || typeof ch === "number"
-          ? document.createTextNode(String(ch))
-          : ch
+        typeof ch === "string" || typeof ch === "number" ? document.createTextNode(String(ch)) : ch
       )
     })
   }
@@ -178,7 +170,9 @@ export function modal(content: Node, opts?: ModalOpts): ModalHandle {
       if (prevFocus instanceof HTMLElement) {
         try {
           prevFocus.focus({ preventScroll: true })
-        } catch (e) { console.warn('[kar] modal focus restore failed:', e); }
+        } catch (e) {
+          console.warn("[kar] modal focus restore failed:", e)
+        }
       }
     })
   }
@@ -328,10 +322,7 @@ function pickRichHlClass(className?: string): string {
 }
 
 export function sanitizeRich(html: string): string {
-  const doc = new DOMParser().parseFromString(
-    "<div>" + String(html || "") + "</div>",
-    "text/html"
-  )
+  const doc = new DOMParser().parseFromString("<div>" + String(html || "") + "</div>", "text/html")
   function clean(node: Node): string {
     const out: string[] = []
     node.childNodes.forEach((ch) => {

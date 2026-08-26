@@ -193,7 +193,9 @@ export async function vocabPacksDialog(): Promise<void> {
       const pack = await fetchVocabPack(meta.id)
       const total = pack.cards.filter((c: { front?: string }) => c.front?.trim()).length
       overlay.setImport(total)
-      const folder = await store.importVocabPack(pack, (p: { done: number; total: number }) => overlay.onProgress(p))
+      const folder = await store.importVocabPack(pack, (p: { done: number; total: number }) =>
+        overlay.onProgress(p)
+      )
       await overlay.finish()
       overlay.remove()
       toast(`Пак «${meta.title}» установлен`, "ok")

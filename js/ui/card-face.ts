@@ -13,7 +13,7 @@ import { t } from "../lib/i18n.js"
  */
 function faceImage(src: string): HTMLElement {
   const img = el("img", { src: resolveImageUrlSync(src), alt: "", decoding: "async" })
-  void resolveImageUrl(src).then(url => {
+  void resolveImageUrl(src).then((url) => {
     if (url && img.getAttribute("src") !== url) img.setAttribute("src", url)
   })
   return el("div", { class: "card-img-box" }, [img])
@@ -73,7 +73,11 @@ export function buildFaceScroll(side: "front" | "back", card: Card): HTMLElement
   return el("div", { class: "flip-face-scroll" }, content)
 }
 
-export function buildFlipFace(side: "front" | "back", card: Card, isBackFace: boolean): HTMLElement {
+export function buildFlipFace(
+  side: "front" | "back",
+  card: Card,
+  isBackFace: boolean
+): HTMLElement {
   const chip = el(
     "div",
     { class: "flip-side-chip" + (isBackFace ? " is-back" : " is-front"), "aria-hidden": "true" },

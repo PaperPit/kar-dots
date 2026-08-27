@@ -66,6 +66,14 @@ const browserGlobals = {
   Event: 'readonly',
   CustomEvent: 'readonly',
   EventTarget: 'readonly',
+  KeyboardEvent: 'readonly',
+  MouseEvent: 'readonly',
+  FocusEvent: 'readonly',
+  InputEvent: 'readonly',
+  UIEvent: 'readonly',
+  ErrorEvent: 'readonly',
+  PromiseRejectionEvent: 'readonly',
+  HTMLCanvasElement: 'readonly',
   MutationObserver: 'readonly',
   IntersectionObserver: 'readonly',
   ResizeObserver: 'readonly',
@@ -105,6 +113,9 @@ const nodeGlobals = {
   fetch: 'readonly',
   URL: 'readonly',
   URLSearchParams: 'readonly',
+  Request: 'readonly',
+  Response: 'readonly',
+  Headers: 'readonly',
   TextEncoder: 'readonly',
   TextDecoder: 'readonly',
   crypto: 'readonly',
@@ -246,6 +257,15 @@ module.exports = [
       // проблем. Формат живёт отдельно: `npm run check:format` / `npm run format`.
       'prettier/prettier': 'off',
     },
+  },
+
+  // --- js/core/state.ts: интерфейс AppStore сознательно использует any ---
+  // Каждому any сопоставлен комментарий с причиной (два несовместимых типа
+  // Settings, возвраты CloudStore через _cloudOrQueue и т. д.). Сузить их
+  // можно только рефакторингом data/, что вне рамок этого файла.
+  {
+    files: ['js/core/state.ts'],
+    rules: { '@typescript-eslint/no-explicit-any': 'off' },
   },
 
   // --- Chrome-расширение (MV3): исходники на TS + глобал chrome ---

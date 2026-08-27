@@ -49,7 +49,7 @@ export function layoutNoteGraph(
       x: cx + Math.cos(a) * r + (Math.random() - 0.5) * 8,
       y: cy + Math.sin(a) * r + (Math.random() - 0.5) * 8,
       vx: 0,
-      vy: 0,
+      vy: 0
     }
   })
   const byId = new Map(nodes.map((n) => [n.id, n]))
@@ -62,9 +62,9 @@ export function layoutNoteGraph(
       for (let j = i + 1; j < nodes.length; j++) {
         const a = nodes[i]!
         const b = nodes[j]!
-        let dx = a.x - b.x
-        let dy = a.y - b.y
-        let dist2 = dx * dx + dy * dy || 0.01
+        const dx = a.x - b.x
+        const dy = a.y - b.y
+        const dist2 = dx * dx + dy * dy || 0.01
         const dist = Math.sqrt(dist2)
         const force = (900 * alpha) / dist2
         const fx = (dx / dist) * force
@@ -83,7 +83,7 @@ export function layoutNoteGraph(
       const dy = b.y - a.y
       const dist = Math.sqrt(dx * dx + dy * dy) || 0.01
       const rest = e.kind === "folder" ? 90 : 120
-      const f = ((dist - rest) * 0.04) * alpha
+      const f = (dist - rest) * 0.04 * alpha
       const fx = (dx / dist) * f
       const fy = (dy / dist) * f
       a.vx += fx

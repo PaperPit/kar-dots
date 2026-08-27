@@ -345,7 +345,7 @@ def load_json(p):
 
 def load_overrides():
     merged = {}
-    for name in ('ru-overrides.json', 'ru-manual.json'):
+    for name in ('ru-overrides.json', 'ru-manual.json', 'ru-llm-polish.json'):
         p = DATA / name
         if p.exists():
             merged.update(load_json(p))

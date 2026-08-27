@@ -4,16 +4,14 @@
  * wiki [[...]], хештеги #tag, жирный/курсив.
  */
 
-import {
-  resolveWikiTarget,
-} from "./note-links.js"
+import { resolveWikiTarget } from "./note-links.js"
 
 const ESC: Record<string, string> = {
   "&": "&amp;",
   "<": "&lt;",
   ">": "&gt;",
   '"': "&quot;",
-  "'": "&#39;",
+  "'": "&#39;"
 }
 
 export function escapeHtml(s: string): string {
@@ -80,22 +78,29 @@ function inlineMarkdown(text: string, opts: MarkdownRenderOpts = {}): string {
     const html = opts.embedResolver ? opts.embedResolver(target, anchor) : null
     if (html != null) return park(sanitizeEmbedHtml(html))
     const title = wikiTargetLabel(target, anchor)
-    return park(`<span class="md-embed md-embed--missing" title="${escapeHtml(title)}">${escapeHtml(title)}</span>`)
+    return park(
+      `<span class="md-embed md-embed--missing" title="${escapeHtml(title)}">${escapeHtml(title)}</span>`
+    )
   })
 
-  raw = raw.replace(/\[\[([^\]|]+?)(?:\|([^\]]+))?\]\]/g, (_m, rawTarget: string, label?: string) => {
-    const { target, anchor } = splitWikiTarget(rawTarget)
-    const title = wikiTargetLabel(target, anchor)
-    const lab = String(label || title).trim() || title
-    const id = opts.wikiIndex ? resolveWikiTarget(target, opts.wikiIndex) : null
-    if (id) {
-      const href = "#note/" + escapeHtml(id) + (anchor ? "#" + escapeHtml(slugify(anchor)) : "")
+  raw = raw.replace(
+    /\[\[([^\]|]+?)(?:\|([^\]]+))?\]\]/g,
+    (_m, rawTarget: string, label?: string) => {
+      const { target, anchor } = splitWikiTarget(rawTarget)
+      const title = wikiTargetLabel(target, anchor)
+      const lab = String(label || title).trim() || title
+      const id = opts.wikiIndex ? resolveWikiTarget(target, opts.wikiIndex) : null
+      if (id) {
+        const href = "#note/" + escapeHtml(id) + (anchor ? "#" + escapeHtml(slugify(anchor)) : "")
+        return park(
+          `<a class="md-wiki" href="${href}" data-note-id="${escapeHtml(id)}"${anchor ? ` data-heading="${escapeHtml(slugify(anchor))}"` : ""}>${escapeHtml(lab)}</a>`
+        )
+      }
       return park(
-        `<a class="md-wiki" href="${href}" data-note-id="${escapeHtml(id)}"${anchor ? ` data-heading="${escapeHtml(slugify(anchor))}"` : ""}>${escapeHtml(lab)}</a>`
+        `<span class="md-wiki md-wiki--missing" title="${escapeHtml(title)}">${escapeHtml(lab)}</span>`
       )
     }
-    return park(`<span class="md-wiki md-wiki--missing" title="${escapeHtml(title)}">${escapeHtml(lab)}</span>`)
-  })
+  )
 
   let s = escapeHtml(raw)
 
@@ -119,6 +124,7 @@ function inlineMarkdown(text: string, opts: MarkdownRenderOpts = {}): string {
   )
 
   // Плейсхолдеры wiki/картинок — уже безопасный HTML
+  // eslint-disable-next-line no-control-regex -- \u0000 — внутренний сентинель-плейсхолдер
   s = s.replace(/\u0000MD(\d+)\u0000/g, (_m, n) => slots[Number(n)] || "")
   return s
 }
@@ -141,7 +147,11 @@ function isTableStart(lines: string[], i: number): boolean {
   return head.includes("|") && sep.includes("|") && isTableSeparator(sep)
 }
 
-function renderTable(lines: string[], start: number, opts: MarkdownRenderOpts): { html: string; next: number } {
+function renderTable(
+  lines: string[],
+  start: number,
+  opts: MarkdownRenderOpts
+): { html: string; next: number } {
   const head = splitTableRow(lines[start] || "")
   let i = start + 2
   const rows: string[][] = []
@@ -153,58 +163,109 @@ function renderTable(lines: string[], start: number, opts: MarkdownRenderOpts): 
   const pad = (row: string[]) => Array.from({ length: cols }, (_, idx) => row[idx] || "")
   const html = [
     "<table>",
-    "<thead><tr>" + pad(head).map((cell) => `<th>${inlineMarkdown(cell, opts)}</th>`).join("") + "</tr></thead>",
+    "<thead><tr>" +
+      pad(head)
+        .map((cell) => `<th>${inlineMarkdown(cell, opts)}</th>`)
+        .join("") +
+      "</tr></thead>",
     "<tbody>",
-    ...rows.map((row) => "<tr>" + pad(row).map((cell) => `<td>${inlineMarkdown(cell, opts)}</td>`).join("") + "</tr>"),
+    ...rows.map(
+      (row) =>
+        "<tr>" +
+        pad(row)
+          .map((cell) => `<td>${inlineMarkdown(cell, opts)}</td>`)
+          .join("") +
+        "</tr>"
+    ),
     "</tbody>",
-    "</table>",
+    "</table>"
   ].join("\n")
   return { html, next: i }
 }
 
-const ALLOWED_EMBED_TAGS = new Set(["a", "aside", "div", "p", "br", "b", "strong", "i", "em", "u", "mark", "code", "pre", "span", "h1", "h2", "h3", "h4", "h5", "h6", "ul", "ol", "li", "blockquote", "table", "thead", "tbody", "tr", "th", "td", "img"]);
+const ALLOWED_EMBED_TAGS = new Set([
+  "a",
+  "aside",
+  "div",
+  "p",
+  "br",
+  "b",
+  "strong",
+  "i",
+  "em",
+  "u",
+  "mark",
+  "code",
+  "pre",
+  "span",
+  "h1",
+  "h2",
+  "h3",
+  "h4",
+  "h5",
+  "h6",
+  "ul",
+  "ol",
+  "li",
+  "blockquote",
+  "table",
+  "thead",
+  "tbody",
+  "tr",
+  "th",
+  "td",
+  "img"
+])
 
 function sanitizeEmbedHtml(html: string): string {
-  const doc = new DOMParser().parseFromString("<div>" + html + "</div>", "text/html");
+  const doc = new DOMParser().parseFromString("<div>" + html + "</div>", "text/html")
   function clean(node: Node): string {
-    const out: string[] = [];
+    const out: string[] = []
     node.childNodes.forEach((ch) => {
       if (ch.nodeType === Node.TEXT_NODE) {
-        out.push(escapeHtml(ch.textContent || ""));
+        out.push(escapeHtml(ch.textContent || ""))
       } else if (ch instanceof Element) {
-        const tag = ch.tagName.toLowerCase();
+        const tag = ch.tagName.toLowerCase()
         if (ALLOWED_EMBED_TAGS.has(tag)) {
           const attrs = Array.from(ch.attributes)
-            .filter((a) => a.name === "class" || a.name === "href" || a.name === "title" || a.name.startsWith("data-"))
+            .filter(
+              (a) =>
+                a.name === "class" ||
+                a.name === "href" ||
+                a.name === "title" ||
+                a.name.startsWith("data-")
+            )
             .map((a) => {
-              const val = a.name === "href" ? safeHrefAttr(a.value) : escapeHtml(a.value);
-              return val ? ` ${a.name}="${val}"` : "";
+              const val = a.name === "href" ? safeHrefAttr(a.value) : escapeHtml(a.value)
+              return val ? ` ${a.name}="${val}"` : ""
             })
-            .join("");
-          out.push(`<${tag}${attrs}>${clean(ch)}</${tag}>`);
+            .join("")
+          out.push(`<${tag}${attrs}>${clean(ch)}</${tag}>`)
         } else {
-          out.push(clean(ch));
+          out.push(clean(ch))
         }
       }
-    });
-    return out.join("");
+    })
+    return out.join("")
   }
-  const first = doc.body.firstChild;
-  if (!first) return "";
-  return clean(first);
+  const first = doc.body.firstChild
+  if (!first) return ""
+  return clean(first)
 }
 
 function safeHrefAttr(href: string): string | null {
-  const h = href.trim();
-  if (/^(https?:|mailto:|#)/i.test(h)) return escapeHtml(h);
-  return null;
+  const h = href.trim()
+  if (/^(https?:|mailto:|#)/i.test(h)) return escapeHtml(h)
+  return null
 }
 
 /**
  * Рендер Markdown в безопасный HTML (только известные конструкции).
  */
 export function renderMarkdown(src: string, opts: MarkdownRenderOpts = {}): string {
-  const lines = String(src ?? "").replace(/\r\n?/g, "\n").split("\n")
+  const lines = String(src ?? "")
+    .replace(/\r\n?/g, "\n")
+    .split("\n")
   const out: string[] = []
   let i = 0
   let inUl = false
@@ -341,31 +402,37 @@ export function renderMarkdown(src: string, opts: MarkdownRenderOpts = {}): stri
 
 /** Заголовок из первой строки # ... или первые ~60 символов body. */
 export function noteTitleFromBody(body: string, fallback = ""): string {
-  const lines = String(body ?? "").replace(/\r\n?/g, "\n").split("\n")
+  const lines = String(body ?? "")
+    .replace(/\r\n?/g, "\n")
+    .split("\n")
   for (const line of lines) {
     const h = /^#\s+(.+)$/.exec(line.trim())
     if (h) return h[1]!.trim().slice(0, 120)
     if (line.trim()) break
   }
-  const plain = String(body ?? "").replace(/[#*_`>\-\[\]()]/g, " ").replace(/\s+/g, " ").trim()
+  const plain = String(body ?? "")
+    .replace(/[#*_`>\-\[\]()]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
   if (plain) return plain.slice(0, 60) + (plain.length > 60 ? "…" : "")
   return fallback
 }
 
 /** Превью для списка: первая непустая строка без разметки. */
 export function notePreview(body: string, max = 140): string {
-  const plain = String(body ?? "")
-    .replace(/\r\n?/g, "\n")
-    .split("\n")
-    .map((l) =>
-      l
-        .replace(/^#{1,6}\s+/, "")
-        .replace(/!\[[^\]]*\]\([^)]+\)/g, "")
-        .replace(/\[\[[^\]]+\]\]/g, (w) => w.replace(/[\[\]]/g, ""))
-        .replace(/[`*_\[\]()#>|-]/g, "")
-        .trim()
-    )
-    .find((l) => l.length > 0) || ""
+  const plain =
+    String(body ?? "")
+      .replace(/\r\n?/g, "\n")
+      .split("\n")
+      .map((l) =>
+        l
+          .replace(/^#{1,6}\s+/, "")
+          .replace(/!\[[^\]]*\]\([^)]+\)/g, "")
+          .replace(/\[\[[^\]]+\]\]/g, (w) => w.replace(/[\[\]]/g, ""))
+          .replace(/[`*_\[\]()#>|-]/g, "")
+          .trim()
+      )
+      .find((l) => l.length > 0) || ""
   if (plain.length <= max) return plain
   return plain.slice(0, max - 1) + "…"
 }

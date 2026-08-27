@@ -1,4 +1,4 @@
-import { el, toast, modal, confirmDialog, plural, spinner, ModalHandle } from "./ui.js"
+import { el, toast, modal, confirmDialog, plural, spinner, type ModalHandle } from "./ui.js"
 import { Folder } from "./types.js"
 import { store } from "../core/state.js"
 import { route } from "../core/router.js"
@@ -89,7 +89,6 @@ function packInstallOverlay(modalBox: HTMLElement, meta: VocabPackMeta): Install
 }
 
 export async function vocabPacksDialog(): Promise<void> {
-  let m: ModalHandle
   let manifest: VocabPackManifest
   try {
     manifest = await fetchPackManifest()
@@ -194,7 +193,9 @@ export async function vocabPacksDialog(): Promise<void> {
       const pack = await fetchVocabPack(meta.id)
       const total = pack.cards.filter((c: { front?: string }) => c.front?.trim()).length
       overlay.setImport(total)
-      const folder = await store.importVocabPack(pack, (p: { done: number; total: number }) => overlay.onProgress(p))
+      const folder = await store.importVocabPack(pack, (p: { done: number; total: number }) =>
+        overlay.onProgress(p)
+      )
       await overlay.finish()
       overlay.remove()
       toast(`Пак «${meta.title}» установлен`, "ok")
@@ -235,7 +236,7 @@ export async function vocabPacksDialog(): Promise<void> {
   })
 
   const titleId = "vocab-packs-dialog-title"
-  m = modal(
+  const m: ModalHandle = modal(
     el("div", null, [
       el("h3", { class: "modal-title", id: titleId }, "Лексические паки"),
       el(

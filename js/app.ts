@@ -36,12 +36,12 @@ async function boot() {
   initUiClicks()
   initSpeechVoices()
   initStudyKeyboardLock()
+  // Local-first: по умолчанию локальный режим. Cloud (Supabase) — только
+  // явный legacy-вход с живой сессией; новый путь синка — Cloudflare (фаза 2+).
   const mode = localStorage.getItem("kar_mode")
 
   try {
-    if (mode === "local") {
-      await enterLocal()
-    } else if (mode === "cloud" && sb && sb.hasSession()) {
+    if (mode === "cloud" && sb && sb.hasSession()) {
       const { CloudStore } = await import("./data/store-cloud.js")
       const cloud = new CloudStore(sb)
       await cloud.init()
@@ -58,15 +58,20 @@ async function boot() {
       await route()
       initExtConnect()
     } else {
-      dismissBootSplash()
-      renderAuth(undefined)
+      if (mode !== "local") localStorage.setItem("kar_mode", "local")
+      await enterLocal()
       initExtConnect()
     }
   } catch (e) {
     console.error(e)
     dismissBootSplash()
     toast(t("app.bootError", { message: e instanceof Error ? e.message : String(e) }), "error")
-    renderAuth(undefined)
+    try {
+      localStorage.setItem("kar_mode", "local")
+      await enterLocal()
+    } catch {
+      renderAuth(undefined)
+    }
     initExtConnect()
   }
 }

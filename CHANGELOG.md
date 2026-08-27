@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [16.9] - 2026-08-27
+
+### Changed
+- Local-first boot: default to local mode; Supabase cloud is legacy (collapsed on auth)
+- Settings: switch to local mode to leave offline sync queue banner
+- Auth CTA: continue on this device as primary action
+
 ## [16.8] - 2026-08-26
 
 ### Changed

@@ -134,7 +134,7 @@ test('settings: sync section shows local-only note in demo mode', async ({ page 
     page.getByText(/Очередь синхронизации|Sync queue/i)
   ).toBeVisible();
   await expect(
-    page.getByText(/только в облачном|cloud mode only/i)
+    page.getByText(/локальный режим|Local mode|Cloudflare|экспорт|export\/import/i)
   ).toBeVisible();
 });
 

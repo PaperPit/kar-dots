@@ -11,6 +11,13 @@ const LOCAL_CTA =
  * If the auth screen is shown (e.g. after sign-out), click the local CTA.
  */
 export async function enterLocal(page) {
+  await page.addInitScript(() => {
+    try {
+      localStorage.removeItem('kar_mode');
+    } catch {
+      /* ignore */
+    }
+  });
   await page.goto('/');
   const home = page.getByText(HOME_GREETING);
   try {

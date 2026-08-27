@@ -1,12 +1,5 @@
 import { expect, test } from '@playwright/test';
-
-async function enterLocal(page) {
-  await page.goto('/');
-  await page.getByRole('button', { name: 'Попробовать без регистрации' }).click();
-  await expect(
-    page.getByText(/Доброе утро|Добрый день|Добрый вечер/)
-  ).toBeVisible();
-}
+import { enterLocal } from './helpers.js';
 
 test.beforeEach(async ({ context }) => {
   await context.clearCookies();

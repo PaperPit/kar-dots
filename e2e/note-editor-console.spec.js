@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { enterLocal } from './helpers.js';
 
 test('note screen: no console/page errors after open', async ({ page }) => {
   const errors = [];
@@ -7,8 +8,7 @@ test('note screen: no console/page errors after open', async ({ page }) => {
     if (msg.type() === 'error') errors.push(msg.text());
   });
 
-  await page.goto('/');
-  await page.getByRole('button', { name: /Попробовать без регистрации|Try without/i }).click();
+  await enterLocal(page);
   await page.waitForTimeout(500);
 
   await page.evaluate(async () => {

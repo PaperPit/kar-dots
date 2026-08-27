@@ -4,14 +4,9 @@ import { fileURLToPath } from 'node:url';
 import fs from 'node:fs';
 import initSqlJs from '../js/vendor/sql-asm.mjs';
 import { zipSync } from '../js/vendor/fflate.mjs';
+import { enterLocal } from './helpers.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-
-async function enterLocal(page) {
-  await page.goto('/');
-  await page.getByRole('button', { name: /Попробовать без регистрации|Try without/i }).click();
-  await expect(page.getByText(/Доброе утро|Добрый день|Добрый вечер|Good morning|Good afternoon|Good evening/i)).toBeVisible();
-}
 
 const FIELD_SEP = '\x1f';
 let sqlModulePromise = null;

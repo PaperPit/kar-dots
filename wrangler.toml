@@ -21,14 +21,25 @@ id = "5e57b0e230ad4fc5bf23fde74ac6d625"
 [ai]
 binding = "AI"
 
+# D1 — snapshot-синк между устройствами (/api/sync/*, /api/auth/*).
+# Создайте: npx wrangler d1 create kar-sync
+# Миграции: npx wrangler d1 migrations apply kar-sync --remote
+# Локально: npm run d1:migrate (см. package.json)
+[[d1_databases]]
+binding = "SYNC_DB"
+database_name = "kar-sync"
+database_id = "1e9032ff-251c-4d5f-8150-e8e49e409172"
+migrations_dir = "migrations"
+
 # Прод: без KV лимиты обязательны. Локально не задавайте / ставьте "0".
 [vars]
 REQUIRE_RATE_LIMIT = "1"
 
 # Переменные окружения для /api/* задаются в Cloudflare Pages →
 # Settings → Environment variables, здесь их не дублируем (см. .env.example):
-#   SUPABASE_URL       — проверка access-token'а в middleware
+#   SUPABASE_URL       — проверка access-token'а в middleware (legacy cloud)
 #   SUPABASE_ANON_KEY  — публичный anon key того же проекта (не service_role!)
+#   SYNC_JWT_SECRET    — Secret: подпись JWT для Cloudflare sync (фаза 2)
 #   GEMINI_MODEL / GROQ_MODEL — опционально, только имена моделей
 # SUPABASE_URL и SUPABASE_ANON_KEY публичны по замыслу Supabase (anon key и так
 # уходит в браузер), новых секретов на сервере это не создаёт.

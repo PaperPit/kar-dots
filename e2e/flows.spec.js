@@ -126,17 +126,17 @@ test('local data persists after creating a folder and reloading', async ({ page 
   ).toBeVisible();
 });
 
-test('settings: sync section shows local-only note in local mode', async ({ page }) => {
+test('settings: Cloudflare sync section in local mode', async ({ page }) => {
   await enterLocal(page);
   await page.getByRole('button', { name: /Настройки|Settings/i }).click();
   await expect(page.getByRole('heading', { name: /Настройки|Settings/i })).toBeVisible();
   await expect(
-    page.getByText(/Очередь синхронизации|Sync queue/i)
+    page.getByRole('heading', { name: /Синхронизация Cloudflare|Cloudflare sync/i })
   ).toBeVisible();
   await expect(page.locator('.settings-sync-note')).toBeVisible();
   await expect(
     page.locator('.settings-sync-note')
-  ).toContainText(/локальный режим|Local mode/i);
+  ).toContainText(/Cloudflare|D1/i);
 });
 
 test('settings: JSON import restores a folder', async ({ page }) => {

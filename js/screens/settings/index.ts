@@ -18,6 +18,7 @@ import { buildSyncGroup } from "./sections/sync.js"
 import { buildIntegrationsGroup } from "./sections/integrations.js"
 import { buildStockMediaGroup } from "./sections/stock-media.js"
 import { buildDonateGroup } from "./sections/donate.js"
+import { buildCfSyncGroup } from "./sections/cf-sync.js"
 
 function buildAboutGroup() {
   return el("div", { class: "settings-group" }, [
@@ -67,6 +68,7 @@ export async function renderSettings() {
   const stockMediaGroup = buildStockMediaGroup(s, save)
   const dataGroup = buildDataGroup(store, route)
   const syncGroup = buildSyncGroup(store, route)
+  const cfSyncGroup = buildCfSyncGroup(store, route)
   const accGroup = buildAccountGroup(store, sb, setStore, renderAuth, route)
   const aboutGroup = buildAboutGroup()
   const donateGroup = buildDonateGroup()
@@ -99,6 +101,7 @@ export async function renderSettings() {
       integrationsGroup,
       stockMediaGroup,
       dataGroup,
+      cfSyncGroup,
       syncGroup,
       accGroup,
       donateGroup,

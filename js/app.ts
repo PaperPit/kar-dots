@@ -37,7 +37,7 @@ async function boot() {
   initSpeechVoices()
   initStudyKeyboardLock()
   // Local-first: по умолчанию локальный режим. Cloud (Supabase) — только
-  // явный legacy-вход с живой сессией; новый путь синка — Cloudflare (фаза 2+).
+  // явный legacy-вход с живой сессией. Опциональный синк — Cloudflare (фаза 2, Settings).
   const mode = localStorage.getItem("kar_mode")
 
   try {

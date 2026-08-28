@@ -56,9 +56,11 @@ export async function cfPushSnapshot(
   })
   const data = await parseJson(res)
   if (res.status === 409) {
-    const err = new Error(
-      apiErrorMessage(409, data.message || "conflict")
-    ) as Error & { code?: string; remote?: unknown; remote_updated_at?: number }
+    const err = new Error(apiErrorMessage(409, data.message || "conflict")) as Error & {
+      code?: string
+      remote?: unknown
+      remote_updated_at?: number
+    }
     err.code = "conflict"
     err.remote = data.payload
     err.remote_updated_at = Number(data.updated_at || 0)
@@ -70,7 +72,10 @@ export async function cfPushSnapshot(
   return { updated_at: Number(data.updated_at || Date.now()) }
 }
 
-export async function cfImportPayload(store: AppStore, payload: Record<string, unknown>): Promise<void> {
+export async function cfImportPayload(
+  store: AppStore,
+  payload: Record<string, unknown>
+): Promise<void> {
   validateImportJSON(payload)
   await store.importJSON(JSON.stringify(payload))
 }

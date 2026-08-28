@@ -493,8 +493,7 @@ export const ru = {
   "settings.account.switchLocalDone": "Локальный режим включён",
 
   "settings.sync.title": "Очередь синхронизации (legacy)",
-  "settings.sync.localOnly":
-    "Legacy Supabase: очередь синхронизации только в облачном режиме.",
+  "settings.sync.localOnly": "Legacy Supabase: очередь синхронизации только в облачном режиме.",
   "settings.sync.loading": "Загрузка…",
   "settings.sync.queue": "Статус очереди",
   "settings.sync.status": "Ожидают: {pending} · Ошибки: {failed}",

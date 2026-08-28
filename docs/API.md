@@ -83,6 +83,42 @@ Limits: ~120 req/hour/subject.
 
 ---
 
+## Cloudflare sync (phase 2)
+
+Optional multi-device backup for **local-first** mode. Requires D1 binding `SYNC_DB` and secret `SYNC_JWT_SECRET` on Pages.
+
+### `POST /api/auth/register`
+
+**Body:** `{ email, password }` (password ≥ 8 chars)
+
+**Success:** `{ token, email, userId }` — JWT (`iss: kar-cf-sync`, 30 days)
+
+### `POST /api/auth/login`
+
+**Body:** `{ email, password }`
+
+**Success:** same as register
+
+### `GET /api/sync/pull?since=<ms>`
+
+**Auth:** `Authorization: Bearer <cf-sync-jwt>` (required)
+
+**Success:** `{ updated_at, payload|null, client_id? }` — full export JSON v3 when `updated_at > since`
+
+### `POST /api/sync/push`
+
+**Auth:** required CF sync JWT
+
+**Body:** `{ payload: <export v3>, base_updated_at?: number|null }`
+
+**Success:** `{ updated_at, ok: true }`
+
+**409 conflict:** `{ error: "conflict", updated_at, payload }` when `base_updated_at` ≠ server watermark
+
+Limits: register ~10/h, login ~30/h, pull ~60/h, push ~30/h per subject.
+
+---
+
 ## Errors
 
 JSON body typically `{ error: string, code?: string }`. Common statuses: `400`, `401`, `413`, `429`, `502` (upstream).

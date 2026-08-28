@@ -27,9 +27,12 @@ import {
 } from "./lib/_subject.js"
 import { HOUR_SEC, hitRateLimit } from "./lib/_ratelimit.js"
 import { isTimeoutError } from "./lib/_errors.js"
+import { jwtIssuer, verifyCfJwt } from "./lib/_cf-auth.js"
 
 /** Тела больше этого не бывает даже у самого длинного транскрипта. */
 const MAX_BODY_BYTES = 256 * 1024
+/** Snapshot-синк: полный export JSON v3 может быть крупнее. */
+const MAX_SYNC_BODY_BYTES = 4 * 1024 * 1024
 
 /** Кэш проверки токена в KV, секунды. */
 const AUTH_CACHE_TTL = 300
@@ -42,7 +45,11 @@ const ENDPOINT_LIMITS = {
   "yt-generate": 20,
   tts: 40,
   "stock-search": 120,
-  translate: 120
+  translate: 120,
+  register: 10,
+  login: 30,
+  pull: 60,
+  push: 30
 }
 const DEFAULT_ENDPOINT_LIMIT = 60
 
@@ -78,6 +85,10 @@ export function endpointLimit(scope) {
 export function bodyTooLarge(contentLength, max = MAX_BODY_BYTES) {
   const n = Number(contentLength)
   return Number.isFinite(n) && n > max
+}
+
+export function maxBodyForScope(scope) {
+  return scope === "push" ? MAX_SYNC_BODY_BYTES : MAX_BODY_BYTES
 }
 
 /**
@@ -175,30 +186,57 @@ export async function onRequest(context) {
   if (request.method === "OPTIONS") return context.next()
 
   // 2. Размер тела — до чтения самого тела.
-  if (bodyTooLarge(request.headers.get("content-length"))) {
+  const scope = endpointScope(new URL(request.url).pathname)
+  if (bodyTooLarge(request.headers.get("content-length"), maxBodyForScope(scope))) {
     return json({ error: "too-large", message: "Слишком большой запрос — уменьши транскрипт" }, 413)
   }
 
   const kv = env?.YT_JOBS || null
 
-  // 3–4. Субъект: проверенный пользователь либо аноним от IP + X-Client-Id.
+  // 3–4. Субъект: CF sync JWT, проверенный Supabase, либо аноним.
   const token = bearerToken(request.headers)
   let subject = ""
   let userId = null
+  let cfUserId = null
   if (token) {
-    const verified = await verifyToken(env, kv, token)
-    if (!verified.ok) {
-      return json({ error: verified.code, message: verified.message }, verified.status)
+    const iss = jwtIssuer(token)
+    if (iss === "kar-cf-sync") {
+      const secret = String(env?.SYNC_JWT_SECRET || "")
+      if (!secret) {
+        console.error("[api] SYNC_JWT_SECRET не задан — CF sync токен проверить нечем")
+        return json(
+          { error: "sync-unconfigured", message: "Синхронизация на сервере не настроена" },
+          503
+        )
+      }
+      const verified = await verifyCfJwt(token, secret)
+      if (!verified.ok) {
+        return json(
+          { error: "unauthorized", message: "Сессия синхронизации истекла — войди заново" },
+          401
+        )
+      }
+      cfUserId = verified.userId
+      userId = verified.userId
+      subject = userSubject(userId)
+    } else {
+      const verified = await verifyToken(env, kv, token)
+      if (!verified.ok) {
+        return json({ error: verified.code, message: verified.message }, verified.status)
+      }
+      userId = verified.userId
+      subject = userSubject(userId)
     }
-    userId = verified.userId
-    subject = userSubject(userId)
   } else {
     subject = await anonSubject(clientIp(request.headers), clientId(request.headers))
   }
 
+  if ((scope === "pull" || scope === "push") && !cfUserId) {
+    return json({ error: "unauthorized", message: "Войдите для синхронизации" }, 401)
+  }
+
   // 5. Лимиты. В проде REQUIRE_RATE_LIMIT=1 → без KV API не работает (fail closed).
   // Локально (pages:dev без --kv) — fail open, чтобы не ломать разработку.
-  const scope = endpointScope(new URL(request.url).pathname)
   const now = Date.now()
   const failClosed = String(env?.REQUIRE_RATE_LIMIT || "") === "1"
 
@@ -233,6 +271,7 @@ export async function onRequest(context) {
   // 6. Хендлеры берут личность отсюда и только отсюда.
   context.data.subject = subject
   context.data.userId = userId
+  context.data.cfUserId = cfUserId
 
   return context.next()
 }

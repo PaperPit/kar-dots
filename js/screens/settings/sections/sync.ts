@@ -9,13 +9,10 @@ interface DeadLetterRow {
   failed_at?: number;
 }
 
-/** Полный список dead letters + ручной flush — только для облака. */
+/** Полный список dead letters + ручной flush — только для legacy cloud (Supabase). */
 export function buildSyncGroup(store: AppStore, route: () => void | Promise<void>) {
   if (store.kind !== 'cloud') {
-    return el('div', { class: 'settings-group' }, [
-      el('h4', null, t('settings.sync.title')),
-      el('p', { class: 'muted settings-sync-note' }, t('settings.sync.localOnly')),
-    ]);
+    return null;
   }
 
   const statusEl = el('span', { class: 'integrations-status muted' }, t('settings.sync.loading'));

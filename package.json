@@ -32,8 +32,10 @@
     "build": "tsc && node scripts/copy-assets.mjs",
     "build:bundle": "tsc && node scripts/bundle.mjs",
     "ext:build": "node extension/scripts/build.mjs",
-    "pages:dev": "npm run build:bundle && wrangler pages dev dist --kv YT_JOBS",
-    "pages:deploy": "npm run build:bundle && wrangler pages deploy dist"
+    "pages:dev": "npm run build:bundle && wrangler pages dev dist --kv YT_JOBS --d1 SYNC_DB",
+    "pages:deploy": "npm run build:bundle && wrangler pages deploy dist",
+    "d1:migrate": "wrangler d1 migrations apply kar-sync --local",
+    "d1:migrate:remote": "wrangler d1 migrations apply kar-sync --remote"
   },
   "dependencies": {
     "@capacitor/keyboard": "^8.0.5",

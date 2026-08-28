@@ -19,7 +19,8 @@ describe("local-first phase 1", () => {
     expect(t("auth.tryLocal")).toMatch(/устройств/i)
     expect(t("auth.cloudLegacySummary")).toMatch(/Supabase/i)
     expect(t("settings.account.switchLocalBtn")).toBeTruthy()
-    expect(t("settings.sync.localOnly")).toMatch(/Cloudflare|экспорт/i)
+    expect(t("settings.sync.localOnly")).toMatch(/legacy|Legacy/i)
+    expect(t("settings.cfSync.title")).toMatch(/Cloudflare/i)
   })
 
   it("boot mode rule: missing or local → local; cloud only when explicit", () => {

@@ -209,6 +209,22 @@ input[type="range"].tts-rate { width: 100%; margin: 0; accent-color: var(--accen
   align-items: center;
 }
 
+.settings-cf-auth-row {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  margin-top: var(--sp-2);
+}
+.settings-cf-auth-row .input { width: 100%; max-width: 320px; }
+.settings-cf-auth-actions,
+.settings-cf-sync-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+  align-items: center;
+  justify-content: flex-end;
+}
+
 /* Позиция календаря left/right/hide — только на широких экранах */
 @media (max-width: 719px) {
   .settings-desktop-only { display: none !important; }

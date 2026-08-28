@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [17.0] - 2026-08-27
+
+### Added
+- Cloudflare sync (phase 2): D1 snapshot API (`/api/auth/*`, `/api/sync/push|pull`), Settings UI with login + Sync now
+- Email/password accounts for optional multi-device backup (JWT via `SYNC_JWT_SECRET`)
+
+### Changed
+- Local mode: Cloudflare sync section in Settings; legacy Supabase queue UI only in cloud mode
+
 ## [16.9] - 2026-08-27
 
 ### Changed

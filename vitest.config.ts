@@ -33,13 +33,12 @@ export default defineConfig({
       provider: 'v8',
       reporter: ['text', 'lcov'],
       include: [
-        'js/data/store-cloud.ts',
+        'js/data/cf-files.ts',
         'js/screens/review/session.ts',
         'js/screens/review/grading.ts',
       ],
       thresholds: {
-        // session.ts heavily UI-bound; gate on grading + cloud store instead.
-        'js/data/store-cloud.ts': {
+        'js/data/cf-files.ts': {
           lines: 40,
           functions: 40,
           statements: 40,

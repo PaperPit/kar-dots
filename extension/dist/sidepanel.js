@@ -38,9 +38,8 @@ removeFallback();
 
 // src/lib/constants.ts
 var APP_ORIGIN = "https://kar-tochki.pages.dev";
-var CONNECT_URL = `${APP_ORIGIN}/?ext_connect=1`;
+var CONNECT_URL = `${APP_ORIGIN}/#settings`;
 var STORAGE_KEYS = {
-  auth: "kar_ext_auth",
   prefs: "kar_ext_prefs",
   video: "kar_ext_video"
 };
@@ -53,7 +52,10 @@ var MODES = [
 var DEFAULT_PREFS = {
   mode: "both",
   mergeCues: true,
-  folderId: null
+  folderName: "YouTube",
+  supadataApiKey: "",
+  geminiApiKey: "",
+  groqApiKey: ""
 };
 
 // src/lib/i18n.ts
@@ -63,13 +65,8 @@ var ru = {
   "fatal.title": "\u041E\u043A\u043D\u043E \u043D\u0435 \u0441\u043C\u043E\u0433\u043B\u043E \u0437\u0430\u043F\u0443\u0441\u0442\u0438\u0442\u044C\u0441\u044F: {message}",
   "fatal.hint": "\u0415\u0441\u043B\u0438 \u044D\u0442\u043E \u043F\u043E\u0432\u0442\u043E\u0440\u044F\u0435\u0442\u0441\u044F \u2014 \u043F\u0440\u0430\u0432\u044B\u0439 \u043A\u043B\u0438\u043A \u043F\u043E \u043E\u043A\u043D\u0443 \u2192 \xAB\u041F\u0440\u043E\u0441\u043C\u043E\u0442\u0440\u0435\u0442\u044C \u043A\u043E\u0434\xBB \u0438 \u043F\u0440\u0438\u0448\u043B\u0438 \u0442\u0435\u043A\u0441\u0442 \u0438\u0437 \u0432\u043A\u043B\u0430\u0434\u043A\u0438 Console.",
   "fatal.retry": "\u041F\u043E\u043F\u0440\u043E\u0431\u043E\u0432\u0430\u0442\u044C \u0441\u043D\u043E\u0432\u0430",
-  "auth.body": "\u0427\u0442\u043E\u0431\u044B \u0441\u043E\u0445\u0440\u0430\u043D\u044F\u0442\u044C \u043A\u0430\u0440\u0442\u043E\u0447\u043A\u0438 \u0432 \u0441\u0432\u043E\u044E \u043A\u043E\u043B\u043B\u0435\u043A\u0446\u0438\u044E, \u043F\u043E\u0434\u043A\u043B\u044E\u0447\u0438 \u0430\u043A\u043A\u0430\u0443\u043D\u0442 \u043D\u0430 {host}.",
-  "auth.login": "\u0412\u043E\u0439\u0442\u0438 \u0447\u0435\u0440\u0435\u0437 \u041A\u0410\u0420-\u0442\u043E\u0447\u043A\u0438",
-  "auth.hint": "\u041E\u0442\u043A\u0440\u043E\u0435\u0442\u0441\u044F \u0441\u0430\u0439\u0442 \u2014 \u0432\u043E\u0439\u0434\u0438, \u0435\u0441\u043B\u0438 \u0435\u0449\u0451 \u043D\u0435 \u0432\u043E\u0448\u0451\u043B. \u0420\u0430\u0441\u0448\u0438\u0440\u0435\u043D\u0438\u0435 \u043F\u043E\u043B\u0443\u0447\u0438\u0442 \u0441\u0435\u0441\u0441\u0438\u044E \u0430\u0432\u0442\u043E\u043C\u0430\u0442\u0438\u0447\u0435\u0441\u043A\u0438.",
-  "auth.expired": "\u0421\u0435\u0441\u0441\u0438\u044F \u0438\u0441\u0442\u0435\u043A\u043B\u0430 \u2014 \u043F\u043E\u0434\u043A\u043B\u044E\u0447\u0438\u0442\u0435 \u0430\u043A\u043A\u0430\u0443\u043D\u0442 \u0441\u043D\u043E\u0432\u0430",
-  "account.connected": "\u0410\u043A\u043A\u0430\u0443\u043D\u0442 \u043F\u043E\u0434\u043A\u043B\u044E\u0447\u0451\u043D",
-  "account.email": "\u0410\u043A\u043A\u0430\u0443\u043D\u0442: {email}",
-  "account.disconnect": "\u041E\u0442\u043A\u043B\u044E\u0447\u0438\u0442\u044C",
+  "account.localOnly": "\u0411\u0435\u0437 \u043E\u0431\u043B\u0430\u043A\u0430 \u2014 \u044D\u043A\u0441\u043F\u043E\u0440\u0442 JSON",
+  "account.openApp": "\u041E\u0442\u043A\u0440\u044B\u0442\u044C \u041A\u0410\u0420-\u0442\u043E\u0447\u043A\u0438",
   "mode.words": "\u0421\u043B\u043E\u0432\u0430",
   "mode.phrases": "\u0424\u0440\u0430\u0437\u044B",
   "mode.both": "\u0421\u043B\u043E\u0432\u0430 + \u0444\u0440\u0430\u0437\u044B",
@@ -80,12 +77,13 @@ var ru = {
   "form.videoFallback": "\u0422\u0435\u043A\u0443\u0449\u0435\u0435 \u0432\u0438\u0434\u0435\u043E",
   "form.urlFallback": "\u041E\u0442\u043A\u0440\u043E\u0439 \u0440\u043E\u043B\u0438\u043A \u043D\u0430 YouTube",
   "form.whatLabel": "\u0427\u0442\u043E \u0434\u043E\u0441\u0442\u0430\u0442\u044C \u0438\u0437 \u0440\u043E\u043B\u0438\u043A\u0430",
-  "form.folderLabel": "\u041F\u0430\u043F\u043A\u0430",
+  "form.folderLabel": "\u0418\u043C\u044F \u043F\u0430\u043F\u043A\u0438 \u0432 \u044D\u043A\u0441\u043F\u043E\u0440\u0442\u0435",
+  "form.keysLabel": "API-\u043A\u043B\u044E\u0447\u0438 (Supadata / Gemini / Groq)",
+  "form.exportHint": "\u041A\u0430\u0440\u0442\u043E\u0447\u043A\u0438 \u0441\u043A\u0430\u0447\u0430\u044E\u0442\u0441\u044F JSON-\u0444\u0430\u0439\u043B\u043E\u043C \u2014 \u0438\u043C\u043F\u043E\u0440\u0442\u0438\u0440\u0443\u0439 \u0432 \u041D\u0430\u0441\u0442\u0440\u043E\u0439\u043A\u0430\u0445 \u043F\u0440\u0438\u043B\u043E\u0436\u0435\u043D\u0438\u044F.",
   "form.badUrl": "\u041D\u0435 \u043F\u043E\u0445\u043E\u0436\u0435 \u043D\u0430 \u0441\u0441\u044B\u043B\u043A\u0443 \u043D\u0430 YouTube-\u0432\u0438\u0434\u0435\u043E \u2014 \u043E\u0442\u043A\u0440\u043E\u0439 \u0440\u043E\u043B\u0438\u043A \u043D\u0430 YouTube",
-  "form.pickFolder": "\u0412\u044B\u0431\u0435\u0440\u0438 \u043F\u0430\u043F\u043A\u0443",
-  "form.needSupadata": "\u0423\u043A\u0430\u0436\u0438 Supadata API \u043A\u043B\u044E\u0447 \u0432 \u041A\u0410\u0420-\u0442\u043E\u0447\u043A\u0438: \u041D\u0430\u0441\u0442\u0440\u043E\u0439\u043A\u0438 \u2192 \xAB\u041A\u0430\u0440\u0442\u043E\u0447\u043A\u0438 \u0438\u0437 YouTube\xBB \u2192 \xAB\u041D\u0430\u0441\u0442\u0440\u043E\u0438\u0442\u044C\xBB",
-  "form.needLlm": "\u0423\u043A\u0430\u0436\u0438 Gemini \u0438\u043B\u0438 Groq API \u043A\u043B\u044E\u0447 \u0432 \u041A\u0410\u0420-\u0442\u043E\u0447\u043A\u0438: \u041D\u0430\u0441\u0442\u0440\u043E\u0439\u043A\u0438 \u2192 \xAB\u041A\u0430\u0440\u0442\u043E\u0447\u043A\u0438 \u0438\u0437 YouTube\xBB \u2192 \xAB\u041D\u0430\u0441\u0442\u0440\u043E\u0438\u0442\u044C\xBB",
-  "form.empty": "\u041D\u043E\u0432\u044B\u0445 \u043A\u0430\u0440\u0442\u043E\u0447\u0435\u043A \u043D\u0435 \u043D\u0430\u0448\u043B\u043E\u0441\u044C \u2014 \u0432\u0441\u0451 \u0443\u0436\u0435 \u0435\u0441\u0442\u044C \u0432 \u043F\u0430\u043A\u0430\u0445 \u0438\u043B\u0438 \u043F\u0430\u043F\u043A\u0430\u0445",
+  "form.needSupadata": "\u0423\u043A\u0430\u0436\u0438 Supadata API \u043A\u043B\u044E\u0447 \u0432 \u043F\u043E\u043B\u044F\u0445 \u0432\u044B\u0448\u0435",
+  "form.needLlm": "\u0423\u043A\u0430\u0436\u0438 Gemini \u0438\u043B\u0438 Groq API \u043A\u043B\u044E\u0447 \u0432 \u043F\u043E\u043B\u044F\u0445 \u0432\u044B\u0448\u0435",
+  "form.empty": "\u041A\u0430\u0440\u0442\u043E\u0447\u0435\u043A \u043D\u0435 \u043D\u0430\u0448\u043B\u043E\u0441\u044C",
   "progress.cancel": "\u041E\u0442\u043C\u0435\u043D\u0430",
   "progress.fetchVideo": "\u041F\u043E\u043B\u0443\u0447\u0430\u044E \u0434\u0430\u043D\u043D\u044B\u0435 \u0432\u0438\u0434\u0435\u043E\u2026",
   "progress.generate": "\u0421\u043E\u0441\u0442\u0430\u0432\u043B\u044F\u044E \u043A\u0430\u0440\u0442\u043E\u0447\u043A\u0438\u2026",
@@ -94,17 +92,13 @@ var ru = {
   "preview.selected": "\u0412\u044B\u0431\u0440\u0430\u043D\u043E: {n}",
   "preview.title": "\u041F\u0440\u0435\u0432\u044C\u044E",
   "preview.hint": "\u041E\u0442\u043C\u0435\u0442\u044C, \u0447\u0442\u043E \u0441\u043E\u0445\u0440\u0430\u043D\u0438\u0442\u044C, \u043F\u0440\u0438 \u043D\u0435\u043E\u0431\u0445\u043E\u0434\u0438\u043C\u043E\u0441\u0442\u0438 \u043F\u043E\u043F\u0440\u0430\u0432\u044C \u043F\u0435\u0440\u0435\u0432\u043E\u0434",
-  "preview.create": "\u0421\u043E\u0437\u0434\u0430\u0442\u044C \u043A\u0430\u0440\u0442\u043E\u0447\u043A\u0438",
+  "preview.create": "\u0421\u043A\u0430\u0447\u0430\u0442\u044C JSON",
   "preview.back": "\u041D\u0430\u0437\u0430\u0434",
   "preview.group.words": "\u0421\u043B\u043E\u0432\u0430",
   "preview.group.phrases": "\u0424\u0440\u0430\u0437\u044B",
   "preview.group.sentences": "\u041F\u0440\u0435\u0434\u043B\u043E\u0436\u0435\u043D\u0438\u044F",
-  "save.noSession": "\u041D\u0435\u0442 \u0441\u0435\u0441\u0441\u0438\u0438",
-  "save.fail": "\u041D\u0435 \u0443\u0434\u0430\u043B\u043E\u0441\u044C \u0441\u043E\u0445\u0440\u0430\u043D\u0438\u0442\u044C ({message})",
-  "save.created": "\u0421\u043E\u0437\u0434\u0430\u043D\u043E: {ok}",
-  "save.createdWithFail": "\u0421\u043E\u0437\u0434\u0430\u043D\u043E: {ok}, \u043E\u0448\u0438\u0431\u043E\u043A: {fail}",
-  "save.openFolder": "\u041E\u0442\u043A\u0440\u044B\u0442\u044C \u043F\u0430\u043F\u043A\u0443",
-  "save.openNamed": "\u041E\u0442\u043A\u0440\u044B\u0442\u044C \xAB{name}\xBB",
+  "save.exported": "\u0421\u043A\u0430\u0447\u0430\u043D\u043E \u043A\u0430\u0440\u0442\u043E\u0447\u0435\u043A: {ok}",
+  "save.openImport": "\u041E\u0442\u043A\u0440\u044B\u0442\u044C \u043D\u0430\u0441\u0442\u0440\u043E\u0439\u043A\u0438 \u0434\u043B\u044F \u0438\u043C\u043F\u043E\u0440\u0442\u0430",
   "error.generic": "\u043E\u0448\u0438\u0431\u043A\u0430"
 };
 var en = {
@@ -113,13 +107,8 @@ var en = {
   "fatal.title": "The panel failed to start: {message}",
   "fatal.hint": "If this keeps happening \u2014 right-click the panel \u2192 Inspect and send the Console text.",
   "fatal.retry": "Try again",
-  "auth.body": "To save cards to your collection, connect an account on {host}.",
-  "auth.login": "Sign in with KAR-dots",
-  "auth.hint": "The site will open \u2014 sign in if needed. The extension picks up the session automatically.",
-  "auth.expired": "Session expired \u2014 connect your account again",
-  "account.connected": "Account connected",
-  "account.email": "Account: {email}",
-  "account.disconnect": "Disconnect",
+  "account.localOnly": "No cloud \u2014 JSON export",
+  "account.openApp": "Open KAR-dots",
   "mode.words": "Words",
   "mode.phrases": "Phrases",
   "mode.both": "Words + phrases",
@@ -130,12 +119,13 @@ var en = {
   "form.videoFallback": "Current video",
   "form.urlFallback": "Open a YouTube video",
   "form.whatLabel": "What to extract",
-  "form.folderLabel": "Folder",
+  "form.folderLabel": "Folder name in export",
+  "form.keysLabel": "API keys (Supadata / Gemini / Groq)",
+  "form.exportHint": "Cards download as JSON \u2014 import them in the app Settings.",
   "form.badUrl": "That doesn\u2019t look like a YouTube video URL \u2014 open a video on YouTube",
-  "form.pickFolder": "Pick a folder",
-  "form.needSupadata": "Add a Supadata API key in KAR-dots: Settings \u2192 YouTube cards \u2192 Configure",
-  "form.needLlm": "Add a Gemini or Groq API key in KAR-dots: Settings \u2192 YouTube cards \u2192 Configure",
-  "form.empty": "No new cards \u2014 everything is already in packs or folders",
+  "form.needSupadata": "Add a Supadata API key in the fields above",
+  "form.needLlm": "Add a Gemini or Groq API key in the fields above",
+  "form.empty": "No cards found",
   "progress.cancel": "Cancel",
   "progress.fetchVideo": "Fetching video\u2026",
   "progress.generate": "Building cards\u2026",
@@ -144,17 +134,13 @@ var en = {
   "preview.selected": "Selected: {n}",
   "preview.title": "Preview",
   "preview.hint": "Tick what to keep; edit the translation if needed",
-  "preview.create": "Create cards",
+  "preview.create": "Download JSON",
   "preview.back": "Back",
   "preview.group.words": "Words",
   "preview.group.phrases": "Phrases",
   "preview.group.sentences": "Sentences",
-  "save.noSession": "No session",
-  "save.fail": "Could not save ({message})",
-  "save.created": "Created: {ok}",
-  "save.createdWithFail": "Created: {ok}, failed: {fail}",
-  "save.openFolder": "Open folder",
-  "save.openNamed": "Open \u201C{name}\u201D",
+  "save.exported": "Downloaded cards: {ok}",
+  "save.openImport": "Open settings to import",
   "error.generic": "error"
 };
 var catalogs = { ru, en };
@@ -192,14 +178,6 @@ function modeLabel(id) {
 var EXT_I18N_KEYS = Object.keys(ru);
 
 // src/lib/storage.ts
-async function getAuth() {
-  const data = await chrome.storage.local.get(STORAGE_KEYS.auth);
-  return data[STORAGE_KEYS.auth] || null;
-}
-async function setAuth(auth) {
-  if (auth) await chrome.storage.local.set({ [STORAGE_KEYS.auth]: auth });
-  else await chrome.storage.local.remove(STORAGE_KEYS.auth);
-}
 async function getPrefs() {
   const data = await chrome.storage.local.get(STORAGE_KEYS.prefs);
   return { ...DEFAULT_PREFS, ...data[STORAGE_KEYS.prefs] };
@@ -214,136 +192,16 @@ async function getVideo() {
   return data[STORAGE_KEYS.video] || null;
 }
 
-// src/lib/supabase-client.ts
-var RequestError = class extends Error {
-  status;
-};
-function authError(data) {
-  return new Error(data.message || data.error_description || data.error || data.msg || "\u041E\u0448\u0438\u0431\u043A\u0430 \u0430\u0432\u0442\u043E\u0440\u0438\u0437\u0430\u0446\u0438\u0438");
-}
-function withExpiry(data) {
-  const expires_in = Number(data.expires_in) || 3600;
-  return {
-    ...data,
-    expires_at_ms: Date.now() + expires_in * 1e3
-  };
-}
-var ExtSupabase = class _ExtSupabase {
-  url;
-  key;
-  session;
-  constructor(auth) {
-    this.url = auth.supabaseUrl.replace(/\/+$/, "");
-    this.key = auth.anonKey;
-    this.session = auth.session;
-  }
-  static async fromStorage() {
-    const auth = await getAuth();
-    if (!auth?.session?.access_token || !auth.supabaseUrl || !auth.anonKey) return null;
-    return new _ExtSupabase(auth);
-  }
-  headers() {
-    return {
-      apikey: this.key,
-      Authorization: "Bearer " + (this.session?.access_token || this.key)
-    };
-  }
-  userId() {
-    return this.session?.user?.id ?? null;
-  }
-  email() {
-    return this.session?.user?.email || null;
-  }
-  async ensureFresh() {
-    if (!this.session?.access_token) return false;
-    const exp = this.session.expires_at_ms;
-    if (exp && Date.now() > exp - 2 * 60 * 1e3) {
-      try {
-        await this.refresh();
-      } catch {
-        return false;
-      }
-    }
-    return true;
-  }
-  async refresh() {
-    if (!this.session?.refresh_token) throw new Error("\u041D\u0435\u0442 \u0441\u0435\u0441\u0441\u0438\u0438");
-    const r = await fetch(this.url + "/auth/v1/token?grant_type=refresh_token", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", apikey: this.key },
-      body: JSON.stringify({ refresh_token: this.session.refresh_token })
-    });
-    const data = await r.json();
-    if (!r.ok) {
-      await setAuth(null);
-      this.session = null;
-      throw authError(data);
-    }
-    this.session = withExpiry(data);
-    const prev = await getAuth();
-    if (prev) {
-      await setAuth({
-        ...prev,
-        session: this.session,
-        connectedAt: prev.connectedAt
-      });
-    }
-  }
-  async handle(r) {
-    if (r.status === 204) return null;
-    const text = await r.text();
-    let data = null;
-    try {
-      data = text ? JSON.parse(text) : null;
-    } catch {
-      data = text;
-    }
-    if (!r.ok) {
-      const err = new RequestError(
-        data?.message || r.statusText || "\u041E\u0448\u0438\u0431\u043A\u0430 \u0437\u0430\u043F\u0440\u043E\u0441\u0430"
-      );
-      err.status = r.status;
-      throw err;
-    }
-    return data;
-  }
-  async select(table, query) {
-    if (!await this.ensureFresh()) throw new Error("\u0421\u0435\u0441\u0441\u0438\u044F \u0438\u0441\u0442\u0435\u043A\u043B\u0430 \u2014 \u043F\u043E\u0434\u043A\u043B\u044E\u0447\u0438\u0442\u0435 \u0430\u043A\u043A\u0430\u0443\u043D\u0442 \u0441\u043D\u043E\u0432\u0430");
-    const r = await fetch(this.url + "/rest/v1/" + table + (query ? "?" + query : ""), {
-      headers: this.headers()
-    });
-    return await this.handle(r);
-  }
-  async insert(table, row) {
-    if (!await this.ensureFresh()) throw new Error("\u0421\u0435\u0441\u0441\u0438\u044F \u0438\u0441\u0442\u0435\u043A\u043B\u0430 \u2014 \u043F\u043E\u0434\u043A\u043B\u044E\u0447\u0438\u0442\u0435 \u0430\u043A\u043A\u0430\u0443\u043D\u0442 \u0441\u043D\u043E\u0432\u0430");
-    const r = await fetch(this.url + "/rest/v1/" + table, {
-      method: "POST",
-      headers: {
-        ...this.headers(),
-        "Content-Type": "application/json",
-        Prefer: "return=minimal"
-      },
-      body: JSON.stringify(row)
-    });
-    return this.handle(r);
-  }
-};
-
-// ../js/lib/vocab-packs.js
-function isVocabPackFolder(folder) {
-  return !!folder?.pack_id;
-}
-
 // src/lib/folders.ts
-async function listImportFolders(sb) {
-  const rows = await sb.select("folders", "select=id,name,pack_id&order=created_at.asc");
-  return rows.filter((f) => f?.id && f?.name && !isVocabPackFolder(f)).map((f) => ({ id: f.id, name: f.name }));
+function defaultExportFolder(name = "YouTube") {
+  return { id: "export", name: name || "YouTube" };
 }
-async function loadUserSettings(sb) {
-  const uid = sb.userId();
-  if (!uid) return null;
-  const rows = await sb.select("settings", "select=data&user_id=eq." + uid);
-  return rows[0]?.data || null;
+function settingsFromPrefs(prefs) {
+  return {
+    supadataApiKey: prefs.supadataApiKey || "",
+    geminiApiKey: prefs.geminiApiKey || "",
+    groqApiKey: prefs.groqApiKey || ""
+  };
 }
 
 // ../js/lib/llm-api-keys.js
@@ -438,9 +296,6 @@ async function anonymousOwnerId() {
   return id;
 }
 async function getExtYtJobUserId() {
-  const auth = await getAuth();
-  const uid = auth?.session?.user?.id;
-  if (uid && isUuid(uid)) return uid;
   return anonymousOwnerId();
 }
 
@@ -558,20 +413,6 @@ function isKnownTerm(term, knownSet) {
   }
   return false;
 }
-function collectKnownTerms(cardArrays) {
-  const known = /* @__PURE__ */ new Set();
-  for (const cards of cardArrays || []) {
-    for (const c of cards || []) {
-      const n = normalizeTerm(c && c.front);
-      if (n)
-        known.add(n);
-    }
-  }
-  return known;
-}
-function isYoutubeCard(card) {
-  return /youtube\.com\/watch\?v=/.test(String(card?.description || ""));
-}
 function filterNewCandidates(candidates, knownSet) {
   const seen = /* @__PURE__ */ new Set();
   const phrases = [];
@@ -674,14 +515,7 @@ function buildCardDescription(candidate, videoId2) {
 var POLL_MS = 2500;
 var POLL_MAX_MS = 3 * 60 * 1e3;
 async function apiHeaders(extra = {}) {
-  const headers = { ...extra, "X-Client-Id": await getExtYtJobUserId() };
-  try {
-    const auth = await getAuth();
-    const token = auth?.session?.access_token;
-    if (token) headers["Authorization"] = "Bearer " + token;
-  } catch {
-  }
-  return headers;
+  return { ...extra, "X-Client-Id": await getExtYtJobUserId() };
 }
 function apiErrorMessage(status, serverMessage) {
   const msg = String(serverMessage || "").trim();
@@ -797,41 +631,8 @@ async function generateYoutubeCards({
 }
 
 // src/lib/known-terms.ts
-async function loadPackSources() {
-  const sources = [];
-  try {
-    const res = await fetch(APP_ORIGIN + "/packs/manifest.json", { cache: "no-cache" });
-    if (!res.ok) return sources;
-    const manifest = await res.json();
-    for (const meta of manifest.packs || []) {
-      try {
-        const pr = await fetch(APP_ORIGIN + "/packs/" + meta.file, { cache: "no-cache" });
-        if (!pr.ok) continue;
-        const data = await pr.json();
-        sources.push(data.cards || []);
-      } catch {
-      }
-    }
-  } catch {
-  }
-  return sources;
-}
-async function folderFronts(sb, folderId2, youtubeOnly) {
-  const rows = await sb.select(
-    "cards",
-    "select=front,description&folder_id=eq." + encodeURIComponent(folderId2)
-  );
-  return rows.filter((c) => c.front && (!youtubeOnly || isYoutubeCard(c))).map((c) => ({ front: c.front, description: c.description }));
-}
-async function loadKnownTermsForImport(sb, folders2, folderId2) {
-  const sources = await loadPackSources();
-  for (const f of folders2) {
-    try {
-      sources.push(await folderFronts(sb, f.id, f.id !== folderId2));
-    } catch {
-    }
-  }
-  return collectKnownTerms(sources);
+async function loadKnownTermsForImport() {
+  return /* @__PURE__ */ new Set();
 }
 
 // src/lib/create-cards.ts
@@ -842,7 +643,7 @@ function uuid() {
     return (c === "x" ? r : r & 3 | 8).toString(16);
   });
 }
-function buildCardRow(data, userId) {
+function buildCardRow(data) {
   const t2 = Date.now();
   return {
     id: uuid(),
@@ -854,51 +655,49 @@ function buildCardRow(data, userId) {
     front_img: null,
     back_img: null,
     folder_id: data.folder_id,
-    user_id: userId,
     sm2_ef: 2.5,
     sm2_reps: 0,
     sm2_ivl: 0,
     sm2_due: null,
     box: 0,
-    box_due: null,
-    fsrs_state: null,
-    fsrs_stability: null,
-    fsrs_difficulty: null,
-    fsrs_due: null,
-    fsrs_scheduled_days: null,
-    fsrs_elapsed_days: null,
-    fsrs_reps: null,
-    fsrs_lapses: null,
-    fsrs_learning_steps: null,
-    fsrs_last_review: null
+    box_due: null
   };
 }
-async function createYoutubeCardsBatch(sb, folderId2, selected, videoId2) {
-  const uid = sb.userId();
-  if (!uid) throw new Error("\u041D\u0435\u0442 \u043F\u043E\u043B\u044C\u0437\u043E\u0432\u0430\u0442\u0435\u043B\u044F");
-  let ok = 0;
-  const failed = [];
+function buildImportPayload(folderName2, selected, videoId2) {
+  const folderId = uuid();
+  const now = Date.now();
+  const cards = [];
   for (const { cand, back } of selected) {
     const text = String(back || "").trim();
     if (!text) continue;
-    try {
-      const row = buildCardRow(
-        {
-          folder_id: folderId2,
-          front: cand.front || "",
-          back: text,
-          description: buildCardDescription(cand, videoId2)
-        },
-        uid
-      );
-      await sb.insert("cards", row);
-      ok++;
-    } catch (e) {
-      const err = e;
-      failed.push({ front: cand.front || "", message: err.message || "\u041E\u0448\u0438\u0431\u043A\u0430 \u0441\u043E\u0445\u0440\u0430\u043D\u0435\u043D\u0438\u044F" });
-    }
+    cards.push(
+      buildCardRow({
+        folder_id: folderId,
+        front: cand.front || "",
+        back: text,
+        description: buildCardDescription(cand, videoId2)
+      })
+    );
   }
-  return { ok, failed };
+  const payload = {
+    version: 3,
+    exported_at: now,
+    folders: [{ id: folderId, name: folderName2 || "YouTube", created_at: now }],
+    boxes: [],
+    cards,
+    notes: [],
+    settings: {}
+  };
+  return { ok: cards.length, json: JSON.stringify(payload, null, 2) };
+}
+function downloadTextFile(filename, text) {
+  const blob = new Blob([text], { type: "application/json;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 2e3);
 }
 
 // src/sidepanel/sidepanel.ts
@@ -912,14 +711,12 @@ window.addEventListener("error", (ev) => {
 var cancelled = false;
 var mode = "both";
 var mergeCues = true;
-var folderId = null;
-var folders = [];
+var folderName = "YouTube";
 var settings = null;
 var videoUrl = "";
 var videoTitle = "";
 var previewItems = [];
 var videoId = null;
-var accountEmail = null;
 function el(tag, attrs, children) {
   const node = document.createElement(tag);
   for (const [k, v] of Object.entries(attrs ?? {})) {
@@ -990,73 +787,21 @@ async function bootInner() {
   const prefs = await getPrefs();
   mode = prefs.mode;
   mergeCues = prefs.mergeCues;
-  folderId = prefs.folderId;
+  folderName = prefs.folderName || "YouTube";
+  settings = settingsFromPrefs(prefs);
   await refreshVideoFromStorage();
-  const auth = await getAuth();
-  if (!auth) {
-    renderAuth();
-    return;
-  }
-  try {
-    const sb = await ExtSupabase.fromStorage();
-    if (!sb || !await sb.ensureFresh()) {
-      await setAuth(null);
-      renderAuth(t("auth.expired"));
-      return;
-    }
-    accountEmail = sb.email();
-    folders = await listImportFolders(sb);
-    settings = await loadUserSettings(sb);
-    if (folderId && !folders.some((f) => f.id === folderId)) folderId = null;
-    if (!folderId && folders[0]) {
-      folderId = folders[0].id;
-      await setPrefs({ folderId });
-    }
-    renderForm();
-  } catch (e) {
-    renderAuth(e instanceof Error ? e.message : String(e));
-  }
+  renderForm();
 }
-function renderAuth(error) {
-  root.replaceChildren(
-    brand(),
-    el("div", { class: "card auth-box" }, [
-      el("p", null, t("auth.body", { host: new URL(APP_ORIGIN).host })),
-      error ? el("p", { class: "error" }, error) : null,
-      el("div", { class: "actions", style: "justify-content:center" }, [
-        el(
-          "button",
-          {
-            class: "btn primary",
-            onclick: () => {
-              chrome.tabs.create({ url: CONNECT_URL });
-            }
-          },
-          t("auth.login")
-        )
-      ]),
-      el("p", { class: "muted" }, t("auth.hint"))
-    ])
-  );
-}
-function accountBar() {
+function hintBar() {
   return el("div", { class: "account-row" }, [
-    el(
-      "span",
-      null,
-      accountEmail ? t("account.email", { email: accountEmail }) : t("account.connected")
-    ),
+    el("span", null, t("account.localOnly")),
     el(
       "button",
       {
         class: "btn linkish",
-        onclick: async () => {
-          await setAuth(null);
-          accountEmail = null;
-          renderAuth();
-        }
+        onclick: () => chrome.tabs.create({ url: CONNECT_URL })
       },
-      t("account.disconnect")
+      t("account.openApp")
     )
   ]);
 }
@@ -1088,23 +833,47 @@ function renderForm(error = "") {
     }
   });
   const sentencesOpts = el("div", { class: "field" }, [
-    el("label", { class: "check-label" }, [
-      mergeChk,
-      el("span", null, t("form.mergeCues"))
-    ])
+    el("label", { class: "check-label" }, [mergeChk, el("span", null, t("form.mergeCues"))])
   ]);
   sentencesOpts.style.display = mode === "sentences" ? "" : "none";
-  const folderSelect = el("select", { class: "input" }, []);
-  if (!folders.length) {
-    folderSelect.append(el("option", { value: "" }, t("form.noFolders")));
-  } else {
-    for (const f of folders) {
-      folderSelect.append(el("option", { value: f.id, selected: f.id === folderId }, f.name));
+  const folderInput = el("input", {
+    class: "input",
+    type: "text",
+    value: folderName,
+    onchange: () => {
+      folderName = folderInput.value.trim() || "YouTube";
+      void setPrefs({ folderName });
     }
-  }
-  folderSelect.addEventListener("change", () => {
-    folderId = folderSelect.value || null;
-    void setPrefs({ folderId });
+  });
+  const keySupadata = el("input", {
+    class: "input",
+    type: "password",
+    value: settings?.supadataApiKey || "",
+    placeholder: "Supadata",
+    onchange: async () => {
+      await setPrefs({ supadataApiKey: keySupadata.value.trim() });
+      settings = settingsFromPrefs(await getPrefs());
+    }
+  });
+  const keyGemini = el("input", {
+    class: "input",
+    type: "password",
+    value: settings?.geminiApiKey || "",
+    placeholder: "Gemini",
+    onchange: async () => {
+      await setPrefs({ geminiApiKey: keyGemini.value.trim() });
+      settings = settingsFromPrefs(await getPrefs());
+    }
+  });
+  const keyGroq = el("input", {
+    class: "input",
+    type: "password",
+    value: settings?.groqApiKey || "",
+    placeholder: "Groq",
+    onchange: async () => {
+      await setPrefs({ groqApiKey: keyGroq.value.trim() });
+      settings = settingsFromPrefs(await getPrefs());
+    }
   });
   const errEl = el("p", { class: "error" }, error);
   errEl.style.display = error ? "" : "none";
@@ -1112,20 +881,22 @@ function renderForm(error = "") {
     "button",
     {
       class: "btn primary",
-      disabled: !folders.length || !videoUrl,
+      disabled: !videoUrl,
       onclick: () => void runImport()
     },
     t("form.generate")
   );
   root.replaceChildren(
     brand(),
-    accountBar(),
+    hintBar(),
     el("div", { class: "card" }, [
       el("p", { class: "video-title" }, videoTitle || t("form.videoFallback")),
       el("p", { class: "video-url" }, videoUrl || t("form.urlFallback")),
       el("div", { class: "field" }, [el("label", null, t("form.whatLabel")), modeSeg]),
       sentencesOpts,
-      el("div", { class: "field" }, [el("label", null, t("form.folderLabel")), folderSelect]),
+      el("div", { class: "field" }, [el("label", null, t("form.folderLabel")), folderInput]),
+      el("div", { class: "field" }, [el("label", null, t("form.keysLabel")), keySupadata, keyGemini, keyGroq]),
+      el("p", { class: "muted" }, t("form.exportHint")),
       errEl,
       el("div", { class: "actions" }, [goBtn])
     ])
@@ -1161,10 +932,7 @@ async function runImport() {
     renderForm(t("form.badUrl"));
     return;
   }
-  if (!folderId) {
-    renderForm(t("form.pickFolder"));
-    return;
-  }
+  folderName = folderName.trim() || "YouTube";
   if (!hasSupadataApiKey(settings)) {
     renderForm(t("form.needSupadata"));
     return;
@@ -1174,12 +942,9 @@ async function runImport() {
     return;
   }
   const setStatus = renderProgress(t("progress.fetchVideo"));
-  const isClosed = () => cancelled;
   try {
-    const sb = await ExtSupabase.fromStorage();
-    if (!sb) throw new Error(t("save.noSession"));
     const { video, transcript } = await fetchTranscriptFromUrl(videoUrl, settings, {
-      isClosed,
+      isClosed: () => cancelled,
       onStatus: setStatus
     });
     if (cancelled) return;
@@ -1189,11 +954,11 @@ async function runImport() {
     const prepared = prepareTranscriptForMode(transcript, mode, { mergeCues });
     const gen = await generateYoutubeCards(
       { video, transcript: prepared, mode, settings },
-      { isClosed }
+      { isClosed: () => cancelled }
     );
     if (cancelled) return;
     setStatus(mode === "sentences" ? t("progress.checkSentences") : t("progress.checkWords"));
-    const known = await loadKnownTermsForImport(sb, folders, folderId);
+    const known = await loadKnownTermsForImport();
     if (cancelled) return;
     if (mode === "sentences") {
       previewItems = filterNewSentences(gen.cards || [], known).map((cand) => ({
@@ -1227,49 +992,46 @@ function renderPreview() {
     if (!groups.has(kind)) groups.set(kind, []);
     groups.get(kind).push(item);
   }
-  const selectedCount = () => previewItems.filter((i) => i.checked && i.back.trim()).length;
-  const countLabel = el("span", { class: "muted" }, t("preview.selected", { n: selectedCount() }));
-  const toast = el("div", { class: "toast" }, "");
-  toast.style.display = "none";
-  const list = el("div", null, []);
-  for (const [title, items] of groups) {
-    const groupEl = el("div", { class: "preview-group" }, [el("h3", null, `${title} (${items.length})`)]);
+  const list = el("div", { class: "preview-list" }, []);
+  for (const [label, items] of groups) {
+    list.append(el("h3", null, label));
     for (const item of items) {
-      const chk = el("input", { type: "checkbox", checked: item.checked });
-      chk.addEventListener("change", () => {
-        item.checked = chk.checked;
-        countLabel.textContent = t("preview.selected", { n: selectedCount() });
-        saveBtn.disabled = selectedCount() === 0;
+      const chk = el("input", {
+        type: "checkbox",
+        checked: item.checked,
+        onchange: () => {
+          item.checked = chk.checked;
+          countLabel.textContent = t("preview.selected", {
+            n: previewItems.filter((i) => i.checked).length
+          });
+        }
       });
-      const back = el("input", { class: "back", value: item.back });
-      back.addEventListener("input", () => {
-        item.back = back.value;
-        countLabel.textContent = t("preview.selected", { n: selectedCount() });
-        saveBtn.disabled = selectedCount() === 0;
+      const back = el("input", {
+        class: "input",
+        type: "text",
+        value: item.back,
+        onchange: () => {
+          item.back = back.value;
+        }
       });
-      const metaParts = [
-        item.cand.level,
-        item.cand.pos || item.cand.kind,
-        item.cand.t != null ? fmtTimestamp(item.cand.t) : null
-      ].filter(Boolean);
-      groupEl.append(
+      list.append(
         el("div", { class: "preview-row" }, [
           chk,
-          el("div", null, [
-            el("div", { class: "front" }, item.cand.front || ""),
-            metaParts.length ? el("div", { class: "meta" }, metaParts.join(" \xB7 ")) : null,
-            back
-          ])
+          el("div", null, [el("b", null, item.cand.front || ""), back])
         ])
       );
     }
-    list.append(groupEl);
   }
+  const countLabel = el(
+    "span",
+    null,
+    t("preview.selected", { n: previewItems.filter((i) => i.checked).length })
+  );
+  const toast = el("p", { class: "toast", style: "display:none" }, "");
   const saveBtn = el(
     "button",
     {
       class: "btn primary",
-      disabled: selectedCount() === 0,
       onclick: () => void saveSelected(saveBtn, toast, countLabel)
     },
     t("preview.create")
@@ -1295,35 +1057,29 @@ function renderPreview() {
 }
 async function saveSelected(saveBtn, toast, countLabel) {
   const selected = previewItems.filter((i) => i.checked && i.back.trim()).map((i) => ({ cand: i.cand, back: i.back.trim() }));
-  if (!selected.length || !folderId) return;
+  if (!selected.length) return;
   saveBtn.disabled = true;
   toast.style.display = "none";
   try {
-    const sb = await ExtSupabase.fromStorage();
-    if (!sb) throw new Error(t("save.noSession"));
-    const { ok, failed } = await createYoutubeCardsBatch(sb, folderId, selected, videoId);
-    const folder = folders.find((f) => f.id === folderId);
-    toast.className = failed.length && !ok ? "toast error" : "toast";
+    const { ok, json } = buildImportPayload(folderName || defaultExportFolder().name, selected, videoId);
+    downloadTextFile(`kar-youtube-${Date.now()}.json`, json);
+    toast.className = "toast";
     toast.style.display = "";
-    toast.textContent = ok > 0 ? failed.length ? t("save.createdWithFail", { ok, fail: failed.length }) : t("save.created", { ok }) : t("save.fail", {
-      message: failed[0]?.message || t("error.generic")
-    });
-    if (ok > 0) {
-      toast.append(
-        el("br"),
-        el(
-          "a",
-          {
-            href: `${APP_ORIGIN}/#/folder/${folderId}`,
-            target: "_blank",
-            rel: "noopener noreferrer",
-            style: "display:inline-block;margin-top:8px;color:inherit;font-weight:700"
-          },
-          folder ? t("save.openNamed", { name: folder.name }) : t("save.openFolder")
-        )
-      );
-    }
-    countLabel.textContent = t("save.created", { ok });
+    toast.textContent = t("save.exported", { ok });
+    toast.append(
+      el("br"),
+      el(
+        "a",
+        {
+          href: `${APP_ORIGIN}/#settings`,
+          target: "_blank",
+          rel: "noopener noreferrer",
+          style: "display:inline-block;margin-top:8px;color:inherit;font-weight:700"
+        },
+        t("save.openImport")
+      )
+    );
+    countLabel.textContent = t("save.exported", { ok });
   } catch (e) {
     toast.className = "toast error";
     toast.style.display = "";
@@ -1332,7 +1088,6 @@ async function saveSelected(saveBtn, toast, countLabel) {
   }
 }
 chrome.storage.onChanged.addListener((changes, area) => {
-  if (area === "local" && changes.kar_ext_auth) void boot();
   if (area === "session" && changes.kar_ext_video) {
     const v = changes.kar_ext_video.newValue;
     if (v?.url) {

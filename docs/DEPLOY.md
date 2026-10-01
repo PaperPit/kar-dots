@@ -1,149 +1,81 @@
 # Деплой КАР-точек
 
-> **Для пользователей:** пошаговая инструкция «с нуля» — деплой, компьютер, телефон, Supabase, друзья:  
-> **[USER-GUIDE.md](./USER-GUIDE.md)**
+> **Для пользователей:** пошаговая инструкция — [USER-GUIDE.md](./USER-GUIDE.md)
 
-Этот файл — технические детали для админов инстанса (Functions, миграции, troubleshooting).
+Этот файл — технические детали для админов инстанса (Functions, D1, R2, troubleshooting).
 
 ## Сценарии
 
-| Кому | Деплой | Supabase |
-|------|--------|----------|
+| Кому | Деплой | Облачный синк |
+|------|--------|----------------|
 | Только вы, один браузер | `npm run dev` локально | нет |
-| Вы, PWA на телефоне | **Cloudflare Pages** | нет (экспорт JSON) |
-| Вы + друзья с аккаунтами | **Cloudflare Pages** (`*.pages.dev`) | **ваш** проект Supabase |
+| Вы, PWA на телефоне | **Cloudflare Pages** | опционально CF sync (D1 + R2) |
+| Вы + несколько устройств | **Cloudflare Pages** | **CF sync** (JWT + D1 snapshot + R2 images) |
 
 **Прод upstream:** [https://kar-tochki.pages.dev](https://kar-tochki.pages.dev)
 
+Legacy Supabase больше не нужен. Архив схемы: [legacy/README.md](./legacy/README.md).
+
 ---
 
-## Статический хостинг
+## Cloudflare Pages + Functions
 
-Основной путь — **Cloudflare Pages** (статика `dist/` + Functions). Также возможны GitHub Pages (только UI) и свой VPS.
-
-### Cloudflare Pages + Functions (основной)
-
-Статика из `dist/` + API в `functions/api/*` (`/api/yt-video`, `/api/yt-generate`, `/api/tts`, `/api/stock-search`). YouTube-джобы — Workers KV (`YT_JOBS`).
+Статика из `dist/` + API в `functions/api/*`.
 
 Пошагово: **[cloudflare-pages-setup.md](./cloudflare-pages-setup.md)**. Кратко:
 
 1. `npx wrangler login`
 2. KV: `npx wrangler kv namespace create YT_JOBS` → `id` в [`wrangler.toml`](../wrangler.toml)
-3. Деплой: GitHub Action на `main` **или** `npm run pages:deploy`
-4. Build (если Connect to Git в Dashboard):
-   - command: `node scripts/generate-config.js && npm run build:bundle`
-   - output: `dist`
-5. Env: `SUPABASE_URL`, `SUPABASE_ANON_KEY`, секреты `GEMINI_*` / `GROQ_*` / `SUPADATA_*`, опц. stock keys
-6. Functions → KV binding `YT_JOBS`
+3. D1: `npx wrangler d1 create kar-sync` → `database_id` в wrangler; `npm run d1:migrate:remote`
+4. R2: `npx wrangler r2 bucket create kar-card-images` → binding `CARD_IMAGES` (уже в wrangler.toml)
+5. Pages Secret: **`SYNC_JWT_SECRET`** (случайная строка ≥32 символов) — JWT sync + подпись `/api/files`
+6. Деплой: GitHub Action на `main` **или** `npm run pages:deploy`
+7. Build (Connect to Git): command `node scripts/generate-config.js && npm run build:bundle`, output `dist`
+8. Опц. Secrets: `GEMINI_*` / `GROQ_*` / `SUPADATA_*`, stock keys, `AZURE_TRANSLATOR_*`
+
+**Не нужны:** `SUPABASE_URL`, `SUPABASE_ANON_KEY`.
 
 Локально:
 
 ```bash
-npm run pages:dev   # http://localhost:8788 — эмуляция Pages + KV
+npm run pages:dev   # Pages + KV + D1 + R2 (нужен `.dev.vars` с SYNC_JWT_SECRET)
 npm run dev         # http://localhost:8080 — dev-сервер + functions/api
 ```
 
-### GitHub Pages
+Локальный CF sync: файл `.dev.vars` с `SYNC_JWT_SECRET` (≥32 символов). Секция `[ai]` в wrangler.toml по умолчанию выключена, чтобы `pages:dev` не требовал Cloudflare login; перевод без AI — HTTP-фолбэки. AI binding можно добавить в Dashboard или раскомментировать в wrangler.toml.
 
-Только статика из корня — **без** `/api/*` (YouTube-импорт и серверный TTS не работают). Settings → Pages → branch `main`, folder `/`.
+Порядок локально: сначала `npm run d1:migrate`, затем `npm run pages:dev`. Если register падает с `no such table: cf_users` — снова `npm run d1:migrate` и перезапустите `pages:dev` (иногда Miniflare создаёт пустую D1 до миграции).
 
-> PWA и камера требуют **HTTPS**.
-
----
-
-## Supabase (ваш инстанс для себя и друзей)
-
-Без Supabase — **локальный режим** (IndexedDB), данные только в браузере.  
-С Supabase на **вашем** проекте — регистрация, sync между вашими устройствами, картинки в Storage.
-
-**Друзья:** отправьте им URL вашего деплоя. Каждый нажимает «Создать аккаунт» — коллекции **не пересекаются** (RLS: пользователь видит только своё). Вы не админ-панель, а хост приложения; лимиты — тариф **вашего** Supabase.
-
-### 1. Создать проект
-
-https://supabase.com → **New project** → дождаться provisioning.
-
-### 2. Применить схему
-
-**Вариант A — миграции (рекомендуется для новых установок)**
-
-В **SQL Editor** выполните файлы по порядку:
-
-```
-supabase/migrations/0001_init.sql
-supabase/migrations/0002_folder_icons.sql
-supabase/migrations/0003_fsrs.sql
-supabase/migrations/0004_boxes.sql
-supabase/migrations/0005_updated_at.sql
-supabase/migrations/0006_cards_updated_at_idx.sql
-supabase/migrations/0007_settings_rls.sql
-supabase/migrations/0008_review_log.sql
-supabase/migrations/0009_card_images_read_own.sql
-supabase/migrations/0010_boxes_update_with_check.sql
-supabase/migrations/0011_cards_synced_at.sql
-supabase/migrations/0012_card_images_private.sql
-```
-
-Источник правды — только `supabase/migrations/` (монолитного dump-файла нет).
-
-⚠️ **Порядок 0011 и 0012 важен.**
-
-`0011_cards_synced_at.sql` добавляет серверную метку `cards.synced_at` — по ней
-работает дельта-синхронизация. Приложение проверяет версию схемы и требует
-минимум 12, но саму колонку переживает мягко: если её нет, синк откатывается на
-`updated_at` (клиентские часы) и просто чаще тянет лишнее.
-
-`0012_card_images_private.sql` закрывает бакет `card-images` (делает его
-приватным). Применяйте её **только после того, как на прод выехал клиент с
-подписанными ссылками** (`js/data/image-url.ts`). Если закрыть бакет раньше,
-картинки на старых вкладках перестанут открываться до перезагрузки.
-
-### 3. Ключи в приложении
-
-**Settings → API Keys** → скопируйте Project URL и **anon public** key.
-
-`js/config.js`:
-
-```js
-export default {
-  SUPABASE_URL: 'https://xxxx.supabase.co',
-  SUPABASE_ANON_KEY: 'eyJ...',
-};
-```
-
-На Cloudflare Pages ключи обычно задают через env (`SUPABASE_URL` / `SUPABASE_ANON_KEY`) — `scripts/generate-config.js` собирает `config.js` при билде.
-
-Anon key безопасен на клиенте — доступ ограничен RLS-политиками.
-
-### 4. Email (опционально)
-
-Для прототипа без подтверждения почты: **Authentication → Providers → Email → Confirm email OFF**.
-
-### 5. Перенос из локального режима
-
-Локально: **Настройки → Экспорт → Скачать JSON**  
-После входа в облако: **Импорт** того же файла.
-
----
-
-## Локальная разработка
+Прод-инфра одной командой после `npx wrangler login`:
 
 ```bash
-npm install
-npm run dev        # http://localhost:8080 + API из functions/api/
-npm run pages:dev  # эмуляция Cloudflare Pages (dist + functions/ + KV)
+bash scripts/cf-infra-setup.sh
 ```
 
-Перед релизом: `npm test`, при изменении списка файлов — `npm run sw:generate` и bump `VERSION` в `sw.js`.
+Затем в Dashboard: R2 binding `CARD_IMAGES` → `kar-card-images` и Secret `SYNC_JWT_SECRET`.
+
+### Bindings (wrangler.toml)
+
+| Binding | Тип | Назначение |
+|---------|-----|------------|
+| `YT_JOBS` | KV | YouTube jobs + rate limits |
+| `SYNC_DB` | D1 | CF sync users + snapshots |
+| `CARD_IMAGES` | R2 | Приватные картинки карточек |
+| `AI` | Workers AI | перевод (опц.) |
 
 ---
 
-## Частые проблемы
+## Данные пользователя
 
-| Симптом | Решение |
-|---------|---------|
-| Нет колонки `icon` у папок | выполнить `0002_folder_icons.sql` |
-| Нет FSRS-полей | `0003_fsrs.sql` |
-| Старый Supabase без `back_desc` | `alter table public.cards add column if not exists back_desc text default '';` |
-| Облако не подключается | проверить URL/key в `js/config.js`, RLS, CORS origin на Supabase |
+- **По умолчанию:** IndexedDB на устройстве (`LocalStore`).
+- **Мультиустройство:** Настройки → Cloudflare sync (register/login → push/pull).
+- **Картинки при CF login:** upload в R2 через `POST /api/files`, в карточках хранится `r2:userId/…`.
+- **Миграция со старого Supabase:** экспорт JSON → локальный импорт → CF sync. Автомоста нет.
 
-Подробнее по YouTube: [youtube-import-setup.md](./youtube-import-setup.md).
+---
+
+## GitHub Pages
+
+Только статика — **без** `/api/*`. Для полного стека нужен Cloudflare Pages.
+
+> PWA и камера требуют **HTTPS**.

@@ -1,0 +1,58 @@
+[
+  {
+    "id": "F01",
+    "behavior": "Harness: AGENTS.md + feature_list + PROGRESS + npm run check* + harness:test",
+    "verification": "npm run harness:test",
+    "state": "passing",
+    "evidence": "npm run harness:test — 65 assertions OK"
+  },
+  {
+    "id": "F02",
+    "behavior": "Cloudflare sync phase 3: card images via R2 (upload + URLs in snapshot/payload)",
+    "verification": "npm run check && npm run test:e2e -- e2e/flows.spec.js -g Cloudflare",
+    "state": "passing",
+    "evidence": "npm run check OK; e2e Cloudflare section OK; CARD_IMAGES + /api/files + cf-files client"
+  },
+  {
+    "id": "F03",
+    "behavior": "Deprecate/remove legacy Supabase CloudStore path from default UX (keep export path if needed)",
+    "verification": "npm run check",
+    "state": "passing",
+    "evidence": "npm run check OK; CloudStore/MiniSupabase removed; extension JSON export; docs CF-only"
+  },
+  {
+    "id": "F04",
+    "behavior": "i18n tails: rich-editor / store errors / remaining bare UI strings outside migrated dirs",
+    "verification": "npm run i18n:check && npm run check:quick",
+    "state": "not_started",
+    "evidence": null
+  },
+  {
+    "id": "F05",
+    "behavior": "A11y: axe/Lighthouse gate or expanded review-a11y coverage for editor + modals",
+    "verification": "npm run check && npm run test:e2e -- e2e/a11y.spec.js",
+    "state": "not_started",
+    "evidence": null
+  },
+  {
+    "id": "F06",
+    "behavior": "Notes → card from selection with note_id / note_anchor retained after sync roundtrip",
+    "verification": "npm run check:quick",
+    "state": "not_started",
+    "evidence": null
+  },
+  {
+    "id": "F07",
+    "behavior": "Anki import v2: media + interval/cloze fields where feasible",
+    "verification": "npm test -- tests/anki-apkg.test.js && npm run check:quick",
+    "state": "not_started",
+    "evidence": null
+  },
+  {
+    "id": "F08",
+    "behavior": "CF sync: delta/ops queue instead of full snapshot (or documented size limits + UX)",
+    "verification": "npm run check",
+    "state": "not_started",
+    "evidence": null
+  }
+]

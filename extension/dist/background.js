@@ -1,17 +1,12 @@
 // src/lib/constants.ts
 var APP_ORIGIN = "https://kar-tochki.pages.dev";
-var CONNECT_URL = `${APP_ORIGIN}/?ext_connect=1`;
+var CONNECT_URL = `${APP_ORIGIN}/#settings`;
 var STORAGE_KEYS = {
-  auth: "kar_ext_auth",
   prefs: "kar_ext_prefs",
   video: "kar_ext_video"
 };
 
 // src/lib/storage.ts
-async function setAuth(auth) {
-  if (auth) await chrome.storage.local.set({ [STORAGE_KEYS.auth]: auth });
-  else await chrome.storage.local.remove(STORAGE_KEYS.auth);
-}
 async function setVideo(video) {
   if (video) await chrome.storage.session.set({ [STORAGE_KEYS.video]: video });
   else await chrome.storage.session.remove(STORAGE_KEYS.video);
@@ -30,26 +25,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
         sendResponse({ ok: true });
         return;
       }
-      if (msg.type === "AUTH_CONNECT") {
-        if (!msg.session?.access_token || !msg.supabaseUrl || !msg.anonKey) {
-          sendResponse({ ok: false, error: "\u041D\u0435\u043F\u043E\u043B\u043D\u044B\u0435 \u0434\u0430\u043D\u043D\u044B\u0435 \u0441\u0435\u0441\u0441\u0438\u0438" });
-          return;
-        }
-        await setAuth({
-          session: msg.session,
-          supabaseUrl: msg.supabaseUrl,
-          anonKey: msg.anonKey,
-          connectedAt: Date.now()
-        });
-        sendResponse({ ok: true });
-        return;
-      }
-      if (msg.type === "AUTH_DISCONNECT") {
-        await setAuth(null);
-        sendResponse({ ok: true });
-        return;
-      }
-      if (msg.type === "GET_STATE") {
+      if (msg.type === "GET_STATE" || msg.type === "PING_CONNECT") {
         sendResponse({ ok: true });
         return;
       }

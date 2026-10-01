@@ -1,5 +1,7 @@
 # КАР-точки
 
+Контракт агента (DoD, WIP, verify): **[AGENTS.md](AGENTS.md)**. Ниже — продуктовые слои и команды.
+
 Vanilla JS PWA (ES modules, **без bundler в dev**). Исходники — TypeScript (`js/**/*.ts`), компилируются `tsc` на место в `js/**/*.js` (gitignored).
 
 - **Dev**: `npm run dev` отдаёт несобранные `js/*.js` из корня (`index.html` → `js/app.js` → `js/core/router.js`). Экраны ленивые через `await import()`.
@@ -7,7 +9,7 @@ Vanilla JS PWA (ES modules, **без bundler в dev**). Исходники — T
 
 ## Слои
 
-- `js/data/` — хранилища (`LocalStore`, `CloudStore`), контракт, SRS-запросы, sync-queue, заметки (`store-notes.js`)
+- `js/data/` — хранилища (`LocalStore`), контракт, SRS-запросы, CF sync/files, заметки (`store-notes.js`)
 - `js/lib/` — чистые утилиты (srs, shuffle, activity, markdown, notes-fts); **не** импортировать из `screens/`
 - `js/ui/` — shell, helpers, ui-компоненты; навигация только через `js/ui/navigation.js` (`nav`), не из `shell.js`
 - `js/screens/` — экраны; импортируют `ui/` и `data/`, не наоборот
@@ -26,6 +28,9 @@ Vanilla JS PWA (ES modules, **без bundler в dev**). Исходники — T
 
 ## Команды
 
+- `npm run check:quick` — typecheck + lint + unit-тесты (быстрая петля агента)
+- `npm run check` — локальный паритет с CI check (без e2e)
+- `npm run harness:test` — самотест обвязки агента
 - `npm test` — Vitest (happy-dom)
 - `npm run build:bundle` — прод-сборка: `tsc` + esbuild-бандл в `dist/` + генерация `dist/sw.js` (прекеш бандла + чанков + ассетов)
 - `npm run ext:build` — сборка Chrome-расширения в `extension/dist/` (load unpacked из `extension/`)

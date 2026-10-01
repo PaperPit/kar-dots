@@ -1,9 +1,7 @@
 /**
- * Владелец YouTube-джоба в KV: Supabase user id или стабильный анонимный UUID.
- * Передаётся в /api/yt-video вместе с jobId — сервер кладёт ключ job:${userId}:${jobId}.
+ * Владелец YouTube-джоба в KV: стабильный анонимный UUID в localStorage.
+ * (Раньше — Supabase user id; cloud path удалён.)
  */
-
-import { sb } from "../core/state.js"
 
 const LS_KEY = "kar_yt_job_user"
 const UUID_RE =
@@ -26,9 +24,7 @@ function anonymousOwnerId(): string {
   }
 }
 
-/** UUID для POST/GET /api/yt-video (облачный аккаунт или локальный аноним). */
+/** UUID для POST/GET /api/yt-video. */
 export function getYtJobUserId(): string {
-  const uid = sb?.userId?.()
-  if (uid && isYtJobUserId(uid)) return uid
   return anonymousOwnerId()
 }

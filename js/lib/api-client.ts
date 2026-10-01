@@ -1,29 +1,21 @@
 /**
  * Личность запроса для /api/*.
  *
- * Бэкенд (functions/api/_middleware.js) выводит субъекта только из того, чему
- * можно верить: проверенный access-token Supabase либо IP + X-Client-Id.
- * Поэтому userId в теле запроса он игнорирует, а вот заголовки нужны всегда:
- * без X-Client-Id анонимные запросы с одного IP сваливаются в общий бюджет
- * лимитов и не находят свои же KV-задачи.
+ * Бэкенд выводит субъекта из CF sync JWT (`kar-cf-sync`) либо IP + X-Client-Id.
  */
 
-import { sb } from "../core/state.js"
 import { getYtJobUserId } from "./yt-job-owner.js"
 
-/** Заголовки для fetch к /api/*: X-Client-Id всегда, Bearer — если есть сессия. */
+/** Заголовки для fetch к /api/*: X-Client-Id всегда, Bearer — если есть CF sync сессия. */
 export async function apiHeaders(
   extra: Record<string, string> = {}
 ): Promise<Record<string, string>> {
-  // Тот же id, что и у владельца YouTube-задач, — второй заводить нельзя,
-  // иначе анонимный субъект поедет и задача «потеряется».
   const headers: Record<string, string> = Object.assign({ "X-Client-Id": getYtJobUserId() }, extra)
   try {
-    const session = await sb?.ensureFresh()
-    const token = session?.access_token
+    const token = localStorage.getItem("kar_cf_token")
     if (token) headers["Authorization"] = "Bearer " + token
-  } catch (e) {
-    /* нет сессии или сеть — работаем анонимно */
+  } catch {
+    /* нет storage — работаем анонимно */
   }
   return headers
 }

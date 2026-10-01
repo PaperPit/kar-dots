@@ -28,8 +28,7 @@
   "host_permissions": [
     "https://www.youtube.com/*",
     "https://youtube.com/*",
-    "https://kar-tochki.pages.dev/*",
-    "https://*.supabase.co/*"
+    "https://kar-tochki.pages.dev/*"
   ],
   "content_scripts": [
     {

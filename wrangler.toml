@@ -17,9 +17,11 @@ binding = "YT_JOBS"
 id = "5e57b0e230ad4fc5bf23fde74ac6d625"
 
 # Workers AI — перевод в /api/translate (@cf/meta/m2m100-1.2b).
-# Без биндинга функция откатывается на MyMemory (локальный npm run dev).
-[ai]
-binding = "AI"
+# Раскомментируйте для прод-деплоя с AI binding (нужен wrangler login / API token).
+# Без секции [ai] `pages:dev` работает полностью локально (KV/D1/R2); translate
+# откатывается на HTTP-фолбэки. В Dashboard можно добавить AI binding вручную.
+# [ai]
+# binding = "AI"
 
 # D1 — snapshot-синк между устройствами (/api/sync/*, /api/auth/*).
 # Создайте: npx wrangler d1 create kar-sync
@@ -31,15 +33,19 @@ database_name = "kar-sync"
 database_id = "1e9032ff-251c-4d5f-8150-e8e49e409172"
 migrations_dir = "migrations"
 
+# R2 — картинки карточек/заметок (приватный бакет, выдача через /api/files).
+# Создайте: npx wrangler r2 bucket create kar-card-images
+# Pages → Settings → Functions → R2 bindings → CARD_IMAGES → kar-card-images
+[[r2_buckets]]
+binding = "CARD_IMAGES"
+bucket_name = "kar-card-images"
+
 # Прод: без KV лимиты обязательны. Локально не задавайте / ставьте "0".
 [vars]
 REQUIRE_RATE_LIMIT = "1"
 
 # Переменные окружения для /api/* задаются в Cloudflare Pages →
 # Settings → Environment variables, здесь их не дублируем (см. .env.example):
-#   SUPABASE_URL       — проверка access-token'а в middleware (legacy cloud)
-#   SUPABASE_ANON_KEY  — публичный anon key того же проекта (не service_role!)
-#   SYNC_JWT_SECRET    — Secret: подпись JWT для Cloudflare sync (фаза 2)
+#   SYNC_JWT_SECRET    — Secret: подпись JWT для Cloudflare sync + file URLs
 #   GEMINI_MODEL / GROQ_MODEL — опционально, только имена моделей
-# SUPABASE_URL и SUPABASE_ANON_KEY публичны по замыслу Supabase (anon key и так
-# уходит в браузер), новых секретов на сервере это не создаёт.
+# SUPABASE_* больше не нужны (legacy удалён из продукта).

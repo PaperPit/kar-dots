@@ -1,7 +1,6 @@
 import { APP_ORIGIN } from "./constants.js"
 import { withApiKeys } from "../../../js/lib/youtube-import-settings.js"
 import { getExtYtJobUserId } from "./yt-job-owner.js"
-import { getAuth } from "./storage.js"
 import {
   parseYouTubeId,
   filterTranscriptSegments,
@@ -38,27 +37,10 @@ interface ApiJsonResponse {
 }
 
 /**
- * Заголовки личности для /api/*.
- *
- * Бэкенд (functions/api/_middleware.js) выводит субъекта запроса только из
- * проверенного access-token'а Supabase либо из пары IP + X-Client-Id, а userId
- * в теле игнорирует. Без этих заголовков расширение сваливалось в общий
- * анонимный бюджет лимитов вместе со всеми за тем же NAT и получало 429 —
- * а до правки любой сбой показывался как «Нет соединения с сервером».
- *
- * X-Client-Id — намеренно тот же id, что и владелец YouTube-задачи
- * (getExtYtJobUserId), иначе субъект разъедется и опрос задачи её не найдёт.
+ * Заголовки личности для /api/*: X-Client-Id (CF JWT не используется в расширении).
  */
 async function apiHeaders(extra: Record<string, string> = {}): Promise<Record<string, string>> {
-  const headers: Record<string, string> = { ...extra, "X-Client-Id": await getExtYtJobUserId() }
-  try {
-    const auth = await getAuth()
-    const token = auth?.session?.access_token
-    if (token) headers["Authorization"] = "Bearer " + token
-  } catch {
-    /* нет сессии — работаем анонимно, это допустимо */
-  }
-  return headers
+  return { ...extra, "X-Client-Id": await getExtYtJobUserId() }
 }
 
 /** Человеческий текст по статусу — сообщение сервера всегда в приоритете. */

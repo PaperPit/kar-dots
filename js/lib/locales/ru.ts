@@ -96,13 +96,15 @@ export const ru = {
   "auth.confirmEmail": "Письмо отправлено — подтвердите почту и войдите",
   "auth.noAccount": "Нет аккаунта? ",
   "auth.cloudNotConfigured":
-    "Устаревший облачный вход (Supabase) не настроен. Основной режим — локальный; синк — Настройки → Cloudflare.",
+    "Облако — только через Cloudflare sync в Настройках (Supabase больше не используется).",
   "auth.tryLocal": "Продолжить на этом устройстве",
   "auth.opening": "Открываю…",
-  "auth.demoNote": "Данные хранятся в этом браузере. Бэкап — экспорт JSON в настройках.",
+  "auth.demoNote": "Данные хранятся на этом устройстве (IndexedDB).",
+  "auth.cfSyncHint": "Синхронизация между устройствами — в Настройках → Cloudflare (D1 + R2).",
+  "auth.cloudRemoved": "Старое облако Supabase отключено. Используйте Cloudflare sync в Настройках.",
   "auth.cloudLegacySummary": "Старый вход в облако (Supabase)",
   "auth.cloudLegacyHint":
-    "Устаревает: позже синхронизация будет через Cloudflare по кнопке. Сейчас можно войти в старый аккаунт.",
+    "Отключено: используйте Cloudflare sync в Настройках.",
   "auth.loadingCloud": "Загружаю ваши карточки…",
   "auth.cloudMissingKeys": "Облачный режим не настроен (нет ключей Supabase)",
   "auth.loadFailed": "Не удалось загрузить данные: {message}",
@@ -469,9 +471,11 @@ export const ru = {
   "settings.account.cloudOffline": "Сейчас офлайн — очередь ждёт сеть (старое облако Supabase).",
   "settings.account.cloudOnline": "Старое облако Supabase. Рекомендуем перейти на локальный режим.",
   "settings.account.localHint":
-    "Данные на этом устройстве. Синхронизация Cloudflare — в Настройках; JSON экспорт/импорт по-прежнему доступен.",
+    "Данные на этом устройстве. Синхронизация — блок Cloudflare ниже; JSON экспорт/импорт доступен.",
   "settings.account.demoHint":
-    "Данные на этом устройстве. Синхронизация Cloudflare — в Настройках; JSON экспорт/импорт по-прежнему доступен.",
+    "Данные на этом устройстве. Синхронизация — блок Cloudflare ниже; JSON экспорт/импорт доступен.",
+  "settings.account.cfHint":
+    "Аккаунт для мультидевайса создаётся в разделе «Синхронизация Cloudflare».",
   "settings.account.signOut": "Выйти",
   "settings.account.signOutCloudTitle": "Выйти из аккаунта?",
   "settings.account.signOutLocalTitle": "Сменить режим?",
@@ -504,7 +508,7 @@ export const ru = {
 
   "settings.cfSync.title": "Синхронизация Cloudflare",
   "settings.cfSync.lead":
-    "Опциональный бэкап между устройствами через Cloudflare (D1). Данные на устройстве — главные; синк по кнопке. Картинки пока только локально / в JSON.",
+    "Опциональный бэкап между устройствами: D1 (данные) + R2 (картинки). Данные на устройстве — главные; синк по кнопке.",
   "settings.cfSync.account": "Аккаунт",
   "settings.cfSync.signedOut": "Не выполнен вход",
   "settings.cfSync.signedIn": "{email} · последний синк: {when}",

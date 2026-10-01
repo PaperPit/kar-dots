@@ -1,7 +1,7 @@
 // Версия схемы облачной базы. Заменяет рантайм-угадывание колонок:
 // приложение один раз при старте сверяет schema_meta.version с нужной
 // и, если она ниже, просит выполнить недостающие миграции.
-import { isNetworkError } from "./supabase.js"
+import { isNetworkError } from "../lib/network-error.js"
 import { t } from "../lib/i18n.js"
 
 /**

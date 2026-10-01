@@ -13,7 +13,7 @@ describe('extension i18n', () => {
   it('falls back to Russian for missing EN keys and supports vars', () => {
     setExtLocale('en');
     expect(t('brand.title')).toBe('KAR-dots');
-    expect(t('auth.body', { host: 'example.com' })).toContain('example.com');
+    expect(t('save.exported', { ok: 3 })).toContain('3');
     setExtLocale('ru');
     expect(t('brand.title')).toBe('КАР-точки');
     expect(modeLabel('both')).toMatch(/Слова|фразы/i);
@@ -46,6 +46,6 @@ describe('extension build smoke', () => {
       'utf8',
     );
     expect(src).toContain('KAR-dots');
-    expect(src).toContain('Sign in with KAR-dots');
+    expect(src).toContain('Download JSON');
   });
 });

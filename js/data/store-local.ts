@@ -598,6 +598,15 @@ export class LocalStore {
   /** Второй аргумент есть только ради общей сигнатуры с CloudStore — локально не нужен. */
   async uploadImage(file: Blob, _opts: { side?: string; cardId?: string } = {}) {
     const blob = await resizeImage(file)
+    try {
+      const { cfLoggedIn } = await import("./cf-auth.js")
+      if (cfLoggedIn()) {
+        const { cfUploadImageBlob } = await import("./cf-files.js")
+        return await cfUploadImageBlob(blob)
+      }
+    } catch (e) {
+      console.warn("[local] R2 upload failed, falling back to data URL:", e)
+    }
     return blobToDataURL(blob)
   }
 

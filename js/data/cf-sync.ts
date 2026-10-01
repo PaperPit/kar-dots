@@ -92,8 +92,14 @@ export async function cfPullIntoStore(store: AppStore): Promise<number> {
 /** Загрузить локальные данные в облако. */
 export async function cfPushFromStore(store: AppStore): Promise<number> {
   const text = await store.exportJSONFull()
-  const payload = JSON.parse(text) as Record<string, unknown>
+  let payload = JSON.parse(text) as Record<string, unknown>
   validateImportJSON(payload)
+  try {
+    const { migrateDataUrlsInPayload } = await import("./cf-files.js")
+    payload = await migrateDataUrlsInPayload(store, payload)
+  } catch (e) {
+    console.warn("[cf-sync] data URL migrate skipped:", e)
+  }
   const base = cfLastSyncAt() || null
   const { updated_at } = await cfPushSnapshot(payload, base)
   cfSetLastSyncAt(updated_at)

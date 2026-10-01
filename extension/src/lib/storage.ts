@@ -1,20 +1,4 @@
-import {
-  DEFAULT_PREFS,
-  STORAGE_KEYS,
-  type ExtAuth,
-  type ExtPrefs,
-  type ExtVideo
-} from "./constants.js"
-
-export async function getAuth(): Promise<ExtAuth | null> {
-  const data = await chrome.storage.local.get(STORAGE_KEYS.auth)
-  return (data[STORAGE_KEYS.auth] as ExtAuth | undefined) || null
-}
-
-export async function setAuth(auth: ExtAuth | null): Promise<void> {
-  if (auth) await chrome.storage.local.set({ [STORAGE_KEYS.auth]: auth })
-  else await chrome.storage.local.remove(STORAGE_KEYS.auth)
-}
+import { DEFAULT_PREFS, STORAGE_KEYS, type ExtPrefs, type ExtVideo } from "./constants.js"
 
 export async function getPrefs(): Promise<ExtPrefs> {
   const data = await chrome.storage.local.get(STORAGE_KEYS.prefs)

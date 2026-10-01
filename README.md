@@ -128,6 +128,7 @@ npm test             # Vitest
 | Деплой Cloudflare | [docs/cloudflare-pages-setup.md](docs/cloudflare-pages-setup.md) |
 | Админ: Functions, миграции | [docs/DEPLOY.md](docs/DEPLOY.md) |
 | Править код | [CLAUDE.md](CLAUDE.md) |
+| Контракт AI-агента | [AGENTS.md](AGENTS.md) · [docs/AGENT.md](docs/AGENT.md) |
 
 > **Важно:** API-ключи YouTube / Gemini / Groq — **ваши**, в настройках приложения или в env на хостинге. Maintainer не предоставляет общий бэкенд для чужих инстансов.
 

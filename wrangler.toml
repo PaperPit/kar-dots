@@ -33,12 +33,14 @@ database_name = "kar-sync"
 database_id = "1e9032ff-251c-4d5f-8150-e8e49e409172"
 migrations_dir = "migrations"
 
-# R2 — картинки карточек/заметок (приватный бакет, выдача через /api/files).
-# Создайте: npx wrangler r2 bucket create kar-card-images
-# Pages → Settings → Functions → R2 bindings → CARD_IMAGES → kar-card-images
-[[r2_buckets]]
-binding = "CARD_IMAGES"
-bucket_name = "kar-card-images"
+# R2 — картинки (приватный бакет). Сначала включите R2 в Dashboard
+# (R2 → Purchase / Enable), затем:
+#   npx wrangler r2 bucket create kar-card-images
+# и раскомментируйте блок ниже + redeploy. Без binding upload → 503,
+# локальные картинки остаются data URL.
+# [[r2_buckets]]
+# binding = "CARD_IMAGES"
+# bucket_name = "kar-card-images"
 
 # Прод: без KV лимиты обязательны. Локально не задавайте / ставьте "0".
 [vars]

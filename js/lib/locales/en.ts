@@ -84,13 +84,14 @@ export const en: Record<string, MessageValue> = {
   "auth.confirmEmail": "Email sent — confirm your address and sign in",
   "auth.noAccount": "No account? ",
   "auth.cloudNotConfigured":
-    "Legacy cloud sign-in (Supabase) is not configured. Primary mode is local; sync in Settings → Cloudflare.",
+    "Cloud sync is Cloudflare only (Settings). Supabase sign-in is removed.",
   "auth.tryLocal": "Continue on this device",
   "auth.opening": "Opening…",
-  "auth.demoNote": "Data stays in this browser. Backup via JSON export in Settings.",
+  "auth.demoNote": "Data stays on this device (IndexedDB).",
+  "auth.cfSyncHint": "Multi-device sync is in Settings → Cloudflare (D1 + R2).",
+  "auth.cloudRemoved": "Legacy Supabase cloud is disabled. Use Cloudflare sync in Settings.",
   "auth.cloudLegacySummary": "Legacy cloud sign-in (Supabase)",
-  "auth.cloudLegacyHint":
-    "Deprecated: sync will move to Cloudflare (manual). You can still open an old account.",
+  "auth.cloudLegacyHint": "Disabled: use Cloudflare sync in Settings.",
   "auth.loadingCloud": "Loading your cards…",
   "auth.cloudMissingKeys": "Cloud mode is not configured (missing Supabase keys)",
   "auth.loadFailed": "Could not load data: {message}",
@@ -445,9 +446,11 @@ export const en: Record<string, MessageValue> = {
   "settings.account.cloudOffline": "Offline — queue waiting for network (legacy Supabase cloud).",
   "settings.account.cloudOnline": "Legacy Supabase cloud. Prefer switching to local mode.",
   "settings.account.localHint":
-    "Data on this device. Optional Cloudflare sync in Settings; JSON export/import still works.",
+    "Data on this device. Sync via the Cloudflare section below; JSON export/import still works.",
   "settings.account.demoHint":
-    "Data on this device. Optional Cloudflare sync in Settings; JSON export/import still works.",
+    "Data on this device. Sync via the Cloudflare section below; JSON export/import still works.",
+  "settings.account.cfHint":
+    "Create a multi-device account under “Cloudflare sync”.",
   "settings.account.signOut": "Sign out",
   "settings.account.signOutCloudTitle": "Sign out of account?",
   "settings.account.signOutLocalTitle": "Leave this mode?",
@@ -480,7 +483,7 @@ export const en: Record<string, MessageValue> = {
 
   "settings.cfSync.title": "Cloudflare sync",
   "settings.cfSync.lead":
-    "Optional multi-device backup via Cloudflare (D1). Device data is primary; sync on button. Images stay local/in JSON for now.",
+    "Optional multi-device backup: D1 (data) + R2 (images). Device data is primary; sync on button.",
   "settings.cfSync.account": "Account",
   "settings.cfSync.signedOut": "Not signed in",
   "settings.cfSync.signedIn": "{email} · last sync: {when}",

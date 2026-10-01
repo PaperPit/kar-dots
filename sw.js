@@ -1,4 +1,4 @@
-const VERSION = 'kar-v16.7';
+const VERSION = 'kar-v17.1';
 
 /** AUTO-GENERATED CORE_FILES — node scripts/generate-sw-files.js */
 const CORE_FILES = [
@@ -34,6 +34,9 @@ const CORE_FILES = [
   'js/core/version.js',
   'js/data/cache-invalidate.js',
   'js/data/card-hydrate.js',
+  'js/data/cf-auth.js',
+  'js/data/cf-files.js',
+  'js/data/cf-sync.js',
   'js/data/cloud-delta.js',
   'js/data/home-stats.js',
   'js/data/image-url.js',
@@ -43,13 +46,11 @@ const CORE_FILES = [
   'js/data/srs-query.js',
   'js/data/store-box.js',
   'js/data/store-cache.js',
-  'js/data/store-cloud.js',
   'js/data/store-common.js',
   'js/data/store-contract.js',
   'js/data/store-local.js',
   'js/data/store-notes.js',
   'js/data/store-vocab.js',
-  'js/data/supabase.js',
   'js/data/sync-queue.js',
   'js/data/tts-cache.js',
   'js/data/types.js',
@@ -75,6 +76,7 @@ const CORE_FILES = [
   'js/lib/locales/ru.js',
   'js/lib/markdown.js',
   'js/lib/motion-ui.js',
+  'js/lib/network-error.js',
   'js/lib/note-graph-layout.js',
   'js/lib/note-links.js',
   'js/lib/note-memory.js',

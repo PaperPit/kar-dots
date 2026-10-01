@@ -119,6 +119,30 @@ Limits: register ~10/h, login ~30/h, pull ~60/h, push ~30/h per subject.
 
 ---
 
+## Cloudflare files / R2 (phase 3)
+
+Private card images. Requires R2 binding `CARD_IMAGES` and `SYNC_JWT_SECRET`.
+
+### `POST /api/files`
+
+**Auth:** CF sync JWT (required)
+
+**Body:** raw image bytes (`Content-Type: image/jpeg|png|webp|gif`), max 2 MB
+
+**Success:** `{ key, ref: "r2:…", url: "/api/files?key=…&exp=…&sig=…", exp }`
+
+### `GET /api/files?key=&exp=&sig=`
+
+Signed download for `<img src>` (HMAC, TTL ~1h). No Authorization header needed when signature is valid.
+
+### `GET /api/files?key=&sign=1`
+
+**Auth:** CF sync JWT, key must be owned by user → fresh signed `{ url, exp, ref }`
+
+Limits: ~60 req/hour/subject. Body size for upload: 2 MB (middleware scope `files`).
+
+---
+
 ## Errors
 
 JSON body typically `{ error: string, code?: string }`. Common statuses: `400`, `401`, `413`, `429`, `502` (upstream).

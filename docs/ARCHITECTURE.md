@@ -1,23 +1,23 @@
 # Architecture — КАР-точки
 
-How the self-hosted PWA is structured. For day-to-day coding conventions see [CLAUDE.md](../CLAUDE.md); for deploy see [docs/DEPLOY.md](./DEPLOY.md).
+How the self-hosted PWA is structured. Agent contract: [AGENTS.md](../AGENTS.md). Coding conventions: [CLAUDE.md](../CLAUDE.md); deploy: [DEPLOY.md](./DEPLOY.md); agent router: [AGENT.md](./AGENT.md).
 
 ## Runtime modes
 
 | Mode | Entry | Data |
 |------|--------|------|
-| **Dev** | `npm run dev` → root `index.html` → `js/app.js` (tsc emit, no bundler) | LocalStore (IndexedDB) or CloudStore |
-| **Prod** | `npm run build:bundle` → `dist/` (esbuild + code-splitting + `dist/sw.js`) | Same stores; SW precaches bundle chunks |
-| **API** | Cloudflare Pages Functions under `functions/api/` | KV `YT_JOBS`, BYOK keys from client settings |
+| **Dev** | `npm run dev` → root `index.html` → `js/app.js` (tsc emit, no bundler) | **LocalStore** (IndexedDB) always |
+| **Prod** | `npm run build:bundle` → `dist/` | Same; SW precaches bundle chunks |
+| **API** | Cloudflare Pages Functions under `functions/api/` | KV `YT_JOBS`, D1 `SYNC_DB`, R2 `CARD_IMAGES`, BYOK keys from client |
 
 ```mermaid
 flowchart TB
-  UI[screens + ui] --> Store[LocalStore / CloudStore]
+  UI[screens + ui] --> Store[LocalStore]
   Store -->|local| IDB[(IndexedDB)]
-  Store -->|cloud| Mirror[(IDB mirror)]
-  Store -->|cloud| Queue[SyncQueue]
-  Queue -->|flush| SB[(Supabase REST)]
-  Mirror <-->|delta pull| SB
+  UI -->|optional button sync| CfSync["/api/auth + /api/sync"]
+  CfSync --> D1[(D1 kar-sync)]
+  UI -->|images if CF logged in| Files["/api/files"]
+  Files --> R2[(R2 CARD_IMAGES)]
   UI -->|YouTube / TTS / stock| API["/api/* CF Functions"]
   API --> KV[(YT_JOBS KV)]
   API --> Upstream[Supadata / Gemini / Groq]
@@ -25,21 +25,28 @@ flowchart TB
 
 ## Layers
 
-- `js/data/` — stores, schema version, SRS queries, sync-queue, cloud delta
-- `js/lib/` — pure helpers (SRS, i18n, Anki parse, YouTube import helpers); **do not** import from `screens/`
+- `js/data/` — LocalStore, SRS queries, **cf-auth / cf-sync / cf-files**, sync-queue helpers
+- `js/lib/` — pure helpers (SRS, i18n, Anki parse, YouTube import); **do not** import from `screens/`
 - `js/ui/` — shell, navigation (`nav`), shared widgets
 - `js/screens/` — route screens; lazy `import()` from the router
 
-## Sync (cloud)
+## Sync model
 
-1. Optimistic writes go to the IDB mirror + SyncQueue.
-2. `flushSync()` applies ops to Supabase; permanent failures → **dead letters** (Settings → Sync queue).
-3. Pull uses `synced_at` (or `updated_at` fallback) watermarks — see `js/data/cloud-delta.ts`.
+### Local-first (only product path)
+
+- Boot always uses `LocalStore`; `kar_mode=cloud` is rewritten to `local`.
+- Data lives in IndexedDB. Multi-device backup: Settings → **Cloudflare sync** (email/password JWT, full export JSON v3 snapshot to D1).
+- Images: without CF login → data URL; with CF login → R2 via `js/data/cf-files.ts` (`r2:` refs + signed `GET /api/files`).
+
+### Legacy Supabase
+
+Removed from UX and default code path. Historical Postgres migrations: [legacy/README.md](./legacy/README.md). Migrate via JSON export/import.
 
 ## Schema
 
-`REQUIRED_SCHEMA_VERSION` in `js/data/schema-version.ts` must match applied Supabase migrations (`supabase/migrations/`). Mismatch shows a banner in the shell.
+- Cloudflare D1 sync: `migrations/0001_cf_sync.sql` (`cf_users`, `cf_sync_snapshots`); binding `SYNC_DB`; secret `SYNC_JWT_SECRET`.
+- R2: private bucket `kar-card-images`, binding `CARD_IMAGES`.
 
 ## Extension
 
-`extension/` (MV3) talks to the same `/api/yt-*` endpoints and writes cards via Supabase with the connected session (`?ext_connect=1`). See [chrome-extension.md](./chrome-extension.md) and [extension-privacy.md](./extension-privacy.md).
+`extension/` (MV3) generates YouTube cards and **downloads JSON** for import into the PWA (no Supabase write). See [chrome-extension.md](./chrome-extension.md).

@@ -1,6 +1,4 @@
-/** Владелец YouTube-джоба для расширения: Supabase user id или chrome.storage UUID. */
-
-import { getAuth } from "./storage.js"
+/** Владелец YouTube-джоба для расширения: стабильный UUID в chrome.storage. */
 
 const STORAGE_KEY = "kar_yt_job_user"
 const UUID_RE =
@@ -21,8 +19,5 @@ async function anonymousOwnerId(): Promise<string> {
 }
 
 export async function getExtYtJobUserId(): Promise<string> {
-  const auth = await getAuth()
-  const uid = auth?.session?.user?.id
-  if (uid && isUuid(uid)) return uid
   return anonymousOwnerId()
 }

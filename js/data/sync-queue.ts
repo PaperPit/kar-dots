@@ -2,7 +2,7 @@
 // Очередь синхронизации для облачного режима без интернета
 // ============================================================
 
-import { isNetworkError } from "./supabase.js"
+import { isNetworkError } from "../lib/network-error.js"
 
 const MIRROR_DB = "kartochki_cloud"
 // 3: в браузерах, где успела поработать промежуточная реализация YouTube-импорта,

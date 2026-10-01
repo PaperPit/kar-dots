@@ -1,16 +1,15 @@
 import { initTheme } from "./lib/theme.js"
 import { initMotionUi, animateBootSplashOut } from "./ui/motion-lazy.js"
-import { initConfig, cloudConfigured, setSb, setStore, sb, cfg } from "./core/state.js"
+import { initConfig } from "./core/state.js"
 import { toast } from "./ui/ui.js"
-import { MiniSupabase } from "./data/supabase.js"
-import { renderAuth, enterLocal, attachCloudDataReload } from "./screens/auth/index.js"
+import { renderAuth, enterLocal } from "./screens/auth/index.js"
 import { initActivity } from "./lib/activity.js"
 import { initUiClicks } from "./lib/ui-clicks.js"
-import { initRouter, route } from "./core/router.js"
+import { initRouter } from "./core/router.js"
 import { initSpeechVoices } from "./lib/web-speech-tts.js"
 import { initStudyKeyboardLock } from "./lib/study-keyboard.js"
 import { initExtConnect } from "./lib/ext-connect.js"
-import { applyUiLocale, t } from "./lib/i18n.js"
+import { t } from "./lib/i18n.js"
 import { initGlobalErrors } from "./ui/global-errors.js"
 
 function dismissBootSplash() {
@@ -24,44 +23,18 @@ async function boot() {
   await initConfig()
   await initActivity()
 
-  if (cloudConfigured) {
-    const url = cfg.SUPABASE_URL
-    const key = cfg.SUPABASE_ANON_KEY
-    if (url !== undefined && key !== undefined) {
-      setSb(new MiniSupabase(url, key))
-    }
-  }
-
   initRouter()
   initUiClicks()
   initSpeechVoices()
   initStudyKeyboardLock()
-  // Local-first: по умолчанию локальный режим. Cloud (Supabase) — только
-  // явный legacy-вход с живой сессией. Опциональный синк — Cloudflare (фаза 2, Settings).
-  const mode = localStorage.getItem("kar_mode")
 
+  // Local-first only. Multi-device sync = Cloudflare (Settings), not Supabase.
   try {
-    if (mode === "cloud" && sb && sb.hasSession()) {
-      const { CloudStore } = await import("./data/store-cloud.js")
-      const cloud = new CloudStore(sb)
-      await cloud.init()
-      setStore(cloud)
-      applyUiLocale(cloud.settings.language)
-      attachCloudDataReload(cloud)
-      if (navigator.onLine && !cloud.folders.length && !cloud.boxes.length) {
-        await cloud.whenCloudReady()
-      }
-      if (navigator.onLine) {
-        await cloud.whenCloudReady()
-        await cloud.syncActivityNow()
-      }
-      await route()
-      initExtConnect()
-    } else {
-      if (mode !== "local") localStorage.setItem("kar_mode", "local")
-      await enterLocal()
-      initExtConnect()
+    if (localStorage.getItem("kar_mode") === "cloud") {
+      localStorage.setItem("kar_mode", "local")
     }
+    await enterLocal()
+    initExtConnect()
   } catch (e) {
     console.error(e)
     dismissBootSplash()

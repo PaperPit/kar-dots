@@ -1,5 +1,4 @@
 import { buildCardDescription, type YtCandidate } from "../../../js/lib/youtube-import.js"
-import type { ExtSupabase } from "./supabase-client.js"
 
 export interface SelectedCandidate {
   cand: YtCandidate
@@ -14,11 +13,12 @@ function uuid(): string {
   })
 }
 
-/** Минимальная запись карточки — те же поля, что buildCardRecord в приложении. */
-function buildCardRow(
-  data: { folder_id: string; front: string; back: string; description: string },
-  userId: string
-) {
+function buildCardRow(data: {
+  folder_id: string
+  front: string
+  back: string
+  description: string
+}) {
   const t = Date.now()
   return {
     id: uuid(),
@@ -30,57 +30,54 @@ function buildCardRow(
     front_img: null,
     back_img: null,
     folder_id: data.folder_id,
-    user_id: userId,
     sm2_ef: 2.5,
     sm2_reps: 0,
     sm2_ivl: 0,
     sm2_due: null,
     box: 0,
-    box_due: null,
-    fsrs_state: null,
-    fsrs_stability: null,
-    fsrs_difficulty: null,
-    fsrs_due: null,
-    fsrs_scheduled_days: null,
-    fsrs_elapsed_days: null,
-    fsrs_reps: null,
-    fsrs_lapses: null,
-    fsrs_learning_steps: null,
-    fsrs_last_review: null
+    box_due: null
   }
 }
 
-export async function createYoutubeCardsBatch(
-  sb: ExtSupabase,
-  folderId: string,
+/** Собрать JSON v3-совместимый фрагмент для импорта в PWA (без cloud write). */
+export function buildImportPayload(
+  folderName: string,
   selected: SelectedCandidate[],
   videoId: string | null
-): Promise<{ ok: number; failed: { front: string; message: string }[] }> {
-  const uid = sb.userId()
-  if (!uid) throw new Error("Нет пользователя")
-
-  let ok = 0
-  const failed: { front: string; message: string }[] = []
-
+): { ok: number; json: string } {
+  const folderId = uuid()
+  const now = Date.now()
+  const cards = []
   for (const { cand, back } of selected) {
     const text = String(back || "").trim()
     if (!text) continue
-    try {
-      const row = buildCardRow(
-        {
-          folder_id: folderId,
-          front: cand.front || "",
-          back: text,
-          description: buildCardDescription(cand, videoId)
-        },
-        uid
-      )
-      await sb.insert("cards", row)
-      ok++
-    } catch (e) {
-      const err = e as Error
-      failed.push({ front: cand.front || "", message: err.message || "Ошибка сохранения" })
-    }
+    cards.push(
+      buildCardRow({
+        folder_id: folderId,
+        front: cand.front || "",
+        back: text,
+        description: buildCardDescription(cand, videoId)
+      })
+    )
   }
-  return { ok, failed }
+  const payload = {
+    version: 3,
+    exported_at: now,
+    folders: [{ id: folderId, name: folderName || "YouTube", created_at: now }],
+    boxes: [],
+    cards,
+    notes: [],
+    settings: {}
+  }
+  return { ok: cards.length, json: JSON.stringify(payload, null, 2) }
+}
+
+export function downloadTextFile(filename: string, text: string): void {
+  const blob = new Blob([text], { type: "application/json;charset=utf-8" })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement("a")
+  a.href = url
+  a.download = filename
+  a.click()
+  setTimeout(() => URL.revokeObjectURL(url), 2000)
 }

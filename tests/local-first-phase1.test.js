@@ -1,9 +1,8 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from "vitest"
+import { describe, it, expect, beforeEach, afterEach } from "vitest"
 import { t, setLocale } from "../js/lib/i18n.js"
 
 /**
- * Фаза 1 local-first: строки auth/settings и правило выбора режима.
- * Boot-логика в app.ts: cloud только при kar_mode=cloud + session; иначе local.
+ * Local-first: boot всегда LocalStore; sync — Cloudflare в Настройках.
  */
 describe("local-first phase 1", () => {
   beforeEach(() => {
@@ -15,24 +14,22 @@ describe("local-first phase 1", () => {
     localStorage.clear()
   })
 
-  it("exposes local-first auth and switch-local strings", () => {
+  it("exposes local + CF sync strings", () => {
     expect(t("auth.tryLocal")).toMatch(/устройств/i)
-    expect(t("auth.cloudLegacySummary")).toMatch(/Supabase/i)
-    expect(t("settings.account.switchLocalBtn")).toBeTruthy()
-    expect(t("settings.sync.localOnly")).toMatch(/legacy|Legacy/i)
+    expect(t("settings.account.localMode")).toBeTruthy()
+    expect(t("settings.account.cfHint")).toMatch(/Cloudflare/i)
     expect(t("settings.cfSync.title")).toMatch(/Cloudflare/i)
+    expect(t("settings.cfSync.lead")).toMatch(/R2|D1/i)
   })
 
-  it("boot mode rule: missing or local → local; cloud only when explicit", () => {
-    function resolveMode(stored, hasSession) {
-      if (stored === "cloud" && hasSession) return "cloud"
-      return "local"
+  it("boot mode rule: always local (cloud rewritten away)", () => {
+    function resolveMode(stored) {
+      if (stored === "cloud") return "local"
+      return stored === "local" ? "local" : "local"
     }
-    expect(resolveMode(null, false)).toBe("local")
-    expect(resolveMode(undefined, true)).toBe("local")
-    expect(resolveMode("local", false)).toBe("local")
-    expect(resolveMode("cloud", false)).toBe("local")
-    expect(resolveMode("cloud", true)).toBe("cloud")
+    expect(resolveMode(null)).toBe("local")
+    expect(resolveMode("local")).toBe("local")
+    expect(resolveMode("cloud")).toBe("local")
   })
 
   it("EN locale has matching keys", () => {

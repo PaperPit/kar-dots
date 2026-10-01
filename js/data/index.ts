@@ -1,6 +1,6 @@
 export { DEFAULT_SETTINGS, uuid } from "./store-common.js"
 export { LocalStore } from "./store-local.js"
-export { CloudStore, folderSaveErrorMessage } from "./store-cloud.js"
+export { folderSaveErrorMessage } from "../lib/folder-errors.js"
 import type { Card } from "./types.js"
 
 /** Нормализует карточку после загрузки (старые бэкапы без description). */

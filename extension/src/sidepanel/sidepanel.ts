@@ -1,5 +1,4 @@
-// Первым — и намеренно первым: сторож ловит падения тел остальных модулей,
-// которые иначе гасят окно молча. Порядок этого импорта менять нельзя.
+// Первым — и намеренно первым: сторож ловит падения тел остальных модулей.
 import "./error-guard.js"
 import {
   APP_ORIGIN,
@@ -8,33 +7,26 @@ import {
   type ImportMode
 } from "../lib/constants.js"
 import { detectExtLocale, modeLabel, setExtLocale, t } from "../lib/i18n.js"
-import { getAuth, getPrefs, getVideo, setPrefs, setAuth } from "../lib/storage.js"
-import { ExtSupabase } from "../lib/supabase-client.js"
-import { listImportFolders, loadUserSettings, type ExtFolder } from "../lib/folders.js"
+import { getPrefs, getVideo, setPrefs } from "../lib/storage.js"
+import { defaultExportFolder, settingsFromPrefs } from "../lib/folders.js"
 import {
   fetchTranscriptFromUrl,
   prepareTranscriptForMode,
   generateYoutubeCards
 } from "../lib/yt-api.js"
 import { loadKnownTermsForImport } from "../lib/known-terms.js"
-import { createYoutubeCardsBatch } from "../lib/create-cards.js"
+import { buildImportPayload, downloadTextFile } from "../lib/create-cards.js"
 import {
   filterNewCandidates,
   filterNewSentences,
-  fmtTimestamp,
   parseYouTubeId,
   type YtCandidate
 } from "../../../js/lib/youtube-import.js"
 import { hasSupadataApiKey, hasGenerateApiKey } from "../../../js/lib/youtube-import-settings.js"
 import type { Settings } from "../../../js/data/types.js"
 
-// #app всегда есть в index.html (там же лежит статическая заглушка), а если
-// разметку однажды сломают — TypeError поймает error-guard и нарисует текст
-// прямо в окне, поэтому отдельная проверка здесь ничего не добавляет.
 const root = document.getElementById("app")!
 
-// Ошибка вне boot() (обработчик кнопки, слушатель storage) тоже не должна
-// оставлять пользователя один на один с пустой панелью.
 window.addEventListener("unhandledrejection", (ev) => {
   renderFatal(ev.reason)
 })
@@ -51,22 +43,13 @@ interface PreviewItem {
 let cancelled = false
 let mode: ImportMode = "both"
 let mergeCues = true
-let folderId: string | null = null
-let folders: ExtFolder[] = []
+let folderName = "YouTube"
 let settings: Settings | null = null
 let videoUrl = ""
 let videoTitle = ""
 let previewItems: PreviewItem[] = []
 let videoId: string | null = null
-let accountEmail: string | null = null
 
-/**
- * Атрибуты и дети приходят и как null — например `el("h1", null, "…")`.
- * Значение по умолчанию у параметра подставляется только вместо undefined, так
- * что на явный null `Object.entries` бросал «Cannot convert undefined or null
- * to object». Падало это внутри brand(), а brand() зовётся в каждом рендере —
- * поэтому окно расширения открывалось пустым вообще всегда.
- */
 function el<K extends keyof HTMLElementTagNameMap>(
   tag: K,
   attrs?: Record<string, unknown> | null,
@@ -99,9 +82,6 @@ function brand() {
   ])
 }
 
-// Не знать текущее видео — не повод не показывать панель: пользователь всё
-// равно может войти в аккаунт и выбрать папку. Поэтому оба источника опрашиваем
-// по отдельности и ошибку каждого проглатываем.
 async function refreshVideoFromStorage() {
   try {
     const v = await getVideo()
@@ -110,7 +90,7 @@ async function refreshVideoFromStorage() {
       videoTitle = v.title || videoTitle
     }
   } catch {
-    /* chrome.storage.session недоступен — не критично */
+    /* ignore */
   }
   if (videoUrl) return
   try {
@@ -120,16 +100,10 @@ async function refreshVideoFromStorage() {
       videoTitle = (tab.title || "").replace(/ - YouTube$/, "")
     }
   } catch {
-    /* нет доступа к вкладке — пользователь вставит ссылку, открыв ролик заново */
+    /* ignore */
   }
 }
 
-/**
- * Последний рубеж: что бы ни упало на старте, пользователь должен увидеть текст,
- * а не пустую панель. Раньше начало boot() лежало вне try/catch и вызывалось как
- * `void boot()`, поэтому любая ошибка в chrome.storage/chrome.tabs просто гасила
- * панель — снаружи это выглядело как «расширение не открывается».
- */
 function renderFatal(e: unknown) {
   const msg = e instanceof Error ? e.message : String(e)
   root.replaceChildren(
@@ -157,77 +131,22 @@ async function bootInner() {
   const prefs = await getPrefs()
   mode = prefs.mode
   mergeCues = prefs.mergeCues
-  folderId = prefs.folderId
+  folderName = prefs.folderName || "YouTube"
+  settings = settingsFromPrefs(prefs)
   await refreshVideoFromStorage()
-
-  const auth = await getAuth()
-  if (!auth) {
-    renderAuth()
-    return
-  }
-
-  try {
-    const sb = await ExtSupabase.fromStorage()
-    if (!sb || !(await sb.ensureFresh())) {
-      await setAuth(null)
-      renderAuth(t("auth.expired"))
-      return
-    }
-    accountEmail = sb.email()
-    folders = await listImportFolders(sb)
-    settings = await loadUserSettings(sb)
-    if (folderId && !folders.some((f) => f.id === folderId)) folderId = null
-    if (!folderId && folders[0]) {
-      folderId = folders[0].id
-      await setPrefs({ folderId })
-    }
-    renderForm()
-  } catch (e) {
-    renderAuth(e instanceof Error ? e.message : String(e))
-  }
+  renderForm()
 }
 
-function renderAuth(error?: string) {
-  root.replaceChildren(
-    brand(),
-    el("div", { class: "card auth-box" }, [
-      el("p", null, t("auth.body", { host: new URL(APP_ORIGIN).host })),
-      error ? el("p", { class: "error" }, error) : null,
-      el("div", { class: "actions", style: "justify-content:center" }, [
-        el(
-          "button",
-          {
-            class: "btn primary",
-            onclick: () => {
-              chrome.tabs.create({ url: CONNECT_URL })
-            }
-          },
-          t("auth.login")
-        )
-      ]),
-      el("p", { class: "muted" }, t("auth.hint"))
-    ])
-  )
-}
-
-function accountBar() {
+function hintBar() {
   return el("div", { class: "account-row" }, [
-    el(
-      "span",
-      null,
-      accountEmail ? t("account.email", { email: accountEmail }) : t("account.connected")
-    ),
+    el("span", null, t("account.localOnly")),
     el(
       "button",
       {
         class: "btn linkish",
-        onclick: async () => {
-          await setAuth(null)
-          accountEmail = null
-          renderAuth()
-        }
+        onclick: () => chrome.tabs.create({ url: CONNECT_URL })
       },
-      t("account.disconnect")
+      t("account.openApp")
     )
   ])
 }
@@ -262,25 +181,52 @@ function renderForm(error = "") {
   }) as HTMLInputElement
 
   const sentencesOpts = el("div", { class: "field" }, [
-    el("label", { class: "check-label" }, [
-      mergeChk,
-      el("span", null, t("form.mergeCues"))
-    ])
+    el("label", { class: "check-label" }, [mergeChk, el("span", null, t("form.mergeCues"))])
   ])
   sentencesOpts.style.display = mode === "sentences" ? "" : "none"
 
-  const folderSelect = el("select", { class: "input" }, []) as HTMLSelectElement
-  if (!folders.length) {
-    folderSelect.append(el("option", { value: "" }, t("form.noFolders")))
-  } else {
-    for (const f of folders) {
-      folderSelect.append(el("option", { value: f.id, selected: f.id === folderId }, f.name))
+  const folderInput = el("input", {
+    class: "input",
+    type: "text",
+    value: folderName,
+    onchange: () => {
+      folderName = folderInput.value.trim() || "YouTube"
+      void setPrefs({ folderName })
     }
-  }
-  folderSelect.addEventListener("change", () => {
-    folderId = folderSelect.value || null
-    void setPrefs({ folderId })
-  })
+  }) as HTMLInputElement
+
+  const keySupadata = el("input", {
+    class: "input",
+    type: "password",
+    value: settings?.supadataApiKey || "",
+    placeholder: "Supadata",
+    onchange: async () => {
+      await setPrefs({ supadataApiKey: keySupadata.value.trim() })
+      settings = settingsFromPrefs(await getPrefs())
+    }
+  }) as HTMLInputElement
+
+  const keyGemini = el("input", {
+    class: "input",
+    type: "password",
+    value: settings?.geminiApiKey || "",
+    placeholder: "Gemini",
+    onchange: async () => {
+      await setPrefs({ geminiApiKey: keyGemini.value.trim() })
+      settings = settingsFromPrefs(await getPrefs())
+    }
+  }) as HTMLInputElement
+
+  const keyGroq = el("input", {
+    class: "input",
+    type: "password",
+    value: settings?.groqApiKey || "",
+    placeholder: "Groq",
+    onchange: async () => {
+      await setPrefs({ groqApiKey: keyGroq.value.trim() })
+      settings = settingsFromPrefs(await getPrefs())
+    }
+  }) as HTMLInputElement
 
   const errEl = el("p", { class: "error" }, error)
   errEl.style.display = error ? "" : "none"
@@ -289,7 +235,7 @@ function renderForm(error = "") {
     "button",
     {
       class: "btn primary",
-      disabled: !folders.length || !videoUrl,
+      disabled: !videoUrl,
       onclick: () => void runImport()
     },
     t("form.generate")
@@ -297,13 +243,15 @@ function renderForm(error = "") {
 
   root.replaceChildren(
     brand(),
-    accountBar(),
+    hintBar(),
     el("div", { class: "card" }, [
       el("p", { class: "video-title" }, videoTitle || t("form.videoFallback")),
       el("p", { class: "video-url" }, videoUrl || t("form.urlFallback")),
       el("div", { class: "field" }, [el("label", null, t("form.whatLabel")), modeSeg]),
       sentencesOpts,
-      el("div", { class: "field" }, [el("label", null, t("form.folderLabel")), folderSelect]),
+      el("div", { class: "field" }, [el("label", null, t("form.folderLabel")), folderInput]),
+      el("div", { class: "field" }, [el("label", null, t("form.keysLabel")), keySupadata, keyGemini, keyGroq]),
+      el("p", { class: "muted" }, t("form.exportHint")),
       errEl,
       el("div", { class: "actions" }, [goBtn])
     ])
@@ -342,10 +290,7 @@ async function runImport() {
     renderForm(t("form.badUrl"))
     return
   }
-  if (!folderId) {
-    renderForm(t("form.pickFolder"))
-    return
-  }
+  folderName = folderName.trim() || "YouTube"
   if (!hasSupadataApiKey(settings)) {
     renderForm(t("form.needSupadata"))
     return
@@ -356,14 +301,10 @@ async function runImport() {
   }
 
   const setStatus = renderProgress(t("progress.fetchVideo"))
-  const isClosed = () => cancelled
 
   try {
-    const sb = await ExtSupabase.fromStorage()
-    if (!sb) throw new Error(t("save.noSession"))
-
     const { video, transcript } = await fetchTranscriptFromUrl(videoUrl, settings, {
-      isClosed,
+      isClosed: () => cancelled,
       onStatus: setStatus
     })
     if (cancelled) return
@@ -375,12 +316,12 @@ async function runImport() {
     const prepared = prepareTranscriptForMode(transcript, mode, { mergeCues })
     const gen = await generateYoutubeCards(
       { video, transcript: prepared, mode, settings },
-      { isClosed }
+      { isClosed: () => cancelled }
     )
     if (cancelled) return
 
     setStatus(mode === "sentences" ? t("progress.checkSentences") : t("progress.checkWords"))
-    const known = await loadKnownTermsForImport(sb, folders, folderId)
+    const known = await loadKnownTermsForImport()
     if (cancelled) return
 
     if (mode === "sentences") {
@@ -424,51 +365,47 @@ function renderPreview() {
     groups.get(kind)!.push(item)
   }
 
-  const selectedCount = () => previewItems.filter((i) => i.checked && i.back.trim()).length
-  const countLabel = el("span", { class: "muted" }, t("preview.selected", { n: selectedCount() }))
-  const toast = el("div", { class: "toast" }, "")
-  toast.style.display = "none"
-
-  const list = el("div", null, [])
-  for (const [title, items] of groups) {
-    const groupEl = el("div", { class: "preview-group" }, [el("h3", null, `${title} (${items.length})`)])
+  const list = el("div", { class: "preview-list" }, [])
+  for (const [label, items] of groups) {
+    list.append(el("h3", null, label))
     for (const item of items) {
-      const chk = el("input", { type: "checkbox", checked: item.checked }) as HTMLInputElement
-      chk.addEventListener("change", () => {
-        item.checked = chk.checked
-        countLabel.textContent = t("preview.selected", { n: selectedCount() })
-        saveBtn.disabled = selectedCount() === 0
-      })
-      const back = el("input", { class: "back", value: item.back }) as HTMLInputElement
-      back.addEventListener("input", () => {
-        item.back = back.value
-        countLabel.textContent = t("preview.selected", { n: selectedCount() })
-        saveBtn.disabled = selectedCount() === 0
-      })
-      const metaParts = [
-        item.cand.level,
-        item.cand.pos || item.cand.kind,
-        item.cand.t != null ? fmtTimestamp(item.cand.t) : null
-      ].filter(Boolean)
-      groupEl.append(
+      const chk = el("input", {
+        type: "checkbox",
+        checked: item.checked,
+        onchange: () => {
+          item.checked = chk.checked
+          countLabel.textContent = t("preview.selected", {
+            n: previewItems.filter((i) => i.checked).length
+          })
+        }
+      }) as HTMLInputElement
+      const back = el("input", {
+        class: "input",
+        type: "text",
+        value: item.back,
+        onchange: () => {
+          item.back = back.value
+        }
+      }) as HTMLInputElement
+      list.append(
         el("div", { class: "preview-row" }, [
           chk,
-          el("div", null, [
-            el("div", { class: "front" }, item.cand.front || ""),
-            metaParts.length ? el("div", { class: "meta" }, metaParts.join(" · ")) : null,
-            back
-          ])
+          el("div", null, [el("b", null, item.cand.front || ""), back])
         ])
       )
     }
-    list.append(groupEl)
   }
 
+  const countLabel = el(
+    "span",
+    null,
+    t("preview.selected", { n: previewItems.filter((i) => i.checked).length })
+  )
+  const toast = el("p", { class: "toast", style: "display:none" }, "")
   const saveBtn = el(
     "button",
     {
       class: "btn primary",
-      disabled: selectedCount() === 0,
       onclick: () => void saveSelected(saveBtn, toast, countLabel)
     },
     t("preview.create")
@@ -502,41 +439,30 @@ async function saveSelected(
   const selected = previewItems
     .filter((i) => i.checked && i.back.trim())
     .map((i) => ({ cand: i.cand, back: i.back.trim() }))
-  if (!selected.length || !folderId) return
+  if (!selected.length) return
 
   saveBtn.disabled = true
   toast.style.display = "none"
   try {
-    const sb = await ExtSupabase.fromStorage()
-    if (!sb) throw new Error(t("save.noSession"))
-    const { ok, failed } = await createYoutubeCardsBatch(sb, folderId, selected, videoId)
-    const folder = folders.find((f) => f.id === folderId)
-    toast.className = failed.length && !ok ? "toast error" : "toast"
+    const { ok, json } = buildImportPayload(folderName || defaultExportFolder().name, selected, videoId)
+    downloadTextFile(`kar-youtube-${Date.now()}.json`, json)
+    toast.className = "toast"
     toast.style.display = ""
-    toast.textContent =
-      ok > 0
-        ? failed.length
-          ? t("save.createdWithFail", { ok, fail: failed.length })
-          : t("save.created", { ok })
-        : t("save.fail", {
-            message: failed[0]?.message || t("error.generic"),
-          })
-    if (ok > 0) {
-      toast.append(
-        el("br"),
-        el(
-          "a",
-          {
-            href: `${APP_ORIGIN}/#/folder/${folderId}`,
-            target: "_blank",
-            rel: "noopener noreferrer",
-            style: "display:inline-block;margin-top:8px;color:inherit;font-weight:700"
-          },
-          folder ? t("save.openNamed", { name: folder.name }) : t("save.openFolder")
-        )
+    toast.textContent = t("save.exported", { ok })
+    toast.append(
+      el("br"),
+      el(
+        "a",
+        {
+          href: `${APP_ORIGIN}/#settings`,
+          target: "_blank",
+          rel: "noopener noreferrer",
+          style: "display:inline-block;margin-top:8px;color:inherit;font-weight:700"
+        },
+        t("save.openImport")
       )
-    }
-    countLabel.textContent = t("save.created", { ok })
+    )
+    countLabel.textContent = t("save.exported", { ok })
   } catch (e) {
     toast.className = "toast error"
     toast.style.display = ""
@@ -546,7 +472,6 @@ async function saveSelected(
 }
 
 chrome.storage.onChanged.addListener((changes, area) => {
-  if (area === "local" && changes.kar_ext_auth) void boot()
   if (area === "session" && changes.kar_ext_video) {
     const v = changes.kar_ext_video.newValue as { url?: string; title?: string } | undefined
     if (v?.url) {

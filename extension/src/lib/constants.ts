@@ -1,15 +1,13 @@
 /**
  * Origin веб-приложения. По умолчанию официальный демо-хост.
  * Self-host: KAR_EXT_APP_ORIGIN=https://your.domain npm run ext:build
- * (esbuild define подставляет KAR_EXT_APP_ORIGIN).
  */
 declare const KAR_EXT_APP_ORIGIN: string | undefined
 export const APP_ORIGIN = KAR_EXT_APP_ORIGIN ?? "https://kar-tochki.pages.dev"
 
-export const CONNECT_URL = `${APP_ORIGIN}/?ext_connect=1`
+export const CONNECT_URL = `${APP_ORIGIN}/#settings`
 
 export const STORAGE_KEYS = {
-  auth: "kar_ext_auth",
   prefs: "kar_ext_prefs",
   video: "kar_ext_video"
 } as const
@@ -23,23 +21,13 @@ export const MODES: { id: ImportMode; label: string }[] = [
   { id: "sentences", label: "Предложения" }
 ]
 
-export interface ExtAuth {
-  session: {
-    access_token?: string
-    refresh_token?: string
-    expires_at_ms?: number
-    user?: { id?: string; email?: string; [k: string]: unknown }
-    [k: string]: unknown
-  }
-  supabaseUrl: string
-  anonKey: string
-  connectedAt: number
-}
-
 export interface ExtPrefs {
   mode: ImportMode
   mergeCues: boolean
-  folderId: string | null
+  folderName: string
+  supadataApiKey: string
+  geminiApiKey: string
+  groqApiKey: string
 }
 
 export interface ExtVideo {
@@ -50,13 +38,14 @@ export interface ExtVideo {
 
 export type ExtMessage =
   | { type: "SET_VIDEO"; url: string; title?: string; tabId?: number }
-  | { type: "AUTH_CONNECT"; session: ExtAuth["session"]; supabaseUrl: string; anonKey: string }
-  | { type: "AUTH_DISCONNECT" }
   | { type: "GET_STATE" }
   | { type: "PING_CONNECT" }
 
 export const DEFAULT_PREFS: ExtPrefs = {
   mode: "both",
   mergeCues: true,
-  folderId: null
+  folderName: "YouTube",
+  supadataApiKey: "",
+  geminiApiKey: "",
+  groqApiKey: ""
 }

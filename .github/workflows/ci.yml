@@ -16,6 +16,8 @@ jobs:
           node-version: "22"
           cache: npm
       - run: npm ci
+      - name: Harness self-test
+        run: npm run harness:test
       - name: Type check
         run: npm run typecheck
       - name: Lint

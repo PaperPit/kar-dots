@@ -1,23 +1,24 @@
-import type { Folder, Settings } from "../../../js/data/types.js"
-import { isVocabPackFolder } from "../../../js/lib/vocab-packs.js"
-import { ExtSupabase } from "./supabase-client.js"
+import type { Settings } from "../../../js/data/types.js"
 
 export interface ExtFolder {
   id: string
   name: string
 }
 
-/** Обычные папки пользователя (без vocab-pack). */
-export async function listImportFolders(sb: ExtSupabase): Promise<ExtFolder[]> {
-  const rows = await sb.select<Folder>("folders", "select=id,name,pack_id&order=created_at.asc")
-  return rows
-    .filter((f) => f?.id && f?.name && !isVocabPackFolder(f))
-    .map((f) => ({ id: f.id, name: f.name }))
+/** Локальная «папка» для экспорта JSON (без cloud). */
+export function defaultExportFolder(name = "YouTube"): ExtFolder {
+  return { id: "export", name: name || "YouTube" }
 }
 
-export async function loadUserSettings(sb: ExtSupabase): Promise<Settings | null> {
-  const uid = sb.userId()
-  if (!uid) return null
-  const rows = await sb.select<{ data?: Settings }>("settings", "select=data&user_id=eq." + uid)
-  return rows[0]?.data || null
+/** Ключи API хранятся в prefs расширения, не в Supabase settings. */
+export function settingsFromPrefs(prefs: {
+  supadataApiKey?: string
+  geminiApiKey?: string
+  groqApiKey?: string
+}): Settings {
+  return {
+    supadataApiKey: prefs.supadataApiKey || "",
+    geminiApiKey: prefs.geminiApiKey || "",
+    groqApiKey: prefs.groqApiKey || ""
+  } as Settings
 }

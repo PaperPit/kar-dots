@@ -1,10 +1,5 @@
-import { setAuth, setVideo } from "./lib/storage.js"
+import { setVideo } from "./lib/storage.js"
 import type { ExtMessage } from "./lib/constants.js"
-
-// Окно расширения — попап у иконки (manifest → action.default_popup), поэтому
-// открывает его сам Chrome по клику. Здесь ничего настраивать не нужно: вызовы
-// chrome.sidePanel убраны вместе с разрешением "sidePanel", иначе сервис-воркер
-// падал бы на старте с «Cannot read properties of undefined».
 
 chrome.runtime.onMessage.addListener((msg: ExtMessage, sender, sendResponse) => {
   void (async () => {
@@ -19,28 +14,7 @@ chrome.runtime.onMessage.addListener((msg: ExtMessage, sender, sendResponse) => 
         return
       }
 
-      if (msg.type === "AUTH_CONNECT") {
-        if (!msg.session?.access_token || !msg.supabaseUrl || !msg.anonKey) {
-          sendResponse({ ok: false, error: "Неполные данные сессии" })
-          return
-        }
-        await setAuth({
-          session: msg.session,
-          supabaseUrl: msg.supabaseUrl,
-          anonKey: msg.anonKey,
-          connectedAt: Date.now()
-        })
-        sendResponse({ ok: true })
-        return
-      }
-
-      if (msg.type === "AUTH_DISCONNECT") {
-        await setAuth(null)
-        sendResponse({ ok: true })
-        return
-      }
-
-      if (msg.type === "GET_STATE") {
+      if (msg.type === "GET_STATE" || msg.type === "PING_CONNECT") {
         sendResponse({ ok: true })
         return
       }

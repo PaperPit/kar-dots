@@ -27,7 +27,8 @@ Legacy Supabase больше не нужен. Архив схемы: [legacy/REA
 1. `npx wrangler login`
 2. KV: `npx wrangler kv namespace create YT_JOBS` → `id` в [`wrangler.toml`](../wrangler.toml)
 3. D1: `npx wrangler d1 create kar-sync` → `database_id` в wrangler; `npm run d1:migrate:remote`
-4. R2: `npx wrangler r2 bucket create kar-card-images` → binding `CARD_IMAGES` (уже в wrangler.toml)
+4. R2: сначала **включите R2** в Dashboard (R2 → Enable). Затем  
+   `npx wrangler r2 bucket create kar-card-images` и раскомментируйте `[[r2_buckets]]` в [`wrangler.toml`](../wrangler.toml) (binding `CARD_IMAGES`). Без этого деплой с binding падает, upload отдаёт 503.
 5. Pages Secret: **`SYNC_JWT_SECRET`** (случайная строка ≥32 символов) — JWT sync + подпись `/api/files`
 6. Деплой: GitHub Action на `main` **или** `npm run pages:deploy`
 7. Build (Connect to Git): command `node scripts/generate-config.js && npm run build:bundle`, output `dist`

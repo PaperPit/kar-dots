@@ -2,28 +2,32 @@
 
 ## Состояние на сейчас
 
-- Локально: `pages:dev` на http://localhost:8788 (`.dev.vars` + D1 + R2 + KV)
-- Автотесты: `npm run check` + e2e Cloudflare + `harness:test` — OK
-- API smoke на localhost:8788: register → `POST /api/files` → signed GET → push/pull (в т.ч. 2-й clientId) — OK
-- Прод Cloudflare: **нужен `npx wrangler login`** (токен протух / нет `CLOUDFLARE_API_TOKEN`)
-- Коммит/деплой: не делались (нужна явная команда + login)
+- Прод: задеплоено на https://kar-tochki.pages.dev (preview https://979efa41.kar-tochki.pages.dev)
+- Secret `SYNC_JWT_SECRET` задан на Pages
+- D1 `kar-sync`: таблицы `cf_users` / `cf_sync_snapshots` на remote
+- R2: **не включён в аккаунте Cloudflare** (API 10042) — binding временно закомментирован в `wrangler.toml`
+- Локально: `pages:dev` → http://localhost:8788 (smoke API OK)
+- Коммиты: `b28b458` (CF-only v17.1), `7040ec8` (defer R2); branch ahead of origin, **не push**
 
-## Сделано в этой сессии (verify/run)
+## Сделано (verify/run)
 
-- [x] Автопроверка
-- [x] `.dev.vars`, `d1:migrate`, `pages:dev` (секция `[ai]` в wrangler.toml отключена для локального запуска без login)
-- [x] Скрипт прод-инфры: `bash scripts/cf-infra-setup.sh`
-- [x] Ручная приёмка API на локальном стеке
+- [x] `npm run check` + e2e Cloudflare + harness
+- [x] `.dev.vars` + `d1:migrate` + `pages:dev`
+- [x] Локальный API: register → files → signed GET → push/pull
+- [x] `SYNC_JWT_SECRET` на Pages
+- [x] `npm run pages:deploy`
+- [x] Скрипт `scripts/cf-infra-setup.sh`
 
-## Блокер прод
+## Осталось вам (R2)
 
-1. В своём терминале: `npx wrangler login`
-2. `bash scripts/cf-infra-setup.sh`
-3. Dashboard: R2 binding `CARD_IMAGES` + Secret `SYNC_JWT_SECRET`
-4. Написать агенту: **закоммить и задеплой**
+1. Dashboard → **R2 → Enable** (billing/onboarding).
+2. `npx wrangler r2 bucket create kar-card-images`
+3. Раскомментировать `[[r2_buckets]]` в `wrangler.toml`.
+4. `npm run pages:deploy` ещё раз.
+5. По желанию: `git push` (ветка ahead/behind — нужен merge/rebase).
 
 ## Следующие шаги
 
-1. Wrangler login + infra script + secret/binding.
-2. Commit + `npm run pages:deploy`.
-3. Ручной прогон на `*.pages.dev` (картинка → `r2:`).
+1. Включить R2 и вернуть binding.
+2. Ручной прогон на проде с картинкой → `r2:`.
+3. Push в origin по явной просьбе.

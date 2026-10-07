@@ -38,8 +38,8 @@
     "d1:migrate:remote": "wrangler d1 migrations apply kar-sync --remote"
   },
   "dependencies": {
-    "@capacitor/keyboard": "^8.0.5",
-    "motion": "^13.1.1"
+    "@capacitor/keyboard": "^8.0.6",
+    "motion": "^14.0.0"
   },
   "devDependencies": {
     "@capacitor/cli": "^8.5.0",
